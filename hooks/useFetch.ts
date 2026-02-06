@@ -7,47 +7,74 @@ export default function useFetch<R,B>(config:Conf<B>){
   const [noResult, setNoResult] = useState(false);
   const [message, setMessage] = useState("");
 
-  const fetchFn = async (body:B,callback:(r:R) => void) => {
+  const fetchFn = async (url:string,body:B,callback:(r:R) => void) => {
+		const contentType = "application/json"
+
+		if(url != '') config.url = url
+		
+		let request = null
+
     setLoading(true);
     setError(false);
     setNoResult(false);
     setMessage("");
 
-    if(config.method == "POST"){
-			const contentType = "application/json"
-			const headers = {"Content-Type":contentType}
-			const b = body ? body : undefined
+		const isFormData = body instanceof FormData;
 
-			try{
-			  const request = await fetch(config.url, {
-     	 	  method: config.method,
-      	  headers,
-      	  body:b as string
-    	  })
-				const response = await request.json(
-					// waiting for response chunk
+		const headers = isFormData ? undefined : { "Content-Type": "application/json" }
+
+		const b = body ? body : undefined
+
+		try{
+      if(config.method == "POST" || config.method == "PUT"){
+				request = await fetch(config.url, {
+					method: config.method,
+					body: b as string,
+					headers
+				})
+			}
+
+			if(config.method === "GET" || config.method === "DELETE"){
+				request = await fetch(config.url, {
+					next: { revalidate: 0 },
+					method: config.method,
+					headers,
+				})
+			}
+			
+			const _request = request as Response
+			
+			if (!_request.ok) throw new Error(`HTTP error status ${_request.status}`);
+			
+			const response = await _request.json()
+
+			if(response.noResult){
+				setNoResult(true)
+				setMessage(response.message)
+				config.onError?.(response.message)
+			}
+			else{
+				setResult(
+					response.result
 				)
-
-				if(response.noResult){
-					setNoResult(true)
-					setMessage(response.message)
-				}
-				else{
-				  setResult(
-						response.result
-					)
-					callback(
-						response.result
-					)
-				}
+        
+				callback(
+					response.result
+				)
 			}
-			catch(e:any){
-        setMessage(e.message)
+		}
+		catch(e:any){
+      setTimeout(() => {
+				setMessage(e.message)
 				setError(true)
-			}
-		  finally{
-				setLoading(false)
-			}
+			},3000)
+
+      config.onError?.(e.message)
+		}
+		finally{
+			setTimeout(() => {
+				setLoading(false);
+			},3000)
 		}
   }
 
@@ -71,4 +98,5 @@ export default function useFetch<R,B>(config:Conf<B>){
 type Conf<T> = {
   url:string,
 	method:string,
+	onError?:(m:string) => void
 }

@@ -16,6 +16,7 @@ function Message(params:Failed){
 export default function Master(){
 
 	const [secretId,setSecretId] = useState('')
+  const [username,setUsername] = useState('')
 	const [email,setEmail] = useState('')
 	const [password,setPassword] = useState('')
   const [error,setError] = useState('')
@@ -34,10 +35,11 @@ export default function Master(){
     const body = JSON.stringify({
       secretId,
       email,
+      username,
       password
     })
  
-    await masterFn.fn(body,(result) => {
+    await masterFn.fn('',body,(result) => {
       router.push('/login')
     })
   }
@@ -59,7 +61,15 @@ export default function Master(){
               onChange={(e) => setSecretId(e.target.value)}
             />
           </div>
-
+          <div>
+            <label className="block text-sm font-medium mb-1">Username</label>
+            <input
+              type="text"
+              placeholder="Masukkan username"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              onChange={(e) => setUsername(e.target.value)}           
+           />
+          </div>
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
             <input

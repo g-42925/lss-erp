@@ -3,6 +3,7 @@
 import Image from "next/image"
 import Link from "next/link";
 import useAuth from "@/store/auth"
+import Sidebar from "@/components/sidebar";
 import { redirect } from "next/navigation";
 
 export default function Dashboard(){
@@ -13,7 +14,9 @@ export default function Dashboard(){
   if(!auth.loggedIn) redirect('/login')
   
   return (
-    <Sidebar/>
+    <>
+      <Sidebar/>
+    </>
   )
 
   // return (

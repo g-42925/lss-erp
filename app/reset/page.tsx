@@ -38,7 +38,7 @@ export default function Master(){
 			password
 		})
 
-		resetFn.fn(body,(result) => {
+		resetFn.fn('',body,(result) => {
 			router.push(
 				'/login'
 			)

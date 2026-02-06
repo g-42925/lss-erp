@@ -38,16 +38,33 @@ export default function Login() {
 			email,password
 		})
 
-		await loginFn.fn(body,(result) => {
-      login(result.isSuperAdmin)
-			router.push('/dashboard')
+		await loginFn.fn('',body,(result) => {
+			console.log(result)
+      login(
+				{
+					email:result._doc._email,
+					loggedIn:true,
+					name:result._doc.name,
+					role:result._doc.roleName,
+					isSuperAdmin:result._doc.isSuperAdmin,
+					masterAccountId:result._doc.masterAccountId,
+					_id:result._doc._id,
+					roleDetail:{
+						page:result.role.page,
+						permission:result.role.permission
+					}
+				}
+			)
+			router.push(
+				'/dashboard'
+			)
 		})
 	}
  
 
 
   return (
-		<form  onSubmit={(e) => submit(e)} className="h-screen bg-gray-900 flex flex-col gap-3 justify-center items-center">
+		<form onSubmit={(e) => submit(e)} className="h-screen bg-gray-900 flex flex-col gap-3 justify-center items-center">
 			{loginFn.noResult || loginFn.error ? <Message message={loginFn.message}/> : <></>}
   		<div className="w-1/2 h-2/3 flex flex-row">
     		<div className="text-white flex flex-col text-center p-6 rounded-l-md justify-center items-center flex-1 bg-gradient-to-tr from-[#ff7664] via-[#ffb07c] to-[#ffe57a]">

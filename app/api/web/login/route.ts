@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
+import Role from '@/models/Role'
 import User from '@/models/User'
 import CryptoJS from "crypto-js";
 
@@ -24,15 +25,34 @@ export async function POST(request:NextRequest) {
         result: null
       });
     }
-		
-		return NextResponse.json({
-      noResult: false,
-      message: "",
-      result: r
-    });
 
+    if(!r.isSuperAdmin){
+      var role = await Role.findOne({
+       _id:r.roleId
+      })
+      
+      return NextResponse.json({
+        noResult: false,
+        message: "",
+        result: {
+          ...r,
+          role:role
+        }
+      });  
+    }
+    else{
+      return NextResponse.json({
+        noResult: false,
+        message: "",
+        result: {
+          ...r,
+          role:{}
+        }
+      });
+    }
   } 
 	catch (e:any) {
+    console.log(e)
     return NextResponse.json(
       {
 				noResult:true,
