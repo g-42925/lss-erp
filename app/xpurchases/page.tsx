@@ -7,10 +7,9 @@ import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef,useState,useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import Purchase from "@/models/Purchase";
 
 
-export default function Requisition(){
+export default function XPurchases(){
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -23,6 +22,8 @@ export default function Requisition(){
   const [suppliers,setSuppliers] = useState<any[]>([])
   const [products,setProducts] = useState<any[]>([])
   const [disabled,setDisabled] = useState<boolean>(false)
+  const [vendors,setVendors] = useState<any[]>([])
+
 
   const newPrForm = useForm()
   const editPrForm = useForm()
@@ -35,6 +36,14 @@ export default function Requisition(){
     method:'PUT'
   })
 
+  const getVendorsFn = useFetch<any,any>({
+    url:'/api/web/vendor',
+    method:'GET',
+    onError:(m) =>{
+      alert(m)
+    }
+  })
+
   const addFn = useFetch<any,any>({
     url:'/api/web/purchases',
     method:'POST',
@@ -45,7 +54,10 @@ export default function Requisition(){
 
   var editFn = useFetch<any,any>({
     url:`/api/web/purchases`,
-    method:'PUT'
+    method:'PUT',
+    onError:(m) => {
+      alert(m)
+    }
   })
 
   var getFn = useFetch<any[],any>({
@@ -77,7 +89,7 @@ export default function Requisition(){
       status:'requested',
       id:masterAccountId,
       date:new Date(),
-      purchaseType:'product',
+      purchaseType:'payment',
     })
 
     addFn.fn('',body,(r) => {
@@ -121,20 +133,19 @@ export default function Requisition(){
     var pOrdered = JSON.stringify({
       ...data,
       status:'_approved',
-      purchaseType:'product'
+      PurchaseType:'payment'
     })
-
-    if(parseInt(data.finalPrice) > parseInt(data.estimatedPrice)){
+    if(data.finalPrice > data.estimatedPrice){
       alert("Final price cannot be higher than estimated price")
     }
-    else if(parseInt(data.payAmount) > parseInt(data.finalPrice)){
+    else if(data.payAmount > data.finalPrice){
       alert("Pay amount cannot be higher than final price")
     }
     else{
       await editFn.fn('',pOrdered,(result) => {
         var [target] = pr.filter((r) => r._id == result._id)
         target.status = "ordered"
-        target.supplier = result.spl
+        target.vendor = result.vnd
         target.finalPrice = result.finalPrice
         target.payAmount = result.payAmount
         editRef.current?.close()
@@ -158,9 +169,8 @@ export default function Requisition(){
 
     editPrForm.reset({
       _id:filter._id,
-      quantity:filter.quantity,
       estimatedPrice:filter.estimatedPrice,
-      product:filter.product.productName,
+      description:filter.description,
       status:filter.status
     })
 
@@ -177,8 +187,9 @@ export default function Requisition(){
 
   useEffect(() => {
     if(hasHydrated){
-      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=product` 
-      const url2 = `/api/web/products?id=${masterAccountId}&type=good`
+      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=payment` 
+      const url2 = `/api/web/products?id=${masterAccountId}&type=service`
+      const url4 = `/api/web/vendor?id=${masterAccountId}`
       const url3 = `/api/web/suppliers?id=${masterAccountId}`
   
       const body = JSON.stringify({})
@@ -192,6 +203,9 @@ export default function Requisition(){
       })
       getFn.fn(url,body,(result) => {
         setPr(result)
+      })
+      getVendorsFn.fn(url4,body,(result) => {
+        setVendors(result)
       })
     }
   },[masterAccountId])
@@ -241,17 +255,16 @@ export default function Requisition(){
             </div>
             :
             <div>
-                <table className="table text-center">
+                <table className="table">
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Product</th>
-                      <th>Quantity</th>
+                      <th>Description</th>
                       <th>Estimated price</th>
                       <th>Final Price</th>
                       <th>Pay Amount</th>
                       <th>Status</th>
-                      <th>Supplier</th>
+                      <th>Vendor</th>
                       <th>...</th>
                     </tr>
                   </thead>
@@ -263,8 +276,7 @@ export default function Requisition(){
                         return (
                           <tr key={index}>
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                            <td>{p.product.productName}</td>
-                            <td>{p.quantity} ({p.product.unit})</td>
+                            <td>{p.description}</td>
                             <td>{p.estimatedPrice}</td>
                             {
                               p.status === "ordered" || p.status === "completed" ? <td>{p.estimatedPrice}</td> : <td>-</td>
@@ -274,10 +286,10 @@ export default function Requisition(){
                             }
                             <td>{p.status}</td>
                             {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.supplier.bussinessName}</td> : <td>-</td>
+                              p.status === "ordered" || p.status === "completed" ? <td>{p.vendor.name}</td> : <td>-</td>
                             }
                             <td>
-                              <button className="cursor" onClick={() => edit(p._id)}>
+                              <button onClick={() => edit(p._id)}>
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                   <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
                                   <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
@@ -322,26 +334,14 @@ export default function Requisition(){
             <span className="text-2xl">Add Purchase Requisition</span>
             <form onSubmit={newPrForm.handleSubmit(submit)} className="h-92 relative flex flex-col gap-3">
               <div className="flex flex-col gap-3">
-              <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">Select product</legend>    
-                  <select {...newPrForm.register("productId")} className="input w-full">
-                    {
-                      products.map((p) => {
-                        return (
-                          <option key={p._id} value={p._id}>{p.productName} ({p.unit})</option>
-                        )
-                      })
-                    }
-                  </select>
-                </fieldset>
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Service</legend>    
+                  <input {...newPrForm.register("description")} className="input w-full"/>
+                </fieldset> 
                 <fieldset className="fieldset flex-1">
                   <legend className="fieldset-legend">Estimated price</legend>    
                   <input {...newPrForm.register("estimatedPrice")} className="input w-full"/>
-                </fieldset> 
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">Quantity</legend>    
-                  <input {...newPrForm.register("quantity")} className="input w-full"/>
-                </fieldset> 
+                </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }	
               <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
@@ -351,18 +351,18 @@ export default function Requisition(){
           </div>
         </div>
       </dialog>
-			<dialog id="my_modal_2" ref={editRef} className="modal">
- 				<div className="modal-box">
-					<div className="flex flex-col ">
-						<span className="text-2xl">Make purchase order</span>
-						<form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
+      <dialog id="my_modal_2" ref={editRef} className="modal">
+        <div className="modal-box">
+          <div className="flex flex-col ">
+            <span className="text-2xl">Make purchase order</span>
+            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product</legend>
-                <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly/>
+                <legend className="fieldset-legend">Description</legend>
+                <input className="input w-full" {...editPrForm.register("description")} type="text" readOnly/>
               </fieldset>
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly/>
+                <legend className="fieldset-legend">Estimated price</legend>
+                <input className="input w-full" {...editPrForm.register("estimatedPrice")} type="text" readOnly/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Final price</legend>
@@ -371,15 +371,15 @@ export default function Requisition(){
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>
                 <input className="input w-full" {...editPrForm.register("payAmount")} type="text"/>
-              </fieldset> 
+              </fieldset>              
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Supplier</legend>
-                <select {...editPrForm.register("supplierId")} className="select w-full">
+                <legend className="fieldset-legend">Vendor</legend>
+                <select {...editPrForm.register("vendorId")} className="select w-full">
                   {
-                    suppliers.map((s,index) => {
+                    vendors.map((s,index) => {
                       return (
                         <option key={s._id} value={s._id}>
-                          {s.bussinessName}
+                          {s.name}
                         </option>
                       )
                     })
@@ -387,15 +387,15 @@ export default function Requisition(){
                 </select>
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }			
-							<button disabled={disabled} type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
-								Make
-							</button>
-						</form>
-		      </div>
-				</div>
-			</dialog>
+              <button disabled={disabled} type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+                Make
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
       <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
-        <Link href="/xpurchases">
+        <Link href="/purchases/requisition">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>

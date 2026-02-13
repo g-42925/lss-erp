@@ -9,7 +9,7 @@ import { useRef,useState,useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
 
-export default function Purchases(){
+export default function XPurchases(){
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -77,9 +77,8 @@ export default function Purchases(){
 
     editPrForm.reset({
       _id:filter._id,
-      quantity:filter.quantity,
       estimatedPrice:filter.estimatedPrice,
-      product:filter.product.productName,
+      description:filter.description,
       status:filter.status
     })
 
@@ -88,7 +87,7 @@ export default function Purchases(){
 
   useEffect(() => {
     if(hasHydrated){
-      const url = `/api/web/purchases?id=${masterAccountId}&type=product` 
+      const url = `/api/web/purchases?id=${masterAccountId}&type=payment` 
     
       getFn.fn(url,JSON.stringify({}),(result) => {
         setPr(result)
@@ -139,8 +138,7 @@ export default function Purchases(){
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Product</th>
-                      <th>Quantity</th>
+                      <th>Description</th>
                       <th>Estimated price</th>
                       <th>Status</th>
                       <th>...</th>
@@ -154,8 +152,7 @@ export default function Purchases(){
                         return (
                           <tr key={index}>
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                            <td>{p.product.productName}</td>
-                            <td>{p.quantity} ({p.product.unit})</td>
+                            <td>{p.description}</td>
                             <td>{p.estimatedPrice}</td>
                             <td>{p.status}</td>
                             <td>
@@ -205,11 +202,7 @@ export default function Purchases(){
             <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Product</legend>
-                <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly/>
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly/>
+                <input className="input w-full" {...editPrForm.register("description")} type="text" readOnly/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Estimated price</legend>
@@ -242,7 +235,7 @@ export default function Purchases(){
         </div>
       </dialog>
       <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
-        <Link href="/finance/xpurchases">
+        <Link href="/finance/purchases">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>

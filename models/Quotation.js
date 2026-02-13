@@ -16,6 +16,7 @@ const quotationSchema = new mongoose.Schema({
   range: {type:Number,required:false},
   frequency : {type:String,required:false,enum:["Day","Week","Month","Year"]},
   productType: {type:String,required:false,enum:["good","service"]},
+  locationId: {type:mongoose.Schema.Types.ObjectId,required:false},
 });
 
 export default mongoose.models.Quotation || mongoose.model('Quotation', quotationSchema)

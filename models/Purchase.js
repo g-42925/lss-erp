@@ -1,13 +1,17 @@
 import mongoose from 'mongoose';
 
 const PurchaseSchema = new mongoose.Schema({
+  description: {type:String, required:false},
   companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  productId: {type:mongoose.Schema.Types.ObjectId, required:true},
+  productId: {type:mongoose.Schema.Types.ObjectId, required:false},
+  vendorId: {type:mongoose.Schema.Types.ObjectId, required:false},
   supplierId: {type:mongoose.Schema.Types.ObjectId, required:false},
-  quantity: {type:Number, required:true},
+  purchaseType: {type:String,required:true,enum:['product','payment']},
+  quantity: {type:Number, required:false},
   estimatedPrice: {type:Number, required:true},
   date: {type:Date,Default:Date.now},
   finalPrice:{type:Number,required:false},
+  payAmount: {type:Number,Default:false},
   status: { 
     type: String, 
     enum: [

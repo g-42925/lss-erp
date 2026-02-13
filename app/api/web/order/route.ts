@@ -102,6 +102,7 @@ export async function POST(request:NextRequest){
         saleDate:new Date(),
         contract:contractUploadUrl,
         attachment:attachmentUploadUrl,
+        salesOrderNumber:`SO-${String(Date.now()).slice(-5)}`,
         payTerm
       }
 
@@ -146,7 +147,7 @@ export async function POST(request:NextRequest){
         {
           noResult:false,
           message:"",
-          result:{},
+          result:_o,
           error:false
         }
       )

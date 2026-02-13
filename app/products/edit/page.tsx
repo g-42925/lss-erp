@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link";
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState,useRef } from "react";
 import Sidebar from '@/components/sidebar'
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
-
+import { useRouter } from 'next/navigation'
 import { useForm } from "react-hook-form"
 
 
@@ -19,29 +20,38 @@ export default function Add(){
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const [categories,setCategories] = useState<any[]>([])
   const [units,setUnits] = useState<any[]>([])
-
-
+  const [category,setCategory] = useState<string>('')
+  const searchParams = useSearchParams();
+  const router = useRouter()
   const productForm = useForm()
 
+  var getProductFn = useFetch<any,any>({
+    url:`/api/web/products?id=xxx`,
+    method:'GET',
+    onError:(m) => {
+      alert(m)
+    }
+  })
+
   var getUnitsFn = useFetch<any[],any>({
-		url:`/api/web/unit?id=xxx`,
-		method:'GET',
-		onError:(m) => {
-			alert(m)
-		}
-	})	
+    url:`/api/web/unit?id=xxx`,
+    method:'GET',
+    onError:(m) => {
+      alert(m)
+    }
+  })	
 
-	var getCategoriesFn = useFetch<any[],any>({
-		url:`/api/web/categories?id=xxx`,
-		method:'GET',
-		onError:(m) => {
-			alert(m)
-		}
-	})
+  var getCategoriesFn = useFetch<any[],any>({
+    url:`/api/web/categories?id=xxx`,
+    method:'GET',
+    onError:(m) => {
+      alert(m)
+    }
+  })
 
-  var addProductsFn = useFetch<any,FormData>({
+  var updateProductFn = useFetch<any,FormData>({
     url:`/api/web/products`,
-    method:'POST',
+    method:'PUT',
     onError:(m) => {
       alert(m)
     }
@@ -57,41 +67,67 @@ export default function Add(){
   async function handleSubmit(data:any){
     const formData = new FormData();
 
-    formData.append("command","addProduct")
-    formData.append("file",file as any)
+    if(file) formData.append("file",file as any)
+   
     formData.append("id",masterAccountId)
 
     Object.keys(data).forEach((key) => {
       formData.append(key,data[key])
     })
 
-    addProductsFn.fn(`/api/web/products`,formData,(r) => {
-      console.log({r})
+    updateProductFn.fn(`/api/web/products`,formData,(r) => {
+      router.push(
+				'/products/list'
+			)
     })
   
   }
   
   useEffect(() => {
     if(hasHydrated){
+      const id = searchParams.get('id'); 
       const url = `/api/web/categories?id=${masterAccountId}`
       const url2 = `/api/web/unit?id=${masterAccountId}`
+      const url3 = `/api/web/products?xid=${id}`
+
       getCategoriesFn.fn(url,JSON.stringify({}),(r) => {
         setCategories(r)
       })
       getUnitsFn.fn(url2,JSON.stringify({}),(r) => {
         setUnits(r)
       })
+
+      getProductFn.fn(url3,JSON.stringify({}),(r) => {
+        setPreviewUrl(r.image)
+        
+        productForm.reset({
+          xId:r._id,
+          unit:r.unit,
+          category:r.category,
+          barcodeType:r.barcodeType,
+          productName:r.productName,
+          productId:r.productId,
+          description:r.description,
+          applicableTax:r.applicableTax,
+          sellingPriceTaxType:r.sellingPriceTaxType,
+          altUnit:r.altUnit,
+          sellingPrice:r.sellingPrice,
+          image:r.image
+        })
+      })
     }
   },[masterAccountId])  
+
+  //if(categories.length < 1 || units.length < 1) return; 
 
   return (
     <Sidebar>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Add new product</span>
+        <span className="text-2xl">Edit product</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x relative">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
             {
-              addProductsFn.error 
+              updateProductFn.error 
               ?
               <div className="bg-red-900 text-white p-3 rounded-md">
                 product upload failed
@@ -105,13 +141,8 @@ export default function Add(){
                 <input {...productForm.register("productName")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Product Id</legend>
-                <input readOnly value={`P-${String(Date.now()).slice(-5)}`} {...productForm.register("productId")} type="text" className="input w-full" placeholder="Type here" />
-              </fieldset>
-              <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Barcode type</legend>
                 <select {...productForm.register("barcodeType")} className="select w-full">
-                  <option selected>Pick a barcode type</option>
                   <option>UPC</option>
                   <option>EAN-13</option>
                   <option>EAN-8</option>
@@ -124,15 +155,13 @@ export default function Add(){
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Category</legend>
                 <select {...productForm.register("category")} className="select w-full">
-                  <option disabled selected>Pick a category</option>
                   {
-										categories.map((c) => {
-											return (
-												<option key={c._id}>{c.name}</option>
-											)
-										})
-									}
-									
+                    categories.map((c) => {
+                      return (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      )
+                    })
+                  }
                 </select>              
               </fieldset>
             </div>
@@ -156,25 +185,24 @@ export default function Add(){
                 <legend className="fieldset-legend">Packaging</legend>
                 <select {...productForm.register("unit")} className="select w-full">
                   {
-										units.map((c) => {
-											return (
-												<option key={c._id}>{c.name}</option>
-											)
-										})
-									}
+                    units.map((c) => {
+                      return (
+                        <option key={c._id}>{c.name}</option>
+                      )
+                    })
+                  }
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Unit</legend>
                 <select {...productForm.register("altUnit")} className="select w-full">
-                  <option selected>None</option>
                   {
-										units.map((c) => {
-											return (
-												<option key={c._id}>{c.name}</option>
-											)
-										})
-									}
+                    units.map((c) => {
+                      return (
+                        <option key={c._id}>{c.name}</option>
+                      )
+                    })
+                  }
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
@@ -202,21 +230,21 @@ export default function Add(){
               </fieldset>      
             </div>
             <div className="flex flex-row gap-3">
-              <button disabled={addProductsFn.loading} type="submit" className={`flex-1 p-3 rounded-full bg-black relative text-white w-full ${addProductsFn.loading ? 'cursor-not-allowed bg-red-900' : ''}`}>
+              <button disabled={updateProductFn.loading} type="submit" className={`flex-1 p-3 rounded-full bg-black relative text-white w-full ${updateProductFn.loading ? 'cursor-not-allowed bg-red-900' : ''}`}>
                 Submit
               </button>
-              <button disabled={addProductsFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
+              <button disabled={updateProductFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
                 <Link href="/products/list">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                   </svg>                  
                 </Link>
               </button>
-              <button disabled={addProductsFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
+              <button disabled={updateProductFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
                 <Link href="/products/add/service">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                   </svg>
                 </Link>
               </button>

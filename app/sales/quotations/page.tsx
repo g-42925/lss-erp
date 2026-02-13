@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useForm } from 'react-hook-form'
 import { useRef,useEffect, useState } from 'react'
 
-export default function Quotation(){
+function Q({toggle}:any){
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -151,11 +151,11 @@ export default function Quotation(){
   return (
     <Sidebar>
       <div className="h-full p-6 h-full flex flex-col gap-3">
-        <span className="text-2xl">Goods Quotations <span className="text-sm leading-loose"></span></span>
+        <span className="text-2xl">Product Quotation <span className="text-sm leading-loose"></span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
-            <span className="self-center">All quotations</span>
-            <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
+            <span className="self-center">All quotation</span>
+            <button onClick={toggle} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
@@ -238,7 +238,7 @@ export default function Quotation(){
                                 </svg>
                                 Edit
                               </button>
-                              <button className="btn" onClick={() => del(role._id)}>
+                              <button className="btn">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                                 </svg>
@@ -255,50 +255,8 @@ export default function Quotation(){
           }
         </div>
       </div>
-			<dialog ref={editRef} id="my_modal_2" className="modal h-full">
-        <form onSubmit={editQuotationForm.handleSubmit(editSubmit)} className="h-100 modal-box flex flex-col gap-3">
-          <h3 className="text-lg font-bold">Edit quotation</h3>
-          <div className="flex flex-row items-center gap-2">
-            <label className="w-[70px]">Product</label>
-            <select {...editQuotationForm.register("productId")} className="select flex-1">
-              {
-                products.map((p) => {
-                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
-                })
-              }
-            </select>              
-          </div>
-          <div className="flex flex-row items-center gap-2">
-            <label className="w-[70px]">Customer</label>
-            <select {...editQuotationForm.register("customerId")} className="select flex-1">
-              <option>...</option>
-              {
-                customers.map((c) => {
-                  return <option value={c._id} key={c._id}>{c.bussinessName}</option>
-                })
-              }
-            </select>              
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[70px]">Quantity</label>
-            <input {...editQuotationForm.register("qty")} type="text" className="input flex-1"/>
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[70px]">Expired</label>
-            <input {...editQuotationForm.register("expiredDate")} type="date" className="input flex-1"/>
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[70px]">Discount</label>
-            <input {...editQuotationForm.register("discount")} type="text" className="input flex-1"/>
-          </div>
-          {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
-          <div className="flex flex-row gap-3 modal-action">
-            <button className="btn bg-red-900 text-white">Submit	</button>
-          </div>
-        </form>
-			</dialog>	
-			<dialog ref={modalRef} id="my_modal_1" className="modal h-full">
-        <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+        <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-100 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make quotation</h3>
           <div className="flex flex-row items-center gap-2">
             <label className="w-[70px]">Product</label>
@@ -335,17 +293,350 @@ export default function Quotation(){
           </div>
           {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
           <div className="flex flex-row gap-3 modal-action">
-            <button className="btn bg-red-900 text-white">Submit	</button>
+            <button className="btn bg-red-900 text-white">Submit</button>
           </div>
         </form>
-			</dialog>	
+      </dialog>	
       <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
         <Link href="/sales/qservices">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>
         </Link>
       </button>
     </Sidebar>
   )
+}
+
+function Stock({pop}:any){
+  const [mounted, setMounted] = useState<boolean>(false);
+	const [stock,setStock] = useState<any[]>([])	
+	const [locations,setLocations] = useState<any[]>([])
+	const [products,setProducts] = useState<any[]>([])
+	const [searchResult,setSearchResult] = useState<any[]>([])
+  const [customers,setCustomers] = useState<any[]>([])
+  
+	const [batchNumber,setBatchNumber] = useState<any>(0)
+	const loggedIn = useAuth((state) => state.loggedIn)
+	const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
+	const masterAccountId = useAuth((state) => state.masterAccountId)	
+	const hasHydrated = useAuth((s) => s._hasHydrated)
+
+	const modalRef = useRef<HTMLDialogElement>(null)
+	const qModalRef = useRef<HTMLDialogElement>(null)
+	
+  const openingStockForm = useForm();
+  const newQuotationForm = useForm()
+
+  async function search(v:string){
+    if(v.length > 0){
+      var result = locations.filter((r) => {
+        return r.name.includes(v)
+      })
+
+      if(result.length > 0){
+        setSearchResult(
+          [
+            ...result
+          ]
+        )
+      }
+      else{
+        setSearchResult(
+          []
+        )
+      }
+    }
+    else{
+      setSearchResult(
+        []
+      )
+    }
+  }
+
+  var getCustomersFn = useFetch<any,any>({
+    url:`/api/web/customers?id=xxx`,
+    method:'GET'    
+  })
+    
+  var addQuotationFn = useFetch<any,any>({
+    url:'/api/web/quotations',
+    method:'POST',
+    onError:(m) => {
+      alert(m)
+    }
+  })
+
+	var openStockFn = useFetch<any,any>({
+		url:`/api/web/stock`,
+		method:'POST',
+    onError:(m) => {
+      alert(m)
+    }
+	})
+
+	var getStockFn = useFetch<any,any>({
+		url:`/api/web/stock`,
+		method:'GET'
+	})
+
+	function handleSubmit(data:any){
+		const body = JSON.stringify({
+			...data,
+			status:'ACTIVE',
+			isOpening:true,
+			outQty:0
+		})
+
+		openStockFn.fn('',body,(result) => {
+      setStock([
+        ...stock,
+        result
+      ])
+
+      modalRef.current?.close()
+		})
+	}
+
+	function makeBatchNumber(){
+		return `BAT-${new Date().toISOString().slice(0,10)}-${Date.now()}`;
+	}
+	
+	var fetchLocationsFn = useFetch<any[],any>({
+		url:`/api/web/location?id=xxx`,
+		method:'GET'
+	})
+
+	var fetchProductsFn = useFetch<any[],any>({
+		url:`/api/web/products?id=xxx`,
+		method:'GET',
+		onError:(m) => {
+			console.log(m)
+		}
+	})
+
+  function toggle(){
+    setBatchNumber(Date.now())
+    modalRef.current?.showModal()
+  }
+
+  function submit(data:any){
+    if(parseInt(data.qty) > data.remaining){
+      alert('can not be more than avalaible qty')
+    }
+    else{
+      var params = JSON.stringify(data)
+      addQuotationFn.fn('',params,r => {
+        pop()
+      })
+    }
+  }
+
+  function qModalRefShow(s:any){
+    newQuotationForm.reset({
+      productId:s.product._id,
+      remaining:s.remain,
+      locationId:s._id.locationId,
+      productType:'good',
+      id:masterAccountId
+    })
+    qModalRef.current?.show()
+  }
+
+	useEffect(() => {
+		if(hasHydrated){
+			const url = `/api/web/location?id=${masterAccountId}` 
+			const url2 = `/api/web/products?id=${masterAccountId}&type=good` 
+			const url3 = `/api/web/stock?id=${masterAccountId}` 
+      const url4 = `/api/web/customers?id=${masterAccountId}`
+
+			const body = JSON.stringify({})
+
+      getCustomersFn.fn(url4,body,(result) => {
+        setCustomers(result)
+      })
+		 
+			fetchLocationsFn.fn(url,body,(result) => {
+				setLocations(result)
+			})
+
+			fetchProductsFn.fn(url2,body,(result) => {
+				setProducts(result)
+			})
+
+			getStockFn.fn(url3,body,(r) => {
+        console.log({r})
+				setStock(r)
+			})
+
+      setMounted(
+        true
+      )
+		}
+	},[masterAccountId])	
+  
+
+  if (!mounted) return null;
+
+  return (
+    <Sidebar>
+			<div className="h-full p-6 flex flex-col gap-3">
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+          <div className="flex flex-row">
+            <span className="self-center">All stock</span>
+						<button onClick={pop} className="btn ml-auto">
+              Back
+            </button>
+          </div>
+          <div className="flex flex-row">
+            <div className="flex flex-row gap-2 items-center">
+              Show
+              <select className="select w-16">
+                <option>20</option>
+                <option>30</option>
+                <option>40</option>
+              </select>
+              Entries
+            </div>
+            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3"/>
+          </div>
+          {
+            getStockFn.loading
+            ?
+            <div className="flex-1 flex flex-col justify-center items-center">
+              <span className="loading loading-spinner loading-xl"></span>
+            </div>
+            :
+            getStockFn.error || getStockFn.noResult
+            ?
+            <div>
+              <p>{getStockFn.message}</p>
+            </div>
+            :
+            <div>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Location</th>
+                      <th>Product</th>
+                      <th>Remaining</th>
+                      <th>...</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {
+                      searchResult.length < 1
+                      ?
+                      stock.map((s,index) => {
+                        return (
+                          <tr key={index}>
+                            <td>{s.locationName}</td>
+                            <td>{s.product.productName}</td>
+                            <td>
+                              <Link href={`/batches?pId=${s.product._id}&lId=${s._id.locationId}`}>
+                                {s.product.altUnit === "None" ? `${s.remain} ${s.product.unit}` : `${s.remain} ${s.product.altUnit}` }                            
+                              </Link>
+                            </td>
+                            <td>
+                              <button onClick={() => qModalRefShow(s)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                </svg>
+                              </button>
+                            </td>        
+                          </tr>
+                        )
+                      })
+                      :
+                      searchResult.map((role,index) => {
+                        return (
+                          <tr key={index}>
+                            <td>{role.name}</td>
+                            <td className="flex flex-row gap-3">
+                              <button className="btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                </svg>
+                                Edit
+                              </button>
+                              <button className="btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                                  Delete
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })              
+                    }
+                  </tbody>
+               </table>
+            </div>
+          }
+        </div>
+      </div>
+      <dialog ref={qModalRef} id="my_modal_2" className="modal h-full">
+        <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Make quotation</h3>
+          <div className="flex flex-row items-center gap-2">
+            <label className="w-[70px]">Product</label>
+            <select disabled {...newQuotationForm.register("productId")} className="select flex-1">
+              {
+                products.map((p) => {
+                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
+                })
+              }
+            </select>              
+          </div>
+          <div className="flex flex-row items-center gap-2">
+            <label className="w-[70px]">Customer</label>
+            <select {...newQuotationForm.register("customerId")} className="select flex-1">
+              <option>...</option>
+              {
+                customers.map((c) => {
+                  return <option value={c._id} key={c._id}>{c.bussinessName}</option>
+                })
+              }
+            </select>              
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Quantity</label>
+            <input {...newQuotationForm.register("qty")} type="text" className="input flex-1"/>
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Expired</label>
+            <input {...newQuotationForm.register("expiredDate")} type="date" className="input flex-1"/>
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Discount</label>
+            <input {...newQuotationForm.register("discount")} type="text" className="input flex-1"/>
+          </div>
+          {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
+          <div className="flex flex-row gap-3 modal-action">
+            <button className="btn bg-red-900 text-white">Submit</button>
+          </div>
+        </form>
+			</dialog>	
+    </Sidebar>
+  )
+}
+
+export default function Quotation(){
+  const [onQMode,setOnQMode] = useState<boolean>(false)
+
+  function toggle(){
+    setOnQMode(!onQMode)
+  }
+
+  if(!onQMode){
+    return (
+      <Q toggle={toggle}></Q>
+    )
+  }
+  else{
+    return (
+      <Stock pop={toggle}></Stock>
+    )
+  }
 }

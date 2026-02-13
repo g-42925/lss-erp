@@ -4,8 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Batche from '@/models/Batche'
 import Purchase from '@/models/Purchase'
 import Companie from '@/models/Companie'
-import { connect } from "http2";
+import Debt from '@/models/Debt'
 import Supplier from "@/models/Supplier";
+import Vendor from "@/models/Vendor";
+
 
 export async function PUT(request:NextRequest){
   try{
@@ -17,6 +19,8 @@ export async function PUT(request:NextRequest){
 
     if(rest.status != 'ordered'){
       var status = rest.status === '_approved' ? 'ordered' : rest.status
+
+      var purchase = await Purchase.findById(_id)
       
       await Purchase.findByIdAndUpdate(
         _id,{
@@ -26,18 +30,38 @@ export async function PUT(request:NextRequest){
       )
 
       if(rest.status === '_approved'){
-        var spl = await Supplier.findById(rest.supplierId)
-        var result =  {...body,spl}
-        return NextResponse.json(
-          {
-            noResult:false,
-            message:"",
-            result:result,
-            error:false
-          }
-        )
+
+        if(rest.purchaseType === 'product'){
+          var spl = await Supplier.findById(rest.supplierId)
+        
+          var result =  {...body,spl}
+          
+          return NextResponse.json(
+            {
+              noResult:false,
+              message:"",
+              result:result,
+              error:false
+            }
+          )
+        }
+        else{
+          var vnd = await Vendor.findById(rest.vendorId)
+          
+          var result =  {...body,vnd}
+          
+          return NextResponse.json(
+            {
+              noResult:false,
+              message:"",
+              result:result,
+              error:false
+            }
+          )
+        }
       }
       else{
+
         return NextResponse.json(
           {
             noResult:false,
@@ -119,9 +143,11 @@ export async function POST(request:NextRequest){
 
     var r = {
       ...requested,
-      product:agg.product
     }
 
+    if(params.purchaseType === 'product'){
+      r.product = agg.product
+    }
 
     return NextResponse.json(
       {
@@ -147,6 +173,8 @@ export async function POST(request:NextRequest){
 export async function GET(request:NextRequest){	
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
+  const type = url.searchParams.get("type");
+
   try {
     await connectToDatabase()
     const cmp = await Companie.findOne({
@@ -158,6 +186,7 @@ export async function GET(request:NextRequest){
         {
           $match:{
             companyId:cmp._id,
+            purchaseType:type
           }
         },
         {
@@ -169,12 +198,29 @@ export async function GET(request:NextRequest){
           }
         },
         {
-          $unwind:'$product'
+          $unwind:{
+            path:'$product',
+            preserveNullAndEmptyArrays:true
+          }
         },
         {
           $project:{
             'productId':0,
             'companyId':0
+          }
+        },
+        {
+          $lookup:{
+            from:'vendors',
+            localField:'vendorId',
+            foreignField:'_id',
+            as:'vendor'
+          }
+        },
+        {
+          $unwind:{
+            path:'$vendor',
+            preserveNullAndEmptyArrays:true
           }
         },
         {

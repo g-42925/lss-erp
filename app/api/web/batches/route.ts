@@ -41,7 +41,7 @@ export async function GET(request:NextRequest){
   const lId = url.searchParams.get("lId")
 
   try{
-    await connectToDatabase();
+    await connectToDatabase()
     
     var batches  = await Batche.aggregate([
       {

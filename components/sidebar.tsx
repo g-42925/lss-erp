@@ -50,13 +50,10 @@ export default function Sidebar({children}:{children:any}){
               </ul>
             </details>
             <details open>
-              <summary>Goods & Services</summary>
+              <summary>Product</summary>
               <ul>
                 <li>
-                  <Link href="/products/add/good">New Good</Link>
-                </li>
-                <li>
-                  <Link href="/products/add/service">New Service</Link>
+                  <Link href="/products/add/good">New</Link>
                 </li>
                 <li>
                   <Link href="/products/category">Category</Link>
@@ -121,6 +118,11 @@ export default function Sidebar({children}:{children:any}){
                     Order
                   </Link>
                 </li>
+                <li>
+                  <Link href="/sales/invoices">
+                    Invoice
+                  </Link>
+                </li>
               </ul>
             </details>
             <details>
@@ -131,6 +133,23 @@ export default function Sidebar({children}:{children:any}){
                 <li>
                   <Link href="/finance/purchases">
                     Purchases
+                  </Link>
+                </li>
+              </ul>
+            </details>
+            <details>
+              <summary>
+                Debts & Receivable
+              </summary>
+              <ul>
+                <li>
+                  <Link href="/debt">
+                    Debts
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/receivable">
+                    Receivable
                   </Link>
                 </li>
               </ul>

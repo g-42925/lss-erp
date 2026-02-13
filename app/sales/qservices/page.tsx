@@ -302,10 +302,8 @@ export default function Quotation(){
             <label className="w-[80px]">Frequency</label>
             <select {...editQuotationForm.register("frequency")} className="select flex-1">
               <option>...</option>
-              <option>Day</option>
               <option>Week</option>
               <option>Month</option>
-              <option>Year</option>
             </select>              
           </div>
           <div className="flex flex-row items-center gap-3">
@@ -365,10 +363,8 @@ export default function Quotation(){
             <label className="w-[80px]">Frequency</label>
             <select {...newQuotationForm.register("frequency")} className="select flex-1">
               <option>...</option>
-              <option>Day</option>
               <option>Week</option>
               <option>Month</option>
-              <option>Year</option>
             </select>              
           </div>
           <div className="flex flex-row items-center gap-3">

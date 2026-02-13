@@ -50,8 +50,8 @@ export default function XOrder(){
   function submit(data:any){
     const formData = new FormData()
     formData.append("id",masterAccountId)
-    formData.append("contract",contract as any)
-    formData.append("attachment",attachment as any)
+    if(contract) formData.append("contract",contract as any)
+    if(attachment) formData.append("attachment",attachment as any)
     formData.append("productType","service")
 
     Object.keys(data).forEach((key) => {
@@ -154,7 +154,7 @@ export default function XOrder(){
                       <th>Attachment</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="text-center">
                     {
                       searchResult.length < 1
                       ?
@@ -164,7 +164,7 @@ export default function XOrder(){
                             <td>{s.product.productName}</td>
                             <td>{s.customer.bussinessName}</td>
                             <td>{s.contractType}</td>
-                            <td>{s.range}</td>
+                            <td>{s.range} Month</td>
                             <td>{s.frequency}</td>
                             <td>{s.qty}</td>
                             <td>{s.price}</td>
@@ -174,7 +174,7 @@ export default function XOrder(){
                               ?
                               <td>
                                 <a href={s.contract} target="_blank" rel="noopener noreferrer">
-                                   view
+                                   ...
                                 </a>
                               </td>
                               :
@@ -187,7 +187,7 @@ export default function XOrder(){
                               ?
                               <td>
                                 <a href={s.attachment} target="_blank" rel="noopener noreferrer">
-                                  view
+                                  ...
                                 </a>
                               </td>
                               :
@@ -226,7 +226,7 @@ export default function XOrder(){
             </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-10 bottom-10">
-            <Link href="/sales/xorder">
+            <Link href="/sales/order">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
               </svg>

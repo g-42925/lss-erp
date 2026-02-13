@@ -85,7 +85,7 @@ export default function Receiving(){
 
   useEffect(() => {
     if(hasHydrated){
-      const url = `/api/web/purchases?id=${masterAccountId}` 
+      const url = `/api/web/purchases?id=${masterAccountId}&type=product` 
       const url2 = `/api/web/location?id=${masterAccountId}`
       
       const body = JSON.stringify({})

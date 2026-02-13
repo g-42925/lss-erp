@@ -5,6 +5,123 @@ import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s
 import Product from '@/models/Product'
 import Companie from '@/models/Companie'
 
+export async function PUT(request:NextRequest){
+  try{
+    await connectToDatabase()
+    const formData = await request.formData()
+
+    const _id = formData.get("xId") as string;
+    const image = formData.get("image") as string;
+    const file = formData.get("file") as File;
+    const productName = formData.get("productName") as string;
+    const barcodeType = formData.get("barcodeType") as string;
+    const category = formData.get("category") as string;
+    const description = formData.get("description") as string;
+    const unit = formData.get("unit") as string;
+    const altUnit = formData.get("altUnit") as string;
+    const applicableTax = formData.get("applicableTax") as string;
+    const sellingPriceTaxType = formData.get("sellingPriceTaxType") as string;
+    const productType = formData.get("productType") as string;
+    const sellingPrice = formData.get("sellingPrice") as string;
+
+    if(file){
+      const fileName = (formData.get("fileName") as string) ?? file.name;
+      const buffer = Buffer.from(await file.arrayBuffer());
+  
+      const s3 = new S3Client({
+        region: "us-east-1",
+        endpoint: "https://s3.filebase.com",
+        credentials: {
+          accessKeyId: "B8F0135956143AE0685E",
+          secretAccessKey: "gKrbIZJnzLWBXZ0VGQvnlAumvngpBH35PsXN5zUp",
+        },
+      });
+  
+      const putCommand = new PutObjectCommand({
+        Bucket: "leryn-storage",
+        Key: fileName,
+        Body: buffer,
+        ContentType: file.type,
+        Metadata: {
+          cid: "true", // 👈 sama seperti PHP
+        },
+      });
+  
+      const result = await s3.send(putCommand);
+      
+      const head = await s3.send(
+        new HeadObjectCommand({
+          Bucket: "leryn-storage",
+          Key: fileName,
+        })
+      );
+  
+      const cid = head.Metadata?.cid;
+  
+      const productImage = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
+  
+      const newProduct = {
+        productName,
+        barcodeType,
+        category,
+        description,
+        unit,
+        altUnit,
+        applicableTax,
+        sellingPriceTaxType,
+        productType,
+        sellingPrice,
+        image:productImage
+      }
+  
+      const product = await Product.findByIdAndUpdate(
+        _id,
+        newProduct
+      )
+  
+      return NextResponse.json({
+        noResult: false,
+        message: "",
+        result: product
+      });
+    }
+    else{
+      const newProduct = {
+        productName,
+        barcodeType,
+        category,
+        description,
+        unit,
+        altUnit,
+        applicableTax,
+        sellingPriceTaxType,
+        productType,
+        sellingPrice,
+        image
+      }
+  
+      const product = await Product.findByIdAndUpdate(
+        _id,
+        newProduct
+      )
+  
+      return NextResponse.json({
+        noResult: false,
+        message: "",
+        result: product
+      });
+    }
+
+  }
+  catch(e:any){
+    return NextResponse.json({
+      noResult: true,
+      message: e.message,
+      result: null
+    });
+  }
+}
+
 export async function POST(request:NextRequest){
   try{
     await connectToDatabase()
@@ -20,9 +137,6 @@ export async function POST(request:NextRequest){
         const description = formData.get("description") as string;
         const unit = formData.get("unit") as string;
         const altUnit = formData.get("altUnit") as string;
-        const netWeight = formData.get("netWeight") as string;
-        const grossWeight = formData.get("grossWeight") as string;
-        const expiry = formData.get("expiry") as string;
         const applicableTax = formData.get("applicableTax") as string;
         const sellingPriceTaxType = formData.get("sellingPriceTaxType") as string;
         const productType = formData.get("productType") as string;
@@ -84,14 +198,10 @@ export async function POST(request:NextRequest){
           description,
           unit,
           altUnit,
-          netWeight,
-          grossWeight,
-          expiry,
           applicableTax,
           sellingPriceTaxType,
           productType,
           sellingPrice,
-          productImage,
           productOf:r._id,
           image:productImage
         }
@@ -117,35 +227,53 @@ export async function POST(request:NextRequest){
 
 export async function GET(request:NextRequest){	
   const url = new URL(request.url);
-  const id = url.searchParams.get("id");
-  const type = url.searchParams.get("type");
+  const xId = url.searchParams.get('xid')
+  const id = url.searchParams.get("id")
+  const type = url.searchParams.get("type")
+  
 
   try {
     await connectToDatabase()
-    
-    const company = await Companie.findOne({
-      masterAccountId:id
-    })
-    
-    const byType = await Product.find({
-      productOf:company._id,
-      productType:type
-    })
-    
-    const all = await Product.find({
-      productOf:company._id,
-    })
 
-    const products = type === 'all' ? all : byType
+    if(!xId){
+      const company = await Companie.findOne({
+        masterAccountId:id
+      })
+      
+      const byType = await Product.find({
+        productOf:company._id,
+        productType:type
+      })
+      
+      const all = await Product.find({
+        productOf:company._id,
+      })
+  
+      const products = type === 'all' ? all : byType
+  
+      return NextResponse.json(
+        {
+          noResult:false,
+          message:"",
+          result:products,
+          error:false
+        }
+      )
+    }
+    else{
+      const product = await Product.findById(
+        xId
+      )
 
-    return NextResponse.json(
-      {
-        noResult:false,
-        message:"",
-        result:products,
-        error:false
-      }
-    )
+      return NextResponse.json(
+        {
+          noResult:false,
+          message:"",
+          result:product,
+          error:false
+        }
+      )
+    }
   } 
   catch (e:any) {
     return NextResponse.json(
