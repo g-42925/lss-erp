@@ -7,7 +7,6 @@ import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef,useState,useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import Purchase from "@/models/Purchase";
 
 
 export default function Delivery(){
@@ -16,13 +15,10 @@ export default function Delivery(){
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
-  const [roles,setRoles] = useState<any[]>([])
-  const [order,setOrder] = useState<any>({})
   const [searchResult,setSearchResult] = useState<any[]>([])
-  const [pr,setPr] = useState<any[]>([])
   const [batches,setBatches] = useState<any[]>([])
   const [limit,setLimit] = useState<number>(-1)
-  const [deliveredQty,setDeliveredQty] = useState<number>(0)
+  const [deliveries,setDeliveries] = useState<any[]>([])
 
   const newPrForm = useForm()
   const editPrForm = useForm()
@@ -54,6 +50,7 @@ export default function Delivery(){
     }
     else{
       var [locId,batchNumber,remain] = data.batchDetail.split('/')
+      
       if(parseInt(data.qty) > remain){
         alert('can not deliver more than remain qty')
       }
@@ -68,36 +65,17 @@ export default function Delivery(){
         }
 
         await addFn.fn('',JSON.stringify(params),r => {
-          console.log(r)
+          newPrForm.reset({salesOrderNumber:''})
+          setDeliveries([r,...deliveries])
+          setLimit(-1)
+          modalRef.current?.close()
         })
       }
     }
   }
 
   async function search(v:string){
-    if(v.length > 0){
-      var result = roles.filter((r) => {
-        return r.name.includes(v)
-      })
-
-      if(result.length > 0){
-        setSearchResult(
-          [
-            ...result
-          ]
-        )
-      }
-      else{
-        setSearchResult(
-          []
-        )
-      }
-    }
-    else{
-      setSearchResult(
-        []
-      )
-    }
+    
   }
 
   function getBatches(salesOrderNumber:string){
@@ -114,7 +92,8 @@ export default function Delivery(){
       const url = `/api/web/delivery?id=${masterAccountId}&f=all&id=${masterAccountId}` 
 
       getDeliveries.fn(url,JSON.stringify({}),(result) => {
-        console.log(result)
+        setDeliveries(result)
+        setLimit(0)
       })
     }
   },[masterAccountId])
@@ -168,37 +147,28 @@ export default function Delivery(){
                   <thead>
                     <tr>
                       <th>Date</th>
+                      <th>Delivery Number</th>
+                      <th>Sales Order Number</th>
+                      <th>Location</th>
                       <th>Product</th>
+                      <th>Customer</th>
                       <th>Quantity</th>
-                      <th>Estimated price</th>
-                      <th>Final Price</th>
-                      <th>Pay Amount</th>
-                      <th>Status</th>
-                      <th>Supplier</th>
-                      <th>...</th>
                     </tr>
                   </thead>
                   <tbody>
                     {
                       searchResult.length < 1
                       ?
-                      pr.map((p,index) => {
+                      deliveries.map((p,index) => {
                         return (
                           <tr key={index}>
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                            <td>{p.product.productName}</td>
-                            <td>{p.quantity} ({p.product.unit})</td>
-                            <td>{p.estimatedPrice}</td>
-                            {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.estimatedPrice}</td> : <td>-</td>
-                            }
-                            {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
-                            }
-                            <td>{p.status}</td>
-                            {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.supplier.bussinessName}</td> : <td>-</td>
-                            }
+                            <td>{p.deliveryNumber}</td>
+                            <td>{p.salesOrderNumber}</td>
+                            <td>{p.location.name}</td>
+                            <td>{p.order.product.productName}</td>
+                            <td>{p.order.customer.bussinessName}</td>
+                            <td>{p.qty}</td>
                             <td>
                               <button className="cursor">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">

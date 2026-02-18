@@ -15,7 +15,8 @@ export default function Purchases(){
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const editRef = useRef<HTMLDialogElement>(null)
-  
+  const _editRef = useRef<HTMLDialogElement>(null)
+
   const [searchResult,setSearchResult] = useState<any[]>([])
   const [pr,setPr] = useState<any[]>([])  
 
@@ -58,6 +59,24 @@ export default function Purchases(){
     }
   }
 
+  async function _editSubmit(data:any){
+    var newPayAmt = data.payAmount - parseInt(data.currPayAmt)
+
+    var pOrdered = JSON.stringify({
+      ...data,
+      status:'___approved',
+      purchaseType:'product',
+      newPayAmt
+    })
+
+    await editFn.fn('',pOrdered,(result) => {
+      var [target] = pr.filter((r) => r._id == result._id)
+      
+      target.payAmount = result.payAmount
+      _editRef.current?.close()
+    })
+  }
+
   async function editSubmit(data:any){
     const pApproved = JSON.stringify(data)
 
@@ -72,6 +91,22 @@ export default function Purchases(){
     })
   }
 
+  async function _edit(_id:string){
+    var [filter] = pr.filter((p) => p._id == _id)
+
+    editPrForm.reset({
+      _id:filter._id,
+      quantity:filter.quantity,
+      estimatedPrice:filter.estimatedPrice,
+      product:filter.product.productName,
+      finalPrice:filter.finalPrice,
+      currPayAmt:filter.payAmount,
+      payAmount:filter.payAmount,
+      supplierId:filter.supplierId
+    })
+  
+    _editRef.current?.showModal()
+  }
   async function edit(_id:string){
     var [filter] = pr.filter((p) => p._id == _id)
 
@@ -142,6 +177,8 @@ export default function Purchases(){
                       <th>Product</th>
                       <th>Quantity</th>
                       <th>Estimated price</th>
+                      <th>Final price</th>
+
                       <th>Status</th>
                       <th>...</th>
                     </tr>
@@ -157,13 +194,26 @@ export default function Purchases(){
                             <td>{p.product.productName}</td>
                             <td>{p.quantity} ({p.product.unit})</td>
                             <td>{p.estimatedPrice}</td>
-                            <td>{p.status}</td>
                             <td>
-                            <button className="btn" onClick={() => edit(p._id)}>
+                              {
+                                p.status === "ordered" || p.status === "completed" 
+                                ? 
+                                p.finalPrice
+                                :
+                                0
+                              }
+                            </td>
+                            <td>{p.status}</td>
+                            <td className="flex flex-row gap-3">
+                              <button onClick={() => edit(p._id)}>
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                 </svg>
-                                Edit
+                              </button>
+                              <button onClick={() => _edit(p._id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                </svg>
                               </button>
                             </td>
                           </tr>
@@ -241,6 +291,31 @@ export default function Purchases(){
           </div>
         </div>
       </dialog>
+      <dialog id="my_modal_3" ref={_editRef} className="modal">
+ 				<div className="modal-box">
+					<div className="flex flex-col ">
+						<span className="text-2xl">Edit purchase order</span>
+						<form onSubmit={editPrForm.handleSubmit(_editSubmit)} className="h-100 relative flex flex-col">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Product</legend>
+                <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Quantity</legend>
+                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Pay amount</legend>
+                <input className="input w-full" {...editPrForm.register("payAmount")} type="text"/>
+              </fieldset> 
+              {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }			
+							<button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+								Edit
+							</button>
+						</form>
+		      </div>
+				</div>
+			</dialog>
       <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
         <Link href="/finance/xpurchases">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">

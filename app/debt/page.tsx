@@ -121,6 +121,7 @@ export default function Debt(){
                       <th>Supplier</th>
                       <th>Price</th>
                       <th>Pay Amount</th>
+                      <th>Remain</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -135,6 +136,7 @@ export default function Debt(){
                             <td>{p.supplier.bussinessName}</td>
                             <td>{p.finalPrice}</td>
                             <td>{p.payAmount}</td>
+                            <td>{p.finalPrice - p.payAmount}</td>
                           </tr>
                         )
                       })

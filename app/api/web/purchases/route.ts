@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import Batche from '@/models/Batche'
 import Purchase from '@/models/Purchase'
 import Companie from '@/models/Companie'
-import Debt from '@/models/Debt'
 import Supplier from "@/models/Supplier";
 import Vendor from "@/models/Vendor";
+import Log from '@/models/Log'
+import { Turret_Road } from "next/font/google";
 
 
 export async function PUT(request:NextRequest){
@@ -18,18 +19,135 @@ export async function PUT(request:NextRequest){
     // make approved status
 
     if(rest.status != 'ordered'){
-      var status = rest.status === '_approved' ? 'ordered' : rest.status
+      var status = rest.status === '_approved'  || rest.status === '__approved' || rest.status === '___approved' ? 'ordered' : rest.status
 
       var purchase = await Purchase.findById(_id)
-      
-      await Purchase.findByIdAndUpdate(
-        _id,{
-          ...rest,
-          status
+
+      if(status != '_approved' && status != '__approved' && status != '___approved' ){
+        await Purchase.findByIdAndUpdate(
+          _id,{
+            ...rest,
+            status
+          }
+        )
+      }
+
+      // merubah supplier (melalui module purchase)
+
+      if(rest.status == '__approved'){
+        if(purchase.editable){
+          if(rest.purchaseType === 'product'){
+            var spl = await Supplier.findById(rest.supplierId)
+            var result =  {...body,spl}
+            await Purchase.findByIdAndUpdate(
+              _id,{
+                payAmount:rest.payAmount,
+                supplierId:rest.supplierId
+              }
+            )
+  
+            return NextResponse.json(
+              {
+                noResult:false,
+                message:"",
+                result:result,
+                error:false
+              }
+            )   
+          }
+          else{
+            var vnd = await Vendor.findById(rest.vendorId)
+            var result =  {...body,vnd}
+            await Purchase.findByIdAndUpdate(
+              _id,{
+                payAmount:rest.payAmount,
+                vendorId:rest.vendorId
+              }
+            )
+            return NextResponse.json(
+              {
+                noResult:false,
+                message:"",
+                result:result,
+                error:false
+              }
+            )   
+          }
         }
-      )
+        else{
+          return NextResponse.json({
+            noResult:true,
+            message:"this data is not editable anymore",
+            result:null,
+            error:true
+          })
+        }
+      }
+      
+      // merubah pay amount (melalui module finance)
+
+      if(rest.status === '___approved'){
+        if(rest.purchaseType === 'product'){
+          
+          await Log.create({
+            purchaseId:_id,
+            date:new Date(),
+            amount:rest.newPayAmt,
+            initial:false
+          })
+  
+          await Purchase.findByIdAndUpdate(
+            _id,{
+              payAmount:rest.payAmount,
+              editable:false
+            }
+          )
+
+          return NextResponse.json(
+            {
+              noResult:false,
+              message:"",
+              result:body,
+              error:false
+            }
+          )          
+        }
+        else{
+          await Log.create({
+            purchaseId:_id,
+            date:new Date(),
+            amount:rest.newPayAmt,
+            initial:false
+          })
+  
+          await Purchase.findByIdAndUpdate(
+            _id,{
+              payAmount:rest.payAmount,
+              editable:false
+            }
+          )
+
+          return NextResponse.json(
+            {
+              noResult:false,
+              message:"",
+              result:body,
+              error:false
+            }
+          )   
+        }
+      }
+
+      // melakukan order (melalui module purchase)
 
       if(rest.status === '_approved'){
+
+        await Log.create({
+          purchaseId:_id,
+          date:new Date(),
+          amount:rest.payAmount,
+          initial:true
+        })
 
         if(rest.purchaseType === 'product'){
           var spl = await Supplier.findById(rest.supplierId)
@@ -61,7 +179,6 @@ export async function PUT(request:NextRequest){
         }
       }
       else{
-
         return NextResponse.json(
           {
             noResult:false,
@@ -114,7 +231,8 @@ export async function POST(request:NextRequest){
 
     var result = await Purchase.create({
       ...params,
-      companyId:company._id
+      companyId:company._id,
+      editable:true
     })
 
     var requested = result._doc

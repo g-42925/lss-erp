@@ -25,16 +25,70 @@ export async function POST(request:NextRequest){
       }
     )
 
+    const deliveryNumber = `D-${String(Date.now()).slice(-5)}`
+
     const delivered = await Deliverie.create({
       ...params,
       companyId:company._id,
-      deliveryNumber:`D-${String(Date.now()).slice(-5)}`
+      deliveryNumber:deliveryNumber
     })
+
+    const [_d] = await Deliverie.aggregate([
+      {
+        $match:{
+          deliveryNumber:deliveryNumber
+        }
+      },
+      {
+        $lookup:{
+          from:'locations',
+          localField:'locationId',
+          foreignField:'_id',
+          as:'location'
+        }
+      },
+      {
+        $unwind:'$location'
+      },
+      {
+        $lookup:{
+          from:'orders',
+          localField:'salesOrderNumber',
+          foreignField:'salesOrderNumber',
+          as:'order'
+        }
+      },
+      {
+        $unwind:'$order'
+      },
+      {
+        $lookup:{
+          from:'products',
+          localField:'order.productId',
+          foreignField:'_id',
+          as:'order.product'
+        }
+      },
+      {
+        $unwind:'$order.product'
+      },
+      {
+        $lookup:{
+          from:'customers',
+          localField:'order.customerId',
+          foreignField:'_id',
+          as:'order.customer'
+        }
+      },
+      {
+        $unwind:'$order.customer'
+      }
+    ])
 
     return NextResponse.json({
       noResult:false,
       message:"",
-      result:delivered,
+      result:_d,
       error:false
     })
   }
@@ -47,6 +101,8 @@ export async function POST(request:NextRequest){
     })
   }
 }
+
+// /delivery/get 
 
 export async function GET(request:NextRequest){
   try{
@@ -66,7 +122,6 @@ export async function GET(request:NextRequest){
         limit:-1
       }
       
-  
       if(!order) return NextResponse.json({
         noResult:false,
         message:'',
@@ -115,7 +170,7 @@ export async function GET(request:NextRequest){
   
         const result = {
           batches:batches,
-          limit:deliveredQty,
+          limit:order.qty - deliveredQty,
         }
   
         return NextResponse.json({
@@ -166,6 +221,28 @@ export async function GET(request:NextRequest){
         },
         {
           $unwind:'$order'
+        },
+        {
+          $lookup:{
+            from:'products',
+            localField:'order.productId',
+            foreignField:'_id',
+            as:'order.product'
+          }
+        },
+        {
+          $unwind:'$order.product'
+        },
+        {
+          $lookup:{
+            from:'customers',
+            localField:'order.customerId',
+            foreignField:'_id',
+            as:'order.customer'
+          }
+        },
+        {
+          $unwind:'$order.customer'
         }
       ]) 
       

@@ -15,7 +15,9 @@ export default function XPurchases(){
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
+  const orderRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+
   const [roles,setRoles] = useState<any[]>([])
   const [searchResult,setSearchResult] = useState<any[]>([])
   const [pr,setPr] = useState<any[]>([])
@@ -25,6 +27,7 @@ export default function XPurchases(){
   const [vendors,setVendors] = useState<any[]>([])
 
 
+  const orderForm = useForm()
   const newPrForm = useForm()
   const editPrForm = useForm()
   const router = useRouter()
@@ -129,7 +132,7 @@ export default function XPurchases(){
     }
   }
 
-  async function editSubmit(data:any){
+  async function orderSubmit(data:any){
     var pOrdered = JSON.stringify({
       ...data,
       status:'_approved',
@@ -148,7 +151,7 @@ export default function XPurchases(){
         target.vendor = result.vnd
         target.finalPrice = result.finalPrice
         target.payAmount = result.payAmount
-        editRef.current?.close()
+        orderRef.current?.close()
       })
     }
   }
@@ -169,6 +172,41 @@ export default function XPurchases(){
 
     editPrForm.reset({
       _id:filter._id,
+      quantity:filter.quantity,
+      estimatedPrice:filter.estimatedPrice,
+      description:filter.description,
+      finalPrice:filter.finalPrice,
+      currPayAmt:filter.payAmount,
+      payAmount:filter.payAmount,
+      vendorId:filter.vendorId
+    })
+  
+    editRef.current?.showModal()
+  }
+
+  async function editSubmit(data:any){
+
+    var pOrdered = JSON.stringify({
+      ...data,
+      status:'__approved',
+      purchaseType:'payment',
+    })
+
+
+    await editFn.fn('',pOrdered,(result) => {
+      var [target] = pr.filter((r) => r._id == result._id)
+      
+      target.vendor = result.vnd
+      editRef.current?.close()
+    })
+  }
+
+
+  async function order(_id:string){
+    var [filter] = pr.filter((p) => p._id == _id)
+
+    orderForm.reset({
+      _id:filter._id,
       estimatedPrice:filter.estimatedPrice,
       description:filter.description,
       status:filter.status
@@ -182,7 +220,7 @@ export default function XPurchases(){
       setDisabled(true)
     }
   
-    editRef.current?.showModal()
+    orderRef.current?.showModal()
   }
 
   useEffect(() => {
@@ -288,14 +326,27 @@ export default function XPurchases(){
                             {
                               p.status === "ordered" || p.status === "completed" ? <td>{p.vendor.name}</td> : <td>-</td>
                             }
-                            <td>
-                              <button onClick={() => edit(p._id)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                  <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-                                  <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
-                                </svg>
-                              </button>
-                            </td>
+                            {
+                              p.status === "ordered" || p.status === "completed" 
+                              ?
+                              <td>
+                                <button className="cursor text-red-900" onClick={() => edit(p._id)}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                    <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
+                                    <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+                                  </svg>
+                                </button>
+                              </td>
+                              :
+                              <td>
+                                <button className="cursor text-blue-900" onClick={() => order(p._id)}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                    <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
+                                    <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+                                  </svg>
+                                </button>
+                              </td>
+                            }
                           </tr>
                         )
                       })
@@ -351,30 +402,30 @@ export default function XPurchases(){
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_2" ref={editRef} className="modal">
+      <dialog id="my_modal_2" ref={orderRef} className="modal">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Make purchase order</span>
-            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
+            <form onSubmit={orderForm.handleSubmit(orderSubmit)} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Description</legend>
-                <input className="input w-full" {...editPrForm.register("description")} type="text" readOnly/>
+                <input className="input w-full" {...orderForm.register("description")} type="text" readOnly/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Estimated price</legend>
-                <input className="input w-full" {...editPrForm.register("estimatedPrice")} type="text" readOnly/>
+                <input className="input w-full" {...orderForm.register("estimatedPrice")} type="text" readOnly/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Final price</legend>
-                <input className="input w-full" {...editPrForm.register("finalPrice")} type="text"/>
+                <input className="input w-full" {...orderForm.register("finalPrice")} type="text"/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>
-                <input className="input w-full" {...editPrForm.register("payAmount")} type="text"/>
+                <input className="input w-full" {...orderForm.register("payAmount")} type="text"/>
               </fieldset>              
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Vendor</legend>
-                <select {...editPrForm.register("vendorId")} className="select w-full">
+                <select {...orderForm.register("vendorId")} className="select w-full">
                   {
                     vendors.map((s,index) => {
                       return (
@@ -394,6 +445,37 @@ export default function XPurchases(){
           </div>
         </div>
       </dialog>
+			<dialog id="my_modal_3" ref={editRef} className="modal">
+ 				<div className="modal-box">
+					<div className="flex flex-col ">
+						<span className="text-2xl">Edit purchase order</span>
+						<form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-72 relative flex flex-col">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Description</legend>
+                <input className="input w-full" {...editPrForm.register("description")} type="text" readOnly/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Vendor</legend>
+                <select {...editPrForm.register("vendorId")} className="select w-full">
+                  {
+                    vendors.map((s,index) => {
+                      return (
+                        <option key={s._id} value={s._id}>
+                          {s.name}
+                        </option>
+                      )
+                    })
+                  }
+                </select>
+              </fieldset>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }			
+							<button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+								Edit
+							</button>
+						</form>
+		      </div>
+				</div>
+			</dialog>      
       <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
         <Link href="/purchases/requisition">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">

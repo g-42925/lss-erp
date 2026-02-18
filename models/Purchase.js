@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const PurchaseSchema = new mongoose.Schema({
   description: {type:String, required:false},
+  editable: {type:Boolean,required:true},
   companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
   productId: {type:mongoose.Schema.Types.ObjectId, required:false},
   vendorId: {type:mongoose.Schema.Types.ObjectId, required:false},

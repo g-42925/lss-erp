@@ -122,6 +122,7 @@ export default function XDebt(){
                       <th>Vendor</th>
                       <th>Price</th>
                       <th>Pay Amount</th>
+                      <th>Remain</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -136,6 +137,7 @@ export default function XDebt(){
                             <td>{p.vendor.name}</td>
                             <td>{p.finalPrice}</td>
                             <td>{p.payAmount}</td>
+                            <td>{p.finalPrice - p.payAmount}</td>
                           </tr>
                         )
                       })

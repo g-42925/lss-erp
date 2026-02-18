@@ -3,7 +3,6 @@ import { NextRequest,NextResponse } from "next/server";
 
 import Purchase from '@/models/Purchase'
 import Companie from '@/models/Companie'
-import Debt from "@/models/Debt";
 
 
 export async function GET(request:NextRequest){
@@ -15,7 +14,7 @@ export async function GET(request:NextRequest){
     const cmp = await Companie.findOne({
       masterAccountId:id
     })
-   
+    
     const debts = await Purchase.aggregate([
       {
         $match:{

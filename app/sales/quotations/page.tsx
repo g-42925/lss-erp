@@ -255,6 +255,48 @@ function Q({toggle}:any){
           }
         </div>
       </div>
+      <dialog ref={editRef} id="my_modal_1" className="modal h-full">
+        <form onSubmit={editQuotationForm.handleSubmit(editSubmit)} className="h-100 w-[500px] modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Make quotation</h3>
+          <div className="flex flex-row items-center gap-2">
+            <label className="w-[70px]">Product</label>
+            <select disabled {...editQuotationForm.register("productId")} className="select flex-1">
+              {
+                products.map((p) => {
+                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
+                })
+              }
+            </select>              
+          </div>
+          <div className="flex flex-row items-center gap-2">
+            <label className="w-[70px]">Customer</label>
+            <select {...editQuotationForm.register("customerId")} className="select flex-1">
+              <option>...</option>
+              {
+                customers.map((c) => {
+                  return <option value={c._id} key={c._id}>{c.bussinessName}</option>
+                })
+              }
+            </select>              
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Quantity</label>
+            <input {...editQuotationForm.register("qty")} type="text" className="input flex-1"/>
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Expired</label>
+            <input {...editQuotationForm.register("expiredDate")} type="date" className="input flex-1"/>
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Discount</label>
+            <input {...editQuotationForm.register("discount")} type="text" className="input flex-1"/>
+          </div>
+          {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
+          <div className="flex flex-row gap-3 modal-action">
+            <button className="btn bg-red-900 text-white">Submit</button>
+          </div>
+        </form>
+      </dialog>	
       <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
         <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-100 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make quotation</h3>
