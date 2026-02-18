@@ -30,7 +30,10 @@ export default function Purchases(){
 
   var editFn = useFetch<any,any>({
     url:`/api/web/purchases`,
-    method:'PUT'
+    method:'PUT',
+    onError:m => {
+      alert(m)
+    }
   })
 
   async function search(v:string){
@@ -178,7 +181,7 @@ export default function Purchases(){
                       <th>Quantity</th>
                       <th>Estimated price</th>
                       <th>Final price</th>
-
+                      <th>Suppplier</th>
                       <th>Status</th>
                       <th>...</th>
                     </tr>
@@ -201,6 +204,15 @@ export default function Purchases(){
                                 p.finalPrice
                                 :
                                 0
+                              }
+                            </td>
+                            <td>
+                              {
+                                p.status === "ordered" || p.status === "completed" 
+                                ? 
+                                p.supplier.bussinessName
+                                :
+                                "-"
                               }
                             </td>
                             <td>{p.status}</td>
@@ -302,7 +314,7 @@ export default function Purchases(){
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly/>
+                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readonly/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>

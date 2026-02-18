@@ -178,7 +178,8 @@ export default function XPurchases(){
       finalPrice:filter.finalPrice,
       currPayAmt:filter.payAmount,
       payAmount:filter.payAmount,
-      vendorId:filter.vendorId
+      vendorId:filter.vendorId,
+      editable:filter.editable
     })
   
     editRef.current?.showModal()
@@ -192,13 +193,18 @@ export default function XPurchases(){
       purchaseType:'payment',
     })
 
-
-    await editFn.fn('',pOrdered,(result) => {
-      var [target] = pr.filter((r) => r._id == result._id)
-      
-      target.vendor = result.vnd
-      editRef.current?.close()
-    })
+    if(data.editable){
+      await editFn.fn('',pOrdered,(result) => {
+        var [target] = pr.filter((r) => r._id == result._id)
+        target.finalPrice = result.finalPrice
+        target.payAmount = result.payAmount
+        target.vendor = result.vnd
+        editRef.current?.close()
+      })
+    }
+    else{
+      alert('this data is not editable anymore')
+    }
   }
 
 
@@ -317,7 +323,7 @@ export default function XPurchases(){
                             <td>{p.description}</td>
                             <td>{p.estimatedPrice}</td>
                             {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.estimatedPrice}</td> : <td>-</td>
+                              p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
                             }
                             {
                               p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
@@ -449,10 +455,18 @@ export default function XPurchases(){
  				<div className="modal-box">
 					<div className="flex flex-col ">
 						<span className="text-2xl">Edit purchase order</span>
-						<form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-72 relative flex flex-col">
+						<form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Description</legend>
                 <input className="input w-full" {...editPrForm.register("description")} type="text" readOnly/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Final Price</legend>
+                <input className="input w-full" {...editPrForm.register("finalPrice")} type="text"/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Pay Amount</legend>
+                <input className="input w-full" {...editPrForm.register("payAmount")} type="text"/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Vendor</legend>

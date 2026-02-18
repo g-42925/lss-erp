@@ -180,6 +180,7 @@ export default function XPurchases(){
                       <th>Description</th>
                       <th>Estimated price</th>
                       <th>Final price</th>
+                      <th>Vendor</th>
                       <th>Status</th>
                       <th>...</th>
                     </tr>
@@ -201,6 +202,15 @@ export default function XPurchases(){
                                 p.finalPrice
                                 :
                                 0
+                              }
+                            </td>
+                            <td>
+                              {
+                                p.status === "ordered" || p.status === "completed" 
+                                ? 
+                                p.vendor.name
+                                :
+                                "-"
                               }
                             </td>
                             <td>{p.status}</td>

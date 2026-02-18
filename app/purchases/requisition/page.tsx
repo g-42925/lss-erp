@@ -127,12 +127,19 @@ export default function Requisition(){
       purchaseType:'product',
     })
 
-    await editFn.fn('',pOrdered,(result) => {
-      var [target] = pr.filter((r) => r._id == result._id)
-      
-      target.supplier = result.spl
-      editRef.current?.close()
-    })
+    if(data.editable){
+      await editFn.fn('',pOrdered,(result) => {
+        var [target] = pr.filter((r) => r._id == result._id)
+        target.finalPrice = result.finalPrice
+        target.payAmount = result.payAmount
+        target.supplier = result.spl
+        target.quantity = result.quantity
+        editRef.current?.close()
+      })
+    }
+    else{
+      alert('this data is not editable anymore')
+    }
   }
 
   async function orderSubmit(data:any){
@@ -182,7 +189,8 @@ export default function Requisition(){
       finalPrice:filter.finalPrice,
       currPayAmt:filter.payAmount,
       payAmount:filter.payAmount,
-      supplierId:filter.supplierId
+      supplierId:filter.supplierId,
+      editable:filter.editable
     })
   
     editRef.current?.showModal()
@@ -301,7 +309,7 @@ export default function Requisition(){
                             <td>{p.quantity} ({p.product.unit})</td>
                             <td>{p.estimatedPrice}</td>
                             {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.estimatedPrice}</td> : <td>-</td>
+                              p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
                             }
                             {
                               p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
@@ -445,14 +453,22 @@ export default function Requisition(){
  				<div className="modal-box">
 					<div className="flex flex-col ">
 						<span className="text-2xl">Edit purchase order</span>
-						<form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-100 relative flex flex-col">
+						<form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Product</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly/>
+                <input className="input w-full" {...editPrForm.register("quantity")} type="text"/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Final Price</legend>
+                <input className="input w-full" {...editPrForm.register("finalPrice")} type="text"/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Pay Amount</legend>
+                <input className="input w-full" {...editPrForm.register("payAmount")} type="text"/>
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>

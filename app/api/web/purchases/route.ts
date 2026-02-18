@@ -35,52 +35,59 @@ export async function PUT(request:NextRequest){
       // merubah supplier (melalui module purchase)
 
       if(rest.status == '__approved'){
-        if(purchase.editable){
-          if(rest.purchaseType === 'product'){
-            var spl = await Supplier.findById(rest.supplierId)
-            var result =  {...body,spl}
-            await Purchase.findByIdAndUpdate(
-              _id,{
-                payAmount:rest.payAmount,
-                supplierId:rest.supplierId
-              }
-            )
-  
-            return NextResponse.json(
-              {
-                noResult:false,
-                message:"",
-                result:result,
-                error:false
-              }
-            )   
-          }
-          else{
-            var vnd = await Vendor.findById(rest.vendorId)
-            var result =  {...body,vnd}
-            await Purchase.findByIdAndUpdate(
-              _id,{
-                payAmount:rest.payAmount,
-                vendorId:rest.vendorId
-              }
-            )
-            return NextResponse.json(
-              {
-                noResult:false,
-                message:"",
-                result:result,
-                error:false
-              }
-            )   
-          }
+
+        var first = await Log.findOne({
+          purchaseId:_id,
+          initial:true
+        })
+
+        if(first){
+          await Log.findByIdAndUpdate(
+            first._id,{
+              amount:rest.payAmount
+            }
+          )
+        }
+
+        if(rest.purchaseType === 'product'){
+          var spl = await Supplier.findById(rest.supplierId)
+          var result =  {...body,spl}
+          await Purchase.findByIdAndUpdate(
+            _id,{
+              finalPrice:rest.finalPrice,
+              payAmount:rest.payAmount,
+              supplierId:rest.supplierId,
+              quantity:rest.quantity
+            }
+          )
+
+          return NextResponse.json(
+            {
+              noResult:false,
+              message:"",
+              result:result,
+              error:false
+            }
+          )   
         }
         else{
-          return NextResponse.json({
-            noResult:true,
-            message:"this data is not editable anymore",
-            result:null,
-            error:true
-          })
+          var vnd = await Vendor.findById(rest.vendorId)
+          var result =  {...body,vnd}
+          await Purchase.findByIdAndUpdate(
+            _id,{
+              finalPrice:rest.finalPrice,
+              payAmount:rest.payAmount,
+              vendorId:rest.vendorId
+            }
+          )
+          return NextResponse.json(
+            {
+              noResult:false,
+              message:"",
+              result:result,
+              error:false
+            }
+          )   
         }
       }
       
