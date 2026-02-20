@@ -168,7 +168,7 @@ export default function List(){
   if(!isSuperAdmin) router.push('/dashboard')
   
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Products <span className="text-sm leading-loose">Manage product</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -354,8 +354,8 @@ export default function List(){
 						</form>
 		      </div>
 				</div>
-			</dialog>
-    </Sidebar>
+			</dialog>    
+    </>
   )
 }
 

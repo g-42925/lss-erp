@@ -16,14 +16,16 @@ export async function PUT(request:NextRequest){
     const body = await request.json()
     const {_id,...rest} = body
 
-    // make approved status
-
+    
     if(rest.status != 'ordered'){
+
       var status = rest.status === '_approved'  || rest.status === '__approved' || rest.status === '___approved' ? 'ordered' : rest.status
 
       var purchase = await Purchase.findById(_id)
 
-      if(status != '_approved' && status != '__approved' && status != '___approved' ){
+      // memberikan approvel atau menolak (oleh module finance)
+
+      if(status != 'ordered'){
         await Purchase.findByIdAndUpdate(
           _id,{
             ...rest,
@@ -94,22 +96,51 @@ export async function PUT(request:NextRequest){
       // merubah pay amount (melalui module finance)
 
       if(rest.status === '___approved'){
+        if(rest.type === 'adjustment'){
+          var ref = await Log.findOne({paymentNumber:rest.reference})
+          if(rest.newPayAmt > ref.amount || ref.type === "adjustment"){
+            return NextResponse.json({
+              noResult:true,
+              message:"correction amount is invalid",
+              result:true,
+              error:false
+            })
+          }
+          else{
+            await Purchase.findByIdAndUpdate(
+              _id,{ 
+                $inc:{ 
+                  payAmount: -rest.newPayAmt
+                } 
+              },
+            )
+          }
+        }
+
+        var reference = rest.reference ?? null
+
+        var amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
+
         if(rest.purchaseType === 'product'){
           
           await Log.create({
             purchaseId:_id,
             date:new Date(),
-            amount:rest.newPayAmt,
-            initial:false
+            amount:amt,
+            initial:false,
+            paymentNumber:`PL-${String(Date.now()).slice(-5)}`,
+            type:rest.type,
+            reference,
           })
-  
-          await Purchase.findByIdAndUpdate(
-            _id,{
-              payAmount:rest.payAmount,
-              editable:false
-            }
-          )
-
+          
+          if(rest.type === "payment"){
+            await Purchase.findByIdAndUpdate(
+              _id,{
+                payAmount:rest.payAmount,
+                editable:false
+              }
+            )            
+          }
           return NextResponse.json(
             {
               noResult:false,
@@ -123,16 +154,21 @@ export async function PUT(request:NextRequest){
           await Log.create({
             purchaseId:_id,
             date:new Date(),
-            amount:rest.newPayAmt,
-            initial:false
+            amount:amt,
+            initial:false,
+            paymentNumber:`PL-${String(Date.now()).slice(-5)}`,
+            type:rest.type,
+            reference
           })
-  
-          await Purchase.findByIdAndUpdate(
-            _id,{
-              payAmount:rest.payAmount,
-              editable:false
-            }
-          )
+
+          if(rest.type === "payment"){
+            await Purchase.findByIdAndUpdate(
+              _id,{
+                payAmount:rest.payAmount,
+                editable:false
+              }
+            )
+          }
 
           return NextResponse.json(
             {
@@ -153,11 +189,19 @@ export async function PUT(request:NextRequest){
           purchaseId:_id,
           date:new Date(),
           amount:rest.payAmount,
-          initial:true
+          initial:true,
+          paymentNumber:`PL-${String(Date.now()).slice(-5)}`,
+          type:'payment'
         })
 
         if(rest.purchaseType === 'product'){
           var spl = await Supplier.findById(rest.supplierId)
+
+          await Purchase.findByIdAndUpdate(_id,{
+            ...rest,
+            status:'ordered'
+          })
+          
         
           var result =  {...body,spl}
           
@@ -172,6 +216,12 @@ export async function PUT(request:NextRequest){
         }
         else{
           var vnd = await Vendor.findById(rest.vendorId)
+
+
+          await Purchase.findByIdAndUpdate(_id,{
+            ...rest,
+            status:'ordered'
+          })
           
           var result =  {...body,vnd}
           
@@ -239,7 +289,8 @@ export async function POST(request:NextRequest){
     var result = await Purchase.create({
       ...params,
       companyId:company._id,
-      editable:true
+      editable:true,
+      purchaseOrderNumber:`SO-${String(Date.now()).slice(-5)}`
     })
 
     var requested = result._doc

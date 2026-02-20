@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const PurchaseSchema = new mongoose.Schema({
   description: {type:String, required:false},
-  editable: {type:Boolean,required:true},
+  purchaseOrderNumber:{type:String,required:true},
   companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
   productId: {type:mongoose.Schema.Types.ObjectId, required:false},
   vendorId: {type:mongoose.Schema.Types.ObjectId, required:false},
@@ -13,6 +13,7 @@ const PurchaseSchema = new mongoose.Schema({
   date: {type:Date,Default:Date.now},
   finalPrice:{type:Number,required:false},
   payAmount: {type:Number,Default:false},
+  editable: {type:Boolean,required:true},
   status: { 
     type: String, 
     enum: [

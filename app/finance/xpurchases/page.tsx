@@ -23,6 +23,9 @@ export default function XPurchases(){
   const editPrForm = useForm()
   const router = useRouter()
 
+  const type = editPrForm.watch("type")
+
+
   var getFn = useFetch<any[],any>({
     url:`/api/web/purchases?id=xxx`,
     method:'GET'
@@ -60,24 +63,37 @@ export default function XPurchases(){
   }
 
   async function _editSubmit(data:any){
-    var newPayAmt = data.payAmount - parseInt(data.currPayAmt)
+    var newPayAmt = parseInt(data.payAmount) - data.currPayAmt
+    var amount = data.type === "adjustment" ? data.payAmount : newPayAmt
 
-    const pApproved = JSON.stringify({
+    var pOrdered = JSON.stringify({
       ...data,
-      newPayAmt,
       status:'___approved',
-      purchaseType:'payment',
+      purchaseType:'product',
+      newPayAmt:amount
     })
 
-    await editFn.fn('',pApproved,(result) => {
-      var [target] = pr.filter((r) => r._id == result._id)
-      
-      target.payAmount = result.payAmount
-
-      setSearchResult([])
-
-      _editRef.current?.close()     
-    })
+    if(parseInt(data.payAmount) > data.finalPrice || data.payAmount < data.currPayAmt){
+      if(data.type === "adjustment"){
+        await editFn.fn('',pOrdered,(result) => {
+          var [target] = pr.filter((r) => r._id == result._id)
+          
+          target.payAmount = result.payAmount
+          _editRef.current?.close()
+        })        
+      }
+      else{
+        alert("Pay amount is invalid")
+      }
+    }
+    else{
+      await editFn.fn('',pOrdered,(result) => {
+        var [target] = pr.filter((r) => r._id == result._id)
+        
+        target.payAmount = result.payAmount
+        _editRef.current?.close()
+      })          
+    }
   }
 
 
@@ -143,7 +159,7 @@ export default function XPurchases(){
   
   
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Purchases</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -215,16 +231,28 @@ export default function XPurchases(){
                             </td>
                             <td>{p.status}</td>
                             <td className="flex flex-row gap-3">
-                              <button onClick={() => edit(p._id)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                </svg>
-                              </button>
-                              <button onClick={() => _edit(p._id)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                </svg>
-                              </button>
+                              {
+                                p.status != "ordered"
+                                ?
+                                <button onClick={() => edit(p._id)}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                  </svg>
+                                </button>
+                                :
+                                <></>
+                              }
+                              {
+                                p.status === "ordered"
+                                ?
+                                <button onClick={() => _edit(p._id)}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                  </svg>
+                                </button>
+                                :
+                                <></>
+                              }
                             </td>
                           </tr>
                         )
@@ -309,7 +337,24 @@ export default function XPurchases(){
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>
                 <input className="input w-full" {...editPrForm.register("payAmount")} type="text"/>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Type</legend>
+                <select className="select w-full" {...editPrForm.register("type")}>
+                  <option>payment</option>
+                  <option>adjustment</option>
+                </select>
               </fieldset> 
+              {
+                type === "adjustment"
+                ?
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Adjust to</legend>
+                  <input className="input w-full" {...editPrForm.register("reference")} type="text"/>
+                </fieldset>                
+                :
+                <></>
+              }
               {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }			
 							<button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
 								Edit
@@ -324,8 +369,8 @@ export default function XPurchases(){
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>
         </Link>
-      </button>
-    </Sidebar>
+      </button>    
+    </>
   )
 }
 

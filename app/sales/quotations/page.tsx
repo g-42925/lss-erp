@@ -149,7 +149,7 @@ function Q({toggle}:any){
   },[masterAccountId])
 
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 h-full flex flex-col gap-3">
         <span className="text-2xl">Product Quotation <span className="text-sm leading-loose"></span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
@@ -345,8 +345,8 @@ function Q({toggle}:any){
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>
         </Link>
-      </button>
-    </Sidebar>
+      </button>    
+    </>
   )
 }
 
@@ -521,7 +521,7 @@ function Stock({pop}:any){
   if (!mounted) return null;
 
   return (
-    <Sidebar>
+    <>
 			<div className="h-full p-6 flex flex-col gap-3">
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -659,8 +659,8 @@ function Stock({pop}:any){
             <button className="btn bg-red-900 text-white">Submit</button>
           </div>
         </form>
-			</dialog>	
-    </Sidebar>
+			</dialog>	    
+    </>
   )
 }
 

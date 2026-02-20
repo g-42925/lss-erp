@@ -170,7 +170,7 @@ export default function Suppliers(){
   }
 
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Suppliers <span className="text-sm leading-loose">Manage your suppliers</span></span>
         <label className="input w-full">
@@ -576,8 +576,8 @@ export default function Suppliers(){
 						</form>
 		      </div>
 				</div>
-			</dialog>
-    </Sidebar>
+			</dialog>    
+    </>
   )
 }
 

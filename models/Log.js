@@ -1,6 +1,10 @@
 import mongoose from 'mongoose';
 
 const logSchema = new mongoose.Schema({
+  paymentNumber:{
+    type:String,
+    required:true
+  },
   purchaseId:{
     type:mongoose.Schema.Types.ObjectId,
     required:true
@@ -17,6 +21,15 @@ const logSchema = new mongoose.Schema({
     type:Boolean,
     required:true
   },
+  type:{
+    type:String,
+    enum:['payment','adjustment'],
+    required:true
+  },
+  reference:{
+    type:String,
+    required:false
+  }
 });
 
 

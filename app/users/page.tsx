@@ -178,7 +178,7 @@ export default function Users(){
   },[masterAccountId])
   
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Users <span className="text-sm leading-loose">Manage users</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -383,8 +383,8 @@ export default function Users(){
 						</form>
 		      </div>
 				</div>
-			</dialog>
-    </Sidebar>
+			</dialog>    
+    </>
   )
 }
 

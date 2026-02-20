@@ -75,7 +75,7 @@ export default function XDebt(){
   if(!isSuperAdmin) router.push('/dashboard')
   
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Debts</span>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -176,9 +176,8 @@ export default function XDebt(){
             </Link>
           </button>
         </div>
-        
-      </div>
-    </Sidebar>
+      </div>    
+    </>
   )
 }
 

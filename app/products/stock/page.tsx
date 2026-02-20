@@ -176,7 +176,7 @@ export default function Stock(){
   if (!mounted) return null;
 
   return (
-    <Sidebar>
+    <>
 			<div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Stock <span className="text-sm leading-loose">Manage stock</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -365,8 +365,8 @@ export default function Stock(){
             <button className="btn bg-red-900 text-white">Submit</button>
           </div>
         </form>
-			</dialog>	
-    </Sidebar>
+			</dialog>    
+    </>
   )
 }
 

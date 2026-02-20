@@ -166,7 +166,7 @@ export default function Customers(){
   }
 
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Customers <span className="text-sm leading-loose">Manage your customers</span></span>
         <label className="input w-full">
@@ -595,8 +595,8 @@ export default function Customers(){
             </form>
           </div>
         </div>
-      </dialog>
-    </Sidebar>
+      </dialog>    
+    </>
   )
 }
 

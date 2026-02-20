@@ -158,7 +158,7 @@ export default function Location(){
   if(!isSuperAdmin) router.push('/dashboard')
   
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Location <span className="text-sm leading-loose">Manage location</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -294,8 +294,8 @@ export default function Location(){
             </form>
           </div>
         </div>
-      </dialog>
-    </Sidebar>
+      </dialog>    
+    </>
   )
 }
 

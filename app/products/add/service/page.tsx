@@ -85,8 +85,8 @@ export default function Add(){
   },[masterAccountId])  
 
   return (
-    <Sidebar>
-      <div className="h-full p-6 flex flex-col gap-3">
+    <>
+     <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Add new service</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
@@ -202,7 +202,6 @@ export default function Add(){
           <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" />
         </div>
       </div>
-
-    </Sidebar>
+    </>
   )
 }

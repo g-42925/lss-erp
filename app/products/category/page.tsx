@@ -155,7 +155,7 @@ export default function Roles(){
   
   
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Categories <span className="text-sm leading-loose">Manage your categories</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
@@ -294,8 +294,8 @@ export default function Roles(){
             </form>
           </div>
         </div>
-      </dialog>
-    </Sidebar>
+      </dialog>    
+    </>
   )
 }
 

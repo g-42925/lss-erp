@@ -159,7 +159,7 @@ export default function Vendor(){
   }
 
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Vendors <span className="text-sm leading-loose">Manage your vendor</span></span>
         <label className="input w-full">
@@ -481,8 +481,8 @@ export default function Vendor(){
             </form>
           </div>
         </div>
-      </dialog>
-    </Sidebar>
+      </dialog>    
+    </>
   )
 }
 

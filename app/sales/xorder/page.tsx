@@ -100,7 +100,7 @@ export default function XOrder(){
   },[masterAccountId])
 
   return (
-    <Sidebar>
+    <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Services Order</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
@@ -261,7 +261,7 @@ export default function XOrder(){
             <button className="btn bg-red-900 text-white">Submit</button>
           </div>
         </form>
-      </dialog>	
-    </Sidebar>
+      </dialog>	    
+    </>
   )
 }

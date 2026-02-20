@@ -135,6 +135,11 @@ export default function Sidebar({children}:{children:any}){
                     Purchases
                   </Link>
                 </li>
+                <li>
+                  <Link href="/finance/log">
+                    Log
+                  </Link>
+                </li>
               </ul>
             </details>
             <details>
