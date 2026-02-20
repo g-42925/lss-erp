@@ -32,7 +32,10 @@ export async function GET(request:NextRequest){
         }
       },
       {
-        $unwind:'$product'
+        $unwind:{
+          path:'$product',
+          preserveNullAndEmptyArrays:true
+        }
       },
       {
         $lookup:{

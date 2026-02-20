@@ -7,8 +7,6 @@ import Companie from '@/models/Companie'
 import Supplier from "@/models/Supplier";
 import Vendor from "@/models/Vendor";
 import Log from '@/models/Log'
-import { Turret_Road } from "next/font/google";
-
 
 export async function PUT(request:NextRequest){
   try{

@@ -71,7 +71,7 @@ export default function Log(){
                     <th>Date</th>
                     <th>Purchase Order Number</th>
                     <th>Payment Number</th>
-                    <th>Product</th>
+                    <th>Description</th>
                     <th>Vendor</th>
                     <th>Type</th>
                     <th>Amount</th>
@@ -88,7 +88,7 @@ export default function Log(){
                             <td>{new Date(log.date).toLocaleString('id-ID')}</td>
                             <td>{log.purchaseOrderNumber}</td>
                             <td>{log.log.paymentNumber}</td>
-                            <td>{log.product.productName}</td>
+                            <td>{log.description}</td>
                             <td>{log.vendor.name}</td>
                             <td>{log.log.type}</td>
                             <td>{log.log.amount}</td>
