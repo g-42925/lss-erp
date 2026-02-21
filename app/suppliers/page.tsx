@@ -294,38 +294,6 @@ export default function Suppliers(){
                       })}
                     </tr>
                     <tr className="divide-x">
-                      <th>Credit Limit</th>
-                      {suppliers.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.creditLimit}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Pay Term</th>
-                      {suppliers.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.payTerm}</th>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Opening Balance</th>
-                      {suppliers.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.openingBalance}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Advance Balance</th>
-                      {suppliers.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.openingBalance}</th>
-                        )
-                      })}
-                    </tr>  
-                    <tr className="divide-x">
                       <th>Added On</th>
                       {suppliers.map((supplier,index) => {
                         return (
@@ -421,38 +389,6 @@ export default function Suppliers(){
                       })}
                     </tr>
                     <tr className="divide-x">
-                      <th>Credit Limit</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.creditLimit}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Pay Term</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.payTerm}</th>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Opening Balance</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.openingBalance}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Advance Balance</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.advanceBalance}</th>
-                        )
-                      })}
-                    </tr>  
-                    <tr className="divide-x">
                       <th>Added On</th>
                       {searchResult.map((supplier,index) => {
                         return (
@@ -540,11 +476,11 @@ export default function Suppliers(){
 			<dialog id="my_modal_1" ref={modalRef} className="modal">
  				<div className="modal-box">
 					<div className="flex flex-col gap-3">
-						<span className="text-2xl">Add Vendor</span>
-						<form onSubmit={newSupplierForm.handleSubmit(submit)} className="h-90 flex flex-col gap-3 relative">
+						<span className="text-2xl">Add Supplier</span>
+						<form onSubmit={newSupplierForm.handleSubmit(submit)} className="h-84 flex flex-col gap-3 relative">
               <div className="flex flex-row gap-3">
-                <input {...newSupplierForm.register("contactId")} value={`cnt-${uuidv4().split('-')[1]}`} type="text" placeholder="contact id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newSupplierForm.register("vendorId")} value={`vnd-${uuidv4().split('-')[1]}`} type="text" placeholder="vendor id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
+                <input {...newSupplierForm.register("contactId")} value={`cnt-${uuidv4().split('-')[1]}`} type="hidden" placeholder="contact id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
+                <input {...newSupplierForm.register("vendorId")} value={`vnd-${uuidv4().split('-')[1]}`} type="hidden" placeholder="vendor id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
                 <input {...newSupplierForm.register("bussinessName")} type="text" placeholder="bussiness name" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
               </div>
               <div  className="flex flex-row gap-3">
@@ -552,13 +488,8 @@ export default function Suppliers(){
                 <input {...newSupplierForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
                 <input {...newSupplierForm.register("taxNumber")} type="text" placeholder="tax number" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
               </div>       
+
               <div className="flex flex-row gap-3">
-                <input {...newSupplierForm.register("creditLimit")} type="text" placeholder="credit limit" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-                <input {...newSupplierForm.register("payTerm")} type="text" placeholder="pay term" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newSupplierForm.register("openingBalance")}  type="text" placeholder="opening balance" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-              </div>    
-              <div className="flex flex-row gap-3">
-                <input {...newSupplierForm.register("advanceBalance")} type="text" placeholder="advance balance" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
                 <input {...newSupplierForm.register("address")} type="text" placeholder="addres" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>    
                 <input {...newSupplierForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>                 
               </div>       

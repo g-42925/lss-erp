@@ -119,6 +119,7 @@ export default function Receivable(){
                       <th>Customer</th>
                       <th>Value</th>
                       <th>Pay Amount</th>
+                      <th>Remain</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -133,6 +134,8 @@ export default function Receivable(){
                             <td>{p.order.customer.bussinessName}</td>
                             <td>{p.value}</td>
                             <td>{p.payAmount}</td>
+                            <td>{p.value - p.payAmount}</td>
+
                           </tr>
                         )
                       })
