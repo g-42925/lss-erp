@@ -55,7 +55,8 @@ export default function Customers(){
   async function submit(data:any){
     const newCustomers = JSON.stringify({
       ...data,
-      masterAccountId
+      masterAccountId,
+      name:data.bussinessName
     })
 
     await addFn.fn('',newCustomers,(result) => {
@@ -72,7 +73,7 @@ export default function Customers(){
   async function search(v:string){
     if(v.length > 0){
       var result = customers.filter((r) => {
-        return r.name.includes(v)
+        return r.bussinessName.toLowerCase().includes(v)
       })
 
       if(result.length > 0){
@@ -173,7 +174,7 @@ export default function Customers(){
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
           </svg>
-          <input type="search" required placeholder="Search" className="w-full p-3" />
+          <input onKeyUp={(e) => search(e.target.value)} type="search" required placeholder="Search" className="w-full p-3" />
         </label>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -186,7 +187,7 @@ export default function Customers(){
             </button>
           </div>
           <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center">
+            <div className="flex-1 flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
                 <option>20</option>
@@ -195,7 +196,7 @@ export default function Customers(){
               </select>
               Entries
             </div>
-            <div className="ml-auto mr-auto flex flex-row gap-1">
+            <div className="flex flex-row gap-1">
               <div className="flex flex-row border-2 border-black p-1 rounded-md items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -221,7 +222,6 @@ export default function Customers(){
                 Print
               </div>
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3"/>
           </div>
           {
             getCustomersFn.loading
@@ -240,275 +240,77 @@ export default function Customers(){
             ?
               <div className="overflow-x-auto">
                 <table className="table">
-                  <tbody>
-                    <tr className="divide-x">
-                      <th>Contact ID</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.contactId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Vendor ID</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.vendorId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Bussines Name</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.bussinessName}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
+                  <thead>
+                    <tr>
                       <th>Name</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.name}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
                       <th>Email</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.email}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Tax number</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.taxNumber}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Credit Limit</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.creditLimit}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Pay Term</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.payTerm}</th>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Opening Balance</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.openingBalance}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Advance Balance</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.openingBalance}</th>
-                        )
-                      })}
-                    </tr>  
-                    <tr className="divide-x">
-                      <th>Added On</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{normalizeDate(customer.addedOn)}</th>
-                        )
-                      })}
-                    </tr>   
-                    <tr className="divide-x">
-                      <th>Addres</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.address}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
+                      <th>Tax Number</th>
+                      <th>Address</th>
                       <th>Mobile</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <>
-                            <th key={index}>{customer.mobile}</th>
-                          </>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Total sale due</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <>
-                            <th key={index}>{customer.totalSaleDue}</th>
-                          </>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
                       <th>...</th>
-                      {customers.map((customer,index) => {
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {
+                      customers.map((c) => {
                         return (
-                          <th>
-                            <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} className="btn" onClick={() => edit(customer._id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                <path strokeLinecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                          </th>
+                          <tr>
+                            <td>{c.bussinessName}</td>
+                            <td>{c.email} </td>
+                            <td>{c.taxNumber} </td>
+                            <td>{c.address} </td>
+                            <td>{c.mobile} </td>
+                            <td>
+                              <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(c._id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                  <path strokeLinecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
                         )
-                      })}
-                    </tr>                                
+                      })
+                    }
                   </tbody>
                 </table>
               </div>
             :
-            <div className="overflow-x-auto">
-              <table className="table">
-                  <tbody>
-                    <tr className="divide-x">
-                      <th>Contact ID</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.contactId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Vendor ID</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.vendorId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Bussines Name</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.bussinessName}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
                       <th>Name</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.name}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
                       <th>Email</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.email}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Tax number</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.taxNumber}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Credit Limit</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.creditLimit}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Pay Term</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.payTerm}</th>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Opening Balance</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.openingBalance}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Advance Balance</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.advanceBalance}</th>
-                        )
-                      })}
-                    </tr>  
-                    <tr className="divide-x">
-                      <th>Added On</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{normalizeDate(customer.addedOn)}</th>
-                        )
-                      })}
-                    </tr>   
-                    <tr className="divide-x">
-                      <th>Addres</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.address}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
+                      <th>Tax Number</th>
+                      <th>Address</th>
                       <th>Mobile</th>
-                      {searchResult.map((customer,index) => {
-                        return (
-                          <th key={index}>{customer.mobile}</th>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Total sale due</th>
-                      {customers.map((customer,index) => {
-                        return (
-                          <>
-                            <th key={index}>{customer.totalSaleDue}</th>
-                          </>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
                       <th>...</th>
-                      {searchResult.map((customer,index) => {
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {
+                      searchResult.map((c) => {
                         return (
-                          <th>
-                            <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} className="btn" onClick={() => edit(supplier._id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                <path strokeLinecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                          </th>
+                          <tr>
+                            <td>{c.bussinessName}</td>
+                            <td>{c.email} </td>
+                            <td>{c.taxNumber} </td>
+                            <td>{c.address} </td>
+                            <td>{c.mobile} </td>
+                            <td>
+                              <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(c._id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                  <path strokeLinecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
                         )
-                      })}
-                    </tr>                                 
-              </tbody>
-            </table>
-          </div>         
+                      })
+                    }
+                  </tbody>
+                </table>
+              </div>         
           }      
         </div>
       </div>
@@ -516,29 +318,29 @@ export default function Customers(){
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Supplier</span>
-            <form onSubmit={editCustomerForm.handleSubmit(handleEdit)} className="h-90 flex flex-col gap-3 relative">
-              <div className="flex flex-row gap-3">
-                <input {...editCustomerForm.register("_id")} type="hidden" placeholder="contact id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input readOnly {...editCustomerForm.register("contactId")} type="text" placeholder="contact id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input readOnly {...editCustomerForm.register("vendorId")} type="text" placeholder="vendor id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...editCustomerForm.register("bussinessName")} type="text" placeholder="bussiness name" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-              </div>
-              <div  className="flex flex-row gap-3">
-                <input {...editCustomerForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-                <input {...editCustomerForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...editCustomerForm.register("taxNumber")} type="text" placeholder="tax number" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-              </div>       
-              <div className="flex flex-row gap-3">
-                <input {...editCustomerForm.register("creditLimit")} type="text" placeholder="credit limit" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-                <input {...editCustomerForm.register("payTerm")} type="text" placeholder="pay term" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...editCustomerForm.register("openingBalance")}  type="text" placeholder="opening balance" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-              </div>    
-              <div className="flex flex-row gap-3">
-                <input {...editCustomerForm.register("advanceBalance")} type="text" placeholder="advance balance" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-                <input {...editCustomerForm.register("address")} type="text" placeholder="addres" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>    
-                <input {...editCustomerForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>                 
-                <input {...editCustomerForm.register("totalSaleDue")} type="text" placeholder="total sale due" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>                 
-              </div>       
+            <form onSubmit={editCustomerForm.handleSubmit(handleEdit)} className="h-140 flex flex-col gap-3 relative">
+              <div className="flex flex-col gap-3">
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Bussiness Name</legend>
+                  <input className="input w-full" {...editCustomerForm.register("bussinessName")} type="text"/>
+                </fieldset>    
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Email</legend>
+                  <input className="input w-full" {...editCustomerForm.register("email")} type="text"/>
+                </fieldset>    
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tax Number</legend>
+                  <input className="input w-full" {...editCustomerForm.register("taxNumber")} type="text"/>
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Address</legend>
+                  <input className="input w-full" {...editCustomerForm.register("address")} type="text"/>
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Mobile</legend>
+                  <input className="input w-full" {...editCustomerForm.register("mobile")} type="text"/>
+                </fieldset>                
+              </div>   
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></> }
               <div className="modal-action">
                 {/* <form method="dialog">
@@ -558,29 +360,29 @@ export default function Customers(){
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Customer</span>
-            <form onSubmit={newCustomerForm.handleSubmit(submit)} className="h-90 flex flex-col gap-3 relative">
-              <div className="flex flex-row gap-3">
-                <input {...newCustomerForm.register("contactId")} value={`cnt-${uuidv4().split('-')[1]}`} type="text" placeholder="contact id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newCustomerForm.register("vendorId")} value={`vnd-${uuidv4().split('-')[1]}`} type="text" placeholder="vendor id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newCustomerForm.register("bussinessName")} type="text" placeholder="bussiness name" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-              </div>
-              <div  className="flex flex-row gap-3">
-                <input {...newCustomerForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-                <input {...newCustomerForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newCustomerForm.register("taxNumber")} type="text" placeholder="tax number" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-              </div>       
-              <div className="flex flex-row gap-3">
-                <input {...newCustomerForm.register("creditLimit")} type="text" placeholder="credit limit" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-                <input {...newCustomerForm.register("payTerm")} type="text" placeholder="pay term" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newCustomerForm.register("openingBalance")}  type="text" placeholder="opening balance" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-              </div>    
-              <div className="flex flex-row gap-3">
-                <input {...newCustomerForm.register("advanceBalance")} type="text" placeholder="advance balance" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
-                <input {...newCustomerForm.register("address")} type="text" placeholder="addres" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>    
-                <input {...newCustomerForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>                 
-                <input {...newCustomerForm.register("totalSaleDue")} type="text" placeholder="totalSaleDue" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>                 
-
-              </div>       
+            <form onSubmit={newCustomerForm.handleSubmit(submit)} className="h-140 flex flex-col gap-3 relative">
+              <div className="flex flex-col gap-3">
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Bussiness Name</legend>
+                  <input className="input w-full" {...newCustomerForm.register("bussinessName")} type="text"/>
+                </fieldset>    
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Email</legend>
+                  <input className="input w-full" {...newCustomerForm.register("email")} type="text"/>
+                </fieldset>    
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tax Number</legend>
+                  <input className="input w-full" {...newCustomerForm.register("taxNumber")} type="text"/>
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Address</legend>
+                  <input className="input w-full" {...newCustomerForm.register("address")} type="text"/>
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Mobile</legend>
+                  <input className="input w-full" {...newCustomerForm.register("mobile")} type="text"/>
+                </fieldset>                
+              </div>   
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></> }
               <div className="modal-action">
                 {/* <form method="dialog">

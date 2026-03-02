@@ -8,4 +8,4 @@ const UnitSchema = new mongoose.Schema({
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)
-export default mongoose.models.UnitSchema || mongoose.model('Unit', UnitSchema)
+export default mongoose.models.Unit || mongoose.model('Unit', UnitSchema)

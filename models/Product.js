@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import { type } from 'os';
 
 const ProductSchema = new mongoose.Schema({
+  currentUnitCost:{type:Number,required:false},
+  prevUnitCost:{type:Number,required:false},
+  unitCostStock:{type:Number,required:false},
   productName:{type:String,required:true},
   productId:{type:String,required:true},
   barcodeType:{type:String,required:false},
@@ -15,9 +18,8 @@ const ProductSchema = new mongoose.Schema({
   productType:{type:String,required:true,enum:["service","good"]},
   sellingPrice:{type:Number,required:true},
   productOf:{type:mongoose.Schema.Types.ObjectId, required:true},
+  haveExpiredDate:{type:Boolean,required:false},
 });
-
-
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)
 export default mongoose.models.Product || mongoose.model('Product', ProductSchema);

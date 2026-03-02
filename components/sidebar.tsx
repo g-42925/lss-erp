@@ -67,6 +67,9 @@ export default function Sidebar({children}:{children:any}){
                 <li>
                   <Link href="/products/stock">Stock</Link>
                 </li>
+                <li>
+                  <Link href="/products/measure">Measure</Link>
+                </li>
               </ul>
             </details>
             <details>

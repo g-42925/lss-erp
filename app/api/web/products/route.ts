@@ -141,6 +141,7 @@ export async function POST(request:NextRequest){
         const sellingPriceTaxType = formData.get("sellingPriceTaxType") as string;
         const productType = formData.get("productType") as string;
         const sellingPrice = formData.get("sellingPrice") as string;
+        const haveExpiredDate = formData.get("haveExpiredDate") as string;
 
         if (!file) {
           return NextResponse.json({
@@ -203,7 +204,8 @@ export async function POST(request:NextRequest){
           productType,
           sellingPrice,
           productOf:r._id,
-          image:productImage
+          image:productImage,
+          haveExpiredDate
         }
 
         const product = await Product.create(newProduct)

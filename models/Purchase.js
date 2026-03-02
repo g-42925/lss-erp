@@ -14,6 +14,7 @@ const PurchaseSchema = new mongoose.Schema({
   finalPrice:{type:Number,required:false},
   payAmount: {type:Number,Default:false},
   editable: {type:Boolean,required:true},
+  unitCost: {type:Number,required:false},
   status: { 
     type: String, 
     enum: [

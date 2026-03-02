@@ -235,6 +235,7 @@ export default function Requisition(){
       quantity:filter.quantity,
       estimatedPrice:filter.estimatedPrice,
       product:filter.product.productName,
+      productId:filter.product._id
     })
 
     if(filter.status === 'approved'){

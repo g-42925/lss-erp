@@ -72,8 +72,12 @@ export default function Vendor(){
   async function search(v:string){
     if(v.length > 0){
       var result = vendors.filter((r) => {
-        return r.name.includes(v)
+        return r.name.toLowerCase().includes(v)
       })
+
+      console.log(
+        result
+      )
 
       if(result.length > 0){
         setSearchResult(
@@ -166,7 +170,7 @@ export default function Vendor(){
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
           </svg>
-          <input type="search" required placeholder="Search" className="w-full p-3" />
+          <input onKeyUp={(e) => search(e.target.value)} type="search" required placeholder="Search" className="w-full p-3" />
         </label>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -179,7 +183,7 @@ export default function Vendor(){
             </button>
           </div>
           <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center">
+            <div className="flex-1 flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
                 <option>20</option>
@@ -188,7 +192,7 @@ export default function Vendor(){
               </select>
               Entries
             </div>
-            <div className="ml-auto mr-auto flex flex-row gap-1">
+            <div className="flex flex-row gap-1">
               <div className="flex flex-row border-2 border-black p-1 rounded-md items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
@@ -214,7 +218,6 @@ export default function Vendor(){
                 Print
               </div>
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3"/>
           </div>
           {
             getVendorsFn.loading
@@ -233,189 +236,73 @@ export default function Vendor(){
             ?
               <div className="overflow-x-auto">
                 <table className="table">
-                  <tbody>
-                    <tr className="divide-x">
-                      <th>ID</th>
-                      {vendors.map((v,index) => {
-                        return (
-                          <th key={index}>{v.vendorId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
+                  <thead>
+                    <tr>
                       <th>Name</th>
-                      {vendors.map((v,index) => {
-                        return (
-                          <th key={index}>{v.name}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
                       <th>Email</th>
-                      {vendors.map((v,index) => {
-                        return (
-                          <th key={index}>{v.email}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Adress</th>
-                      {vendors.map((v,index) => {
-                        return (
-                          <th key={index}>{v.address}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
+                      <th>Address</th>
                       <th>Mobile</th>
-                      {vendors.map((v,index) => {
-                        return (
-                          <th key={index}>{v.mobile}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
                       <th>...</th>
-                      {vendors.map((v,index) => {
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {
+                      vendors.map((v) => {
                         return (
-                          <th>
-                            <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} className="btn" onClick={() => edit(v._id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                          </th>
+                          <tr>
+                            <td>{v.name}</td>
+                            <td>{v.email}</td>
+                            <td>{v.address}</td>
+                            <td>{v.mobile}</td>
+                            <td>
+                              <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(v._id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
                         )
-                      })}
-                    </tr>                                   
+                      })
+                    }
                   </tbody>
                 </table>
               </div>
             :
             <div className="overflow-x-auto">
               <table className="table">
-                  <tbody>
-                    <tr className="divide-x">
-                      <th>Contact ID</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.contactId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Vendor ID</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.vendorId}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Bussines Name</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.bussinessName}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Name</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.name}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Email</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.email}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Tax number</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.taxNumber}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Credit Limit</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.creditLimit}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Pay Term</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.payTerm}</th>
-                        )
-                      })}
-                    </tr> 
-                    <tr className="divide-x">
-                      <th>Opening Balance</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.openingBalance}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Advance Balance</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.advanceBalance}</th>
-                        )
-                      })}
-                    </tr>  
-                    <tr className="divide-x">
-                      <th>Added On</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{normalizeDate(supplier.addedOn)}</th>
-                        )
-                      })}
-                    </tr>   
-                    <tr className="divide-x">
-                      <th>Addres</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.address}</th>
-                        )
-                      })}
-                    </tr>
-                    <tr className="divide-x">
-                      <th>Mobile</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th key={index}>{supplier.mobile}</th>
-                        )
-                      })}
-                    </tr>  
-                    <tr className="divide-x">
-                      <th>...</th>
-                      {searchResult.map((supplier,index) => {
-                        return (
-                          <th>
-                            <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} className="btn" onClick={() => edit(supplier._id)}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Mobile</th>
+                    <th>...</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {
+                    searchResult.map((v) => {
+                      return (
+                        <tr>
+                          <td>{v.name}</td>
+                          <td>{v.email}</td>
+                          <td>{v.address}</td>
+                          <td>{v.mobile}</td>
+                          <td>
+                            <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(v._id)}>
                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
                               </svg>
                             </button>
-                          </th>
-                        )
-                      })}
-                    </tr>                                 
-              </tbody>
-            </table>
-          </div>         
+                          </td>
+                        </tr>
+                      )
+                    })
+                  }
+                </tbody>
+              </table>
+            </div>         
           }      
         </div>
       </div>

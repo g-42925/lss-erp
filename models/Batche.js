@@ -3,7 +3,6 @@ import { type } from 'os';
 
 const batcheSchema = new mongoose.Schema({
   productId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  unitCost: {type:Number, required:true},
   qty: {type:Number, required:true},
   accumulative:{type:Number,required:true},
   outQty: {type:Number, required:true},

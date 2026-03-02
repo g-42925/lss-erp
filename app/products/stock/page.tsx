@@ -145,9 +145,8 @@ export default function Stock(){
 	useEffect(() => {
 		if(hasHydrated){
 			const url = `/api/web/location?id=${masterAccountId}` 
-			const url2 = `/api/web/products?id=${masterAccountId}` 
 			const url3 = `/api/web/stock?id=${masterAccountId}` 
-      const url4 = `/api/web/customers?id=${masterAccountId}`
+			const url2 = `/api/web/products?id=${masterAccountId}&type=good` 
 
 			const body = JSON.stringify({})
 
@@ -160,6 +159,7 @@ export default function Stock(){
 			})
 
 			fetchProductsFn.fn(url2,body,(result) => {
+        console.log({products:result})
 				setProducts(result)
 			})
 
@@ -302,13 +302,13 @@ export default function Stock(){
               <label className="w-[150px]">Batch number</label>
               <input  {...openingStockForm.register("batchNumber")} value={Date.now()} type="text" className="input p-3 rounded-md w-full" readOnly/>
             </div>
-            <div className="flex flex-row items-center gap-2">
+            <div className="flex flex-row items-center gap-2 hidden">
               <label className="w-[80px]">Unit cost</label>
-              <input placeholder="submit unit cost here" className="input p-3 rounded-md w-full"  {...openingStockForm.register("unitCost")}/>
+              <input value="0" placeholder="submit unit cost here" className="input p-3 rounded-md w-full"  {...openingStockForm.register("unitCost")}/>
             </div>
             <div className="flex flex-row items-center gap-2">
               <label className="w-[110px]">Expiry date</label>
-						  <input  {...openingStockForm.register("expiryDate")} type="date" className="input p-3 rounded-md w-full" placeholder="unit cost before tax"/>
+						  <input value={new Date().toISOString().slice(0,10)}  {...openingStockForm.register("expiryDate")} type="date" className="input p-3 rounded-md w-full" placeholder="unit cost before tax"/>
             </div>
             <div className="flex flex-row items-center gap-2">
               <label className="w-[60px]">Quantity</label>

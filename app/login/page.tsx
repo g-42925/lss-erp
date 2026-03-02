@@ -77,7 +77,7 @@ export default function Login() {
         		<label className="block text-gray-600 text-sm mb-1">Email</label>
         		<input
           		type="text"
-          		className="w-full border-0 border-b border-gray-300 focus:border-red-400 focus:ring-0 outline-none py-2"
+          		className="text-black w-full border-0 border-b border-gray-300 focus:border-red-400 focus:ring-0 outline-none py-2"
 							onChange={(e) => setEmail(e.target.value)}
         		/>
       		</div>
@@ -85,7 +85,7 @@ export default function Login() {
         		<label className="block text-gray-600 text-sm mb-1">Password</label>
         		<input
           			type="password"
-          			className="w-full border-0 border-b border-gray-300 focus:border-red-400 focus:ring-0 outline-none py-2"
+          			className="text-black w-full border-0 border-b border-gray-300 focus:border-red-400 focus:ring-0 outline-none py-2"
 					onChange={(e) => setPassword(e.target.value)}
         		/>
         	</div>

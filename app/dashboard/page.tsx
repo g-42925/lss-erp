@@ -14,7 +14,7 @@ export default function Dashboard(){
   if(!auth.loggedIn) redirect('/login')
   
   return (
-    <div className="flex flex-col justify-center items-center h-full">
+    <div className="text-black flex flex-col justify-center items-center h-full">
       dashboard page
     </div>
   )

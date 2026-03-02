@@ -1,6 +1,8 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
+import mongoose from 'mongoose';
+import Product from '@/models/Product'
 import Batche from '@/models/Batche'
 import Purchase from '@/models/Purchase'
 import Companie from '@/models/Companie'
@@ -183,6 +185,7 @@ export async function PUT(request:NextRequest){
 
       if(rest.status === '_approved'){
 
+
         await Log.create({
           purchaseId:_id,
           date:new Date(),
@@ -194,13 +197,44 @@ export async function PUT(request:NextRequest){
 
         if(rest.purchaseType === 'product'){
           var spl = await Supplier.findById(rest.supplierId)
+          var unitCost = rest.finalPrice / rest.quantity
+          
+          var product = await Product.findById(rest.productId)
+          
+          if(product.toObject().hasOwnProperty('prevUnitCost')){
+
+            const prev = +product.prevUnitCost
+            const stock = +product.unitCostStock
+            const price = +rest.finalPrice
+            const qty = +rest.quantity
+
+            const unitCost = ((prev * stock) + price) / (stock + qty)
+
+            await Product.findByIdAndUpdate(
+              rest.productId,{                
+                currentUnitCost:Math.round(unitCost),
+                prevUnitCost:Math.round(rest.finalPrice / rest.quantity),
+                unitCostStock:rest.quantity
+              }
+            )
+
+          }
+          else{
+            await Product.findByIdAndUpdate(
+              rest.productId,{                
+                currentUnitCost:rest.finalPrice/rest.quantity,
+                prevUnitCost:rest.finalPrice/rest.quantity,
+                unitCostStock:rest.quantity
+              }
+            )
+          }
 
           await Purchase.findByIdAndUpdate(_id,{
             ...rest,
-            status:'ordered'
+            status:'ordered',
+            unitCost
           })
           
-        
           var result =  {...body,spl}
           
           return NextResponse.json(
@@ -283,6 +317,21 @@ export async function POST(request:NextRequest){
     const company = await Companie.findOne({
       masterAccountId:params.id
     })
+
+    var p = await Purchase.findOne({
+      companyId:company._id,
+      productId:params.productId,
+      status:'requested'
+    })
+
+    if(p){
+      return NextResponse.json({
+        noResult:true,
+        message:"product already ordered",
+        result:null,
+        error:true
+      })
+    }
 
     var result = await Purchase.create({
       ...params,

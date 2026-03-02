@@ -77,7 +77,7 @@ export default function Location(){
   async function search(v:string){
     if(v.length > 0){
       var result = locations.filter((r) => {
-        return r.code.includes(v)
+        return r.name.startsWith(v)
       })
 
       if(result.length > 0){

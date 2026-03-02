@@ -108,7 +108,7 @@ export default function Add(){
                 <legend className="fieldset-legend">Product Id</legend>
                 <input readOnly value={`P-${String(Date.now()).slice(-5)}`} {...productForm.register("productId")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className="fieldset flex-1" hidden>
                 <legend className="fieldset-legend">Barcode type</legend>
                 <select {...productForm.register("barcodeType")} className="select w-full">
                   <option selected>Pick a barcode type</option>
@@ -118,7 +118,7 @@ export default function Add(){
                   <option>CODE 128</option>
                   <option>CODE 39</option>
                   <option>ITF</option>
-                  <option>QR Code</option>
+                  <option selected>QR Code</option>
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
@@ -200,6 +200,13 @@ export default function Add(){
                 <legend className="fieldset-legend">Price</legend>
                 <input {...productForm.register("sellingPrice")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>      
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Have Expired Date</legend>
+                <select {...productForm.register("haveExpiredDate")} className="select w-full">
+                  <option value={"true"}>Yes</option>
+                  <option value={"false"}>No</option>
+                </select>
+              </fieldset>    
             </div>
             <div className="flex flex-row gap-3">
               <button disabled={addProductsFn.loading} type="submit" className={`flex-1 p-3 rounded-full bg-black relative text-white w-full ${addProductsFn.loading ? 'cursor-not-allowed bg-red-900' : ''}`}>
