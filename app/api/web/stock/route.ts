@@ -129,16 +129,18 @@ export async function POST(request:NextRequest){
       )
     }
     else{
-    
+      var batchNumber = `B-${String(Date.now()).slice(-5)}`
+
       var newBatch = await Batche.create({
         ...params,
-        batchNumber:`B-${String(Date.now()).slice(-5)}`
+        batchNumber,
+        qty:1,
       })
       
       const [batch] = await Batche.aggregate([
         {
           $match:{
-            batchNumber:params.batchNumber
+            batchNumber:batchNumber
           }
         },
         {

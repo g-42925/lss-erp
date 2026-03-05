@@ -17,8 +17,9 @@ export async function PUT(request:NextRequest){
     const barcodeType = formData.get("barcodeType") as string;
     const category = formData.get("category") as string;
     const description = formData.get("description") as string;
-    const unit = formData.get("unit") as string;
-    const altUnit = formData.get("altUnit") as string;
+    const purchaseUnit = formData.get("purchaseUnit") as string;
+    const warehouseUnit = formData.get("warehouseUnit") as string;
+    const saleUnit = formData.get("saleUnit") as string;
     const applicableTax = formData.get("applicableTax") as string;
     const sellingPriceTaxType = formData.get("sellingPriceTaxType") as string;
     const productType = formData.get("productType") as string;
@@ -65,8 +66,9 @@ export async function PUT(request:NextRequest){
         barcodeType,
         category,
         description,
-        unit,
-        altUnit,
+        purchaseUnit,
+        warehouseUnit,
+        saleUnit,
         applicableTax,
         sellingPriceTaxType,
         productType,
@@ -91,8 +93,9 @@ export async function PUT(request:NextRequest){
         barcodeType,
         category,
         description,
-        unit,
-        altUnit,
+        purchaseUnit,
+        warehouseUnit,
+        saleUnit,
         applicableTax,
         sellingPriceTaxType,
         productType,
@@ -135,8 +138,9 @@ export async function POST(request:NextRequest){
         const barcodeType = formData.get("barcodeType") as string;
         const category = formData.get("category") as string;
         const description = formData.get("description") as string;
-        const unit = formData.get("unit") as string;
-        const altUnit = formData.get("altUnit") as string;
+        const purchaseUnit = formData.get("purchaseUnit") as string;
+        const warehouseUnit = formData.get("warehouseUnit") as string;
+        const saleUnit = formData.get("saleUnit") as string;
         const applicableTax = formData.get("applicableTax") as string;
         const sellingPriceTaxType = formData.get("sellingPriceTaxType") as string;
         const productType = formData.get("productType") as string;
@@ -197,8 +201,9 @@ export async function POST(request:NextRequest){
           barcodeType,
           category,
           description,
-          unit,
-          altUnit,
+          purchaseUnit,
+          warehouseUnit,
+          saleUnit,
           applicableTax,
           sellingPriceTaxType,
           productType,
@@ -233,7 +238,6 @@ export async function GET(request:NextRequest){
   const id = url.searchParams.get("id")
   const type = url.searchParams.get("type")
   
-
   try {
     await connectToDatabase()
 
@@ -241,17 +245,85 @@ export async function GET(request:NextRequest){
       const company = await Companie.findOne({
         masterAccountId:id
       })
-      
-      const byType = await Product.find({
-        productOf:company._id,
-        productType:type
-      })
+
+      const byType = await Product.aggregate([
+        {
+          $match:{
+            productOf:company._id,
+            productType:type
+          }
+        },
+        {
+          $lookup:{
+            from:"batches",
+            localField:"_id",
+            foreignField:"productId",
+            as:"batches",
+            pipeline:[
+              {
+                $match:{
+                  $expr:{
+                    $and: [
+                      { $eq: ["$status", "ACTIVE"] }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        { 
+          $unwind: {
+            path: "$batches",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $group: {
+            _id: "$_id",
+            doc: { $first: "$$ROOT" },
+            accumulative: { $sum: "$batches.accumulative" },
+            out: { $sum : "$batches.outQty" }
+          }
+        },
+        {
+          $addFields: {
+            remain: {
+              $subtract: ["$accumulative", "$out"]
+            }
+          }
+        },
+        {
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: [
+                "$doc",
+                {
+                  remain: "$remain",
+                }
+              ]
+            }
+          }
+        },        
+        {
+          $project: {
+            batches: 0,
+          }
+        }
+      ])
+
+      // const byType = await Product.find({
+      //   productOf:company._id,
+      //   productType:type
+      // })
       
       const all = await Product.find({
         productOf:company._id,
       })
   
       const products = type === 'all' ? all : byType
+
+      console.log(products)
   
       return NextResponse.json(
         {

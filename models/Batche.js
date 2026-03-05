@@ -6,7 +6,7 @@ const batcheSchema = new mongoose.Schema({
   qty: {type:Number, required:true},
   accumulative:{type:Number,required:true},
   outQty: {type:Number, required:true},
-  expiryDate: {type:Date, required:true},
+  expiryDate: {type:Date, required:false},
   batchNumber: {type:String, required:true},
   locationId: {type:mongoose.Schema.Types.ObjectId, required:true},
   status: {type:String, required:true,enum: ['ACTIVE', 'DEPLETED', 'EXPIRED', 'INACTIVE']},

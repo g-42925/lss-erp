@@ -153,11 +153,12 @@ export default function List(){
 
   useEffect(() => {
     if(hasHydrated){
-      const url = `/api/web/products?id=${masterAccountId}&type=all`
+      const url = `/api/web/products?id=${masterAccountId}&type=good`
       
       const body = JSON.stringify({})
      
       getFn.fn(url,body,(result) => {
+        console.log(result)
         setProducts(result)
       })
     }
@@ -207,17 +208,15 @@ export default function List(){
             </div>
             :
             <div>
-                <table className="table">
+                <table className="table text-center">
                   <thead>
                     <tr>
                       <th>Product</th>
                       <th>Category</th>
-                      <th>Packaging</th>
-                      <th>Unit</th>
                       <th>Price</th>
                       <th>Tax</th>
                       <th>Selling Price Tax Type</th>
-                      <th>Type</th>
+                      <th>Unit cost</th>
                       <th>...</th>
                     </tr>
                   </thead>
@@ -230,12 +229,10 @@ export default function List(){
                           <tr key={index}>
                             <td>{p.productName}</td>
                             <td>{p.category}</td>
-                            <td>{p.unit ?? '-'}</td>
-                            <td>{p.altUnit ?? '-'}</td>
                             <td>{p.sellingPrice}</td>
                             <td>{p.applicableTax}</td>
                             <td>{p.sellingPriceTaxType}</td>
-                            <td>{p.productType}</td>
+                            <td>{Math.round(p.stockValue / p.remain)}</td>
                             <td>
                               <button>
                                 <Link href={p.productType === 'service' ? `/products/xedit?id=${p._id}` : `/products/edit?id=${p._id}`}>

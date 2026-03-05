@@ -102,7 +102,7 @@ export default function Add(){
         
         productForm.reset({
           xId:r._id,
-          unit:r.unit,
+          purchaseUnit:r.purchaseUnit,
           category:r.category,
           barcodeType:r.barcodeType,
           productName:r.productName,
@@ -110,7 +110,8 @@ export default function Add(){
           description:r.description,
           applicableTax:r.applicableTax,
           sellingPriceTaxType:r.sellingPriceTaxType,
-          altUnit:r.altUnit,
+          warehouseUnit:r.warehouseUnit,
+          saleUnit:r.saleUnit,
           sellingPrice:r.sellingPrice,
           image:r.image
         })
@@ -181,28 +182,40 @@ export default function Add(){
               </div>
             </div>
             <div className="flex flex-row gap-3">
-              <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Packaging</legend>
-                <select {...productForm.register("unit")} className="select w-full">
+            <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Purchase unit</legend>
+                <select {...productForm.register("purchaseUnit")} className="select w-full">
                   {
-                    units.map((c) => {
-                      return (
-                        <option key={c._id}>{c.name}</option>
-                      )
-                    })
-                  }
+										units.map((c) => {
+											return (
+												<option key={c._id}>{c.name}</option>
+											)
+										})
+									}
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Unit</legend>
-                <select {...productForm.register("altUnit")} className="select w-full">
+                <legend className="fieldset-legend">Warehouse unit</legend>
+                <select {...productForm.register("warehouseUnit")} className="select w-full">
                   {
-                    units.map((c) => {
-                      return (
-                        <option key={c._id}>{c.name}</option>
-                      )
-                    })
-                  }
+										units.map((c) => {
+											return (
+												<option key={c._id}>{c.name}</option>
+											)
+										})
+									}
+                </select>              
+              </fieldset>
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Sale unit</legend>
+                <select {...productForm.register("saleUnit")} className="select w-full">
+                  {
+										units.map((c) => {
+											return (
+												<option key={c._id}>{c.name}</option>
+											)
+										})
+									}
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">

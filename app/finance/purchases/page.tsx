@@ -28,7 +28,10 @@ export default function Purchases(){
 
   var getFn = useFetch<any[],any>({
     url:`/api/web/purchases?id=xxx`,
-    method:'GET'
+    method:'GET',
+    onError:(m) => {
+      alert(m)
+    }
   })
 
   var editFn = useFetch<any,any>({
@@ -193,7 +196,7 @@ export default function Purchases(){
             </div>
             :
             <div>
-                <table className="table">
+                <table className="table text-center">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -202,6 +205,7 @@ export default function Purchases(){
                       <th>Estimated price</th>
                       <th>Final price</th>
                       <th>Suppplier</th>
+                      <th>Received</th>
                       <th>Status</th>
                       <th>...</th>
                     </tr>
@@ -215,7 +219,7 @@ export default function Purchases(){
                           <tr key={index}>
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                             <td>{p.product.productName}</td>
-                            <td>{p.quantity} ({p.product.unit})</td>
+                            <td>{p.quantity} ({p.product.purchaseUnit})</td>
                             <td>{p.estimatedPrice}</td>
                             <td>
                               {
@@ -235,6 +239,7 @@ export default function Purchases(){
                                 "-"
                               }
                             </td>
+                            <td>{p.receivedQty} ({p.product.purchaseUnit})</td>
                             <td>{p.status}</td>
                             <td className="flex flex-row gap-3">
                               {

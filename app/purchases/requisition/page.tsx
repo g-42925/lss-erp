@@ -7,7 +7,6 @@ import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef,useState,useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import Purchase from "@/models/Purchase";
 
 
 export default function Requisition(){
@@ -49,7 +48,10 @@ export default function Requisition(){
 
   var editFn = useFetch<any,any>({
     url:`/api/web/purchases`,
-    method:'PUT'
+    method:'PUT',
+    onError:(m) => {
+      alert(m)
+    }
   })
 
   var getFn = useFetch<any[],any>({
@@ -339,7 +341,7 @@ export default function Requisition(){
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                             <td>{p.purchaseOrderNumber}</td>
                             <td>{p.product.productName}</td>
-                            <td>{p.quantity} ({p.product.unit})</td>
+                            <td>{p.quantity} ({p.product.purchaseUnit})</td>
                             {
                               p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
                             }
@@ -425,7 +427,7 @@ export default function Requisition(){
                     {
                       products.map((p) => {
                         return (
-                          <option key={p._id} value={p._id}>{p.productName} ({p.unit})</option>
+                          <option key={p._id} value={p._id}>{p.productName} ({p.purchaseUnit})</option>
                         )
                       })
                     }
@@ -460,7 +462,7 @@ export default function Requisition(){
                     {
                       products.map((p) => {
                         return (
-                          <option key={p._id} value={p._id}>{p.productName} ({p.unit})</option>
+                          <option key={p._id} value={p._id}>{p.productName} ({p.purchaseUnit})</option>
                         )
                       })
                     }

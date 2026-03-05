@@ -338,7 +338,7 @@ export default function Measure(){
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Measurement</span>
-            <form onSubmit={newMeasureForm.handleSubmit(editSubmit)} className="h-99 relative flex flex-col">
+            <form onSubmit={newMeasureForm.handleSubmit(submit)} className="h-99 relative flex flex-col">
               <fieldset className="fieldset">
 						  	<legend className="fieldset-legend">Supplier</legend>
 								<select {...newMeasureForm.register("supplierId")} className="select w-full">

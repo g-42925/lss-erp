@@ -39,7 +39,6 @@ export default function Login() {
 		})
 
 		await loginFn.fn('',body,(result) => {
-			console.log(result)
       login(
 				{
 					email:result._doc._email,

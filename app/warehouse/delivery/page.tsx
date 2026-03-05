@@ -24,8 +24,6 @@ export default function Delivery(){
   const editPrForm = useForm()
   const router = useRouter()
 
-  const status = editPrForm.watch('status');
-
   const addFn = useFetch<any,any>({
     url:'/api/web/delivery',
     method:'POST',
@@ -50,6 +48,10 @@ export default function Delivery(){
     }
     else{
       var [locId,batchNumber,remain] = data.batchDetail.split('/')
+      var _remain = batches.map((b) => b.accumulative - b.outQty).reduce((acc,curr) => {
+        return acc+curr
+      },0)
+
       
       if(parseInt(data.qty) > remain){
         alert('can not deliver more than remain qty')
@@ -61,7 +63,8 @@ export default function Delivery(){
           qty:parseInt(data.qty),
           salesOrderNumber:data.salesOrderNumber,
           date:new Date(),
-          id:masterAccountId
+          id:masterAccountId,
+          remain:_remain
         }
 
         await addFn.fn('',JSON.stringify(params),r => {

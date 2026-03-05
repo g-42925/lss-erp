@@ -1,7 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
-import mongoose from 'mongoose';
+import Measurement from '@/models/Measurement'
 import Product from '@/models/Product'
 import Batche from '@/models/Batche'
 import Purchase from '@/models/Purchase'
@@ -196,43 +196,39 @@ export async function PUT(request:NextRequest){
         })
 
         if(rest.purchaseType === 'product'){
+          var splMeasurementConfig = {}
           var spl = await Supplier.findById(rest.supplierId)
-          var unitCost = rest.finalPrice / rest.quantity
           
           var product = await Product.findById(rest.productId)
-          
-          if(product.toObject().hasOwnProperty('prevUnitCost')){
 
-            const prev = +product.prevUnitCost
-            const stock = +product.unitCostStock
-            const price = +rest.finalPrice
-            const qty = +rest.quantity
+          if(product.toObject().purchaseUnit != product.toObject().warehouseUnit){
+            var config = await Measurement.findOne({
+              productId:rest.productId,
+              supplierId:spl._id,
+              supplierOf:spl.supplierOf
+            })
 
-            const unitCost = ((prev * stock) + price) / (stock + qty)
-
-            await Product.findByIdAndUpdate(
-              rest.productId,{                
-                currentUnitCost:Math.round(unitCost),
-                prevUnitCost:Math.round(rest.finalPrice / rest.quantity),
-                unitCostStock:rest.quantity
+            if(config){
+              splMeasurementConfig = {
+                measurementId:config._id
               }
-            )
-
-          }
-          else{
-            await Product.findByIdAndUpdate(
-              rest.productId,{                
-                currentUnitCost:rest.finalPrice/rest.quantity,
-                prevUnitCost:rest.finalPrice/rest.quantity,
-                unitCostStock:rest.quantity
-              }
-            )
+            }
+            else{
+              return NextResponse.json(
+                {
+                  noResult:true,
+                  message:"measurement config not found for this product on this supplier",
+                  result:null,
+                  error:true
+                }
+              )
+            }
           }
 
           await Purchase.findByIdAndUpdate(_id,{
             ...rest,
             status:'ordered',
-            unitCost
+            ...splMeasurementConfig
           })
           
           var result =  {...body,spl}
@@ -279,18 +275,96 @@ export async function PUT(request:NextRequest){
       }
     }
 
-    if(rest.status === "ordered"){
-      await Purchase.findByIdAndUpdate(
-        _id,{
-          status:'completed'
-        }
-      )
+    // rumus unit cost
+    // (total semua harga purchase sebelumnya + harga beli terbaru) / (total stock + jumlah beli)
 
-      var newBatch = await Batche.create({
-        ...rest,
-        status:'ACTIVE',
-        batchNumber:`B-${String(Date.now()).slice(-5)}`
-      })
+    if(rest.status === "ordered"){
+      var purchase = await Purchase.findById(_id)
+
+      if(purchase.toObject().hasOwnProperty('measurementId')){
+        var config = await Measurement.findById(purchase.measurementId)
+
+        var product = await Product.findById(purchase.productId)
+        
+        if(product.toObject().hasOwnProperty('stockValue')){
+          var newStockValue = product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty))
+         
+          await Product.findByIdAndUpdate(
+            product._id,{
+              stockValue:newStockValue,
+            }
+          )
+
+          await Purchase.findByIdAndUpdate(
+            purchase._id,{
+              $inc:{ 
+                receivedQty:rest.qty
+              } 
+            }
+          )
+        }
+        else{
+          await Product.findByIdAndUpdate(
+            product._id,{
+              stockValue:(purchase.finalPrice/purchase.quantity) * parseInt(rest.qty),
+            }
+          )
+          await Purchase.findByIdAndUpdate(
+            purchase._id,{
+              $inc:{ 
+                receivedQty:rest.qty
+              } 
+            }
+          )
+        }
+
+        await Batche.create({
+          ...rest,
+          status:'ACTIVE',
+          batchNumber:`B-${String(Date.now()).slice(-5)}`,
+          accumulative:config.ratio * rest.qty
+        })        
+      }
+      else{
+        var product = await Product.findById(purchase.productId)
+
+        if(product.toObject().hasOwnProperty('prevUnitCost')){         
+          await Product.findByIdAndUpdate(
+            product._id,{
+              stockValue:product.stockValue + ((purchase.finalPrice/purchase.quantity) * parseInt(rest.qty)),
+            }
+          )
+          
+          await Purchase.findByIdAndUpdate(
+            purchase._id,{
+              $inc:{ 
+                receivedQty:rest.qty
+              } 
+            }
+          )      
+        }
+        else{
+          await Product.findByIdAndUpdate(
+            product._id,{
+              stockValue:(purchase.finalPrice/purchase.quantity) * parseInt(rest.qty),
+            }
+          )
+          await Purchase.findByIdAndUpdate(
+            purchase._id,{
+              $inc:{ 
+                receivedQty:rest.qty
+              } 
+            }
+          )        
+        }
+
+        await Batche.create({
+          ...rest,
+          status:'ACTIVE',
+          batchNumber:`B-${String(Date.now()).slice(-5)}`,
+          accumulative:rest.qty
+        })
+      }
 
       return NextResponse.json({
         noResult:false,
@@ -337,6 +411,7 @@ export async function POST(request:NextRequest){
       ...params,
       companyId:company._id,
       editable:true,
+      receivedQty:0,
       purchaseOrderNumber:`SO-${String(Date.now()).slice(-5)}`
     })
 

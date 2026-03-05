@@ -16,6 +16,7 @@ export default function Receiving(){
   const [searchResult,setSearchResult] = useState<any[]>([])
   const [purchases,setPurchases] = useState<any[]>([])
   const [disabled,setDisabled] = useState<boolean>(false)
+  const [expiredFieldHide,setExpiredFieldHide] = useState<boolean>(false)
 
   const editRef = useRef<HTMLDialogElement>(null)
   
@@ -43,7 +44,7 @@ export default function Receiving(){
 
 
   async function editSubmit(data:any){
-    var {product,estimatedPrice,supplier,finalPrice,...rest} = data
+    var {max,product,estimatedPrice,supplier,finalPrice,...rest} = data
     
     var additional = {
       isOpening:false,
@@ -55,24 +56,35 @@ export default function Receiving(){
       {
         ...rest,
         ...additional,
-        qty:data.quantity
+        qty:data.receivedQty
       }
     )
-    
-    await editFn.fn('',batch,(result) => {
-      router.push('/products/stock')
-    })
+
+    if(parseInt(data.receivedQty) > max){
+      alert("Quantity cannot be higher than maximum remained")
+    }
+    else{
+      await editFn.fn('',batch,(result) => {
+        router.push('/products/stock')
+      })
+    }
   }
 
   async function edit(_id:string){
     var [filter] = purchases.filter((p) => p._id == _id)
+
+    if(!filter.product.haveExpiredDate) setExpiredFieldHide(
+      true
+    )
 
     editPrForm.reset({
       ...filter,
       productId:filter.product._id,
       product:filter.product.productName,
       supplier:filter.supplier.bussinessName,
-      status:filter.status
+      status:filter.status,
+      receivedQty:filter.receivedQty,
+      max:filter.quantity - filter.receivedQty
     })
 
     if(filter.status != 'ordered'){
@@ -131,16 +143,13 @@ export default function Receiving(){
             </div>
             :
             <div>
-                <table className="table">
+                <table className="table text-center">
                   <thead>
                     <tr>
                       <th>Date</th>
                       <th>Product</th>
                       <th>Quantity</th>
-                      <th>Estimated price</th>
-                      <th>Status</th>
-                      <th>Supplier</th>
-                      <th>Final price</th>
+                      <th>Received</th>                      
                       <th>...</th>
                     </tr>
                   </thead>
@@ -153,21 +162,13 @@ export default function Receiving(){
                           <tr key={index}>
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                             <td>{p.product.productName}</td>
-                            <td>{p.quantity} ({p.product.unit})</td>
-                            <td>{p.estimatedPrice}</td>
-                            <td>{p.status}</td>
-                            {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.supplier.bussinessName}</td> : <td>-</td>
-                            }
-                            {
-                              p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>0</td>
-                            }
+                            <td>{p.quantity} ({p.product.purchaseUnit})</td>
+                            <td>{p.receivedQty}</td>
                             <td>
-                            <button className="btn" onClick={() => edit(p._id)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                              <button onClick={() => edit(p._id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                  <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
                                 </svg>
-                                Edit
                               </button>
                             </td>
                           </tr>
@@ -213,20 +214,23 @@ export default function Receiving(){
               </div>
               <div className="flex flex-row items-center gap-2">
                 <label>Quantity</label>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly/>
+                <input className="input w-full" {...editPrForm.register("receivedQty")} type="text"/>
               </div>
-              <div className="flex flex-row items-center gap-2">
-                <label>Accumulative</label>
-                <input className="input w-full" {...editPrForm.register("accumulative")} type="text"/>
+              <div className="flex flex-row items-center gap-2 hidden">
+                <label>Quantity</label>
+                <input className="input w-full" {...editPrForm.register("limiter")} type="text"/>
               </div>
-              <div className="flex flex-row items-center gap-2">
-                <label>Unit cost</label>
-                <input className="input w-full" {...editPrForm.register("unitCost")} type="text"/>
-              </div>    
-              <div className="flex flex-frow items-center gap-2">
-                <label>Expiry date</label>
-                <input className="input w-full" {...editPrForm.register("expiryDate")} type="date"/>
-              </div>
+              {
+                !expiredFieldHide 
+                ?
+                <div className="flex flex-frow items-center gap-2">
+                  <label>Expiry date</label>
+                  <input className="input w-full" {...editPrForm.register("expiryDate")} type="date"/>
+                </div>
+                :
+                <></>
+              }
+
               <div className="flex flex-frow items-center">
                 <label>Batch number</label>
                 <input value={Date.now()} className="input w-full" {...editPrForm.register("batchNumber")} type="text" readOnly/>

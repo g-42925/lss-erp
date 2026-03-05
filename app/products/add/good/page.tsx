@@ -1,13 +1,14 @@
 "use client"
 
-import Link from "next/link";
 import { useEffect, useState,useRef } from "react";
-import Sidebar from '@/components/sidebar'
-import useAuth from "@/store/auth";
-import useFetch from "@/hooks/useFetch";
 
 import { useForm } from "react-hook-form"
 
+import Link from "next/link";
+import useAuth from "@/store/auth";
+import useFetch from "@/hooks/useFetch";
+
+import { useRouter } from "next/navigation";
 
 export default function Add(){
   const [file,setFile] = useState<File|null>(null)
@@ -20,6 +21,7 @@ export default function Add(){
   const [categories,setCategories] = useState<any[]>([])
   const [units,setUnits] = useState<any[]>([])
 
+  const router = useRouter()
 
   const productForm = useForm()
 
@@ -66,7 +68,7 @@ export default function Add(){
     })
 
     addProductsFn.fn(`/api/web/products`,formData,(r) => {
-      console.log({r})
+      router.push('/products/list')
     })
   
   }
@@ -153,8 +155,8 @@ export default function Add(){
             </div>
             <div className="flex flex-row gap-3">
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Packaging</legend>
-                <select {...productForm.register("unit")} className="select w-full">
+                <legend className="fieldset-legend">Purchase unit</legend>
+                <select {...productForm.register("purchaseUnit")} className="select w-full">
                   {
 										units.map((c) => {
 											return (
@@ -165,9 +167,20 @@ export default function Add(){
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Unit</legend>
-                <select {...productForm.register("altUnit")} className="select w-full">
-                  <option selected>None</option>
+                <legend className="fieldset-legend">Warehouse unit</legend>
+                <select {...productForm.register("warehouseUnit")} className="select w-full">
+                  {
+										units.map((c) => {
+											return (
+												<option key={c._id}>{c.name}</option>
+											)
+										})
+									}
+                </select>              
+              </fieldset>
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Sale unit</legend>
+                <select {...productForm.register("saleUnit")} className="select w-full">
                   {
 										units.map((c) => {
 											return (

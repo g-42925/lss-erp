@@ -5,6 +5,7 @@ import Order from '@/models/Order'
 import Companie from '@/models/Companie'
 import Batches from '@/models/Batche'
 import Deliverie from '@/models/Deliverie'
+import Product from "@/models/Product";
 
 export async function POST(request:NextRequest){
   try{
@@ -24,6 +25,18 @@ export async function POST(request:NextRequest){
         } 
       }
     )
+a
+    const batches = await Batches.findOne({batchNumber:params.batchNumber})
+    const product = await Product.findOne({_id:batches.productId})
+
+    await Product.findByIdAndUpdate(
+      product._id,{
+        $inc:{
+          stockValue:-Math.round((product.stockValue-(product.stockValue-((product.stockValue/params.remain)*params.qty))))
+        }
+      }
+    )
+
 
     const deliveryNumber = `D-${String(Date.now()).slice(-5)}`
 
@@ -32,6 +45,7 @@ export async function POST(request:NextRequest){
       companyId:company._id,
       deliveryNumber:deliveryNumber
     })
+
 
     const [_d] = await Deliverie.aggregate([
       {

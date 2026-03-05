@@ -210,7 +210,7 @@ function Q({toggle}:any){
                           <tr key={index}>
                             <td>{s.product.productName}</td>
                             <td>{s.customer.bussinessName}</td>
-                            <td>{s.qty} {s.product.altUnit ?? ''}</td>
+                            <td>{s.qty} ({s.product.warehouseUnit})</td>
                             <td>{s.price}</td>
                             <td>{s.discount ?? 0}%</td>
                             <td>{s.taxType}</td>
@@ -263,7 +263,7 @@ function Q({toggle}:any){
             <select disabled {...editQuotationForm.register("productId")} className="select flex-1">
               {
                 products.map((p) => {
-                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
+                  return <option value={p._id} key={p._id}>{p.productName} ({p.warehouseUnit})</option>
                 })
               }
             </select>              
@@ -305,7 +305,7 @@ function Q({toggle}:any){
             <select {...newQuotationForm.register("productId")} className="select flex-1">
               {
                 products.map((p) => {
-                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
+                  return <option value={p._id} key={p._id}>{p.productName} (${p.altUnit})</option>
                 })
               }
             </select>              
@@ -576,7 +576,7 @@ function Stock({pop}:any){
                             <td>{s.product.productName}</td>
                             <td>
                               <Link href={`/batches?pId=${s.product._id}&lId=${s._id.locationId}`}>
-                                {s.product.altUnit === "None" ? `${s.remain} ${s.product.unit}` : `${s.remain} ${s.product.altUnit}` }                            
+                                ({s.product.warehouseUnit})                        
                               </Link>
                             </td>
                             <td>
@@ -626,7 +626,7 @@ function Stock({pop}:any){
             <select disabled {...newQuotationForm.register("productId")} className="select flex-1">
               {
                 products.map((p) => {
-                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
+                  return <option value={p._id} key={p._id}>{p.productName} ({p.warehouseUnit})</option>
                 })
               }
             </select>              

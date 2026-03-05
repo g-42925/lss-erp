@@ -5,7 +5,7 @@ import useAuth from "@/store/auth"
 import Sidebar from "@/components/sidebar";
 import useFetch from "@/hooks/useFetch";
 import { useState,useEffect,useRef } from "react"
-import { useForm } from "react-hook-form";
+import { useForm,useWatch } from "react-hook-form";
 
 
 export default function Stock(){
@@ -13,7 +13,9 @@ export default function Stock(){
 	const [stock,setStock] = useState<any[]>([])	
 	const [locations,setLocations] = useState<any[]>([])
 	const [products,setProducts] = useState<any[]>([])
-	const [searchResult,setSearchResult] = useState<any[]>([])
+	const [nonExpiredProduct,setNonExpiredProducts] = useState<any[]>([])
+
+  const [searchResult,setSearchResult] = useState<any[]>([])
   const [customers,setCustomers] = useState<any[]>([])
   
 	const [batchNumber,setBatchNumber] = useState<any>(0)
@@ -27,6 +29,8 @@ export default function Stock(){
 	
   const openingStockForm = useForm();
   const newQuotationForm = useForm()
+
+  const selected = openingStockForm.watch('productId')
 
   async function search(v:string){
     if(v.length > 0){
@@ -159,8 +163,19 @@ export default function Stock(){
 			})
 
 			fetchProductsFn.fn(url2,body,(result) => {
-        console.log({products:result})
-				setProducts(result)
+        var filter = result.filter(f => {
+          return f.haveExpiredDate === false
+        })
+
+        var _ids = filter.map((p) => {
+          return p._id
+        })
+
+        setNonExpiredProducts(
+          _ids
+        )
+
+        setProducts(result)
 			})
 
 			getStockFn.fn(url3,body,(r) => {
@@ -234,7 +249,7 @@ export default function Stock(){
                             <td>{s.product.productName}</td>
                             <td>
                               <Link href={`/batches?pId=${s.product._id}&lId=${s._id.locationId}`}>
-                                {s.product.altUnit === "None" ? `${s.remain} ${s.product.unit}` : `${s.remain} ${s.product.altUnit}` }                            
+                                {`${s.remain} (${s.product.warehouseUnit})`}                            
                               </Link>
                             </td>                      
                           </tr>
@@ -293,7 +308,7 @@ export default function Stock(){
 							  </option>
 							  {
 								  products.map((p) => {
-									  return <option value={p._id} key={p._id}>{p.productName} - ({p.unit})</option>
+									  return <option value={p._id} key={p._id}>{p.productName} - ({p.warehouseUnit})</option>
 								  })
 							  }
 						  </select>              
@@ -306,16 +321,12 @@ export default function Stock(){
               <label className="w-[80px]">Unit cost</label>
               <input value="0" placeholder="submit unit cost here" className="input p-3 rounded-md w-full"  {...openingStockForm.register("unitCost")}/>
             </div>
-            <div className="flex flex-row items-center gap-2">
+            <div className={`flex flex-row items-center gap-2 ${nonExpiredProduct.includes(selected) ? "hidden" : ""}`}>
               <label className="w-[110px]">Expiry date</label>
-						  <input value={new Date().toISOString().slice(0,10)}  {...openingStockForm.register("expiryDate")} type="date" className="input p-3 rounded-md w-full" placeholder="unit cost before tax"/>
+              <input value={new Date().toISOString().slice(0,10)}  {...openingStockForm.register("expiryDate")} type="date" className="input p-3 rounded-md w-full" placeholder="..."/>
             </div>
-            <div className="flex flex-row items-center gap-2">
-              <label className="w-[60px]">Quantity</label>
-              <input  {...openingStockForm.register("qty")} type="text" className="input p-3 rounded-md w-full" placeholder="quantity"/>
-            </div>
-            <div className="flex flex-row items-center gap-2">
-              <label className="w-[255px]">Accumulative quantity</label>
+            <div className={`flex flex-row items-center gap-2`}>
+              <label className="w-[100px]">Quantity</label>
               <input  {...openingStockForm.register("accumulative")} type="text" className="input p-3 rounded-md w-full" placeholder="initial quantity"/>
             </div>
 						{openStockFn.noResult || openStockFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
@@ -324,48 +335,6 @@ export default function Stock(){
 						</div>
   			</form>
 			</dialog>
-      <dialog ref={qModalRef} id="my_modal_2" className="modal h-full">
-        <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
-          <h3 className="text-lg font-bold">Make quotation</h3>
-          <div className="flex flex-row items-center gap-2">
-            <label className="w-[70px]">Product</label>
-            <select {...newQuotationForm.register("productId")} className="select flex-1">
-              {
-                products.map((p) => {
-                  return <option value={p._id} key={p._id}>{p.productName} {p.altUnit ?  (`(${p.altUnit})`): ''}</option>
-                })
-              }
-            </select>              
-          </div>
-          <div className="flex flex-row items-center gap-2">
-            <label className="w-[70px]">Customer</label>
-            <select {...newQuotationForm.register("customerId")} className="select flex-1">
-              <option>...</option>
-              {
-                customers.map((c) => {
-                  return <option value={c._id} key={c._id}>{c.bussinessName}</option>
-                })
-              }
-            </select>              
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[70px]">Quantity</label>
-            <input {...newQuotationForm.register("qty")} type="text" className="input flex-1"/>
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[70px]">Expired</label>
-            <input {...newQuotationForm.register("expiredDate")} type="date" className="input flex-1"/>
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[70px]">Discount</label>
-            <input {...newQuotationForm.register("discount")} type="text" className="input flex-1"/>
-          </div>
-          {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
-          <div className="flex flex-row gap-3 modal-action">
-            <button className="btn bg-red-900 text-white">Submit</button>
-          </div>
-        </form>
-			</dialog>    
     </>
   )
 }
