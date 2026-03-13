@@ -23,7 +23,7 @@ export default function Order(){
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
-  
+
   const tax = useMemo(() => {
     var subtotals = cart.map((c) => {
       if(c.discountType === 'percent'){
@@ -84,6 +84,14 @@ export default function Order(){
     }
 
   },[discount,cart])
+
+  const total = useMemo(() => {
+    var subTotal = getSubTotal(cart)
+    var totalDiscount = getTotalDiscount(cart,discount)
+    return subTotal - totalDiscount + tax
+  },[tax])
+  
+
 
   var addOrderFn = useFetch<any,any>({
     url:'/api/web/order',
@@ -344,6 +352,11 @@ export default function Order(){
     },0)
   }
 
+  function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+  }
+  
+
   useEffect(() => {
     if(hasHydrated){
       const url4 = `/api/web/order?id=${masterAccountId}&type=good`
@@ -449,7 +462,7 @@ export default function Order(){
               {
                 cart.map((c) => {
                   return (
-                    <li>{`${c.product.split('/')[1]}@${c.qty}`} ({c.price})</li>
+                    <li key={generateId()}>{`${c.product.split('/')[1]}@${c.qty}`} ({c.price})</li>
                   )
                 })
               }
@@ -459,6 +472,7 @@ export default function Order(){
               <p>Subtotal : {getSubTotal(cart)}</p>
               <p>Total discount : {getTotalDiscount(cart,discount)}</p>
               <p>Total tax : {tax}</p>
+              <p>Total : {total}</p>
             </div>
 
           </div>
