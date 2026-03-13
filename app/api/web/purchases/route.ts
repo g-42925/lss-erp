@@ -294,26 +294,11 @@ export async function PUT(request:NextRequest){
               stockValue:newStockValue,
             }
           )
-
-          await Purchase.findByIdAndUpdate(
-            purchase._id,{
-              $inc:{ 
-                receivedQty:rest.qty
-              } 
-            }
-          )
         }
         else{
           await Product.findByIdAndUpdate(
             product._id,{
               stockValue:(purchase.finalPrice/purchase.quantity) * parseInt(rest.qty),
-            }
-          )
-          await Purchase.findByIdAndUpdate(
-            purchase._id,{
-              $inc:{ 
-                receivedQty:rest.qty
-              } 
             }
           )
         }
@@ -334,28 +319,13 @@ export async function PUT(request:NextRequest){
               stockValue:product.stockValue + ((purchase.finalPrice/purchase.quantity) * parseInt(rest.qty)),
             }
           )
-          
-          await Purchase.findByIdAndUpdate(
-            purchase._id,{
-              $inc:{ 
-                receivedQty:rest.qty
-              } 
-            }
-          )      
         }
         else{
           await Product.findByIdAndUpdate(
             product._id,{
               stockValue:(purchase.finalPrice/purchase.quantity) * parseInt(rest.qty),
             }
-          )
-          await Purchase.findByIdAndUpdate(
-            purchase._id,{
-              $inc:{ 
-                receivedQty:rest.qty
-              } 
-            }
-          )        
+          ) 
         }
 
         await Batche.create({
@@ -535,6 +505,24 @@ export async function GET(request:NextRequest){
             preserveNullAndEmptyArrays:true
           }
         },
+        {
+          $lookup:{
+            from:'batches',
+            localField:'purchaseOrderNumber',
+            foreignField:'purchaseOrderNumber',
+            as:'batches'
+          }
+        },
+        {
+          $addFields:{
+            receivedQty: { $sum: "$batches.qty" }
+          }
+        },
+        {
+          $project:{
+            'batches':0
+          }
+        }
       ]
     )
 

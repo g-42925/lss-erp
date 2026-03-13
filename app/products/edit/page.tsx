@@ -113,7 +113,9 @@ export default function Add(){
           warehouseUnit:r.warehouseUnit,
           saleUnit:r.saleUnit,
           sellingPrice:r.sellingPrice,
-          image:r.image
+          image:r.image,
+          discountType:r.discountType,
+          discountValue:r.discountValue
         })
       })
     }
@@ -225,6 +227,14 @@ export default function Add(){
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Discount type</legend>
+                <select {...productForm.register("discountType")} className="select w-full">
+                  <option>fixed</option>
+                  <option>percentage</option>
+                  <option>none</option>
+                </select>              
+              </fieldset>
+              <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Selling price tax type</legend>
                 <select {...productForm.register("sellingPriceTaxType")} className="select w-full">
                   <option>Excluded</option>
@@ -240,7 +250,11 @@ export default function Add(){
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Price</legend>
                 <input {...productForm.register("sellingPrice")} type="text" className="input w-full" placeholder="Type here" />
-              </fieldset>      
+              </fieldset>   
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Discount value</legend>
+                <input {...productForm.register("discountValue")} type="text" className="input w-full" placeholder="Type here" />
+              </fieldset>          
             </div>
             <div className="flex flex-row gap-3">
               <button disabled={updateProductFn.loading} type="submit" className={`flex-1 p-3 rounded-full bg-black relative text-white w-full ${updateProductFn.loading ? 'cursor-not-allowed bg-red-900' : ''}`}>

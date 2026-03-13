@@ -113,14 +113,14 @@ export default function Add(){
               <fieldset className="fieldset flex-1" hidden>
                 <legend className="fieldset-legend">Barcode type</legend>
                 <select {...productForm.register("barcodeType")} className="select w-full">
-                  <option selected>Pick a barcode type</option>
+                  <option>Pick a barcode type</option>
                   <option>UPC</option>
                   <option>EAN-13</option>
                   <option>EAN-8</option>
                   <option>CODE 128</option>
                   <option>CODE 39</option>
                   <option>ITF</option>
-                  <option selected>QR Code</option>
+                  <option>QR Code</option>
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
@@ -197,6 +197,14 @@ export default function Add(){
                 </select>              
               </fieldset>
               <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Discount type</legend>
+                <select {...productForm.register("discountType")} className="select w-full">
+                  <option>fixed</option>
+                  <option>percentage</option>
+                  <option>none</option>
+                </select>              
+              </fieldset>
+              <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Selling price tax type</legend>
                 <select {...productForm.register("sellingPriceTaxType")} className="select w-full">
                   <option>Excluded</option>
@@ -213,6 +221,10 @@ export default function Add(){
                 <legend className="fieldset-legend">Price</legend>
                 <input {...productForm.register("sellingPrice")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>      
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Discount value</legend>
+                <input {...productForm.register("discountValue")} type="text" className="input w-full" placeholder="Type here" />
+              </fieldset>       
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Have Expired Date</legend>
                 <select {...productForm.register("haveExpiredDate")} className="select w-full">

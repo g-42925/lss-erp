@@ -299,14 +299,7 @@ export default function List(){
                   <input {...editRoleForm.register("page")} value="contacts" type="checkbox" className="checkbox" /> Contacts
                 </label>
               </div>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
-						  <div className="modal-action">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-								    Cancel
-							    </button>		
-                </form>
-              </div>					
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }					
 							<button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
 								Edit
 							</button>

@@ -24,6 +24,10 @@ export async function PUT(request:NextRequest){
     const sellingPriceTaxType = formData.get("sellingPriceTaxType") as string;
     const productType = formData.get("productType") as string;
     const sellingPrice = formData.get("sellingPrice") as string;
+    const haveExpiredDate = formData.get("haveExpiredDate") as string;
+    const discountType = formData.get("discountType") as string;
+    const discountValue = formData.get("discountValue") as string;
+
 
     if(file){
       const fileName = (formData.get("fileName") as string) ?? file.name;
@@ -73,7 +77,10 @@ export async function PUT(request:NextRequest){
         sellingPriceTaxType,
         productType,
         sellingPrice,
-        image:productImage
+        image:productImage,
+        haveExpiredDate,
+        discountType,
+        discountValue
       }
   
       const product = await Product.findByIdAndUpdate(
@@ -100,7 +107,10 @@ export async function PUT(request:NextRequest){
         sellingPriceTaxType,
         productType,
         sellingPrice,
-        image
+        image,
+        haveExpiredDate,
+        discountType,
+        discountValue
       }
   
       const product = await Product.findByIdAndUpdate(
@@ -146,6 +156,9 @@ export async function POST(request:NextRequest){
         const productType = formData.get("productType") as string;
         const sellingPrice = formData.get("sellingPrice") as string;
         const haveExpiredDate = formData.get("haveExpiredDate") as string;
+        const discountType = formData.get("discountType") as string;
+        const discountValue = formData.get("discountValue") as string;
+
 
         if (!file) {
           return NextResponse.json({
@@ -194,7 +207,6 @@ export async function POST(request:NextRequest){
           masterAccountId:formData.get("id")
         })
         
-
         const newProduct = {
           productName,
           productId,
@@ -210,7 +222,9 @@ export async function POST(request:NextRequest){
           sellingPrice,
           productOf:r._id,
           image:productImage,
-          haveExpiredDate
+          haveExpiredDate,
+          discountType,
+          discountValue
         }
 
         const product = await Product.create(newProduct)
@@ -309,13 +323,35 @@ export async function GET(request:NextRequest){
           $project: {
             batches: 0,
           }
+        },
+        {
+          $lookup:{
+            from:"allocations",
+            localField:"_id",
+            foreignField:"productId",
+            as:"allocations"
+          }
+        },
+        {
+          $addFields:{
+            allocated:{
+              $sum:{
+                $map: {
+                  input: "$allocations",
+                  as: "a",
+                  in: "$$a.qty"
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            allocations: 0,
+          }
         }
       ])
 
-      // const byType = await Product.find({
-      //   productOf:company._id,
-      //   productType:type
-      // })
       
       const all = await Product.find({
         productOf:company._id,

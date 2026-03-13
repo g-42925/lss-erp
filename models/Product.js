@@ -16,9 +16,11 @@ const ProductSchema = new mongoose.Schema({
   sellingPrice:{type:Number,required:true},
   productOf:{type:mongoose.Schema.Types.ObjectId, required:true},
   haveExpiredDate:{type:Boolean,required:false},
-  purchaseUnit:{type:String,required:true},
-  warehouseUnit:{type:String,required:true},
-  saleUnit:{type:String,required:true},
+  purchaseUnit:{type:String,required:false},
+  warehouseUnit:{type:String,required:false},
+  saleUnit:{type:String,required:false},
+  discountType:{type:String,required:false,enum:["percent","fixed","none"]},
+  discountValue:{type:Number,required:false}
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

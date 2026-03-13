@@ -95,21 +95,43 @@ export default function Measure(){
 
   async function search(v:string){
     if(v.length > 0){
-      var result = locations.filter((r) => {
-        return r.name.startsWith(v)
-      })
+      var [loc,prod] = v.split(":")
 
-      if(result.length > 0){
-        setSearchResult(
-          [
-            ...result
-          ]
-        )
+      if(prod){
+        var result = measurements.filter((r) => {
+          return r.supplier.bussinessName.includes(loc) && r.product.productName.includes(prod)
+        })
+
+        if(result.length > 0){
+          setSearchResult(
+            [
+              ...result
+            ]
+          )
+        }
+        else{
+          setSearchResult(
+            []
+          )
+        }
       }
       else{
-        setSearchResult(
-          []
-        )
+        var result = measurements.filter((r) => {
+          return r.supplier.bussinessName.includes(loc) || r.product.productName === loc
+        })
+
+        if(result.length > 0){
+          setSearchResult(
+            [
+              ...result
+            ]
+          )
+        }
+        else{
+          setSearchResult(
+            []
+          )
+        }
       }
     }
     else{
@@ -255,17 +277,19 @@ export default function Measure(){
                         )
                       })
                       :
-                      searchResult.map((location,index) => {
+                      searchResult.map((m,index) => {
                         return (
                           <tr key={index}>
-                            <td>{location.name}</td>
-                            <td>{location.code}</td>
-                            <td className="flex flex-row gap-3">
-                              <button className="btn" onClick={() => edit(location._id)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                            <td>{m.supplier.bussinessName}</td>
+                            <td>{m.product.productName}</td>
+                            <td>{m.unit}</td>
+                            <td>{m.ratio}</td>
+                            <td>
+                              <button onClick={() => edit(m)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
+                                  <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
                                 </svg>
-                                Edit
+
                               </button>
                             </td>
                           </tr>

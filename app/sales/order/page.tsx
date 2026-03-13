@@ -2,11 +2,10 @@
 
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
-import Sidebar from '@/components/sidebar'
 import Link from "next/link";
 
 import { useForm } from 'react-hook-form'
-import { useRef,useEffect, useState } from 'react'
+import { useRef,useEffect, useState, useMemo } from 'react'
 
 export default function Order(){
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -14,25 +13,96 @@ export default function Order(){
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const [searchResult,setSearchResult] = useState<any[]>([])
-  const [customers,setCustomers] = useState<any[]>([])
-  const [quotations,setQuotations] = useState<any[]>([])
-  const [products,setProducts] = useState<any[]>([])
-  const [contract,setContract] = useState<File|null>(null)
-  const [orders,setOrders] = useState<any[]>([])
-  const [contractFileName,setContractFileName] = useState<File|null>(null)
-  const [attachment,setAttachment] = useState<File|null>(null)
-  const [attachmentFileName,setAttachmentFileName] = useState<File|null>(null)
   const modalRef = useRef<HTMLDialogElement>(null)
-  const editRef = useRef<HTMLDialogElement>(null)
-
+  const cartRef = useRef<HTMLDialogElement>(null)
+  const customRef = useRef<HTMLDialogElement>(null)
+  const [cart,setCart] = useState<any[]>([])
+  const [discount,setDiscount] = useState<string>("0")
+  const [directSellMode,setDirectSellMode] = useState<boolean>(false)
   
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
+  
+  const tax = useMemo(() => {
+    var subtotals = cart.map((c) => {
+      if(c.discountType === 'percent'){
+        var price = parseInt(c.product.split('/')[3])
+        var qty = parseInt(c.qty)
+        var _discount = parseInt(c.discountValue)
+        return (price * qty) - ((_discount / 100) * (price * qty))
+      }
+
+      if(c.discountType === 'fixed'){
+        var qty = parseInt(c.qty)
+        var price = parseInt(c.product.split('/')[3])
+        var _discount = parseInt(c.discountValue) * qty
+        return (price * qty) - _discount
+      }
+    })
+
+    var total = subtotals.reduce((a,b) => a+b,0)
+
+    var ppns = cart.map(c => {
+      if(cart.length === 1){
+        if(c.tax === 'PPN11'){
+          if(discount.includes("%")){
+            return (total - (total * (parseInt(discount)/100))) * 0.11 // works
+          }
+          else{
+            return (total - parseInt(discount)) * 0.11 // works
+          }
+        }
+        else{
+          return 0
+        }
+      }
+      else{
+        if(c.tax === 'PPN11'){
+          if(discount.includes("%")){
+            return ((c.price - c.discountValue) - ((c.price - c.discountValue) * (parseInt(discount)/100))) * 0.11 // works
+          }
+          else{
+            var proportion = (c.price - c.discountValue) / total
+            var proportionValue = parseInt(discount) * proportion
+            return ((c.price - c.discountValue) - proportionValue) * 0.11 // works
+          }
+        }
+        else{
+          return 0
+        }
+      }
+    })
+
+    var _ppn = ppns.reduce((a,b) => a+b,0)
+
+    if(discount === 0){
+      return 0
+    }
+    else{
+      return (Math.round(_ppn as number))      
+    }
+
+  },[discount,cart])
 
   var addOrderFn = useFetch<any,any>({
     url:'/api/web/order',
     method:'POST',
+    onError:(m) => {
+      alert(m)
+    }
+  })
+
+  var directSellFn = useFetch<any,any>({
+    url:'/api/web/csale',
+    method:'POST',
+    onError:(m) => {
+      alert(m)
+    }
+  })
+  var getLocationsFn = useFetch<any,any>({
+    url:`/api/web/location?id=xxx`,
+    method:'GET',
     onError:(m) => {
       alert(m)
     }
@@ -46,6 +116,71 @@ export default function Order(){
     }
   })
 
+  var getProductsFn = useFetch<any,any>({
+    url:`/api/web/products?id=xxx`,
+    method:'GET',
+    onError:(m) => {
+      alert(m)
+    }
+  })
+
+  var getDSaleStockFn = useFetch<any,any>({
+    url:`/api/web/csale`,
+    method:'GET',
+    onError:(m) => {
+      alert(m)
+    }
+  })
+
+  async function addToCart(data:any){
+    var tax = data.ppn === 'yes' ? 'PPN11' : 'PPN00'
+
+    var [_id,name,limit,price,discountType,discountValue] = data.product.split('/')
+    
+    var item = {
+      product:data.product,
+      qty:parseInt(data.qty),
+      batches:data.batches,
+      price:parseInt(data.qty)*parseInt(price),
+      discountType:discountType,
+      discountValue:parseInt(discountValue),
+      tax:tax
+    }
+
+    console.log({
+      item
+    })
+
+    if(data.qty > parseInt(limit)){
+      alert('stock not enough')
+    }
+    else{
+      var [filter] = cart.filter(c => {
+        return c.product.includes(`${_id}/${name}`)
+      })
+
+      if(filter){
+        var index = cart.findIndex(c => {
+          return c.product.includes(`${_id}/${name}`)
+        })
+
+        cart[index] = {
+          ...item
+        }
+        setCart([
+          ...cart
+        ])
+      }
+      else{
+        await setCart(
+          [
+            item,
+            ...cart
+          ]
+        )
+      }
+    }   
+  }
 
   function submit(data:any){
     const formData = new FormData()
@@ -74,44 +209,285 @@ export default function Order(){
     const file = e.target.files[0]
     setAttachment(file)
     setAttachmentFileName(file)
-    console.log(file)
   }
 
   async function contractSubmit(e:any){
     const file = e.target.files[0]
     setContract(file)
     setContractFileName(file)
-    console.log(file)
+  }
+
+  async function onProdChg(e:any){    
+    var url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}`
+    
+    getDSaleStockFn.fn(url,JSON.stringify({}),result => {
+      console.log(result)
+    })      
+  }
+
+  function cartToggle(dst:string){
+    if(dst === "toCart"){
+      customRef.current?.close()
+      cartRef.current?.showModal()
+    }
+    else{
+      cartRef.current?.close()
+      customRef.current?.showModal()      
+    }
+  }
+  
+
+  function getTotalDiscount(cart:any[],d:string){
+    var discount = cart.map((c) => {
+      if(c.discountType === 'percent'){
+        var price = parseInt(c.product.split('/')[3])
+        var qty = parseInt(c.qty)
+        var discount = parseInt(c.discountValue)
+        return (discount / 100) * (price * qty)
+      }
+
+      if(c.discountType === 'fixed'){
+        var qty = parseInt(c.qty)
+        var price = parseInt(c.product.split('/')[3])
+        var discount = parseInt(c.discountValue)
+        return discount * qty
+      }
+    })
+
+    var subtotals = cart.map((c) => {
+      if(c.discountType === 'percent'){
+        var price = parseInt(c.product.split('/')[3])
+        var qty = parseInt(c.qty)
+        var _discount = parseInt(c.discountValue)
+        return (price * qty) - ((_discount / 100) * (price * qty))
+      }
+
+      if(c.discountType === 'fixed'){
+        var qty = parseInt(c.qty)
+        var price = parseInt(c.product.split('/')[3])
+        var _discount = parseInt(c.discountValue) * qty
+        return (price * qty) - _discount
+      }
+    })
+
+    var total = subtotals.reduce((a,b) => a+b,0)
+
+    var _discount = discount.reduce((a,b) => {
+      return a+b
+    },0)
+
+    if(d.includes("%")){
+      return _discount + (total * (parseInt(d) / 100))
+    }
+    else{
+      return _discount + parseInt(d)
+    }
+  }
+
+  function getTax(cart:any[]){
+    var subtotals = cart.map((c) => {
+      if(c.discountType === 'percent'){
+        var price = parseInt(c.product.split('/')[3])
+        var qty = parseInt(c.qty)
+        var _discount = parseInt(c.discountValue)
+        return (price * qty) - ((_discount / 100) * (price * qty))
+      }
+
+      if(c.discountType === 'fixed'){
+        var qty = parseInt(c.qty)
+        var price = parseInt(c.product.split('/')[3])
+        var _discount = parseInt(c.discountValue) * qty
+        return (price * qty) - _discount
+      }
+    })
+
+    var total = subtotals.reduce((a,b) => a+b,0)
+
+    var ppns = cart.map(c => {
+      if(cart.length === 1){
+        if(c.tax === 'PPN11'){
+          return (total - discount) * 0.11
+        }
+        else{
+          return 0
+        }
+      }
+      else{
+        if(c.tax === 'PPN11'){
+          if(c.discountType === 'fixed'){
+            var proportion = parseFloat((((c.price - c.discountValue) / total)).toFixed(2))
+            var proportionValue = discount * proportion
+            return ((c.price - c.discountValue) - proportionValue) * 0.11
+          }
+        }
+        else{
+          return 0
+        }
+      }
+    })
+
+    var _ppn = ppns.reduce((a,b) => a+b,0)
+
+    setTax(_ppn as number)
+
+  }
+
+  function getSubTotal(cart:any[]){
+    var prices = cart.map((c) => {
+      var price = parseInt(c.product.split('/')[3])
+      var qty = parseInt(c.qty)
+      return price * qty
+    })
+
+    return prices.reduce((a,b) => {
+      return a+b
+    },0)
   }
 
   useEffect(() => {
     if(hasHydrated){
       const url4 = `/api/web/order?id=${masterAccountId}&type=good`
-
-
+      const url = `/api/web/products?id=${masterAccountId}&type=good`
+      const url2 = `/api/web/location?id=${masterAccountId}`
       const body = JSON.stringify({})
 
-      getOrdersFn.fn(url4,body,(result) => {
-        setOrders(result)
+      getProductsFn.fn(url,body,result => {})
+      
+      getLocationsFn.fn(url2,body,result => {})
 
-        console.log(result)
-      })
+      getOrdersFn.fn(url4,body,(result) => {})
     }
   },[masterAccountId])
 
-  return (
+  return directSellMode ?
+  (
+    <>
+      <div className="h-full p-6 flex flex-col gap-3">
+        <span className="text-2xl">Product Order</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
+          <div className="flex flex-col gap-3 divide-y p-3">
+            <form className="flex flex-col p-6 gap-3">
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[70px]">Customer</label>
+                <input placeholder="quantity" {...newOrderForm.register("qty")} type="text" className="input flex-1"/>
+              </div>              
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[70px]">Discount</label>
+                <input 
+                  placeholder="quantity" {...newOrderForm.register("discount",{onChange:(e) => setDiscount(e.target.value === '' ? '0' : e.target.value)})} 
+                  type="text" className="input flex-1"
+                />
+              </div>      
+            </form>
+            <form className="flex-1 flex flex-col gap-3 p-6" onSubmit={newOrderForm.handleSubmit(addToCart)}>
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[85px]">Product</label>
+                <select {...newOrderForm.register('product',{onChange:onProdChg})} className="select w-full">
+                  <option>Available Product:</option>
+                  {
+                    getProductsFn?.result?.map((p) => {
+                      return (
+                        <option key={p._id} value={`${p._id}/${p.productName}/${p.allocated}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
+                      )
+                    })
+                  }
+                </select> 
+              </div>
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[85px]">Location</label>
+                <select className="select w-full">
+                  <option>Available Location:</option>
+                  {
+                    getDSaleStockFn?.result?.map((l) => {
+                      return (
+                        <option key={l._id} >{l.name} ({l.allocated})</option>
+                      )
+                    })
+                  }                
+                </select> 
+              </div>
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[70px]">Qty</label>
+                <input placeholder="quantity" {...newOrderForm.register("qty")} type="text" className="input flex-1"/>
+              </div>
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[85px]">Tax</label>
+                <select {...newOrderForm.register('ppn')} className="select w-full">
+                  <option>
+                    yes
+                  </option>
+                  <option>
+                    no
+                  </option>
+                </select> 
+              </div>
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[85px]">Debt</label>
+                <select {...newOrderForm.register('debt')} className="select w-full">
+                  <option>
+                    yes
+                  </option>
+                  <option>
+                    no
+                  </option>
+                </select> 
+              </div>
+              <div>
+                <button type="submit" className="bg-black p-3 rounded-md text-white w-full">
+                  add
+                </button>  
+              </div>  
+
+            </form>
+
+          </div>
+
+          <div className="flex-1 flex flex-col divide-y p-6">
+            <div className="p-3">
+              <p className="py-4 font-bold text-red-900">Please review your order once more</p>
+              <ul className="flex flex-col">
+              {
+                cart.map((c) => {
+                  return (
+                    <li>{`${c.product.split('/')[1]}@${c.qty}`} ({c.price})</li>
+                  )
+                })
+              }
+              </ul>              
+            </div>
+            <div className="p-3">
+              <p>Subtotal : {getSubTotal(cart)}</p>
+              <p>Total discount : {getTotalDiscount(cart,discount)}</p>
+              <p>Total tax : {tax}</p>
+            </div>
+
+          </div>
+        </div>
+      </div>         
+    </>
+  )
+  :
+  (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Product Order</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
             <span className="self-center">All order</span>
-            <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
+            <div className="flex flex-row gap-3 ml-auto">
+            <button onClick={() => modalRef.current?.showModal()} className="btn m">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               Add
             </button>
+            <button onClick={() => setDirectSellMode(true)} className="btn ml-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Custom
+            </button>
+            </div>
           </div>
           <div className="flex flex-row">
             <div className="flex flex-row gap-2 items-center">
@@ -158,36 +534,7 @@ export default function Order(){
                     {
                       searchResult.length < 1
                       ?
-                      orders.map((s,index) => {
-                        return (
-                          <tr key={index}>
-                            <td>{new Date(s.saleDate).toLocaleDateString('id-ID')}</td>
-                            <td>{s.salesOrderNumber}</td>
-                            <td>{s.product.productName}</td>
-                            <td>{s.customer.bussinessName}</td>
-                            <td>{s.qty} {s.product.altUnit ?? ''}</td>
-                            <td>{s.price}</td>
-                            <td>{s.discount ?? 0}%</td>
-                            <td>{s.taxType}</td>
-                            <td>{s.payTerm} (Days)</td>
-                            {
-                              s.contract
-                              ?
-                              <td>
-                                <a href={s.contract} target="_blank" rel="noopener noreferrer">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                  <path strokeLinecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-                                </svg>
-                                </a>
-                              </td>
-                              :
-                              <td>
-                                -
-                              </td>
-                            }
-                          </tr>
-                        )
-                      })
+                      <></>
                       :
                       searchResult.map((role,index) => {
                         return (
@@ -251,7 +598,90 @@ export default function Order(){
             <button className="btn bg-red-900 text-white">Submit</button>
           </div>
         </form>
-      </dialog>	    
+      </dialog>
+      <dialog id="my_modal_3" ref={cartRef} className="modal">
+        <div className="modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Cart!</h3>
+          <p className="py-4">Please review your order once more</p>
+          <ul className="flex flex-col">
+          {
+            cart.map((c) => {
+              return (
+                <li>{`${c.product.split('/')[1]}@${c.qty}`} ({c.price})</li>
+              )
+            })
+          }
+          </ul>
+          <p>===============================</p>
+          <div>
+            <p>Total price : {getSubTotal(cart)}</p>
+            <p>Total discount : {getTotalDiscount(cart,discount)}</p>
+            <p>Total tax : {tax}</p>
+          </div>
+          <form>
+            <input 
+              onChange={(e) => {
+                if(e.target.value === ''){
+                  setDiscount(0)
+                  getTax(cart)
+                }
+                else{
+                  setDiscount(parseInt(e.target.value))
+                  getTax(cart)
+                }
+              }} 
+              type="text" 
+              className="w-[300px] border-2 border-black p-3 rounded-md" 
+              placeholder="discount value"
+            />
+          </form>
+          <div className="modal-action">
+            <button className="btn" onClick={() => cartToggle("toPreorder")}>Back</button>
+            <button className="btn">Order</button>
+          </div>
+        </div>
+      </dialog>
+      <dialog ref={customRef} id="my_modal_2" className="modal h-full">
+        <form onSubmit={newOrderForm.handleSubmit(addToCart)} className="h-120 modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Preorder</h3>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[85px]">Product</label>
+            <select {...newOrderForm.register('product',{onChange:onProdChg})} className="select w-full">
+              <option>Available Product:</option>
+              {
+                getProductsFn?.result?.map((p) => {
+                  return (
+                    <option key={p._id} value={`${p._id}/${p.productName}/${p.allocated}/${p.sellingPrice}/${p.applicableTax}`}>{p.productName}</option>
+                  )
+                })
+              }
+            </select> 
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[85px]">Location</label>
+            <select className="select w-full">
+              <option>Available Location:</option>
+              {
+                getDSaleStockFn?.result?.map((l) => {
+                  return (
+                    <option key={l._id} >{l.name} ({l.allocated})</option>
+                  )
+                })
+              }                
+            </select> 
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Qty</label>
+            <input placeholder="quantity" {...newOrderForm.register("qty")} type="text" className="input flex-1"/>
+          </div> 
+          {addOrderFn.noResult || addOrderFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
+          <div className="flex flex-row gap-3 modal-action">
+            <button className="btn bg-red-900 text-white">Add to cart</button>
+            <button type="button" onClick={() => cartToggle("toCart")} className="btn bg-red-900 text-white">Cart</button>
+          </div>
+        </form>
+      </dialog>	       
+         
     </>
   )
 }

@@ -103,7 +103,8 @@ export async function POST(request:NextRequest){
         contract:contractUploadUrl,
         attachment:attachmentUploadUrl,
         salesOrderNumber:`SO-${String(Date.now()).slice(-5)}`,
-        payTerm
+        type:'withQuotation',
+        payTerm,
       }
 
       var _order = await Order.create(order)

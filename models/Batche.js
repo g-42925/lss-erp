@@ -9,6 +9,7 @@ const batcheSchema = new mongoose.Schema({
   expiryDate: {type:Date, required:false},
   batchNumber: {type:String, required:true},
   locationId: {type:mongoose.Schema.Types.ObjectId, required:true},
+  purchaseOrderNumber: {type:String,required:false},
   status: {type:String, required:true,enum: ['ACTIVE', 'DEPLETED', 'EXPIRED', 'INACTIVE']},
   isOpening: {type:Boolean,required:false},
   createdAt: { type: Date, default: Date.now },
