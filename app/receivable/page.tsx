@@ -62,6 +62,7 @@ export default function Receivable(){
       const body = JSON.stringify({})
      
       getFn.fn(url,body,(result) => {
+        console.log(result)
         setInvoices(result)
       })
     }
@@ -130,12 +131,11 @@ export default function Receivable(){
                         return (
                           <tr key={index}>
                             <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                            <td>{p.order.product.productName}</td>
-                            <td>{p.order.customer.bussinessName}</td>
+                            <td>{p.variousItem ? 'various item':p.product.productName}</td>
+                            <td>{p.order.customerName ? p.order.customerName : p.customer.bussinessName}</td>
                             <td>{p.value}</td>
                             <td>{p.payAmount}</td>
                             <td>{p.value - p.payAmount}</td>
-
                           </tr>
                         )
                       })

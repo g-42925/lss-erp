@@ -232,7 +232,7 @@ export default function List(){
                             <td>{p.sellingPrice}</td>
                             <td>{p.applicableTax}</td>
                             <td>{p.sellingPriceTaxType}</td>
-                            <td>{Math.round(p.stockValue / p.remain)}</td>
+                            <td>{Math.round(p.stockValue / (p.remain + p.allocated))}</td>
                             <td>
                               <button>
                                 <Link href={p.productType === 'service' ? `/products/xedit?id=${p._id}` : `/products/edit?id=${p._id}`}>

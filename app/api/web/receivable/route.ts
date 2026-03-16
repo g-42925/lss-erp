@@ -36,14 +36,43 @@ export async function  GET(request:NextRequest){
       },
       {
         $lookup:{
-          from:'products',
-          localField:'order.productId',
-          foreignField:'_id',
-          as:'order.product'
+          from: "products",
+          let: {
+            productId: { $arrayElemAt: ["$order.cart.productId", 0] }
+          },
+          pipeline:[
+            {
+              $match:{
+                $expr:{
+                  $eq:["$_id","$$productId"]
+                }
+              }
+            }
+          ],
+          as:"p"
         }
       },
       {
-        $unwind:'$order.product'
+        $addFields:{
+          product:{
+            $cond:[
+              { $gt:[ { $size:"$order.cart" }, 1 ] },
+              "various items",
+              { $arrayElemAt:["$p",0] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields:{
+          variousItem:{
+            $cond:[
+              { $gt:[ { $size:"$order.cart" }, 1 ] },
+              true,
+              false
+            ]
+          }
+        }
       },
       {
         $lookup:{
@@ -54,27 +83,30 @@ export async function  GET(request:NextRequest){
         }
       },
       {
-        $unwind:'$order.customer'
+        $unwind:{
+          path:'$order.customer',
+          preserveNullAndEmptyArrays:true
+        }
       },   
       {
         $addFields:{
           value:{
             $cond: {
               if: { $eq: ["$order.productType", "good"] },
-              then: '$order.price',
+              then: '$order.total',
               else:{
                 $cond:{
                   if: { $eq: ["$order.frequency", "Week"] },
                   then:{
                     $subtract: [
-                      { $multiply: [ { $multiply: ["$order.qty", "$order.price"] }, 4 ] },
-                      { $multiply: ["$order.price", "$missing"] }
+                      { $multiply: [ { $multiply: ["$order.qty", "$order.total"] }, 4 ] },
+                      { $multiply: ["$order.total", "$missing"] }
                     ]
                   },
                   else:{
                     $subtract: [
-                      { $multiply: ["$order.qty", "$order.price"]  },
-                      { $multiply: ["$order.price", "$missing"] }
+                      { $multiply: ["$order.qty", "$order.total"]  },
+                      { $multiply: ["$order.total", "$missing"] }
                     ]                    
                   }
                 }
@@ -85,6 +117,11 @@ export async function  GET(request:NextRequest){
       },
       {
         $match: { $expr: { $lt: ["$payAmount", "$value"] } } // filter payAmount < value
+      },
+      {
+        $project:{
+          'p':0
+        }
       }
     ])
 

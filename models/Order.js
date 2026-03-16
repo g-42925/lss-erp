@@ -1,10 +1,13 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
+  total: {type:Number,required:true},
   salesOrderId: {type:Number,required:false},
   salesOrderNumber:{type:String,required:true},
+  discountType: {type:String,required:false,enum:['percent','fixed','none']},
+  discountValue: {type:Number,required:false},
+  taxValue: {type:Number,required:false},
   companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  productId: [{type:mongoose.Schema.Types.ObjectId, required:true}],
   customerId: {type:mongoose.Schema.Types.ObjectId, required:false},
   customerName: {type:String,required:false},
   contract: {type:String,required:false},
@@ -21,8 +24,7 @@ const orderSchema = new mongoose.Schema({
     {
       productId: {type:mongoose.Schema.Types.ObjectId, required:true},
       qty: {type:Number, required:true},
-      discountType: {type:String,required:true,enum:['percent','fixed','none']},
-      discountValue: {type:Number,required:false}
+      subTotal:{type:Number,required:true},
     }
   ],
 });

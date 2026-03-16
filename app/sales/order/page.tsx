@@ -19,9 +19,11 @@ export default function Order(){
   const [cart,setCart] = useState<any[]>([])
   const [discount,setDiscount] = useState<string>("0")
   const [directSellMode,setDirectSellMode] = useState<boolean>(false)
+  const [customerName,setCustomerName] = useState<string>("")
+  const [debt,setDebt] = useState<string>('no')
+  const [payAmount,setPayAmount] = useState<number>(0)
+  const [payTerm,setPayTerm] = useState<number>(0)
   
-  const newQuotationForm = useForm()
-  const editQuotationForm = useForm()
   const newOrderForm = useForm()
 
   const tax = useMemo(() => {
@@ -152,12 +154,10 @@ export default function Order(){
       price:parseInt(data.qty)*parseInt(price),
       discountType:discountType,
       discountValue:parseInt(discountValue),
-      tax:tax
+      tax:tax,
+      debt:data.debt,
+      locationId:data.locationId
     }
-
-    console.log({
-      item
-    })
 
     if(data.qty > parseInt(limit)){
       alert('stock not enough')
@@ -355,6 +355,42 @@ export default function Order(){
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
   }
+
+
+  function done(){
+    var discountType = discount.includes("%") ? 'percent' : 'fixed'
+    var discountValue = parseInt(discount)
+
+    var _cart = cart.map(c => {
+      var productId = c.product.split("/")[0]
+      var qty = c.qty
+      var subTotal = qty * c.price
+      
+      return {
+        productId,
+        qty,
+        subTotal,
+        loc:c.locationId
+      }
+    })
+
+    var params = JSON.stringify({
+      id:masterAccountId,
+      cart:_cart,
+      discountType,
+      discountValue,
+      tax,
+      customerName,
+      total,
+      debt,
+      payTerm,
+      payAmount
+    })
+
+    directSellFn.fn('',params,r => {
+      console.log(r)
+    })
+  }
   
 
   useEffect(() => {
@@ -372,8 +408,7 @@ export default function Order(){
     }
   },[masterAccountId])
 
-  return directSellMode ?
-  (
+  return directSellMode ? (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
         <span className="text-2xl">Product Order</span>
@@ -382,15 +417,42 @@ export default function Order(){
             <form className="flex flex-col p-6 gap-3">
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Customer</label>
-                <input placeholder="quantity" {...newOrderForm.register("qty")} type="text" className="input flex-1"/>
+                <input 
+                  placeholder="quantity" 
+                  type="text" 
+                  className="input flex-1"
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
               </div>              
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Discount</label>
                 <input 
-                  placeholder="quantity" {...newOrderForm.register("discount",{onChange:(e) => setDiscount(e.target.value === '' ? '0' : e.target.value)})} 
+                  placeholder="discount value" {...newOrderForm.register("discount",{onChange:(e) => setDiscount(e.target.value === '' ? '0' : e.target.value)})} 
                   type="text" className="input flex-1"
                 />
-              </div>      
+              </div>   
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[85px]">Debt</label>
+                <select {...newOrderForm.register('debt',{onChange:(e) => setDebt(e.target.value)})} className="select w-full">
+                  <option>
+                    no
+                  </option>
+                 <option>
+                    yes
+                  </option>
+                </select> 
+              </div>
+              <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
+                <label className="w-[70px]">Pay term</label>
+                <label className="input flex-1">
+                <input {...newOrderForm.register('payTerm',{onChange:(e) => setPayTerm(parseInt(e.target.value)) })} type="text" placeholder="pay term" />
+                <span className="badge badge-neutral badge-xs aspect-square">Days</span>
+                </label>
+              </div>
+              <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
+                <label className="w-[70px]">Pay Amount</label>
+                <input defaultValue={total} placeholder="quantity" {...newOrderForm.register("payAmount", {onChange:(e) => setPayAmount(parseInt(e.target.value))})} type="text" className="input flex-1"/>
+              </div>   
             </form>
             <form className="flex-1 flex flex-col gap-3 p-6" onSubmit={newOrderForm.handleSubmit(addToCart)}>
               <div className="flex flex-row items-center gap-3">
@@ -408,12 +470,12 @@ export default function Order(){
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Location</label>
-                <select className="select w-full">
+                <select {...newOrderForm.register('locationId')} className="select w-full">
                   <option>Available Location:</option>
                   {
                     getDSaleStockFn?.result?.map((l) => {
                       return (
-                        <option key={l._id} >{l.name} ({l.allocated})</option>
+                        <option key={l._id} value={l._id} >{l.name} ({l.allocated})</option>
                       )
                     })
                   }                
@@ -434,23 +496,14 @@ export default function Order(){
                   </option>
                 </select> 
               </div>
-              <div className="flex flex-row items-center gap-3">
-                <label className="w-[85px]">Debt</label>
-                <select {...newOrderForm.register('debt')} className="select w-full">
-                  <option>
-                    yes
-                  </option>
-                  <option>
-                    no
-                  </option>
-                </select> 
-              </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <button type="submit" className="bg-black p-3 rounded-md text-white w-full">
                   add
                 </button>  
+                <button onClick={done} type="button" className="bg-black p-3 rounded-md text-white w-full">
+                  done
+                </button>  
               </div>  
-
             </form>
 
           </div>
@@ -474,7 +527,6 @@ export default function Order(){
               <p>Total tax : {tax}</p>
               <p>Total : {total}</p>
             </div>
-
           </div>
         </div>
       </div>         
@@ -673,12 +725,12 @@ export default function Order(){
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[85px]">Location</label>
-            <select className="select w-full">
+            <select {...newOrderForm.register('locationId')} className="select w-full">
               <option>Available Location:</option>
               {
                 getDSaleStockFn?.result?.map((l) => {
                   return (
-                    <option key={l._id} >{l.name} ({l.allocated})</option>
+                    <option key={l._id} value={l._id}>{l.name} ({l.allocated})</option>
                   )
                 })
               }                
