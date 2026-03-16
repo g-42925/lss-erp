@@ -292,54 +292,6 @@ export default function Order(){
     }
   }
 
-  function getTax(cart:any[]){
-    var subtotals = cart.map((c) => {
-      if(c.discountType === 'percent'){
-        var price = parseInt(c.product.split('/')[3])
-        var qty = parseInt(c.qty)
-        var _discount = parseInt(c.discountValue)
-        return (price * qty) - ((_discount / 100) * (price * qty))
-      }
-
-      if(c.discountType === 'fixed'){
-        var qty = parseInt(c.qty)
-        var price = parseInt(c.product.split('/')[3])
-        var _discount = parseInt(c.discountValue) * qty
-        return (price * qty) - _discount
-      }
-    })
-
-    var total = subtotals.reduce((a,b) => a+b,0)
-
-    var ppns = cart.map(c => {
-      if(cart.length === 1){
-        if(c.tax === 'PPN11'){
-          return (total - discount) * 0.11
-        }
-        else{
-          return 0
-        }
-      }
-      else{
-        if(c.tax === 'PPN11'){
-          if(c.discountType === 'fixed'){
-            var proportion = parseFloat((((c.price - c.discountValue) / total)).toFixed(2))
-            var proportionValue = discount * proportion
-            return ((c.price - c.discountValue) - proportionValue) * 0.11
-          }
-        }
-        else{
-          return 0
-        }
-      }
-    })
-
-    var _ppn = ppns.reduce((a,b) => a+b,0)
-
-    setTax(_ppn as number)
-
-  }
-
   function getSubTotal(cart:any[]){
     var prices = cart.map((c) => {
       var price = parseInt(c.product.split('/')[3])
