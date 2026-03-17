@@ -197,14 +197,43 @@ export async function GET(request:NextRequest){
         },
         {
           $lookup:{
-            from:"products",
-            localField:"productId",
-            foreignField:"_id",
-            as:"product"
+            from: "products",
+            let: {
+              productId: { $arrayElemAt: ["$cart.productId", 0] }
+            },
+            pipeline:[
+              {
+                $match:{
+                  $expr:{
+                    $eq:["$_id","$$productId"]
+                  }
+                }
+              }
+            ],
+            as:"p"
           }
         },
         {
-          $unwind:'$product'
+          $addFields:{
+            product:{
+              $cond:[
+                { $gt:[ { $size:"$cart" }, 1 ] },
+                "various items",
+                { $arrayElemAt:["$p",0] }
+              ]
+            }
+          }
+        },
+        {
+          $addFields:{
+            variousItem:{
+              $cond:[
+                { $gt:[ { $size:"$cart" }, 1 ] },
+                true,
+                false
+              ]
+            }
+          }
         },
         {
           $lookup:{
@@ -215,7 +244,15 @@ export async function GET(request:NextRequest){
           }
         },
         {
-          $unwind:'$customer'
+          $unwind:{
+            path:'$customer',
+            preserveNullAndEmptyArrays:true
+          }
+        },
+        {
+          $project:{
+            'p':0
+          }
         }
       ]
     )

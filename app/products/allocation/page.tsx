@@ -117,8 +117,8 @@ export default function Allocation(){
 		}
 		else{
       allocateFn.fn('',JSON.stringify(params),r => {
-				modalRef.current?.close()
 				setLog(r)
+				modalRef?.current?.close()
 			})
 		}
 	}

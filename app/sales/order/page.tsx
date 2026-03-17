@@ -4,6 +4,7 @@ import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Link from "next/link";
 
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { useRef,useEffect, useState, useMemo } from 'react'
 
@@ -25,6 +26,7 @@ export default function Order(){
   const [payTerm,setPayTerm] = useState<number>(0)
   
   const newOrderForm = useForm()
+  const router = useRouter()
 
   const tax = useMemo(() => {
     var subtotals = cart.map((c) => {
@@ -87,13 +89,18 @@ export default function Order(){
 
   },[discount,cart])
 
+  const _total = useMemo(() => {
+    var subTotal = getSubTotal(cart)
+    var totalDiscount = getTotalDiscount(cart,discount)
+    return subTotal - totalDiscount + tax
+  },[discount,cart])
+
   const total = useMemo(() => {
     var subTotal = getSubTotal(cart)
     var totalDiscount = getTotalDiscount(cart,discount)
     return subTotal - totalDiscount + tax
   },[tax])
   
-
 
   var addOrderFn = useFetch<any,any>({
     url:'/api/web/order',
@@ -107,7 +114,7 @@ export default function Order(){
     url:'/api/web/csale',
     method:'POST',
     onError:(m) => {
-      alert(m)
+      alert('x')
     }
   })
   var getLocationsFn = useFetch<any,any>({
@@ -341,6 +348,7 @@ export default function Order(){
 
     directSellFn.fn('',params,r => {
       console.log(r)
+      //router.push('/dashboard')    
     })
   }
   
@@ -353,9 +361,7 @@ export default function Order(){
       const body = JSON.stringify({})
 
       getProductsFn.fn(url,body,result => {})
-      
       getLocationsFn.fn(url2,body,result => {})
-
       getOrdersFn.fn(url4,body,(result) => {})
     }
   },[masterAccountId])
@@ -448,12 +454,15 @@ export default function Order(){
                   </option>
                 </select> 
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-row gap-2 mt-6">
                 <button type="submit" className="bg-black p-3 rounded-md text-white w-full">
                   add
                 </button>  
                 <button onClick={done} type="button" className="bg-black p-3 rounded-md text-white w-full">
                   done
+                </button>  
+                <button onClick={() => setDirectSellMode(false)} type="button" className="bg-red-900 p-3 rounded-md text-white w-full">
+                  cancel
                 </button>  
               </div>  
             </form>
@@ -477,7 +486,7 @@ export default function Order(){
               <p>Subtotal : {getSubTotal(cart)}</p>
               <p>Total discount : {getTotalDiscount(cart,discount)}</p>
               <p>Total tax : {tax}</p>
-              <p>Total : {total}</p>
+              <p>Total : { tax > 0 ? total : _total}</p>
             </div>
           </div>
         </div>
@@ -533,7 +542,7 @@ export default function Order(){
             </div>
             :
             <div>
-                <table className="table">
+                <table className="table text-center">
                   <thead>
                     <tr>
                       <th>Sale Date</th>
@@ -552,7 +561,22 @@ export default function Order(){
                     {
                       searchResult.length < 1
                       ?
-                      <></>
+                      getOrdersFn?.result?.map((x,index) => {
+                        return (
+                          <tr key={index}>
+                            <td>{x.saleDate}</td>
+                            <td>{x.salesOrderNumber}</td>
+                            <td>{x.product.productName}</td>
+                            <td>{x.customerName ?? x.customer.bussinessName}</td>
+                            <td>{x.variousItem ? '?' : x.product.qty}</td>
+                            <td>{x.total}</td>
+                            <td>{x.discountType === "percent" ? Math.round(x.total * (x.discountValue/100)) : x.total - x.discount}</td>
+                            <td>{x.taxValue}</td>
+                            <td>{x.payTerm} (Days)</td>
+                            <td>-</td>
+                          </tr>
+                        )
+                      })    
                       :
                       searchResult.map((role,index) => {
                         return (

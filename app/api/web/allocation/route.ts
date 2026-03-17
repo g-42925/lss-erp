@@ -92,7 +92,7 @@ export async function GET(request:NextRequest){
 
 		return NextResponse.json({
 			noResult: false,
-			message: "abcde",
+			message: "",
 			result:result,
 			error:false
 		})
@@ -127,28 +127,49 @@ export async function POST(request:NextRequest){
 
 		const result = await Product.aggregate([
 			{
-				$match:{
-					productOf:new mongoose.Types.ObjectId(
-						company._id
-					)
+				$match: {
+					productOf: company._id,
+					productType: "good"
 				}
 			},
 			{
-				$lookup:{
-					from:"allocations",
-					localField:"_id",
-					foreignField:"productId",
-					as:"allocations"
+				$lookup: {
+					from: "allocations",
+					let: { productId: "$_id" },
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$eq: ["$productId", "$$productId"]
+								}
+							}
+						},
+						{
+							$lookup: {
+								from: "locations",
+								localField: "locationId",
+								foreignField: "_id",
+								as: "location"
+							}
+						},
+						{
+							$unwind: {
+								path: "$location",
+								preserveNullAndEmptyArrays: true
+							}
+						}
+					],
+					as: "allocations"
 				}
 			}
 		])
 
 		return NextResponse.json({
 			noResult: false,
-			message:"",
+			message: "",
 			result:result,
 			error:false
-		})
+		})		
 
 	}
 	catch(e:any){
