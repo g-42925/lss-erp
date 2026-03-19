@@ -79,51 +79,63 @@ export async function PUT(request:NextRequest){
 
 export async function POST(request:NextRequest){
   try{
-    await connectToDatabase();
+    await connectToDatabase()
     const params = await request.json()
     const company = await Companie.findOne({
       masterAccountId:params.id
     })
 
-    const product = await Product.findById(params.productId)
-
-    var {id,...rest} =  params
-
-    var price = rest.productType === 'service' ? params.price : product.sellingPrice * params.qty
-
-
-    var q = {
-      ...rest,
-      companyId:company._id,
-      createdAt:Date.now(),
-      taxType:product.applicableTax,
-      price:price,
-      quotationNumber:`Q-${String(Date.now()).slice(-5)}`
-    }
-
-    var quotation = await Quotation.create(q)
-
-    return NextResponse.json(
-      {
-        noResult:false,
-        message:"",
-        result:quotation,
-        error:false
-      }
-    )
-  }
-  catch(e:any){
-    console.log(e.message)
-    return NextResponse.json(
-      {
-        noResult:true,
-        message:e.message,
-        result:null,
-        error:false
-      }
-    )
+    
   }
 }
+
+// export async function POST(request:NextRequest){
+//   try{
+//     await connectToDatabase();
+//     const params = await request.json()
+//     const company = await Companie.findOne({
+//       masterAccountId:params.id
+//     })
+
+//     const product = await Product.findById(params.productId)
+
+//     var {id,...rest} =  params
+
+//     var price = rest.productType === 'service' ? params.price : product.sellingPrice * params.qty
+
+
+//     var q = {
+//       ...rest,
+//       companyId:company._id,
+//       createdAt:Date.now(),
+//       taxType:product.applicableTax,
+//       price:price,
+//       quotationNumber:`Q-${String(Date.now()).slice(-5)}`
+//     }
+
+//     var quotation = await Quotation.create(q)
+
+//     return NextResponse.json(
+//       {
+//         noResult:false,
+//         message:"",
+//         result:quotation,
+//         error:false
+//       }
+//     )
+//   }
+//   catch(e:any){
+//     console.log(e.message)
+//     return NextResponse.json(
+//       {
+//         noResult:true,
+//         message:e.message,
+//         result:null,
+//         error:false
+//       }
+//     )
+//   }
+// }
 
 export async function GET(request:NextRequest){
   const url = new URL(request.url)

@@ -357,86 +357,102 @@ export async function PUT(request:NextRequest){
 export async function POST(request:NextRequest){
   try{
     await connectToDatabase()
-    const params = await request.json()
-    const company = await Companie.findOne({
-      masterAccountId:params.id
-    })
+    const body = await request.json()
 
-    var p = await Purchase.findOne({
-      companyId:company._id,
-      productId:params.productId,
-      status:'requested'
-    })
-
-    if(p){
-      return NextResponse.json({
-        noResult:true,
-        message:"product already ordered",
-        result:null,
-        error:true
-      })
-    }
-
-    var result = await Purchase.create({
-      ...params,
-      companyId:company._id,
-      editable:true,
-      receivedQty:0,
-      purchaseOrderNumber:`SO-${String(Date.now()).slice(-5)}`
-    })
-
-    var requested = result._doc
-
-    var [agg] = await Purchase.aggregate(
-      [
-        {
-          $match:{
-            _id:requested._id
-          }
-        },
-        {
-          $lookup:{
-            from:'products',
-            localField:'productId',
-            foreignField:'_id',
-            as:'product'
-          },
-
-        },
-        {
-          $unwind:'$product'
-        },
-      ]
-    )
-
-    var r = {
-      ...requested,
-    }
-
-    if(params.purchaseType === 'product'){
-      r.product = agg.product
-    }
-
-    return NextResponse.json(
-      {
-        noResult:false,
-        message:"",
-        result:r,
-        error:false
-      }
-    )
   }
   catch(e:any){
-    return NextResponse.json(
-      {
-        noResult:true,
-        message:e.message,
-        result:null,
-        error:true
-      }
-    )
+    return NextResponse.json({
+      noResult:true,
+      message:e.message,
+      result:null,
+      error:true
+    })
   }
 }
+
+// export async function POST(request:NextRequest){
+//   try{
+//     await connectToDatabase()
+//     const params = await request.json()
+//     const company = await Companie.findOne({
+//       masterAccountId:params.id
+//     })
+
+//     var p = await Purchase.findOne({
+//       companyId:company._id,
+//       productId:params.productId,
+//       status:'requested'
+//     })
+
+//     if(p){
+//       return NextResponse.json({
+//         noResult:true,
+//         message:"product already ordered",
+//         result:null,
+//         error:true
+//       })
+//     }
+
+//     var result = await Purchase.create({
+//       ...params,
+//       companyId:company._id,
+//       editable:true,
+//       receivedQty:0,
+//       purchaseOrderNumber:`SO-${String(Date.now()).slice(-5)}`
+//     })
+
+//     var requested = result._doc
+
+//     var [agg] = await Purchase.aggregate(
+//       [
+//         {
+//           $match:{
+//             _id:requested._id
+//           }
+//         },
+//         {
+//           $lookup:{
+//             from:'products',
+//             localField:'productId',
+//             foreignField:'_id',
+//             as:'product'
+//           },
+
+//         },
+//         {
+//           $unwind:'$product'
+//         },
+//       ]
+//     )
+
+//     var r = {
+//       ...requested,
+//     }
+
+//     if(params.purchaseType === 'product'){
+//       r.product = agg.product
+//     }
+
+//     return NextResponse.json(
+//       {
+//         noResult:false,
+//         message:"",
+//         result:r,
+//         error:false
+//       }
+//     )
+//   }
+//   catch(e:any){
+//     return NextResponse.json(
+//       {
+//         noResult:true,
+//         message:e.message,
+//         result:null,
+//         error:true
+//       }
+//     )
+//   }
+// }
 
 export async function GET(request:NextRequest){	
   const url = new URL(request.url);

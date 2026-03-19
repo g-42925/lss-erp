@@ -83,7 +83,9 @@ export default function useFetch<R,B>(config:Conf<B>){
 		[config.url]
   )
 
-	
+	const reset = (v:any) => {
+		setResult(v)
+	}
 
 	return {
 	  result,
@@ -91,6 +93,7 @@ export default function useFetch<R,B>(config:Conf<B>){
     error,
     noResult,
     message,
+		reset,
     fn,
 	}
 }

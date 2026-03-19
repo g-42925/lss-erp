@@ -2,11 +2,10 @@ import mongoose from 'mongoose';
 import { type } from 'os';
 
 const quotationSchema = new mongoose.Schema({
+  discountValue: {type:Number, required:false},
   companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  productId: {type:mongoose.Schema.Types.ObjectId, required:true},
   customerId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  qty: {type:Number, required:true},
-  discount: {type:Number, required:false},
+  discountType: {type:String, required:false,enum:["percent","fixed"]},
   taxType: {type:String,required:true},
   expiredDate: {type:Date,required:false},
   price: {type:Number,required:true},
@@ -17,6 +16,14 @@ const quotationSchema = new mongoose.Schema({
   frequency : {type:String,required:false,enum:["Day","Week","Month","Year"]},
   productType: {type:String,required:false,enum:["good","service"]},
   locationId: {type:mongoose.Schema.Types.ObjectId,required:false},
+  cart:[
+    {
+      productId: {type:mongoose.Schema.Types.ObjectId, required:true},
+      qty: {type:Number, required:true},
+      subTotal:{type:Number,required:false},
+      tax:{type:Boolean,required:false}
+    }
+  ],
 });
 
 export default mongoose.models.Quotation || mongoose.model('Quotation', quotationSchema)

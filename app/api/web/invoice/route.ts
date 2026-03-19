@@ -124,19 +124,56 @@ export async function GET(request:NextRequest){
         },
       },
       { 
-        $unwind: "$order.customer" 
+        $unwind: {
+          path: "$order.customer",
+          preserveNullAndEmptyArrays: true,
+        }
       },
       {
-        $lookup: {
+        $lookup:{
           from: "products",
-          localField: "order.productId",
-          foreignField: "_id",
-          as: "order.product",
-        },
+          let: {
+            productId: { $arrayElemAt: ["$order.cart.productId", 0] }
+          },
+          pipeline:[
+            {
+              $match:{
+                $expr:{
+                  $eq:["$_id","$$productId"]
+                }
+              }
+            }
+          ],
+          as:"p"
+        }
       },
-      { 
-        $unwind: "$order.product" 
+      {
+        $addFields:{
+          product:{
+            $cond:[
+              { $gt:[ { $size:"$order.cart" }, 1 ] },
+              "various items",
+              { $arrayElemAt:["$p",0] }
+            ]
+          }
+        }
       },
+      {
+        $addFields:{
+          variousItem:{
+            $cond:[
+              { $gt:[ { $size:"$order.cart" }, 1 ] },
+              true,
+              false
+            ]
+          }
+        }
+      },
+      {
+        $project:{
+          'p':0
+        }
+      }
     ])
 
     return NextResponse.json({

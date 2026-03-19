@@ -86,7 +86,6 @@ export default function Invoices(){
 
       getInvoicesFn.fn(url4,body,(result) => {
         console.log(result)
-        setInvoices(result)
       })
     }
   },[masterAccountId])
@@ -98,7 +97,7 @@ export default function Invoices(){
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
             <span className="self-center">All invoices</span>
-            <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
+            <button disabled onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
@@ -149,15 +148,15 @@ export default function Invoices(){
                     {
                       searchResult.length < 1
                       ?
-                      invoices.map((s,index) => {
+                      getInvoicesFn?.result?.map((s,index) => {
                         return (
                           <tr key={index}>
                             <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
                             <td>{s.invoiceNumber}</td>
                             <td>{s.salesOrderNumber}</td>
-                            <td>{s.order.customer.bussinessName}</td>
-                            <td>{s.order.product.productName}</td>
-                            <td>{s.order.price}</td>
+                            <td>{s.order.customerName ?? s.order.customer.bussinessName}</td>
+                            <td>{s.variousItem ? s.product : s.product.productName}</td>
+                            <td>{s.order.total}</td>
                             <td>{s.payAmount}</td>
                             <td>{s.paid ? 'yes':'no'}</td>
                             <td>

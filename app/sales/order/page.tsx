@@ -22,11 +22,12 @@ export default function Order(){
   const [directSellMode,setDirectSellMode] = useState<boolean>(false)
   const [customerName,setCustomerName] = useState<string>("")
   const [debt,setDebt] = useState<string>('no')
-  const [payAmount,setPayAmount] = useState<number>(0)
   const [payTerm,setPayTerm] = useState<number>(0)
+  const [payAmt,setPayAmt] = useState<number>(0)
   
   const newOrderForm = useForm()
   const router = useRouter()
+
 
   const tax = useMemo(() => {
     var subtotals = cart.map((c) => {
@@ -100,6 +101,10 @@ export default function Order(){
     var totalDiscount = getTotalDiscount(cart,discount)
     return subTotal - totalDiscount + tax
   },[tax])
+
+  const payAmount = useMemo(() => tax > 0 ? total : _total
+,[total,_total])
+
   
 
   var addOrderFn = useFetch<any,any>({
@@ -318,6 +323,7 @@ export default function Order(){
 
   function done(){
     var discountType = discount.includes("%") ? 'percent' : 'fixed'
+    var _payAmt = debt === 'yes' ? payAmt : payAmount
     var discountValue = parseInt(discount)
 
     var _cart = cart.map(c => {
@@ -343,13 +349,52 @@ export default function Order(){
       total,
       debt,
       payTerm,
-      payAmount
+      payAmount:_payAmt
     })
 
-    directSellFn.fn('',params,r => {
-      console.log(r)
-      //router.push('/dashboard')    
-    })
+
+    directSellFn.fn('',params,async r => {
+      var saleDate = r.saleDate
+      var salesOrderNumber = r.salesOrderNumber
+      var [{productId,qty}] = r.cart // (productId)
+      var _product = await fetch(`/api/web/product?_id=${productId}`)
+      var response = await _product.json()
+      var product = r.cart.length > 1 ? 'various item':response.result
+      var variousItem = cart.length > 1 ? true:false
+      var customerName = r.customerName
+      var quantity = variousItem ? '?':qty
+      var total = r.total
+      var discountType = r.discountType
+      var discountValue = r.discountValue
+      var taxValue = r.taxValue
+      var payTerm = r.payTerm
+
+      var result = {
+        saleDate,
+        salesOrderNumber,
+        product,
+        variousItem,
+        customerName,
+        quantity,
+        total,
+        discountType,
+        discountValue,
+        taxValue,
+        payTerm,
+      }
+
+      getOrdersFn.reset(
+        [
+          result,
+          ...getOrdersFn.result
+        ]
+      )
+      
+      setDirectSellMode(
+        false
+      )
+      
+    }) 
   }
   
 
@@ -362,7 +407,9 @@ export default function Order(){
 
       getProductsFn.fn(url,body,result => {})
       getLocationsFn.fn(url2,body,result => {})
-      getOrdersFn.fn(url4,body,(result) => {})
+      getOrdersFn.fn(url4,body,(result) => {
+        console.log(result)
+      })
     }
   },[masterAccountId])
 
@@ -407,10 +454,16 @@ export default function Order(){
                 <span className="badge badge-neutral badge-xs aspect-square">Days</span>
                 </label>
               </div>
-              <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
-                <label className="w-[70px]">Pay Amount</label>
-                <input defaultValue={total} placeholder="quantity" {...newOrderForm.register("payAmount", {onChange:(e) => setPayAmount(parseInt(e.target.value))})} type="text" className="input flex-1"/>
-              </div>   
+              {
+                debt === 'yes'
+                ?
+                <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
+                  <label className="w-[70px]">Pay Amount</label>
+                  <input defaultValue={0} placeholder="quantity" {...newOrderForm.register("payAmount", {onChange:(e) => setPayAmt(parseInt(e.target.value))})} type="text" className="input flex-1"/>
+                </div>   
+                :
+                <></>
+              }
             </form>
             <form className="flex-1 flex flex-col gap-3 p-6" onSubmit={newOrderForm.handleSubmit(addToCart)}>
               <div className="flex flex-row items-center gap-3">
@@ -549,7 +602,6 @@ export default function Order(){
                       <th>Order Number</th>
                       <th>Product</th>
                       <th>Customer</th>
-                      <th>Quantity</th>
                       <th>Price</th>
                       <th>Discount</th>
                       <th>Tax</th>
@@ -566,11 +618,10 @@ export default function Order(){
                           <tr key={index}>
                             <td>{x.saleDate}</td>
                             <td>{x.salesOrderNumber}</td>
-                            <td>{x.product.productName}</td>
+                            <td>{x.variousItem ? 'various item':x.product.productName}</td>
                             <td>{x.customerName ?? x.customer.bussinessName}</td>
-                            <td>{x.variousItem ? '?' : x.product.qty}</td>
                             <td>{x.total}</td>
-                            <td>{x.discountType === "percent" ? Math.round(x.total * (x.discountValue/100)) : x.total - x.discount}</td>
+                            <td>{x.discountType === "percent" ? Math.round(x.total * (x.discountValue/100)) : x.total - x.discountValue}</td>
                             <td>{x.taxValue}</td>
                             <td>{x.payTerm} (Days)</td>
                             <td>-</td>
@@ -649,7 +700,7 @@ export default function Order(){
           {
             cart.map((c) => {
               return (
-                <li>{`${c.product.split('/')[1]}@${c.qty}`} ({c.price})</li>
+                <li key={c._id}>{`${c.product.split('/')[1]}@${c.qty}`} ({c.price})</li>
               )
             })
           }
