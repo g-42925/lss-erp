@@ -1,12 +1,10 @@
 import mongoose from 'mongoose';
-import { type } from 'os';
 
 const quotationSchema = new mongoose.Schema({
   discountValue: {type:Number, required:false},
   companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
   customerId: {type:mongoose.Schema.Types.ObjectId, required:true},
   discountType: {type:String, required:false,enum:["percent","fixed"]},
-  taxType: {type:String,required:true},
   expiredDate: {type:Date,required:false},
   price: {type:Number,required:true},
   createdAt: {type:Number,required:true},

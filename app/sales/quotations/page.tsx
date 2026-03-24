@@ -1,9 +1,8 @@
 "use client"
 
+import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
-import Sidebar from '@/components/sidebar'
-import Link from "next/link";
 
 import { useForm } from 'react-hook-form'
 import { useRef,useEffect, useState } from 'react'
@@ -21,7 +20,6 @@ function Q({toggle}:any){
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
 
-  
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
 
@@ -125,6 +123,30 @@ function Q({toggle}:any){
     })
   }
 
+  function tax(total:number,cart:any[],discountType:string,discountValue:number){
+    var ppns = cart.map(c => {
+      if(cart.length < 2){
+        console.log("apa bedanya")
+        if(discountType === "fixed"){
+          return 0         
+        }
+      }
+      else{
+        if(c.tax){
+          if(discountType === "fixed"){
+            return (c.subTotal - (discountValue * (c.subTotal / total))) * 0.11
+          }
+          else{
+            // perhitungan diskon persen
+          }
+        }
+      }
+    })
+
+    return ppns.reduce((a,b) => a + b,0)
+  
+  } 
+
   useEffect(() => {
     if(hasHydrated){
       const url = `/api/web/quotations?id=${masterAccountId}&type=good` 
@@ -137,10 +159,7 @@ function Q({toggle}:any){
         setCustomers(result)
       })
 
-      getQuotationsFn.fn(url,body,(result) => {
-        console.log(result)
-        setQuotations(result)
-      })
+      getQuotationsFn.fn(url,body,(result) => {})
 
       getProductsFn.fn(url2,body,(result) => {
         setProducts(result)
@@ -188,7 +207,7 @@ function Q({toggle}:any){
             </div>
             :
             <div>
-                <table className="table">
+                <table className="table text-center">
                   <thead>
                     <tr>
                       <th>Q-Number</th>
@@ -198,7 +217,6 @@ function Q({toggle}:any){
                       <th>Price</th>
                       <th>Discount</th>
                       <th>Tax</th>
-                      <th>Expired Date</th>
                       <th>...</th>
                     </tr>
                   </thead>
@@ -206,17 +224,16 @@ function Q({toggle}:any){
                     {
                       searchResult.length < 1
                       ?
-                      quotations.map((s,index) => {
+                      getQuotationsFn?.result?.map((s,index) => {
                         return (
                           <tr key={index}>
                             <td>{s.quotationNumber}</td>
-                            <td>{s.product.productName}</td>
+                            <td>{s.variousItem ? "various item" :s.product.productName}</td>
                             <td>{s.customer.bussinessName}</td>
-                            <td>{s.qty} ({s.product.warehouseUnit})</td>
+                            <td>{s.variousItem ? "?": s.cart[0].qty} {s.variousItem ? "":`${s.product.warehouseUnit}`}</td>
                             <td>{s.price}</td>
-                            <td>{s.discountType === "percent" ? `${s.discountValue}%` : ''}</td>
-                            <td>{s.taxType}</td>
-                            <td>{new Date(s.expiredDate).toLocaleDateString('id-ID')}</td>
+                            <td>{s.discountType === "percent" ? `${s.discountValue}%` : s.discountValue}</td>
+                            <td>{tax(s.price,s.cart,s.discountType,s.discountValue)}</td>
                             <td>
                               <button onClick={() => edit(s._id)}>
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
@@ -361,23 +378,30 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
 
   const newQuotationForm = useForm()
   
-
+  var addQuotationFn = useFetch<any,any>({
+    url:'/api/web/quotations',
+    method:'POST',
+    onError:(m) => {
+      alert(m)
+    }
+  })
 
   function addToCart(data:any){
-    const [productId,productName] = data.product.split('/')
+    const [productId,productName,sellingPrice,discountType,discountValue] = data.product.split('/')
 
     const product = {productId,productName}
     const tax = data.tax === 'yes' ? true : false
-    var [filter] = cart.filter(c => c.product.productId === productId)
+    const subTotal = discountType === "percent" ? (sellingPrice * data.qty) * (discountValue/100) : (sellingPrice * data.qty) - (discountValue * data.qty)
+    const [filter] = cart.filter(c => c.product.productId === productId)
+    
+    var item = {product:{...product,qty:data.qty},tax,subTotal}
 
-    if(filter){
-      var newCart = cart.filter(c => {
-        return c.product.productId != productId
-      })
+    if(filter){ 
+      var newCart = cart.filter(c =>  c.product.productId != productId)
 
       setCart(
         [
-          {...data,product,tax},
+          item,
           ...newCart
         ]
       )
@@ -385,7 +409,7 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
     else{
       setCart(
         [
-          {...data,product,tax},
+          item,
           ...cart
         ]
       )
@@ -396,17 +420,28 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
     var id = masterAccountId
     var customerId = customer
     var discountType = discount.includes("%") ? 'percent' : 'fixed'
-    var discountValue = parseInt(discount)
+    var discountValue = discount.includes("%") ? parseInt(discount)  : parseInt(discount)
+
+    var _cart = cart.map((c) => {
+      return {
+        productId:c.product.productId,
+        qty:c.product.qty,
+        tax:c.tax,
+        subTotal:c.subTotal
+      }
+    })
 
     var params = {
       customerId,
       discountType,
       discountValue,
-      cart,
+      cart:_cart,
       id,
     }
 
-
+    addQuotationFn.fn('',JSON.stringify(params),r => {
+      pop()
+    })
   }
 
   return (
@@ -423,7 +458,7 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
                   {
                     customers?.map((c) => {
                       return (
-                        <option key={c._id} value={c.bussinessName}>
+                        <option key={c._id} value={c._id}>
                           {c.bussinessName}
                         </option>
                       )
@@ -443,7 +478,7 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
                   <option>Available Product:</option>
                   {
                     product?.map((p) => {
-                      return (<option key={p._id} value={`${p._id}/${p.productName}`} key={p._id}>{p.productName} ({p.warehouseUnit})</option>)
+                      return (<option key={p._id} value={`${p._id}/${p.productName}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`}>{p.productName} ({p.warehouseUnit})</option>)
                     })
                   }
                 </select> 
@@ -495,7 +530,7 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
               <ul className="flex flex-col">
                 {
                   cart.map(c => {
-                    return <li key={c.product.productId}>{c.product.productName}@{c.qty} {c.tax ? '(with tax)':''}</li>
+                    return <li key={c.product.productId}>{c.product.productName}@{c.product.qty} {c.tax ? '(with tax)':''}</li>
                   })
                 }
               </ul>              
@@ -560,13 +595,13 @@ function Stock({customers,pop,product,getAvailableList,availableList}:any){
   //   method:'GET'    
   // })
     
-//   var addQuotationFn = useFetch<any,any>({
-//     url:'/api/web/quotations',
-//     method:'POST',
-//     onError:(m) => {
-//       alert(m)
-//     }
-//   })
+  // var addQuotationFn = useFetch<any,any>({
+  //   url:'/api/web/quotations',
+  //   method:'POST',
+  //   onError:(m) => {
+  //     alert(m)
+  //   }
+  // })
 
 // 	var openStockFn = useFetch<any,any>({
 // 		url:`/api/web/stock`,
