@@ -6,16 +6,24 @@ import useFetch from '@/hooks/useFetch'
 
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState } from 'react'
+import { QQ } from '@/app/types/quotation.type'
+import { Product } from '@/app/types/product.type'
+import { Customer } from '@/app/types/customer.type'
+import { QCart } from '@/app/types/qcart.type'
+import { Available } from '@/app/types/available.type'
+import { X } from '@/app/types/x.type'
 
-function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
+function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const [searchResult, setSearchResult] = useState<object[]>([])
-  const [customers, setCustomers] = useState<object[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [quotations, setQuotations] = useState<object[]>([])
-  const [products, setProducts] = useState<object[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+
+  const [searchResult, setSearchResult] = useState<(QQ & { product: Product, variousItem: boolean, customer: Customer })[]>([])
+
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
@@ -24,7 +32,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
   const editQuotationForm = useForm()
 
 
-  const addQuotationFn = useFetch<any, any>({
+  const addQuotationFn = useFetch<Q, string>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -32,33 +40,33 @@ function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
     }
   })
 
-  const getCustomersFn = useFetch<any, any>({
+  const getCustomersFn = useFetch<Customer[], string>({
     url: `/api/web/customers?id=xxx`,
     method: 'GET'
   })
 
-  const getQuotationsFn = useFetch<any, any>({
+  const getQuotationsFn = useFetch<(QQ & { product: Product, variousItem: boolean, customer: Customer })[], string>({
     url: `/api/web/quotations?id=xxx`,
     method: 'GET'
   })
 
-  const editQuotationsFn = useFetch<any, any>({
+  const editQuotationsFn = useFetch<object, string>({
     url: `/api/web/quotations`,
     method: 'PUT'
   })
 
-  const getProductsFn = useFetch<any, any>({
+  const getProductsFn = useFetch<Product[], string>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
 
 
-  function editSubmit(data: any) {
+  function editSubmit(data: object) {
 
   }
 
-  function submit(data: any) {
+  function submit(data: { productId: string, customerId: string, qty: number, tax: boolean }) {
     const params = JSON.stringify(
       {
         ...data,
@@ -86,7 +94,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
     })
   }
 
-  function tax(total: number, cart: any[], discountType: string, discountValue: number) {
+  function tax(total: number, cart: { subTotal: number, tax: boolean }[], discountType: string, discountValue: number) {
 
     const ppns = cart.map(c => {
       if (cart.length < 2) {
@@ -210,7 +218,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
                       {
                         searchResult.length < 1
                           ?
-                          getQuotationsFn?.result?.map((s: any, index: number) => {
+                          getQuotationsFn?.result?.map((s, index: number) => {
                             return (
                               <tr key={index}>
                                 <td>{s.quotationNumber}</td>
@@ -232,25 +240,9 @@ function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
                             )
                           })
                           :
-                          searchResult.map((role, index) => {
+                          searchResult.map((s, index) => {
                             return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
+                              <></>
                             )
                           })
                       }
@@ -358,7 +350,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
 function Edit({ customers, product, getAvailableList, availableList, x }: any) {
   const masterAccountId = useAuth((state) => state.masterAccountId)
 
-  const [cart, setCart] = useState<any[]>([])
+  const [cart, setCart] = useState<QCart[]>([])
   const [customer, setCustomer] = useState<string>('')
   const [discount, setDiscount] = useState<string>('')
 
@@ -372,12 +364,12 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
     }
   })
 
-  function addToCart(data: any) {
+  function addToCart(data: { product: string, qty: number, tax: string | boolean }) {
     const [productId, productName, sellingPrice, discountType, discountValue] = data.product.split('/')
 
-    const product = { productId, productName, sellingPrice }
+    const product = { productId, productName }
     const tax = data.tax === 'yes' ? true : false
-    const subTotal = discountType === "percent" ? (sellingPrice * data.qty) * (discountValue / 100) : (sellingPrice * data.qty) - (discountValue * data.qty)
+    const subTotal = discountType === "percent" ? (parseInt(sellingPrice) * data.qty) * (parseInt(discountValue) / 100) : (parseInt(sellingPrice) * data.qty) - (parseInt(discountValue) * data.qty)
     const [filter] = cart.filter(c => c.product.productId === productId)
 
     const item = { product: { ...product, qty: data.qty }, tax, subTotal }
@@ -530,16 +522,16 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
   )
 }
 
-function Stock({ customers, pop, product, getAvailableList, availableList }: any) {
+function Stock({ customers, pop, product, getAvailableList, availableList }: { customers: Customer[], pop: () => void, product: Product[], getAvailableList: (id: string) => void, availableList: any[] }) {
   const masterAccountId = useAuth((state) => state.masterAccountId)
 
-  const [cart, setCart] = useState<any[]>([])
-  const [customer, setCustomer] = useState<string>('')
+  const [cart, setCart] = useState<QCart[]>([])
+  const [customer, setCustomer] = useState<Customer[]>([])
   const [discount, setDiscount] = useState<string>('')
 
   const newQuotationForm = useForm()
 
-  const addQuotationFn = useFetch<any, any>({
+  const addQuotationFn = useFetch<QQ, string>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -547,12 +539,12 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: any
     }
   })
 
-  function addToCart(data: any) {
+  function addToCart(data: { product: string, qty: number, tax: string | boolean }) {
     const [productId, productName, sellingPrice, discountType, discountValue] = data.product.split('/')
 
-    const product = { productId, productName, sellingPrice }
+    const product = { productId, productName }
     const tax = data.tax === 'yes' ? true : false
-    const subTotal = discountType === "percent" ? (sellingPrice * data.qty) * (discountValue / 100) : (sellingPrice * data.qty) - (discountValue * data.qty)
+    const subTotal = discountType === "percent" ? (parseInt(sellingPrice) * data.qty) * (parseInt(discountValue) / 100) : (parseInt(sellingPrice) * data.qty) - (parseInt(discountValue) * data.qty)
     const [filter] = cart.filter(c => c.product.productId === productId)
 
     const item = { product: { ...product, qty: data.qty }, tax, subTotal }
@@ -712,20 +704,20 @@ export default function Quotation() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const [onQMode, setOnQMode] = useState<boolean>(false)
   const [onEditMode, setOnEditMode] = useState<boolean>(false)
-  const [availableList, setAvailableList] = useState<any[]>()
-  const [x, setX] = useState<any>(null)
+  const [availableList, setAvailableList] = useState<Available[]>()
+  const [x, setX] = useState<X | null>(null)
 
-  const getProductsFn = useFetch<any, any>({
+  const getProductsFn = useFetch<Product[], string>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
-  const getStockFn = useFetch<any, any>({
+  const getStockFn = useFetch<Available[], string>({
     url: `/api/web/stock`,
     method: 'GET'
   })
 
-  const getCustomersFn = useFetch<any, any>({
+  const getCustomersFn = useFetch<Customer[], string>({
     url: `/api/web/customers?id=xxx`,
     method: 'GET'
   })
@@ -734,14 +726,13 @@ export default function Quotation() {
     setOnQMode(!onQMode)
   }
 
-  function edit(x: any) {
+  function edit(x: X) {
     setX(x)
     setOnEditMode(!onEditMode)
   }
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/quotations?id=${masterAccountId}&type=good`
       const url2 = `/api/web/products?id=${masterAccountId}&type=good`
       const url3 = `/api/web/stock?id=${masterAccountId}`
       const url4 = `/api/web/customers?id=${masterAccountId}`
@@ -752,7 +743,7 @@ export default function Quotation() {
       getStockFn.fn(url3, body, _ => { })
       getCustomersFn.fn(url4, body, _ => { })
     }
-  }, [masterAccountId])
+  }, [getCustomersFn, getProductsFn, getStockFn, hasHydrated, masterAccountId])
 
   function getAvailableList(v: string) {
     const list = getStockFn?.result?.filter(s => {
@@ -786,10 +777,10 @@ export default function Quotation() {
   else {
     return (
       <Stock
-        availableList={availableList}
+        availableList={availableList as Available[]}
         getAvailableList={getAvailableList}
-        product={getProductsFn.result}
-        customers={getCustomersFn.result}
+        product={getProductsFn.result as Product[]}
+        customers={getCustomersFn.result as Customer[]}
         pop={toggle}
       />
     )
