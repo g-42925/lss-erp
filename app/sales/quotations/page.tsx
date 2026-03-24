@@ -7,7 +7,7 @@ import useFetch from '@/hooks/useFetch'
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState } from 'react'
 
-function Q({ toggle, edit }: any) {
+function Q({ toggle, edit }: { toggle: () => void, edit: () => void }) {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -24,7 +24,7 @@ function Q({ toggle, edit }: any) {
   const editQuotationForm = useForm()
 
 
-  var addQuotationFn = useFetch<any, any>({
+  const addQuotationFn = useFetch<any, any>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -32,22 +32,22 @@ function Q({ toggle, edit }: any) {
     }
   })
 
-  var getCustomersFn = useFetch<any, any>({
+  const getCustomersFn = useFetch<any, any>({
     url: `/api/web/customers?id=xxx`,
     method: 'GET'
   })
 
-  var getQuotationsFn = useFetch<any, any>({
+  const getQuotationsFn = useFetch<any, any>({
     url: `/api/web/quotations?id=xxx`,
     method: 'GET'
   })
 
-  var editQuotationsFn = useFetch<any, any>({
+  const editQuotationsFn = useFetch<any, any>({
     url: `/api/web/quotations`,
     method: 'PUT'
   })
 
-  var getProductsFn = useFetch<any, any>({
+  const getProductsFn = useFetch<any, any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
@@ -59,7 +59,7 @@ function Q({ toggle, edit }: any) {
   }
 
   function submit(data: any) {
-    var params = JSON.stringify(
+    const params = JSON.stringify(
       {
         ...data,
         id: masterAccountId,
@@ -68,10 +68,10 @@ function Q({ toggle, edit }: any) {
     )
 
     addQuotationFn.fn('', params, (result) => {
-      var product = products.find((p) => p._id === data.productId)
-      var customer = customers.find((c) => c._id === data.customerId)
+      const product = products.find((p) => p._id === data.productId)
+      const customer = customers.find((c) => c._id === data.customerId)
 
-      var q = {
+      const q = {
         ...result,
         product,
         customer
@@ -88,7 +88,7 @@ function Q({ toggle, edit }: any) {
 
   function tax(total: number, cart: any[], discountType: string, discountValue: number) {
 
-    var ppns = cart.map(c => {
+    const ppns = cart.map(c => {
       if (cart.length < 2) {
         if (c.tax) {
           if (discountValue > 0) {
@@ -111,12 +111,12 @@ function Q({ toggle, edit }: any) {
         if (c.tax) {
           if (discountValue > 0) {
             if (discountType === "fixed") {
-              var proportion = c.subTotal / total
-              var proportionValue = discountValue * proportion
+              const proportion = c.subTotal / total
+              const proportionValue = discountValue * proportion
               return (c.subTotal - proportionValue) * 0.11
             }
             else {
-              var discount = c.subTotal * (discountValue / 100)
+              const discount = c.subTotal * (discountValue / 100)
               return (c.subTotal - discount) * 0.11
             }
           }
@@ -151,7 +151,7 @@ function Q({ toggle, edit }: any) {
         setProducts(result)
       })
     }
-  }, [masterAccountId])
+  }, [getCustomersFn, getProductsFn, getQuotationsFn, hasHydrated, masterAccountId])
 
   return (
     <>
@@ -210,7 +210,7 @@ function Q({ toggle, edit }: any) {
                       {
                         searchResult.length < 1
                           ?
-                          getQuotationsFn?.result?.map((s, index) => {
+                          getQuotationsFn?.result?.map((s: any, index: number) => {
                             return (
                               <tr key={index}>
                                 <td>{s.quotationNumber}</td>
@@ -364,7 +364,7 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
 
   const newQuotationForm = useForm()
 
-  var addQuotationFn = useFetch<any, any>({
+  const addQuotationFn = useFetch<any, any>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -380,10 +380,10 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
     const subTotal = discountType === "percent" ? (sellingPrice * data.qty) * (discountValue / 100) : (sellingPrice * data.qty) - (discountValue * data.qty)
     const [filter] = cart.filter(c => c.product.productId === productId)
 
-    var item = { product: { ...product, qty: data.qty }, tax, subTotal }
+    const item = { product: { ...product, qty: data.qty }, tax, subTotal }
 
     if (filter) {
-      var newCart = cart.filter(c => c.product.productId != productId)
+      const newCart = cart.filter(c => c.product.productId != productId)
 
       setCart(
         [
@@ -403,12 +403,12 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
   }
 
   function done() {
-    var id = masterAccountId
-    var customerId = customer
-    var discountType = discount.includes("%") ? 'percent' : 'fixed'
-    var discountValue = discount.includes("%") ? parseInt(discount) : parseInt(discount)
+    const id = masterAccountId
+    const customerId = customer
+    const discountType = discount.includes("%") ? 'percent' : 'fixed'
+    const discountValue = discount.includes("%") ? parseInt(discount) : parseInt(discount)
 
-    var _cart = cart.map((c) => {
+    const _cart = cart.map((c) => {
       return {
         productId: c.product.productId,
         qty: c.product.qty,
@@ -417,7 +417,7 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
       }
     })
 
-    var params = {
+    const params = {
       customerId,
       discountType,
       discountValue,
@@ -539,7 +539,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: any
 
   const newQuotationForm = useForm()
 
-  var addQuotationFn = useFetch<any, any>({
+  const addQuotationFn = useFetch<any, any>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -555,10 +555,10 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: any
     const subTotal = discountType === "percent" ? (sellingPrice * data.qty) * (discountValue / 100) : (sellingPrice * data.qty) - (discountValue * data.qty)
     const [filter] = cart.filter(c => c.product.productId === productId)
 
-    var item = { product: { ...product, qty: data.qty }, tax, subTotal }
+    const item = { product: { ...product, qty: data.qty }, tax, subTotal }
 
     if (filter) {
-      var newCart = cart.filter(c => c.product.productId != productId)
+      const newCart = cart.filter(c => c.product.productId != productId)
 
       setCart(
         [
@@ -578,12 +578,12 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: any
   }
 
   function done() {
-    var id = masterAccountId
-    var customerId = customer
-    var discountType = discount.includes("%") ? 'percent' : 'fixed'
-    var discountValue = discount.includes("%") ? parseInt(discount) : parseInt(discount)
+    const id = masterAccountId
+    const customerId = customer
+    const discountType = discount.includes("%") ? 'percent' : 'fixed'
+    const discountValue = discount.includes("%") ? parseInt(discount) : parseInt(discount)
 
-    var _cart = cart.map((c) => {
+    const _cart = cart.map((c) => {
       return {
         productId: c.product.productId,
         qty: c.product.qty,
@@ -592,7 +592,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: any
       }
     })
 
-    var params = {
+    const params = {
       customerId,
       discountType,
       discountValue,
@@ -715,17 +715,17 @@ export default function Quotation() {
   const [availableList, setAvailableList] = useState<any[]>()
   const [x, setX] = useState<any>(null)
 
-  var getProductsFn = useFetch<any, any>({
+  const getProductsFn = useFetch<any, any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
-  var getStockFn = useFetch<any, any>({
+  const getStockFn = useFetch<any, any>({
     url: `/api/web/stock`,
     method: 'GET'
   })
 
-  var getCustomersFn = useFetch<any, any>({
+  const getCustomersFn = useFetch<any, any>({
     url: `/api/web/customers?id=xxx`,
     method: 'GET'
   })
@@ -755,7 +755,7 @@ export default function Quotation() {
   }, [masterAccountId])
 
   function getAvailableList(v: string) {
-    var list = getStockFn?.result?.filter(s => {
+    const list = getStockFn?.result?.filter(s => {
       return s._id.productId === v
     })
 
