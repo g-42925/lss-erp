@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import Product from '@/models/Product'
 import Companie from '@/models/Companie'
 import Allocation from '@/models/Allocation'
@@ -7,8 +6,8 @@ import Batches from '@/models/Batche'
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function PUT(request:NextRequest){
-	try{
+export async function PUT(request: NextRequest) {
+	try {
 		await connectToDatabase()
 		const params = await request.json()
 
@@ -17,38 +16,38 @@ export async function PUT(request:NextRequest){
 		)
 
 		await Allocation.findByIdAndUpdate(
-			params._id,{
-				$inc:{
-					qty:params.qty
-				}
+			params._id, {
+			$inc: {
+				qty: params.qty
 			}
+		}
 		)
 
 		await Batches.findOneAndUpdate(
-			{batchNumber:a.from},
-			{$inc:{outQty:params.qty}}
+			{ batchNumber: a.from },
+			{ $inc: { outQty: params.qty } }
 		)
 	}
-	catch(e:any){
+	catch (e: any) {
 		return NextResponse.json({
 			noResult: true,
 			message: e.message,
 			result: null,
-			error:true
+			error: true
 		})
 	}
 }
 
-export async function GET(request:NextRequest){
+export async function GET(request: NextRequest) {
 	const url = new URL(request.url)
 	const id = url.searchParams.get("id")
 
 
-	try{
+	try {
 		await connectToDatabase()
-		
+
 		const company = await Companie.findOne({
-			masterAccountId:id
+			masterAccountId: id
 		})
 
 		const result = await Product.aggregate([
@@ -93,36 +92,36 @@ export async function GET(request:NextRequest){
 		return NextResponse.json({
 			noResult: false,
 			message: "",
-			result:result,
-			error:false
+			result: result,
+			error: false
 		})
 
 	}
-	catch(e:any){
+	catch (e: any) {
 		return NextResponse.json({
 			noResult: true,
 			message: e.message,
 			result: null,
-			error:true
+			error: true
 		})
 	}
 }
 
-export async function POST(request:NextRequest){
-	try{
+export async function POST(request: NextRequest) {
+	try {
 		await connectToDatabase()
 		const params = await request.json()
-		const {id,...rest} = params
+		const { id, ...rest } = params
 
 		await Allocation.create(params)
 
 		await Batches.findOneAndUpdate(
-			{batchNumber:rest.from},
-			{$inc:{outQty:rest.qty}}
-	  )
+			{ batchNumber: rest.from },
+			{ $inc: { outQty: rest.qty } }
+		)
 
 		var company = await Companie.findOne({
-			masterAccountId:id
+			masterAccountId: id
 		})
 
 		const result = await Product.aggregate([
@@ -167,17 +166,17 @@ export async function POST(request:NextRequest){
 		return NextResponse.json({
 			noResult: false,
 			message: "",
-			result:result,
-			error:false
-		})		
+			result: result,
+			error: false
+		})
 
 	}
-	catch(e:any){
+	catch (e: any) {
 		return NextResponse.json({
 			noResult: true,
 			message: "123",
 			result: null,
-			error:true
+			error: true
 		})
 	}
 }
