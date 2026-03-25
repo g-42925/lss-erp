@@ -22,8 +22,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   const [quotations, setQuotations] = useState<object[]>([])
   const [products, setProducts] = useState<Product[]>([])
 
-  const [searchResult, setSearchResult] = useState<(QQ & { product: Product, variousItem: boolean, customer: Customer })[]>([])
-
+  const [searchTerm, setSearchTerm] = useState('')
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
@@ -161,6 +160,10 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     }
   }, [masterAccountId])
 
+  const filteredQuotations = getQuotationsFn?.result?.filter(s => 
+    s.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || []
+
   return (
     <>
       <div className="h-full p-6 h-full flex flex-col gap-3">
@@ -185,7 +188,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" placeholder="Search Q-Number" className="ml-auto border-1 border-black rounded-md p-3" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           {
             getQuotationsFn.loading
@@ -216,35 +219,27 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
                     </thead>
                     <tbody>
                       {
-                        searchResult.length < 1
-                          ?
-                          getQuotationsFn?.result?.map((s, index: number) => {
-                            return (
-                              <tr key={index}>
-                                <td>{s.quotationNumber}</td>
-                                <td>{s.variousItem ? "various item" : s.product.productName}</td>
-                                <td>{s.customer.bussinessName}</td>
-                                <td>{s.variousItem ? "?" : s.cart[0].qty} {s.variousItem ? "" : `${s.product.warehouseUnit}`}</td>
-                                <td>{s.price}</td>
-                                <td>{s.discountType === "percent" ? `${s.discountValue}%` : s.discountValue}</td>
-                                <td>{tax(s.price, s.cart, s.discountType, s.discountValue)}</td>
-                                <td>
-                                  <button onClick={() => edit(s)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
-                                      <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
-                                      <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
-                                    </svg>
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((s, index) => {
-                            return (
-                              <></>
-                            )
-                          })
+                        filteredQuotations.map((s, index: number) => {
+                          return (
+                            <tr key={index}>
+                              <td>{s.quotationNumber}</td>
+                              <td>{s.variousItem ? "various item" : s.product.productName}</td>
+                              <td>{s.customer.bussinessName}</td>
+                              <td>{s.variousItem ? "?" : s.cart[0].qty} {s.variousItem ? "" : `${s.product.warehouseUnit}`}</td>
+                              <td>{s.price}</td>
+                              <td>{s.discountType === "percent" ? `${s.discountValue}%` : s.discountValue}</td>
+                              <td>{tax(s.price, s.cart, s.discountType, s.discountValue)}</td>
+                              <td>
+                                <button onClick={() => edit(s)}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
+                                    <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                                    <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })
                       }
                     </tbody>
                   </table>
