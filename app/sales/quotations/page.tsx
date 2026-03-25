@@ -32,7 +32,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   const editQuotationForm = useForm()
 
 
-  const addQuotationFn = useFetch<Q, string>({
+  const addQuotationFn = useFetch<QQ, string>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -62,11 +62,11 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
 
 
 
-  function editSubmit(data: object) {
+  function editSubmit(data: any) {
 
   }
 
-  function submit(data: { productId: string, customerId: string, qty: number, tax: boolean }) {
+  function submit(data: any) {
     const params = JSON.stringify(
       {
         ...data,
@@ -159,7 +159,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
         setProducts(result)
       })
     }
-  }, [getCustomersFn, getProductsFn, getQuotationsFn, hasHydrated, masterAccountId])
+  }, [masterAccountId])
 
   return (
     <>
@@ -302,7 +302,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
             <select {...newQuotationForm.register("productId")} className="select flex-1">
               {
                 products.map((p) => {
-                  return <option value={p._id} key={p._id}>{p.productName} (${p.altUnit})</option>
+                  return <option value={p._id} key={p._id}>{p.productName} (${p.warehouseUnit})</option>
                 })
               }
             </select>
@@ -347,24 +347,24 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   )
 }
 
-function Edit({ customers, product, getAvailableList, availableList, x }: any) {
+function Edit({ customers, product, getAvailableList, availableList, x, pop }: { x: X, customers: Customer[], product: Product[], getAvailableList: () => void, availableList: any[], pop: () => void }) {
   const masterAccountId = useAuth((state) => state.masterAccountId)
 
   const [cart, setCart] = useState<QCart[]>([])
-  const [customer, setCustomer] = useState<string>('')
-  const [discount, setDiscount] = useState<string>('')
+  const [customer, setCustomer] = useState<string>(x.customerId)
+  const [discount, setDiscount] = useState<string>(x.discountType === 'percent' ? `${x.discountValue}%` : `${x.discountValue}`)
 
-  const newQuotationForm = useForm()
+  const editQuotationForm = useForm({})
 
-  const addQuotationFn = useFetch<any, any>({
+  const editQuotationFn = useFetch<QQ, string>({
     url: '/api/web/quotations',
-    method: 'POST',
+    method: 'PUT',
     onError: (m) => {
       alert(m)
     }
   })
 
-  function addToCart(data: { product: string, qty: number, tax: string | boolean }) {
+  function addToCart(data: any) {
     const [productId, productName, sellingPrice, discountType, discountValue] = data.product.split('/')
 
     const product = { productId, productName }
@@ -410,6 +410,7 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
     })
 
     const params = {
+      _id: x._id,
       customerId,
       discountType,
       discountValue,
@@ -417,10 +418,36 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
       id,
     }
 
-    addQuotationFn.fn('', JSON.stringify(params), r => {
-      //pop()
+
+    editQuotationFn.fn('', JSON.stringify(params), r => {
+      pop()
     })
   }
+
+  function parse(c: { product: { productId: string, productName: string, qty: number }, subTotal: number, tax: boolean }) {
+    const [p] = product.filter(p => p._id === c.product.productId)
+
+    return `${p.productName}@${c.product.qty} ${c.tax ? '(with tax)' : ''}`
+  }
+
+  function removeFromCart(productId: string) {
+    setCart(cart.filter(c => c.product.productId !== productId))
+  }
+
+  useEffect(() => {
+    if (x?.cart) {
+      setCart(
+        x.cart.map(c => ({
+          product: {
+            productId: c.productId,
+            qty: c.qty
+          },
+          tax: c.tax,
+          subTotal: c.subTotal
+        }))
+      );
+    }
+  }, [x.cart]);
 
   return (
     <>
@@ -431,7 +458,7 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
             <form className="flex flex-col p-6 gap-3">
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Customer</label>
-                <select value={x.customerId} {...newQuotationForm.register('customerId', { onChange: (e) => setCustomer(e.target.value) })} className="select w-full">
+                <select value={x.customerId} {...editQuotationForm.register('customerId', { onChange: (e) => setCustomer(e.target.value) })} className="select w-full">
                   <option>Available Customer:</option>
                   {
                     customers?.map((c) => {
@@ -446,13 +473,13 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Discount</label>
-                <input {...newQuotationForm.register('discount', { onChange: (e) => setDiscount(e.target.value) })} placeholder="quantity" type="text" className="input flex-1" />
+                <input defaultValue={x.discountType === 'percent' ? `${x.discountValue}%` : x.discountValue} {...editQuotationForm.register('discount', { onChange: (e) => setDiscount(e.target.value) })} placeholder="quantity" type="text" className="input flex-1" />
               </div>
             </form>
-            <form onSubmit={newQuotationForm.handleSubmit(addToCart)} className="flex-1 flex flex-col gap-3 p-6">
+            <form onSubmit={editQuotationForm.handleSubmit(addToCart)} className="flex-1 flex flex-col gap-3 p-6">
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Product</label>
-                <select {...newQuotationForm.register('product', { onChange: (e) => getAvailableList(e.target.value.split('/')[0]) })} className="select w-full">
+                <select {...editQuotationForm.register('product', { onChange: (e) => getAvailableList(e.target.value.split('/')[0]) })} className="select w-full">
                   <option>Available Product:</option>
                   {
                     product?.map((p) => {
@@ -463,7 +490,7 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Location</label>
-                <select {...newQuotationForm.register('locationId')} className="select w-full">
+                <select {...editQuotationForm.register('locationId')} className="select w-full">
                   <option>Available Location:</option>
                   {
                     availableList?.map((l) => {
@@ -476,11 +503,11 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Qty</label>
-                <input {...newQuotationForm.register('qty')} placeholder="quantity" type="text" className="input flex-1" />
+                <input {...editQuotationForm.register('qty')} placeholder="quantity" type="text" className="input flex-1" />
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select {...newQuotationForm.register('tax')} className="select w-full">
+                <select {...editQuotationForm.register('tax')} className="select w-full">
                   <option>
                     yes
                   </option>
@@ -496,7 +523,7 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
                 <button onClick={done} type="button" className="bg-black p-3 rounded-md text-white w-full">
                   done
                 </button>
-                <button type="button" className="bg-red-900 p-3 rounded-md text-white w-full">
+                <button onClick={done} type="button" className="bg-red-900 p-3 rounded-md text-white w-full">
                   cancel
                 </button>
               </div>
@@ -505,10 +532,19 @@ function Edit({ customers, product, getAvailableList, availableList, x }: any) {
           <div className="flex-1 flex flex-col divide-y p-6">
             <div className="p-3">
               <p className="py-4 font-bold text-red-900">Please review your quotation once more</p>
-              <ul className="flex flex-col">
+              <ul className="flex flex-col gap-2">
                 {
                   cart.map(c => {
-                    return <li key={c.product.productId}>{c.product.productName}@{c.product.qty} {c.tax ? '(with tax)' : ''}</li>
+                    return (
+                      <li key={c.product.productId} className="flex justify-between items-center bg-slate-100 p-2 rounded-md">
+                        <span>{parse(c)}</span>
+                        <button type="button" onClick={() => removeFromCart(c.product.productId)} className="bg-red-900 border-none p-2 rounded-md text-white hover:bg-red-800">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </li>
+                    )
                   })
                 }
               </ul>
@@ -539,7 +575,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
     }
   })
 
-  function addToCart(data: { product: string, qty: number, tax: string | boolean }) {
+  function addToCart(data: any) {
     const [productId, productName, sellingPrice, discountType, discountValue] = data.product.split('/')
 
     const product = { productId, productName }
@@ -595,6 +631,10 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
     addQuotationFn.fn('', JSON.stringify(params), r => {
       pop()
     })
+  }
+
+  function removeFromCart(productId: string) {
+    setCart(cart.filter(c => c.product.productId !== productId))
   }
 
   return (
@@ -680,10 +720,19 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
           <div className="flex-1 flex flex-col divide-y p-6">
             <div className="p-3">
               <p className="py-4 font-bold text-red-900">Please review your quotation once more</p>
-              <ul className="flex flex-col">
+              <ul className="flex flex-col gap-2">
                 {
                   cart.map(c => {
-                    return <li key={c.product.productId}>{c.product.productName}@{c.product.qty} {c.tax ? '(with tax)' : ''}</li>
+                    return (
+                      <li key={c.product.productId} className="flex justify-between items-center bg-slate-100 p-2 rounded-md">
+                        <span>{c.product.productName}@{c.product.qty} {c.tax ? '(with tax)' : ''}</span>
+                        <button type="button" onClick={() => removeFromCart(c.product.productId)} className="bg-red-900 border-none p-2 rounded-md text-white hover:bg-red-800">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                          </svg>
+                        </button>
+                      </li>
+                    )
                   })
                 }
               </ul>
@@ -743,7 +792,7 @@ export default function Quotation() {
       getStockFn.fn(url3, body, _ => { })
       getCustomersFn.fn(url4, body, _ => { })
     }
-  }, [getCustomersFn, getProductsFn, getStockFn, hasHydrated, masterAccountId])
+  }, [masterAccountId])
 
   function getAvailableList(v: string) {
     const list = getStockFn?.result?.filter(s => {
@@ -759,11 +808,12 @@ export default function Quotation() {
     if (onEditMode) {
       return (
         <Edit
-          availableList={availableList}
-          getAvailableList={getAvailableList}
-          product={getProductsFn.result}
-          customers={getCustomersFn.result}
-          x={x}
+          availableList={availableList as Available[]}
+          getAvailableList={getAvailableList as () => void}
+          product={getProductsFn.result as Product[]}
+          customers={getCustomersFn.result as Customer[]}
+          pop={() => setOnEditMode(false)}
+          x={x as X}
         />
       )
     }
