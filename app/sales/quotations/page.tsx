@@ -26,9 +26,13 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const orderRef = useRef<HTMLDialogElement>(null)
 
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
+  const makeOrderForm = useForm()
+
+  const [selectedQNumber, setSelectedQNumber] = useState('')
 
 
   const addQuotationFn = useFetch<QQ, string>({
@@ -39,6 +43,40 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     }
   })
 
+  const makeOrderFn = useFetch<any, FormData>({
+    url: '/api/web/order',
+    method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  function makeOrderSubmit(data: any) {
+    const formData = new FormData()
+    formData.append("debt", data.debt)
+    formData.append("payAmt", data.payAmt)
+    formData.append("qNumber", selectedQNumber)
+    formData.append("id", masterAccountId)
+    formData.append("payTerm", data.payTerm || "")
+    if (data.contract && data.contract[0]) {
+      formData.append("contract", data.contract[0])
+    }
+    if (data.attachment && data.attachment[0]) {
+      formData.append("attachment", data.attachment[0])
+    }
+
+    makeOrderFn.fn('', formData, (result) => {
+      orderRef.current?.close()
+      alert('Order successfully created!')
+    })
+  }
+
+  function openMakeOrder(qNumber: string) {
+    setSelectedQNumber(qNumber)
+    makeOrderForm.reset()
+    orderRef.current?.showModal()
+  }
+
   const getCustomersFn = useFetch<Customer[], string>({
     url: `/api/web/customers?id=xxx`,
     method: 'GET'
@@ -47,11 +85,6 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   const getQuotationsFn = useFetch<(QQ & { product: Product, variousItem: boolean, customer: Customer })[], string>({
     url: `/api/web/quotations?id=xxx`,
     method: 'GET'
-  })
-
-  const editQuotationsFn = useFetch<object, string>({
-    url: `/api/web/quotations`,
-    method: 'PUT'
   })
 
   const getProductsFn = useFetch<Product[], string>({
@@ -160,7 +193,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     }
   }, [masterAccountId])
 
-  const filteredQuotations = getQuotationsFn?.result?.filter(s => 
+  const filteredQuotations = getQuotationsFn?.result?.filter(s =>
     s.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase())
   ) || []
 
@@ -229,11 +262,16 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
                               <td>{s.price}</td>
                               <td>{s.discountType === "percent" ? `${s.discountValue}%` : s.discountValue}</td>
                               <td>{tax(s.price, s.cart, s.discountType, s.discountValue)}</td>
-                              <td>
+                              <td className="flex flex-row gap-2">
                                 <button onClick={() => edit(s)}>
                                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
                                     <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
                                     <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                                  </svg>
+                                </button>
+                                <button onClick={() => openMakeOrder(s.quotationNumber)}>
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                   </svg>
                                 </button>
                               </td>
@@ -328,6 +366,40 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
           {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
           <div className="flex flex-row gap-3 modal-action">
             <button className="btn bg-red-900 text-white">Submit</button>
+          </div>
+        </form>
+      </dialog>
+      <dialog ref={orderRef} id="make_order_modal" className="modal h-full">
+        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-120 w-[500px] modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Make Order for {selectedQNumber}</h3>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[100px]">Pay Term</label>
+            <input {...makeOrderForm.register("payTerm", { required: true })} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. Net 30" />
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[100px]">Contract (Opt)</label>
+            <input {...makeOrderForm.register("contract")} type="file" className="file-input file-input-bordered flex-1" />
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[100px]">Attachment (Opt)</label>
+            <input {...makeOrderForm.register("attachment")} type="file" className="file-input file-input-bordered flex-1" />
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[100px]">Debt</label>
+            <select {...makeOrderForm.register("debt")} className="select flex-1 border-gray-300 border">
+              <option value="no">No</option>
+              <option value="yes">Yes</option>
+            </select>
+          </div>
+          <div className={`flex flex-row items-center gap-3 ${makeOrderForm.watch("debt") === "yes" ? "" : "hidden"}`}>
+            <label className="w-[100px]">Pay Amount</label>
+            <input {...makeOrderForm.register("payAmt")} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. 10000" />
+          </div>
+          {makeOrderFn.loading && <span className="loading loading-spinner"></span>}
+          {makeOrderFn.noResult || makeOrderFn.error ? <label className="input-validator text-red-900" htmlFor="role">{makeOrderFn.message}</label> : null}
+          <div className="flex flex-row gap-3 modal-action">
+            <button type="submit" className="btn bg-red-900 text-white" disabled={makeOrderFn.loading}>Submit</button>
+            <button type="button" className="btn" onClick={() => orderRef.current?.close()}>Cancel</button>
           </div>
         </form>
       </dialog>
@@ -562,6 +634,53 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
 
   const newQuotationForm = useForm()
 
+  function tax(total: number, cart: { subTotal: number, tax: boolean }[], discountType: string, discountValue: number) {
+
+    const ppns = cart.map(c => {
+      if (cart.length < 2) {
+        if (c.tax) {
+          if (discountValue > 0) {
+            if (discountType === "fixed") {
+              return (c.subTotal - discountValue) * 0.11
+            }
+            else {
+              return (c.subTotal - (c.subTotal * (discountValue / 100))) * 0.11
+            }
+          }
+          else {
+            return c.subTotal * 0.11
+          }
+        }
+        else {
+          return 0
+        }
+      }
+      else {
+        if (c.tax) {
+          if (discountValue > 0) {
+            if (discountType === "fixed") {
+              const proportion = c.subTotal / total
+              const proportionValue = discountValue * proportion
+              return (c.subTotal - proportionValue) * 0.11
+            }
+            else {
+              const discount = c.subTotal * (discountValue / 100)
+              return (c.subTotal - discount) * 0.11
+            }
+          }
+          else {
+            return c.subTotal * 0.11
+          }
+        }
+        else {
+          return 0
+        }
+      }
+    })
+
+    return Math.round(ppns.reduce((a, b) => a + b, 0))
+  }
+
   const addQuotationFn = useFetch<QQ, string>({
     url: '/api/web/quotations',
     method: 'POST',
@@ -615,7 +734,19 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
       }
     })
 
+    const total = cart.reduce((a, b) => a + b.subTotal, 0)
+
+    const _c = _cart.map((c) => {
+      return {
+        subTotal: c.subTotal,
+        tax: c.tax as boolean
+      }
+    })
+
+    const taxValue = tax(total, _c, discountType, discountValue)
+
     const params = {
+      taxValue,
       customerId,
       discountType,
       discountValue,

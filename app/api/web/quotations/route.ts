@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
       discountType: params.discountType,
       discountValue: params.discountValue,
       customerId: params.customerId,
-      companyId: company._id
+      companyId: company._id,
+      taxValue: params.taxValue,
     })
 
     return NextResponse.json({

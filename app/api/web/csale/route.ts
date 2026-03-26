@@ -9,23 +9,23 @@ import Product from '@/models/Product'
 import Allocation from '@/models/Allocation'
 import mongoose from "mongoose";
 
-export async function GET(request:NextRequest){
-	try{
+export async function GET(request: NextRequest) {
+	try {
 		await connectToDatabase()
 		const url = new URL(request.url)
 		const prod = url.searchParams.get("prod")
 		const pr = await Product.findById(prod)
-		
-		var result = await Location.aggregate([
+
+		const result = await Location.aggregate([
 			{
-				$match:{
-					locationOf:pr.productOf
+				$match: {
+					locationOf: pr.productOf
 				}
 			},
 			{
-				$lookup:{
-					as:"allocations",
-					from:"allocations",
+				$lookup: {
+					as: "allocations",
+					from: "allocations",
 					let: { locationId: "$_id" },
 					pipeline: [
 						{
@@ -54,53 +54,53 @@ export async function GET(request:NextRequest){
 		])
 
 		return NextResponse.json({
-			noResult:false,
-			message:"success",
-			result:result,
-			error:false
+			noResult: false,
+			message: "success",
+			result: result,
+			error: false
 		})
 
 	}
-	catch(e:any){
+	catch (e: unknown) {
 		return NextResponse.json({
-			noResult:true,
-			message:e.message,
-			result:null,
-			error:true
+			noResult: true,
+			message: e.message,
+			result: null,
+			error: true
 		})
 	}
 }
 
-export async function POST(request:NextRequest){
-  try{
+export async function POST(request: NextRequest) {
+	try {
 		await connectToDatabase()
 		const params = await request.json()
 		const company = await Companie.findOne({
-			masterAccountId:params.id
+			masterAccountId: params.id
 		})
 
 		await Promise.all(
 			params.cart.map(async c => {
-		
-				var quantity = c.qty
-				var location = c.loc
 
-			  const [product] = await Product.aggregate([
+				let quantity = c.qty
+				const location = c.loc
+
+				const [product] = await Product.aggregate([
 					{
-						$match:{
-							_id:new mongoose.Types.ObjectId(c.productId)
+						$match: {
+							_id: new mongoose.Types.ObjectId(c.productId)
 						}
 					},
 					{
-						$lookup:{
-							from:"batches",
-							localField:"_id",
-							foreignField:"productId",
-							as:"batches",
-							pipeline:[
+						$lookup: {
+							from: "batches",
+							localField: "_id",
+							foreignField: "productId",
+							as: "batches",
+							pipeline: [
 								{
-									$match:{
-										$expr:{
+									$match: {
+										$expr: {
 											$and: [
 												{ $eq: ["$status", "ACTIVE"] }
 											]
@@ -110,7 +110,7 @@ export async function POST(request:NextRequest){
 							]
 						}
 					},
-					{ 
+					{
 						$unwind: {
 							path: "$batches",
 							preserveNullAndEmptyArrays: true
@@ -121,7 +121,7 @@ export async function POST(request:NextRequest){
 							_id: "$_id",
 							doc: { $first: "$$ROOT" },
 							accumulative: { $sum: "$batches.accumulative" },
-							out: { $sum : "$batches.outQty" }
+							out: { $sum: "$batches.outQty" }
 						}
 					},
 					{
@@ -142,24 +142,24 @@ export async function POST(request:NextRequest){
 								]
 							}
 						}
-					},        
+					},
 					{
 						$project: {
 							batches: 0,
 						}
 					},
 					{
-						$lookup:{
-							from:"allocations",
-							localField:"_id",
-							foreignField:"productId",
-							as:"allocations"
+						$lookup: {
+							from: "allocations",
+							localField: "_id",
+							foreignField: "productId",
+							as: "allocations"
 						}
 					},
 					{
-						$addFields:{
-							allocated:{
-								$sum:{
+						$addFields: {
+							allocated: {
+								$sum: {
 									$map: {
 										input: "$allocations",
 										as: "a",
@@ -174,91 +174,91 @@ export async function POST(request:NextRequest){
 							allocations: 0,
 						}
 					}
-			  ])
+				])
 
-				var unitCost = product.stockValue / (product.remain + product.allocated)
+				const unitCost = product.stockValue / (product.remain + product.allocated)
 
-				var stock = await Allocation.find({
-					productId:c.productId,
-					locationId:location
+				const stock = await Allocation.find({
+					productId: c.productId,
+					locationId: location
 				})
-		
-				for(const n of stock){
-		
-					if(quantity <= 0) break
-		
-					if(n.qty >= quantity){
-		
+
+				for (const n of stock) {
+
+					if (quantity <= 0) break
+
+					if (n.qty >= quantity) {
+
 						await Allocation.findByIdAndUpdate(
 							n._id,
 							{ $inc: { qty: -quantity } }
 						)
-		
+
 						quantity = 0
 						break
 					}
-					else{
-		
+					else {
+
 						quantity = quantity - n.qty
-		
-						await Allocation.findByIdAndUpdate(n._id,{
-							qty:0
+
+						await Allocation.findByIdAndUpdate(n._id, {
+							qty: 0
 						})
 					}
-		
+
 				}
 
 				await Product.findByIdAndUpdate(
-					product._id,{
-						$inc:{
-							stockValue:-(unitCost * c.qty)
-						}
+					product._id, {
+					$inc: {
+						stockValue: -(unitCost * c.qty)
 					}
+				}
 				)
 			})
 		)
 
-		var result = await Order.create({
-			companyId:company._id,
-			salesOrderNumber:`SO-${String(Date.now()).slice(-5)}`,
-      cart:params.cart, // product id, qty, price
-			customerName:params.customerName,
-			productType:'good',
-			type:'direct',
-			discountType:params.discountType,
-			discountValue:params.discountValue,
-			taxValue:params.tax,
-			saleDate:new Date(),
-			payTerm:params.payTerm,
-			total:params.total
+		const result = await Order.create({
+			companyId: company._id,
+			salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+			cart: params.cart, // product id, qty, price
+			customerName: params.customerName,
+			productType: 'good',
+			type: 'direct',
+			discountType: params.discountType,
+			discountValue: params.discountValue,
+			taxValue: params.tax,
+			saleDate: new Date(),
+			payTerm: params.payTerm,
+			total: params.total
 		})
 
-		var paid = params.debt === 'yes' ? false : true
+		const paid = params.debt === 'yes' ? false : true
 
 		await Invoice.create({
-			companyId:company._id,
-			invoiceNumber:`INV-${String(Date.now()).slice(-5)}`,
-			invoiceType:'product',
-			salesOrderId:result._id,
-			salesOrderNumber:result.salesOrderNumber,
-			payAmount:params.payAmount,
-		  paid:paid,
-			date:new Date()
+			companyId: company._id,
+			invoiceNumber: `INV-${String(Date.now()).slice(-5)}`,
+			invoiceType: 'product',
+			salesOrderId: result._id,
+			salesOrderNumber: result.salesOrderNumber,
+			payAmount: params.payAmount,
+			paid: paid,
+			date: new Date()
 		})
 
 		return NextResponse.json({
-			noResult:false,
-			message:"success",
-			result:result,
-			error:false
+			noResult: false,
+			message: "success",
+			result: result,
+			error: false
 		})
-  }
-  catch(e:any){
-    return NextResponse.json({
-			noResult:true,
-			message:e.message,
-			result:null,
-			error:true
-    })
-  }
+	}
+	catch (e: unknown) {
+		return NextResponse.json({
+			noResult: true,
+			message: e.message,
+			result: null,
+			error: true
+		})
+	}
 }

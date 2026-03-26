@@ -5,45 +5,45 @@ import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
 import Order from '@/models/Order'
 
-export async function POST(request:NextRequest){
-  try{
+export async function POST(request: NextRequest) {
+  try {
     await connectToDatabase()
     const params = await request.json()
     const company = await Companie.findOne({
-      masterAccountId:params.id
+      masterAccountId: params.id
     })
 
-    var order = await Order.findOne({
-      salesOrderNumber:params.salesOrderNumber
+    const order = await Order.findOne({
+      salesOrderNumber: params.salesOrderNumber
     })
 
 
-    var result = await Invoice.create({
+    const result = await Invoice.create({
       ...params,
-      companyId:company._id,
-      salesOrderId:order._id,
-      date:new Date(),
-      invoiceNumber:`I-${String(Date.now()).slice(-5)}`
+      companyId: company._id,
+      salesOrderId: order._id,
+      date: new Date(),
+      invoiceNumber: `I-${String(Date.now()).slice(-5)}`
     })
 
-    var requested = result._doc
+    const requested = result._doc
 
     const [agg] = await Invoice.aggregate([
       {
-        $match:{
-          _id:requested._id
+        $match: {
+          _id: requested._id
         }
       },
       {
-        $lookup:{
-          from:'orders',
-          localField:'salesOrderId',
-          foreignField:'_id',
-          as:'order'
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
         }
       },
       {
-        $unwind:'$order'
+        $unwind: '$order'
       },
       {
         $lookup: {
@@ -53,8 +53,8 @@ export async function POST(request:NextRequest){
           as: "order.customer",
         },
       },
-      { 
-        $unwind: "$order.customer" 
+      {
+        $unwind: "$order.customer"
       },
       {
         $lookup: {
@@ -64,56 +64,56 @@ export async function POST(request:NextRequest){
           as: "order.product",
         },
       },
-      { 
-        $unwind: "$order.product" 
+      {
+        $unwind: "$order.product"
       },
     ])
 
 
     return NextResponse.json({
-      noResult:false,
-      message:"",
-      result:agg,
-      error:false
+      noResult: false,
+      message: "",
+      result: agg,
+      error: false
     })
   }
-  catch(e:any){
+  catch (e: unknown) {
     return NextResponse.json({
-      noResult:true,
-      message:e.message,
-      result:null,
-      error:true
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
     })
   }
 }
 
-export async function GET(request:NextRequest){
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   const type = url.searchParams.get("type");
   try {
     await connectToDatabase()
     const cmp = await Companie.findOne({
-      masterAccountId:id
+      masterAccountId: id
     })
 
     const invoices = await Invoice.aggregate([
       {
-        $match:{
-          companyId:cmp._id,
-          invoiceType:type
+        $match: {
+          companyId: cmp._id,
+          invoiceType: type
         }
       },
       {
-        $lookup:{
-          from:'orders',
-          localField:'salesOrderId',
-          foreignField:'_id',
-          as:'order'
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
         }
       },
       {
-        $unwind:'$order'
+        $unwind: '$order'
       },
       {
         $lookup: {
@@ -123,46 +123,46 @@ export async function GET(request:NextRequest){
           as: "order.customer",
         },
       },
-      { 
+      {
         $unwind: {
           path: "$order.customer",
           preserveNullAndEmptyArrays: true,
         }
       },
       {
-        $lookup:{
+        $lookup: {
           from: "products",
           let: {
             productId: { $arrayElemAt: ["$order.cart.productId", 0] }
           },
-          pipeline:[
+          pipeline: [
             {
-              $match:{
-                $expr:{
-                  $eq:["$_id","$$productId"]
+              $match: {
+                $expr: {
+                  $eq: ["$_id", "$$productId"]
                 }
               }
             }
           ],
-          as:"p"
+          as: "p"
         }
       },
       {
-        $addFields:{
-          product:{
-            $cond:[
-              { $gt:[ { $size:"$order.cart" }, 1 ] },
+        $addFields: {
+          product: {
+            $cond: [
+              { $gt: [{ $size: "$order.cart" }, 1] },
               "various items",
-              { $arrayElemAt:["$p",0] }
+              { $arrayElemAt: ["$p", 0] }
             ]
           }
         }
       },
       {
-        $addFields:{
-          variousItem:{
-            $cond:[
-              { $gt:[ { $size:"$order.cart" }, 1 ] },
+        $addFields: {
+          variousItem: {
+            $cond: [
+              { $gt: [{ $size: "$order.cart" }, 1] },
               true,
               false
             ]
@@ -170,25 +170,25 @@ export async function GET(request:NextRequest){
         }
       },
       {
-        $project:{
-          'p':0
+        $project: {
+          'p': 0
         }
       }
     ])
 
     return NextResponse.json({
-      noResult:false,
-      message:"",
-      result:invoices,
-      error:false
+      noResult: false,
+      message: "",
+      result: invoices,
+      error: false
     })
   }
-  catch(e:any){
+  catch (e: unknown) {
     return NextResponse.json({
-      noResult:true,
-      message:e.message,
-      result:null,
-      error:true
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
     })
   }
 }
