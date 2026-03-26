@@ -79,16 +79,14 @@ export async function PUT(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
+
     const params = await request.json()
     const company = await Companie.findOne({ masterAccountId: params.id })
-    const price = params.cart.map((c) => c.subTotal).reduce((p, c) => p + c)
-
-    //const price = product.productType === 'service' ? rest.price : product.sellingPrice * rest.qty
-
+    const price = params.productType === 'service' ? params.price : params.cart.map((c) => c.subTotal).reduce((p, c) => p + c)
+    const qty = params.productType === 'service' ? 1 : params.qty
 
     const result = await Quotation.create({
       cart: params.cart,
-      productType: 'good',
       quotationNumber: `Q-${String(Date.now()).slice(-5)}`,
       createdAt: new Date(),
       price: price,
@@ -98,6 +96,11 @@ export async function POST(request: NextRequest) {
       customerId: params.customerId,
       companyId: company._id,
       taxValue: params.taxValue,
+      productType: params.productType,
+      range: params.range,
+      frequency: params.frequency,
+      contractType: params.contractType,
+      qty: qty,
     })
 
     return NextResponse.json({
