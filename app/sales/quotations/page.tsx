@@ -36,7 +36,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
 
 
   const addQuotationFn = useFetch<QQ, string>({
-    url: '/api/web/quotations',
+    url: 'api/web/quotations',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -44,7 +44,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   })
 
   const makeOrderFn = useFetch<any, FormData>({
-    url: '/api/web/order',
+    url: 'api/web/order',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -78,17 +78,17 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   }
 
   const getCustomersFn = useFetch<Customer[], string>({
-    url: `/api/web/customers?id=xxx`,
+    url: `api/web/customers?id=xxx`,
     method: 'GET'
   })
 
   const getQuotationsFn = useFetch<(QQ & { product: Product, variousItem: boolean, customer: Customer })[], string>({
-    url: `/api/web/quotations?id=xxx`,
+    url: `api/web/quotations?id=xxx`,
     method: 'GET'
   })
 
   const getProductsFn = useFetch<Product[], string>({
-    url: `/api/web/products?id=xxx`,
+    url: `api/web/products?id=xxx`,
     method: 'GET'
   })
 
@@ -175,9 +175,9 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/quotations?id=${masterAccountId}&type=good`
-      const url2 = `/api/web/products?id=${masterAccountId}&type=good`
-      const url3 = `/api/web/customers?id=${masterAccountId}`
+      const url = `api/web/quotations?id=${masterAccountId}&type=good`
+      const url2 = `api/web/products?id=${masterAccountId}&type=good`
+      const url3 = `api/web/customers?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
@@ -424,7 +424,7 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
   const editQuotationForm = useForm({})
 
   const editQuotationFn = useFetch<QQ, string>({
-    url: '/api/web/quotations',
+    url: 'api/web/quotations',
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -682,7 +682,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
   }
 
   const addQuotationFn = useFetch<QQ, string>({
-    url: '/api/web/quotations',
+    url: 'api/web/quotations',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -883,17 +883,17 @@ export default function Quotation() {
   const [x, setX] = useState<X | null>(null)
 
   const getProductsFn = useFetch<Product[], string>({
-    url: `/api/web/products?id=xxx`,
+    url: `api/web/products?id=xxx`,
     method: 'GET'
   })
 
   const getStockFn = useFetch<Available[], string>({
-    url: `/api/web/stock`,
+    url: `api/web/stock`,
     method: 'GET'
   })
 
   const getCustomersFn = useFetch<Customer[], string>({
-    url: `/api/web/customers?id=xxx`,
+    url: `api/web/customers?id=xxx`,
     method: 'GET'
   })
 
@@ -908,9 +908,9 @@ export default function Quotation() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url2 = `/api/web/products?id=${masterAccountId}&type=good`
-      const url3 = `/api/web/stock?id=${masterAccountId}`
-      const url4 = `/api/web/customers?id=${masterAccountId}`
+      const url2 = `api/web/products?id=${masterAccountId}&type=good`
+      const url3 = `api/web/stock?id=${masterAccountId}`
+      const url4 = `api/web/customers?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

@@ -19,12 +19,12 @@ export default function XList() {
   const router = useRouter()
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/products?id=xxx`,
+    url: `api/web/products?id=xxx`,
     method: 'GET'
   })
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/products?id=xxx`,
+    url: `api/web/products?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -58,7 +58,7 @@ export default function XList() {
   }
 
   async function del(_id: string) {
-    const url = `/api/web/products?id=${_id}`
+    const url = `api/web/products?id=${_id}`
     const body = JSON.stringify({})
 
     const confirmed = window.confirm("Are you sure you want to delete this service product?")
@@ -77,7 +77,7 @@ export default function XList() {
   useEffect(() => {
     if (hasHydrated) {
       // Fetch specifically service products
-      const url = `/api/web/products?id=${masterAccountId}&type=service`
+      const url = `api/web/products?id=${masterAccountId}&type=service`
 
       const body = JSON.stringify({})
 

@@ -5,11 +5,11 @@ import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
 import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
-import { useRef,useState,useEffect } from "react"
+import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
 
-export default function Measure(){
+export default function Measure() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -17,193 +17,193 @@ export default function Measure(){
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
 
-  const [measurements,setMeasurement] = useState<any[]>([])
-  const [locations,setLocations] = useState<any[]>([])
-  const [searchResult,setSearchResult] = useState<any[]>([])
+  const [measurements, setMeasurement] = useState<any[]>([])
+  const [locations, setLocations] = useState<any[]>([])
+  const [searchResult, setSearchResult] = useState<any[]>([])
 
   const editForm = useForm()
   const newMeasureForm = useForm()
   const router = useRouter()
 
-  const putFn = useFetch<any,any>({
-    url:'/api/web/roles',
-    method:'PUT'
+  const putFn = useFetch<any, any>({
+    url: 'api/web/roles',
+    method: 'PUT'
   })
 
-  const addFn = useFetch<any,any>({
-    url:'/api/web/measure',
-    method:'POST',
-    onError:(m) => {
+  const addFn = useFetch<any, any>({
+    url: 'api/web/measure',
+    method: 'POST',
+    onError: (m) => {
       alert(m)
     }
   })
 
-  const editFn = useFetch<any,any>({
-    url:'/api/web/measure',
-    method:'PUT',
-    onError:(m) => {
-      
+  const editFn = useFetch<any, any>({
+    url: 'api/web/measure',
+    method: 'PUT',
+    onError: (m) => {
+
     }
   })
 
-  var getFn = useFetch<any[],any>({
-    url:`/api/web/location?id=xxx`,
-    method:'GET'
+  var getFn = useFetch<any[], any>({
+    url: `api/web/location?id=xxx`,
+    method: 'GET'
   })
 
-  var getSuppliersFn = useFetch<any[],any>({
-    url:`/api/web/supplier?id=xxx`,
-    method:'GET'
-  })
-  
-
-  var getMeasurementsFn = useFetch<any[],any>({
-    url:`/api/web/measure?id=xxx`,
-    method:'GET'
+  var getSuppliersFn = useFetch<any[], any>({
+    url: `api/web/supplier?id=xxx`,
+    method: 'GET'
   })
 
-	var getUnitFn = useFetch<any[],any>({
-    url:`/api/web/unit?id=xxx`,
-    method:'GET'
+
+  var getMeasurementsFn = useFetch<any[], any>({
+    url: `api/web/measure?id=xxx`,
+    method: 'GET'
   })
 
-  var deleteFn = useFetch<any[],any>({
-    url:`/api/web/location?id=xxx`,
-    method:'DELETE',
-    onError:(m) => {
+  var getUnitFn = useFetch<any[], any>({
+    url: `api/web/unit?id=xxx`,
+    method: 'GET'
+  })
+
+  var deleteFn = useFetch<any[], any>({
+    url: `api/web/location?id=xxx`,
+    method: 'DELETE',
+    onError: (m) => {
       alert(m)
     }
   })
 
-  async function submit(data:any){
+  async function submit(data: any) {
     const body = JSON.stringify({
       ...data,
-      id:masterAccountId,
+      id: masterAccountId,
     })
 
     console.log(JSON.parse(body))
 
 
-    await addFn.fn('',body,(r) => {
+    await addFn.fn('', body, (r) => {
       var supplier = getSuppliersFn.result?.find((s) => s._id == data.supplierId)
       var product = getFn.result?.find((s) => s._id == data.productId)
-      var newMeasurement = {supplier,product,unit:r.unit,ratio:r.ratio}
-      setMeasurement([newMeasurement,...measurements])
+      var newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
+      setMeasurement([newMeasurement, ...measurements])
       modalRef.current?.close()
     })
   }
 
-  async function search(v:string){
-    if(v.length > 0){
-      var [loc,prod] = v.split(":")
+  async function search(v: string) {
+    if (v.length > 0) {
+      var [loc, prod] = v.split(":")
 
-      if(prod){
+      if (prod) {
         var result = measurements.filter((r) => {
           return r.supplier.bussinessName.includes(loc) && r.product.productName.includes(prod)
         })
 
-        if(result.length > 0){
+        if (result.length > 0) {
           setSearchResult(
             [
               ...result
             ]
           )
         }
-        else{
+        else {
           setSearchResult(
             []
           )
         }
       }
-      else{
+      else {
         var result = measurements.filter((r) => {
           return r.supplier.bussinessName.includes(loc) || r.product.productName === loc
         })
 
-        if(result.length > 0){
+        if (result.length > 0) {
           setSearchResult(
             [
               ...result
             ]
           )
         }
-        else{
+        else {
           setSearchResult(
             []
           )
         }
       }
     }
-    else{
+    else {
       setSearchResult(
         []
       )
     }
   }
 
-  async function editSubmit(data:any){
+  async function editSubmit(data: any) {
     var param = JSON.stringify(data)
-   
-    await editFn.fn('',param,r => {
+
+    await editFn.fn('', param, r => {
       var supplier = getSuppliersFn.result?.find((s) => s._id == r.supplierId)
       var product = getFn.result?.find((s) => s._id == r.productId)
-      var newMeasurement = {supplier,product,unit:r.unit,ratio:r.ratio}
-      
+      var newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
+
       var [target] = measurements.filter((m) => m._id == r._id)
-      
+
       target.ratio = newMeasurement.ratio
       target.supplier = newMeasurement.supplier
       target.product = newMeasurement.product
       target.unit = newMeasurement.unit
 
       editRef.current.close()
-      
+
     })
   }
 
-  async function del(_id:string){
-    var url = `/api/web/location?id=${_id}`
+  async function del(_id: string) {
+    var url = `api/web/location?id=${_id}`
     var body = JSON.stringify({})
 
-    await deleteFn.fn(url,body,(result) =>{
+    await deleteFn.fn(url, body, (result) => {
       setLocations(
         locations.filter((l) => l._id != result)
       )
     })
   }
 
-  async function edit(m:any){
+  async function edit(m: any) {
     editForm.reset({
-      supplierId:m.supplier._id,
-      productId:m.product._id,
-      unit:m.unit,
-      ratio:m.ratio,
-      _id:m._id
+      supplierId: m.supplier._id,
+      productId: m.product._id,
+      unit: m.unit,
+      ratio: m.ratio,
+      _id: m._id
     })
 
     editRef.current.showModal()
   }
 
   useEffect(() => {
-    if(hasHydrated){
-      const url = `/api/web/products?id=${masterAccountId}&type=good` 
-      const url4 = `/api/web/measure?id=${masterAccountId}` 
-      const url2 = `/api/web/suppliers?id=${masterAccountId}` 
-      const url3 = `/api/web/unit?id=${masterAccountId}`;
-       
-      getFn.fn(url,JSON.stringify({}),(result) => {})
-      getSuppliersFn.fn(url2,JSON.stringify({}),(result) => {})
-			getUnitFn.fn(url3,JSON.stringify({}),(result) => {})
-			getMeasurementsFn.fn(url4,JSON.stringify({}),(result) => {
+    if (hasHydrated) {
+      const url = `api/web/products?id=${masterAccountId}&type=good`
+      const url4 = `api/web/measure?id=${masterAccountId}`
+      const url2 = `api/web/suppliers?id=${masterAccountId}`
+      const url3 = `api/web/unit?id=${masterAccountId}`;
+
+      getFn.fn(url, JSON.stringify({}), (result) => { })
+      getSuppliersFn.fn(url2, JSON.stringify({}), (result) => { })
+      getUnitFn.fn(url3, JSON.stringify({}), (result) => { })
+      getMeasurementsFn.fn(url4, JSON.stringify({}), (result) => {
         setMeasurement(result)
       })
     }
-  },[masterAccountId])
+  }, [masterAccountId])
 
-  if(!hasHydrated) return null
-  if(!loggedIn) router.push('/login')
-  if(!isSuperAdmin) router.push('/dashboard')
-  
+  if (!hasHydrated) return null
+  if (!loggedIn) router.push('/login')
+  if (!isSuperAdmin) router.push('/dashboard')
+
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
@@ -228,129 +228,129 @@ export default function Measure(){
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3"/>
+            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
-            ?
-            <div className="flex-1 flex flex-col justify-center items-center">
-              <span className="loading loading-spinner loading-xl"></span>
-            </div>
-            :
-            getFn.error || getFn.noResult
-            ?
-            <div>
-              <p>{getFn.message}</p>
-            </div>
-            :
-            <div>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Supplier</th>
-                      <th>Product</th>
-                      <th>Unit</th>
-                      <th>Ratio</th>
-                      <th>...</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {
-                      searchResult.length < 1
-                      ?
-                      measurements.map((m,index) => {
-                        return (
-                          <tr key={index}>
-                            <td>{m.supplier.bussinessName}</td>
-                            <td>{m.product.productName}</td>
-                            <td>{m.unit}</td>
-                            <td>{m.ratio}</td>
-                            <td>
-                              <button onClick={() => edit(m)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
-                                  <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
-                                </svg>
+              ?
+              <div className="flex-1 flex flex-col justify-center items-center">
+                <span className="loading loading-spinner loading-xl"></span>
+              </div>
+              :
+              getFn.error || getFn.noResult
+                ?
+                <div>
+                  <p>{getFn.message}</p>
+                </div>
+                :
+                <div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Supplier</th>
+                        <th>Product</th>
+                        <th>Unit</th>
+                        <th>Ratio</th>
+                        <th>...</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {
+                        searchResult.length < 1
+                          ?
+                          measurements.map((m, index) => {
+                            return (
+                              <tr key={index}>
+                                <td>{m.supplier.bussinessName}</td>
+                                <td>{m.product.productName}</td>
+                                <td>{m.unit}</td>
+                                <td>{m.ratio}</td>
+                                <td>
+                                  <button onClick={() => edit(m)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
+                                      <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
+                                    </svg>
 
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })
-                      :
-                      searchResult.map((m,index) => {
-                        return (
-                          <tr key={index}>
-                            <td>{m.supplier.bussinessName}</td>
-                            <td>{m.product.productName}</td>
-                            <td>{m.unit}</td>
-                            <td>{m.ratio}</td>
-                            <td>
-                              <button onClick={() => edit(m)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
-                                  <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
-                                </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                          :
+                          searchResult.map((m, index) => {
+                            return (
+                              <tr key={index}>
+                                <td>{m.supplier.bussinessName}</td>
+                                <td>{m.product.productName}</td>
+                                <td>{m.unit}</td>
+                                <td>{m.ratio}</td>
+                                <td>
+                                  <button onClick={() => edit(m)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
+                                      <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
+                                    </svg>
 
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })              
-                    }
-                  </tbody>
-               </table>
-            </div>
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                      }
+                    </tbody>
+                  </table>
+                </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal">
         <div className="modal-box">
-        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Measurement</span>
             <form onSubmit={editForm.handleSubmit(editSubmit)} className="h-99 relative flex flex-col">
               <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Supplier</legend>
-								<select {...editForm.register("supplierId")} className="select w-full">
-									{
-										getSuppliersFn?.result?.map((s,index) => {
-											return (
-												<option key={index} value={s._id}>{s.bussinessName}</option>
-											)
-										})
-									}
-								</select>
-              </fieldset>
-              <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Product</legend>
-								<select {...editForm.register("productId")} className="select w-full">
-									<option value={''}>Select Product:</option>
-                  
+                <legend className="fieldset-legend">Supplier</legend>
+                <select {...editForm.register("supplierId")} className="select w-full">
                   {
-										getFn?.result?.map((p,index) => {
-											return (
-												<option key={index} value={p._id}>{p.productName}</option>
-											)
-										})
-									}
-								</select>
+                    getSuppliersFn?.result?.map((s, index) => {
+                      return (
+                        <option key={index} value={s._id}>{s.bussinessName}</option>
+                      )
+                    })
+                  }
+                </select>
               </fieldset>
               <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Unit</legend>
-								<select {...editForm.register("unit")} className="select w-full">
-									<option value={''}>Select unit:</option>
+                <legend className="fieldset-legend">Product</legend>
+                <select {...editForm.register("productId")} className="select w-full">
+                  <option value={''}>Select Product:</option>
+
                   {
-										getUnitFn?.result?.map((p,index) => {
-											return (
-												<option key={index} value={p.name}>{p.name}</option>
-											)
-										})
-									}
-								</select>
+                    getFn?.result?.map((p, index) => {
+                      return (
+                        <option key={index} value={p._id}>{p.productName}</option>
+                      )
+                    })
+                  }
+                </select>
               </fieldset>
               <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Ratio</legend>
-						    <input {...editForm.register("ratio")} type="text" className="input w-full"/>
+                <legend className="fieldset-legend">Unit</legend>
+                <select {...editForm.register("unit")} className="select w-full">
+                  <option value={''}>Select unit:</option>
+                  {
+                    getUnitFn?.result?.map((p, index) => {
+                      return (
+                        <option key={index} value={p.name}>{p.name}</option>
+                      )
+                    })
+                  }
+                </select>
               </fieldset>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }	
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Ratio</legend>
+                <input {...editForm.register("ratio")} type="text" className="input w-full" />
+              </fieldset>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
                 Edit
               </button>
@@ -364,60 +364,60 @@ export default function Measure(){
             <span className="text-2xl">Add Measurement</span>
             <form onSubmit={newMeasureForm.handleSubmit(submit)} className="h-99 relative flex flex-col">
               <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Supplier</legend>
-								<select {...newMeasureForm.register("supplierId")} className="select w-full">
-									{
-										getSuppliersFn?.result?.map((s,index) => {
-											return (
-												<option key={index} value={s._id}>{s.bussinessName}</option>
-											)
-										})
-									}
-								</select>
-              </fieldset>
-              <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Product</legend>
-								<select {...newMeasureForm.register("productId")} className="select w-full">
-									<option value={''}>Select Product:</option>
-                  
+                <legend className="fieldset-legend">Supplier</legend>
+                <select {...newMeasureForm.register("supplierId")} className="select w-full">
                   {
-										getFn?.result?.map((p,index) => {
-											return (
-												<option key={index} value={p._id}>{p.productName}</option>
-											)
-										})
-									}
-								</select>
+                    getSuppliersFn?.result?.map((s, index) => {
+                      return (
+                        <option key={index} value={s._id}>{s.bussinessName}</option>
+                      )
+                    })
+                  }
+                </select>
               </fieldset>
               <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Unit</legend>
-								<select {...newMeasureForm.register("unit")} className="select w-full">
-									<option value={''}>Select unit:</option>
+                <legend className="fieldset-legend">Product</legend>
+                <select {...newMeasureForm.register("productId")} className="select w-full">
+                  <option value={''}>Select Product:</option>
+
                   {
-										getUnitFn?.result?.map((p,index) => {
-											return (
-												<option key={index} value={p.name}>{p.name}</option>
-											)
-										})
-									}
-								</select>
+                    getFn?.result?.map((p, index) => {
+                      return (
+                        <option key={index} value={p._id}>{p.productName}</option>
+                      )
+                    })
+                  }
+                </select>
               </fieldset>
               <fieldset className="fieldset">
-						  	<legend className="fieldset-legend">Ratio</legend>
-						    <input {...newMeasureForm.register("ratio")} type="text" className="input w-full"/>
+                <legend className="fieldset-legend">Unit</legend>
+                <select {...newMeasureForm.register("unit")} className="select w-full">
+                  <option value={''}>Select unit:</option>
+                  {
+                    getUnitFn?.result?.map((p, index) => {
+                      return (
+                        <option key={index} value={p.name}>{p.name}</option>
+                      )
+                    })
+                  }
+                </select>
               </fieldset>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }	
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Ratio</legend>
+                <input {...newMeasureForm.register("ratio")} type="text" className="input w-full" />
+              </fieldset>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
                 Add
               </button>
             </form>
           </div>
         </div>
-      </dialog>    
+      </dialog>
     </>
   )
 }
 
 type Failed = {
-  message:string
+  message: string
 }

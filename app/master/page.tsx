@@ -7,39 +7,39 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useFetch from "@/hooks/useFetch";
 
-function Message(params:Failed){
-	return (
-		<div className="w-full max-w-sm bg-red-900 p-3 text-white w-1/2 rounded-md">{params.message}</div>
-	)
+function Message(params: Failed) {
+  return (
+    <div className="w-full max-w-sm bg-red-900 p-3 text-white w-1/2 rounded-md">{params.message}</div>
+  )
 }
 
-export default function Master(){
+export default function Master() {
 
-	const [secretId,setSecretId] = useState('')
-  const [username,setUsername] = useState('')
-	const [email,setEmail] = useState('')
-	const [password,setPassword] = useState('')
-  const [error,setError] = useState('')
-  const [isInvalid,setIsInvalid] = useState(false)
- 
+  const [secretId, setSecretId] = useState('')
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isInvalid, setIsInvalid] = useState(false)
+
   const router = useRouter();
 
-  const masterFn = useFetch<any,any>({
-    url:"/api/web/master",
-    method:"POST",
+  const masterFn = useFetch<any, any>({
+    url: "api/web/master",
+    method: "POST",
   })
- 
-  async function submit(e:any){
+
+  async function submit(e: any) {
     e.preventDefault()
- 
+
     const body = JSON.stringify({
       secretId,
       email,
       username,
       password
     })
- 
-    await masterFn.fn('',body,(result) => {
+
+    await masterFn.fn('', body, (result) => {
       router.push('/login')
     })
   }
@@ -67,8 +67,8 @@ export default function Master(){
               type="text"
               placeholder="Masukkan username"
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              onChange={(e) => setUsername(e.target.value)}           
-           />
+              onChange={(e) => setUsername(e.target.value)}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
@@ -76,8 +76,8 @@ export default function Master(){
               type="email"
               placeholder="Masukkan Email"
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              onChange={(e) => setEmail(e.target.value)}           
-           />
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
 
           <div>
@@ -103,5 +103,5 @@ export default function Master(){
 }
 
 type Failed = {
-  message:string
+  message: string
 }

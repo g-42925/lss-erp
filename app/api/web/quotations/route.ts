@@ -83,10 +83,20 @@ export async function POST(request: NextRequest) {
     const params = await request.json()
     const company = await Companie.findOne({ masterAccountId: params.id })
     const price = params.productType === 'service' ? params.price : params.cart.map((c) => c.subTotal).reduce((p, c) => p + c)
-    const qty = params.productType === 'service' ? 1 : params.qty
+
+    const _cart = [
+      {
+        productId: params.productId,
+        qty: params.qty,
+        subTotal: params.price,
+        tax: false
+      }
+    ]
+
+    const cart = params.productType === 'service' ? _cart : params.cart
 
     const result = await Quotation.create({
-      cart: params.cart,
+      cart: cart,
       quotationNumber: `Q-${String(Date.now()).slice(-5)}`,
       createdAt: new Date(),
       price: price,
@@ -100,7 +110,6 @@ export async function POST(request: NextRequest) {
       range: params.range,
       frequency: params.frequency,
       contractType: params.contractType,
-      qty: qty,
     })
 
     return NextResponse.json({

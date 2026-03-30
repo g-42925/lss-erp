@@ -6,18 +6,18 @@ import useAuth from "@/store/auth"
 
 import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
-import { useEffect, useState,useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
 
-export default function Vendor(){
+export default function Vendor() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const roleDetail = useAuth((state) => state.roleDetail)
 
-  const [vendors,setVendors] = useState<any[]>([])
-  const [searchResult,setSearchResult] = useState<any[]>([])
+  const [vendors, setVendors] = useState<any[]>([])
+  const [searchResult, setSearchResult] = useState<any[]>([])
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
@@ -26,39 +26,39 @@ export default function Vendor(){
   const editVendorForm = useForm();
   const router = useRouter()
 
-  var getVendorsFn = useFetch<any[],any>({
-    url:`/api/web/vendor?id=xxx`,
-    method:'GET',
-    onError:(m) => {
+  var getVendorsFn = useFetch<any[], any>({
+    url: `api/web/vendor?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
       alert(m)
     }
   })
 
-  var addFn = useFetch<any,any>({
-    url:'/api/web/vendor',
-    method:'POST',
-    onError:(m) => {
+  var addFn = useFetch<any, any>({
+    url: 'api/web/vendor',
+    method: 'POST',
+    onError: (m) => {
       alert(m)
     }
   })
 
-  var editFn = useFetch<any,any>({
-    url:'/api/web/vendor',
-    method:'PUT',
-    onError:(m) => {
+  var editFn = useFetch<any, any>({
+    url: 'api/web/vendor',
+    method: 'PUT',
+    onError: (m) => {
       alert(m)
     }
   })
 
 
 
-  async function submit(data:any){
+  async function submit(data: any) {
     const newVendor = JSON.stringify({
       ...data,
       masterAccountId
     })
 
-    await addFn.fn('',newVendor,(result) => {
+    await addFn.fn('', newVendor, (result) => {
       modalRef.current?.close()
       setVendors(
         [
@@ -69,8 +69,8 @@ export default function Vendor(){
     })
   }
 
-  async function search(v:string){
-    if(v.length > 0){
+  async function search(v: string) {
+    if (v.length > 0) {
       var result = vendors.filter((r) => {
         return r.name.toLowerCase().includes(v)
       })
@@ -79,31 +79,31 @@ export default function Vendor(){
         result
       )
 
-      if(result.length > 0){
+      if (result.length > 0) {
         setSearchResult(
           [
             ...result
           ]
         )
       }
-      else{
+      else {
         setSearchResult(
           []
         )
       }
     }
-    else{
+    else {
       setSearchResult(
         []
       )
     }
   }
 
-  async function handleEdit(data:any){
+  async function handleEdit(data: any) {
     const [f] = vendors.filter((s) => s._id === data._id)
-    const body = JSON.stringify({...data})
-    await editFn.fn('',body,(result) => {
-      var [target] = vendors.filter((s,index) => {
+    const body = JSON.stringify({ ...data })
+    await editFn.fn('', body, (result) => {
+      var [target] = vendors.filter((s, index) => {
         return s._id === data._id
       })
 
@@ -114,50 +114,50 @@ export default function Vendor(){
       setSearchResult([])
 
       editRef.current?.close()
-    })       
+    })
   }
 
-  function isPermitted(permission:string){
+  function isPermitted(permission: string) {
     return permission != "readonly"
 
     console.log(permission != "readonly")
   }
 
-  function edit(_id:string){
+  function edit(_id: string) {
     var [vendor] = vendors.filter((v) => {
       return v._id === _id
     })
 
     editVendorForm.reset({
-      name:vendor.name,
-      email:vendor.email,
-      address:vendor.address,
-      mobile:vendor.mobile,
-      _id:vendor._id
+      name: vendor.name,
+      email: vendor.email,
+      address: vendor.address,
+      mobile: vendor.mobile,
+      _id: vendor._id
     })
 
     editRef.current?.show()
   }
 
-  function normalizeDate(date:string){
+  function normalizeDate(date: string) {
     return new Date(date).toLocaleDateString("id-ID", {
       timeZone: "Asia/Jakarta"
     })
   }
 
   useEffect(() => {
-    if(hasHydrated){
-      const url1 = `/api/web/vendor?id=${masterAccountId}` 
-      getVendorsFn.fn(url1,JSON.stringify({}),(r) => {
+    if (hasHydrated) {
+      const url1 = `api/web/vendor?id=${masterAccountId}`
+      getVendorsFn.fn(url1, JSON.stringify({}), (r) => {
         setVendors(r)
       })
     }
-  },[masterAccountId])
+  }, [masterAccountId])
 
-  if(!hasHydrated) return null
-  if(!loggedIn) router.push('/login')
-  if(!isSuperAdmin){
-    if(!roleDetail.page.includes('suppliers')){
+  if (!hasHydrated) return null
+  if (!loggedIn) router.push('/login')
+  if (!isSuperAdmin) {
+    if (!roleDetail.page.includes('suppliers')) {
       router.push('/dashboard')
     }
   }
@@ -221,89 +221,89 @@ export default function Vendor(){
           </div>
           {
             getVendorsFn.loading
-            ?
-            <div className="flex-1 flex flex-col justify-center items-center">
-              <span className="loading loading-spinner loading-xl"></span>
-            </div>
-            :
-            getVendorsFn.noResult || getVendorsFn.error
-            ?
-            <div>
-              <p>{getVendorsFn.message}</p>
-            </div> 
-            :
-            searchResult.length < 1
-            ?
-              <div className="overflow-x-auto">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Address</th>
-                      <th>Mobile</th>
-                      <th>...</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {
-                      vendors.map((v) => {
-                        return (
-                          <tr>
-                            <td>{v.name}</td>
-                            <td>{v.email}</td>
-                            <td>{v.address}</td>
-                            <td>{v.mobile}</td>
-                            <td>
-                              <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(v._id)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                                </svg>
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })
-                    }
-                  </tbody>
-                </table>
+              ?
+              <div className="flex-1 flex flex-col justify-center items-center">
+                <span className="loading loading-spinner loading-xl"></span>
               </div>
-            :
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Address</th>
-                    <th>Mobile</th>
-                    <th>...</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {
-                    searchResult.map((v) => {
-                      return (
+              :
+              getVendorsFn.noResult || getVendorsFn.error
+                ?
+                <div>
+                  <p>{getVendorsFn.message}</p>
+                </div>
+                :
+                searchResult.length < 1
+                  ?
+                  <div className="overflow-x-auto">
+                    <table className="table">
+                      <thead>
                         <tr>
-                          <td>{v.name}</td>
-                          <td>{v.email}</td>
-                          <td>{v.address}</td>
-                          <td>{v.mobile}</td>
-                          <td>
-                            <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(v._id)}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                          </td>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Address</th>
+                          <th>Mobile</th>
+                          <th>...</th>
                         </tr>
-                      )
-                    })
-                  }
-                </tbody>
-              </table>
-            </div>         
-          }      
+                      </thead>
+                      <tbody>
+                        {
+                          vendors.map((v) => {
+                            return (
+                              <tr>
+                                <td>{v.name}</td>
+                                <td>{v.email}</td>
+                                <td>{v.address}</td>
+                                <td>{v.mobile}</td>
+                                <td>
+                                  <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(v._id)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  :
+                  <div className="overflow-x-auto">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Address</th>
+                          <th>Mobile</th>
+                          <th>...</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {
+                          searchResult.map((v) => {
+                            return (
+                              <tr>
+                                <td>{v.name}</td>
+                                <td>{v.email}</td>
+                                <td>{v.address}</td>
+                                <td>{v.mobile}</td>
+                                <td>
+                                  <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(v._id)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+          }
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal">
@@ -311,26 +311,26 @@ export default function Vendor(){
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Vendor</span>
             <form onSubmit={editVendorForm.handleSubmit(handleEdit)} className="h-90 flex flex-col gap-3 relative">
-              <div  className="flex flex-row gap-3">
-                <input {...editVendorForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>              
+              <div className="flex flex-row gap-3">
+                <input {...editVendorForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               </div>
-              <div  className="flex flex-row gap-3">
-                <input {...editVendorForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-              </div>           
               <div className="flex flex-row gap-3">
-                <input {...editVendorForm.register("address")} type="text" placeholder="address" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-              </div>     
+                <input {...editVendorForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              </div>
               <div className="flex flex-row gap-3">
-                <input {...editVendorForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-              </div>        
-              {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></> }
+                <input {...editVendorForm.register("address")} type="text" placeholder="address" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              </div>
+              <div className="flex flex-row gap-3">
+                <input {...editVendorForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              </div>
+              {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
               <div className="modal-action">
                 <form method="dialog">
                   <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
                     Cancel
-                  </button>		
+                  </button>
                 </form>
-              </div>					
+              </div>
               <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
                 Edit
               </button>
@@ -344,31 +344,31 @@ export default function Vendor(){
             <span className="text-2xl">Add Vendor</span>
             <form onSubmit={newVendorForm.handleSubmit(submit)} className="h-90 flex flex-col gap-3 relative">
               <div className="flex flex-row gap-3">
-                <input {...newVendorForm.register("vendorId")} value={`vnd-${uuidv4().split('-')[1]}`} type="text" placeholder="vendor id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newVendorForm.register("name")} type="text" placeholder="name" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black"/>
+                <input {...newVendorForm.register("vendorId")} value={`vnd-${uuidv4().split('-')[1]}`} type="text" placeholder="vendor id" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black" />
+                <input {...newVendorForm.register("name")} type="text" placeholder="name" className="flex-1 mb-3 w-full p-3 rounded-md border-1 border-black" />
               </div>
-              <div  className="flex flex-row gap-3">
-                <input {...newVendorForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>
-                <input {...newVendorForm.register("address")} type="text" placeholder="address" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-              </div>       
               <div className="flex flex-row gap-3">
-                <input {...newVendorForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black"/>   
-              </div>    
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></> }
+                <input {...newVendorForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+                <input {...newVendorForm.register("address")} type="text" placeholder="address" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              </div>
+              <div className="flex flex-row gap-3">
+                <input {...newVendorForm.register("mobile")} type="text" placeholder="mobile" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              </div>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
               <div className="modal-action">
                 <form method="dialog">
                   <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
                     Cancel
-                  </button>		
+                  </button>
                 </form>
-              </div>					
+              </div>
               <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
                 Add
               </button>
             </form>
           </div>
         </div>
-      </dialog>    
+      </dialog>
     </>
   )
 }
