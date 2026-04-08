@@ -32,12 +32,12 @@ export default function Roles() {
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'PUT'
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -45,12 +45,12 @@ export default function Roles() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/roles?id=xxx`,
+    url: `/api/web/roles?id=xxx`,
     method: 'GET'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/roles?id=xxx`,
+    url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -125,7 +125,7 @@ export default function Roles() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/roles?id=${_id}`
+    var url = `/api/web/roles?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -152,7 +152,7 @@ export default function Roles() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/roles?id=${masterAccountId}`
+      const url = `/api/web/roles?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

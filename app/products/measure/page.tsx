@@ -26,12 +26,12 @@ export default function Measure() {
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'PUT'
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/measure',
+    url: '/api/web/measure',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -39,7 +39,7 @@ export default function Measure() {
   })
 
   const editFn = useFetch<any, any>({
-    url: 'api/web/measure',
+    url: '/api/web/measure',
     method: 'PUT',
     onError: (m) => {
 
@@ -47,28 +47,28 @@ export default function Measure() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
   var getSuppliersFn = useFetch<any[], any>({
-    url: `api/web/supplier?id=xxx`,
+    url: `/api/web/supplier?id=xxx`,
     method: 'GET'
   })
 
 
   var getMeasurementsFn = useFetch<any[], any>({
-    url: `api/web/measure?id=xxx`,
+    url: `/api/web/measure?id=xxx`,
     method: 'GET'
   })
 
   var getUnitFn = useFetch<any[], any>({
-    url: `api/web/unit?id=xxx`,
+    url: `/api/web/unit?id=xxx`,
     method: 'GET'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -162,7 +162,7 @@ export default function Measure() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/location?id=${_id}`
+    var url = `/api/web/location?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -186,10 +186,10 @@ export default function Measure() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/products?id=${masterAccountId}&type=good`
-      const url4 = `api/web/measure?id=${masterAccountId}`
-      const url2 = `api/web/suppliers?id=${masterAccountId}`
-      const url3 = `api/web/unit?id=${masterAccountId}`;
+      const url = `/api/web/products?id=${masterAccountId}&type=good`
+      const url4 = `/api/web/measure?id=${masterAccountId}`
+      const url2 = `/api/web/suppliers?id=${masterAccountId}`
+      const url3 = `/api/web/unit?id=${masterAccountId}`;
 
       getFn.fn(url, JSON.stringify({}), (result) => { })
       getSuppliersFn.fn(url2, JSON.stringify({}), (result) => { })

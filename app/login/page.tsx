@@ -27,7 +27,7 @@ export default function Login() {
 	// if(auth.loggedIn) redirect('/dashboard')
 
 	const loginFn = useFetch<any, any>({
-		url: "api/web/login",
+		url: "/api/web/login",
 		method: "POST",
 	})
 

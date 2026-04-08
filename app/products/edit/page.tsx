@@ -26,7 +26,7 @@ export default function Add() {
   const productForm = useForm()
 
   const getProductFn = useFetch<any, any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -34,7 +34,7 @@ export default function Add() {
   })
 
   const getUnitsFn = useFetch<any[], any>({
-    url: `api/web/unit?id=xxx`,
+    url: `/api/web/unit?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -42,7 +42,7 @@ export default function Add() {
   })
 
   const getCategoriesFn = useFetch<any[], any>({
-    url: `api/web/categories?id=xxx`,
+    url: `/api/web/categories?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -50,7 +50,7 @@ export default function Add() {
   })
 
   const updateProductFn = useFetch<any, FormData>({
-    url: `api/web/products`,
+    url: `/api/web/products`,
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -75,7 +75,7 @@ export default function Add() {
       formData.append(key, data[key])
     })
 
-    updateProductFn.fn(`api/web/products`, formData, (r) => {
+    updateProductFn.fn(`/api/web/products`, formData, (r) => {
       router.push(
         '/products/list'
       )
@@ -86,9 +86,9 @@ export default function Add() {
   useEffect(() => {
     if (hasHydrated) {
       const id = searchParams.get('id');
-      const url = `api/web/categories?id=${masterAccountId}`
-      const url2 = `api/web/unit?id=${masterAccountId}`
-      const url3 = `api/web/products?xid=${id}`
+      const url = `/api/web/categories?id=${masterAccountId}`
+      const url2 = `/api/web/unit?id=${masterAccountId}`
+      const url3 = `/api/web/products?xid=${id}`
 
       getCategoriesFn.fn(url, JSON.stringify({}), (r) => {
         setCategories(r)

@@ -26,12 +26,12 @@ export default function Debt() {
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'PUT'
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -39,7 +39,7 @@ export default function Debt() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
@@ -50,7 +50,7 @@ export default function Debt() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/debt?id=${masterAccountId}&type=product`
+      const url = `/api/web/debt?id=${masterAccountId}&type=product`
 
       const body = JSON.stringify({})
 

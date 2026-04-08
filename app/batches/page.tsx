@@ -58,7 +58,7 @@ export default function Batches() {
   }
 
   const fetchBatchesFn = useFetch<any, any>({
-    url: 'api/web/batches?pId=xxx',
+    url: '/api/web/batches?pId=xxx',
     method: 'GET',
     onError: (m) => {
       alert('something went wrong')
@@ -66,7 +66,7 @@ export default function Batches() {
   })
 
   const openStockFn = useFetch<any, any>({
-    url: `api/web/stock`,
+    url: `/api/web/stock`,
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -74,7 +74,7 @@ export default function Batches() {
   })
 
   const getStockFn = useFetch<any, any>({
-    url: `api/web/stock`,
+    url: `/api/web/stock`,
     method: 'GET'
   })
 
@@ -100,17 +100,17 @@ export default function Batches() {
   }
 
   const editBatchFn = useFetch<any, any>({
-    url: 'api/web/batches',
+    url: '/api/web/batches',
     method: 'PUT'
   })
 
   const fetchLocationsFn = useFetch<any[], any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
   const fetchProductsFn = useFetch<any[], any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET',
     onError: (m) => {
       console.log(m)
@@ -151,7 +151,7 @@ export default function Batches() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `api/web/batches?pId=${productId}&lId=${locationId}`
+      const url4 = `/api/web/batches?pId=${productId}&lId=${locationId}`
 
       const body = JSON.stringify({})
 

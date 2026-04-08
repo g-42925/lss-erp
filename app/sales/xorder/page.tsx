@@ -31,7 +31,7 @@ export default function XOrder() {
   const newOrderForm = useForm()
 
   var addOrderFn = useFetch<any, any>({
-    url: 'api/web/order',
+    url: '/api/web/order',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -39,7 +39,7 @@ export default function XOrder() {
   })
 
   var getOrdersFn = useFetch<any, any>({
-    url: `api/web/orders?id=xxx`,
+    url: `/api/web/orders?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -86,7 +86,7 @@ export default function XOrder() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `api/web/order?id=${masterAccountId}&type=service`
+      const url4 = `/api/web/order?id=${masterAccountId}&type=service`
 
 
       const body = JSON.stringify({})

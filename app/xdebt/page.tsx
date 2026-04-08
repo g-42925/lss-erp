@@ -26,12 +26,12 @@ export default function XDebt() {
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'PUT'
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -39,12 +39,12 @@ export default function XDebt() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/roles?id=xxx`,
+    url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -60,7 +60,7 @@ export default function XDebt() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/debt?id=${masterAccountId}&type=payment`
+      const url = `/api/web/debt?id=${masterAccountId}&type=payment`
 
       const body = JSON.stringify({})
 

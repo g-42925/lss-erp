@@ -27,7 +27,7 @@ export default function XEdit() {
   const router = useRouter()
 
   var getProductFn = useFetch<any, any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -35,7 +35,7 @@ export default function XEdit() {
   })
 
   var getUnitsFn = useFetch<any[], any>({
-    url: `api/web/unit?id=xxx`,
+    url: `/api/web/unit?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -43,7 +43,7 @@ export default function XEdit() {
   })
 
   var getCategoriesFn = useFetch<any[], any>({
-    url: `api/web/categories?id=xxx`,
+    url: `/api/web/categories?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -51,7 +51,7 @@ export default function XEdit() {
   })
 
   var updateProductFn = useFetch<any, FormData>({
-    url: `api/web/products`,
+    url: `/api/web/products`,
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -76,7 +76,7 @@ export default function XEdit() {
       formData.append(key, data[key])
     })
 
-    updateProductFn.fn(`api/web/products`, formData, (r) => {
+    updateProductFn.fn(`/api/web/products`, formData, (r) => {
       router.push(
         '/products/list'
       )
@@ -87,9 +87,9 @@ export default function XEdit() {
   useEffect(() => {
     if (hasHydrated) {
       const id = searchParams.get('id');
-      const url = `api/web/categories?id=${masterAccountId}`
-      const url2 = `api/web/unit?id=${masterAccountId}`
-      const url3 = `api/web/products?xid=${id}`
+      const url = `/api/web/categories?id=${masterAccountId}`
+      const url2 = `/api/web/unit?id=${masterAccountId}`
+      const url3 = `/api/web/products?xid=${id}`
       getCategoriesFn.fn(url, JSON.stringify({}), (r) => {
         setCategories(r)
       })

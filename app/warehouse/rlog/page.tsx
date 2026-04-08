@@ -27,7 +27,7 @@ export default function Rlog() {
   const so = searchParams.get('so');
 
   var fetchBatchesFn = useFetch<any[], any>({
-    url: `api/web/rlog?so=xxx`,
+    url: `/api/web/rlog?so=xxx`,
     method: 'GET'
   })
 
@@ -35,7 +35,7 @@ export default function Rlog() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/rlog?so=${so}`
+      const url = `/api/web/rlog?so=${so}`
 
       fetchBatchesFn.fn(url, JSON.stringify({}), (result) => {
         setLog(result)

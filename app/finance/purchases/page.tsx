@@ -27,7 +27,7 @@ export default function Purchases() {
   const type = editPrForm.watch("type")
 
   const getFn = useFetch<any[], any>({
-    url: `api/web/purchases?id=xxx`,
+    url: `/api/web/purchases?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -35,7 +35,7 @@ export default function Purchases() {
   })
 
   const editFn = useFetch<any, any>({
-    url: `api/web/purchases`,
+    url: `/api/web/purchases`,
     method: 'PUT',
     onError: m => {
       alert(m)
@@ -149,7 +149,7 @@ export default function Purchases() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/purchases?id=${masterAccountId}&type=product`
+      const url = `/api/web/purchases?id=${masterAccountId}&type=product`
 
       getFn.fn(url, JSON.stringify({}), (result) => {
         setPr(result)

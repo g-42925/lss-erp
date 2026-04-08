@@ -28,7 +28,7 @@ export default function Suppliers() {
   const router = useRouter()
 
   var getSuppliersFn = useFetch<any[], any>({
-    url: `api/web/suppliers?id=xxx`,
+    url: `/api/web/suppliers?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -36,7 +36,7 @@ export default function Suppliers() {
   })
 
   var addFn = useFetch<any, any>({
-    url: 'api/web/suppliers',
+    url: '/api/web/suppliers',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -44,7 +44,7 @@ export default function Suppliers() {
   })
 
   var editFn = useFetch<any, any>({
-    url: 'api/web/suppliers',
+    url: '/api/web/suppliers',
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -154,7 +154,7 @@ export default function Suppliers() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url1 = `api/web/suppliers?id=${masterAccountId}`
+      const url1 = `/api/web/suppliers?id=${masterAccountId}`
       getSuppliersFn.fn(url1, JSON.stringify({}), (r) => {
         setSuppliers(r)
       })

@@ -27,12 +27,12 @@ export default function XPurchases() {
 
 
   const getFn = useFetch<any[], any>({
-    url: `api/web/purchases?id=xxx`,
+    url: `/api/web/purchases?id=xxx`,
     method: 'GET'
   })
 
   const editFn = useFetch<any, any>({
-    url: `api/web/purchases`,
+    url: `/api/web/purchases`,
     method: 'PUT'
   })
 
@@ -142,7 +142,7 @@ export default function XPurchases() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/purchases?id=${masterAccountId}&type=payment`
+      const url = `/api/web/purchases?id=${masterAccountId}&type=payment`
 
       getFn.fn(url, JSON.stringify({}), (result) => {
         setPr(result)

@@ -40,7 +40,7 @@ export default function Invoices() {
   const newOrderForm = useForm()
 
   const addInvoiceFn = useFetch<any, any>({
-    url: 'api/web/invoice',
+    url: '/api/web/invoice',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -48,12 +48,12 @@ export default function Invoices() {
   })
 
   const getProductsFn = useFetch<any, any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET'
   });
 
   const getInvoicesFn = useFetch<any, any>({
-    url: `api/web/orders?id=xxx`,
+    url: `/api/web/orders?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -92,8 +92,8 @@ export default function Invoices() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `api/web/invoice?id=${masterAccountId}&type=product`
-      const url5 = `api/web/products?id=${masterAccountId}&type=good`
+      const url4 = `/api/web/invoice?id=${masterAccountId}&type=product`
+      const url5 = `/api/web/products?id=${masterAccountId}&type=good`
 
       const body = JSON.stringify({})
 

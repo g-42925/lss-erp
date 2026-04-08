@@ -22,7 +22,7 @@ export default function Master() {
   const [passwordHide, setPasswordHide] = useState(false)
 
   const resetFn = useFetch<any, any>({
-    url: "api/web/reset",
+    url: "/api/web/reset",
     method: "POST",
   })
 

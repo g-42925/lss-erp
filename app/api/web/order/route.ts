@@ -158,17 +158,19 @@ export async function POST(request: NextRequest) {
 
       const paid = formData.get("debt") === 'yes' ? false : true
 
-      await Invoice.create({
-        companyId: company._id,
-        invoiceNumber: `INV-${String(Date.now()).slice(-5)}`,
-        invoiceType: 'product',
-        salesOrderId: _order._id,
-        salesOrderNumber: so,
-        payAmount: formData.get("payAmt"),
-        paid: paid,
-        date: new Date()
-      })
 
+      if (rest.productType === "good") {
+        await Invoice.create({
+          companyId: company._id,
+          invoiceNumber: `INV-${String(Date.now()).slice(-5)}`,
+          invoiceType: 'product',
+          salesOrderId: _order._id,
+          salesOrderNumber: so,
+          payAmount: formData.get("payAmt"),
+          paid: paid,
+          date: new Date()
+        })
+      }
 
       return NextResponse.json(
         {

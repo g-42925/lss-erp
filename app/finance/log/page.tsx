@@ -16,7 +16,7 @@ export default function Log() {
 
 
   const getFn = useFetch<any[], any>({
-    url: `api/web/log?id=xxx`,
+    url: `/api/web/log?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -26,7 +26,7 @@ export default function Log() {
   useEffect(() => {
     if (hasHydrated) {
       const body = JSON.stringify({})
-      const url = `api/web/log?id=${masterAccountId}&type=product`
+      const url = `/api/web/log?id=${masterAccountId}&type=product`
 
       getFn.fn(url, body, (result) => {
         setLogs(result)

@@ -24,7 +24,7 @@ export default function Unit() {
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/unit',
+    url: '/api/web/unit',
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -32,7 +32,7 @@ export default function Unit() {
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/unit',
+    url: '/api/web/unit',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -40,7 +40,7 @@ export default function Unit() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/unit?id=xxx`,
+    url: `/api/web/unit?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -48,7 +48,7 @@ export default function Unit() {
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/unit?id=xxx`,
+    url: `/api/web/unit?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -119,7 +119,7 @@ export default function Unit() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/roles?id=${_id}`
+    var url = `/api/web/roles?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -144,7 +144,7 @@ export default function Unit() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/unit?id=${masterAccountId}`
+      const url = `/api/web/unit?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

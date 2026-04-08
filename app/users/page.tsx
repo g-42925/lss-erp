@@ -26,27 +26,27 @@ export default function Users() {
   const editForm = useForm();
 
   var getUsersFn = useFetch<any[], any>({
-    url: `api/web/users?id=xxx`,
+    url: `/api/web/users?id=xxx`,
     method: 'GET'
   })
 
   var getRolesFn = useFetch<any[], any>({
-    url: `api/web/roles?id=xxx`,
+    url: `/api/web/roles?id=xxx`,
     method: 'GET'
   })
 
   var addFn = useFetch<any, any>({
-    url: 'api/web/users',
+    url: '/api/web/users',
     method: 'POST'
   })
 
   var editFn = useFetch<any, any>({
-    url: 'api/web/users',
+    url: '/api/web/users',
     method: 'PUT'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/users?id=xxx`,
+    url: `/api/web/users?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(deleteFn.message)
@@ -119,7 +119,7 @@ export default function Users() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/users?id=${_id}`
+    var url = `/api/web/users?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -162,8 +162,8 @@ export default function Users() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url1 = `api/web/roles?id=${masterAccountId}`
-      const url2 = `api/web/users?id=${masterAccountId}`
+      const url1 = `/api/web/roles?id=${masterAccountId}`
+      const url2 = `/api/web/users?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

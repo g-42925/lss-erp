@@ -25,7 +25,7 @@ export default function Delivery() {
   const router = useRouter()
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/delivery',
+    url: '/api/web/delivery',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -33,12 +33,12 @@ export default function Delivery() {
   })
 
   var getDeliveries = useFetch<any[], any>({
-    url: `api/web/delivery?id=xxx`,
+    url: `/api/web/delivery?id=xxx`,
     method: 'GET'
   })
 
   var getBatchesFn = useFetch<any, any>({
-    url: `api/web/delivery?id=xxx`,
+    url: `/api/web/delivery?id=xxx`,
     method: 'GET'
   })
 
@@ -82,7 +82,7 @@ export default function Delivery() {
   }
 
   function getBatches(salesOrderNumber: string) {
-    var url = `api/web/delivery?so=${salesOrderNumber}&f=x`
+    var url = `/api/web/delivery?so=${salesOrderNumber}&f=x`
 
     getBatchesFn.fn(url, JSON.stringify({}), result => {
       setBatches(result.batches)
@@ -92,7 +92,7 @@ export default function Delivery() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/delivery?id=${masterAccountId}&f=all&id=${masterAccountId}`
+      const url = `/api/web/delivery?id=${masterAccountId}&f=all&id=${masterAccountId}`
 
       getDeliveries.fn(url, JSON.stringify({}), (result) => {
         setDeliveries(result)

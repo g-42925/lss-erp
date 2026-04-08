@@ -26,17 +26,17 @@ export default function Receiving() {
   const router = useRouter()
 
   var fetchLocationsFn = useFetch<any[], any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/purchases?id=xxx`,
+    url: `/api/web/purchases?id=xxx`,
     method: 'GET'
   })
 
   var editFn = useFetch<any, any>({
-    url: `api/web/purchases`,
+    url: `/api/web/purchases`,
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -127,8 +127,8 @@ export default function Receiving() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/purchases?id=${masterAccountId}&type=product`
-      const url2 = `api/web/location?id=${masterAccountId}`
+      const url = `/api/web/purchases?id=${masterAccountId}&type=product`
+      const url2 = `/api/web/location?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

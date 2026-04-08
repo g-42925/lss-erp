@@ -27,7 +27,7 @@ export default function Customers() {
   const router = useRouter();
 
   const getCustomersFn = useFetch<any[], any>({
-    url: `api/web/customers?id=xxx`,
+    url: `/api/web/customers?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -35,7 +35,7 @@ export default function Customers() {
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/customers',
+    url: '/api/web/customers',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -43,7 +43,7 @@ export default function Customers() {
   })
 
   const editFn = useFetch<any, any>({
-    url: 'api/web/customers',
+    url: '/api/web/customers',
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -150,7 +150,7 @@ export default function Customers() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url1 = `api/web/customers?id=${masterAccountId}`
+      const url1 = `/api/web/customers?id=${masterAccountId}`
       getCustomersFn.fn(url1, JSON.stringify({}), (r) => {
         setCustomers(r)
       })

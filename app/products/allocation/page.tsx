@@ -75,7 +75,7 @@ export default function Allocation() {
 	}
 
 	const logFn = useFetch<any, any>({
-		url: `api/web/allocation`,
+		url: `/api/web/allocation`,
 		method: 'GET',
 		onError: (m) => {
 			alert(m)
@@ -83,7 +83,7 @@ export default function Allocation() {
 	})
 
 	const allocateFn = useFetch<any, any>({
-		url: `api/web/allocation`,
+		url: `/api/web/allocation`,
 		method: 'POST',
 		onError: (m) => {
 			alert(m)
@@ -91,7 +91,7 @@ export default function Allocation() {
 	})
 
 	const getBatchesFn = useFetch<any, any>({
-		url: `api/web/batch`,
+		url: `/api/web/batch`,
 		method: 'GET',
 		onError: (m) => {
 			alert(m)
@@ -124,12 +124,12 @@ export default function Allocation() {
 	}
 
 	const fetchLocationsFn = useFetch<any[], any>({
-		url: `api/web/location?id=xxx`,
+		url: `/api/web/location?id=xxx`,
 		method: 'GET'
 	})
 
 	const fetchProductsFn = useFetch<any[], any>({
-		url: `api/web/products?id=xxx`,
+		url: `/api/web/products?id=xxx`,
 		method: 'GET',
 		onError: (m) => {
 			console.log(m)
@@ -140,7 +140,7 @@ export default function Allocation() {
 		setSelectedLoc(_id)
 
 		if (_id != '' && selectedProd != '') {
-			getBatchesFn.fn(`api/web/batches?pId=${selectedProd}&lId=${_id}`, JSON.stringify({}), r => {
+			getBatchesFn.fn(`/api/web/batches?pId=${selectedProd}&lId=${_id}`, JSON.stringify({}), r => {
 				console.log(r)
 			})
 		}
@@ -151,7 +151,7 @@ export default function Allocation() {
 
 
 		if (_id != '' && selectedLoc != '') {
-			getBatchesFn.fn(`api/web/batches?pId=${_id}&lId=${selectedLoc}`, JSON.stringify({}), r => {
+			getBatchesFn.fn(`/api/web/batches?pId=${_id}&lId=${selectedLoc}`, JSON.stringify({}), r => {
 				console.log(r)
 			})
 		}
@@ -159,9 +159,9 @@ export default function Allocation() {
 
 	useEffect(() => {
 		if (hasHydrated) {
-			const url = `api/web/location?id=${masterAccountId}`
-			const url2 = `api/web/products?id=${masterAccountId}&type=good`
-			const url3 = `api/web/allocation?id=${masterAccountId}&type=good`
+			const url = `/api/web/location?id=${masterAccountId}`
+			const url2 = `/api/web/products?id=${masterAccountId}&type=good`
+			const url3 = `/api/web/allocation?id=${masterAccountId}&type=good`
 
 			const body = JSON.stringify({})
 

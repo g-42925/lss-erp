@@ -25,7 +25,7 @@ export default function Master() {
   const router = useRouter();
 
   const masterFn = useFetch<any, any>({
-    url: "api/web/master",
+    url: "/api/web/master",
     method: "POST",
   })
 

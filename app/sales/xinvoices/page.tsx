@@ -23,16 +23,16 @@ export default function Invoices() {
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
 
-  var addInvoiceFn = useFetch<any, any>({
-    url: 'api/web/invoice',
+  const addInvoiceFn = useFetch<any, any>({
+    url: '/api/web/invoice',
     method: 'POST',
     onError: (m) => {
       alert(m)
     }
   })
 
-  var getInvoicesFn = useFetch<any, any>({
-    url: `api/web/orders?id=xxx`,
+  const getInvoicesFn = useFetch<any, any>({
+    url: `/api/web/orders?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -41,7 +41,7 @@ export default function Invoices() {
 
 
   function submit(data: any) {
-    var body = JSON.stringify({
+    const body = JSON.stringify({
       ...data,
       id: masterAccountId,
       invoiceType: 'service'
@@ -59,7 +59,7 @@ export default function Invoices() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `api/web/invoice?id=${masterAccountId}&type=service`
+      const url4 = `/api/web/invoice?id=${masterAccountId}&type=service`
 
       const body = JSON.stringify({})
 
@@ -135,7 +135,7 @@ export default function Invoices() {
                                 <td>{s.invoiceNumber}</td>
                                 <td>{s.salesOrderNumber}</td>
                                 <td>{s.order.customer.bussinessName}</td>
-                                <td>{s.order.product.productName}</td>
+                                <td>{'xxx'}</td>
                                 {(() => {
                                   switch (s.order.frequency) {
                                     case 'Week':

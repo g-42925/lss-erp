@@ -30,12 +30,12 @@ export default function Location() {
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/roles',
+    url: '/api/web/roles',
     method: 'PUT'
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/location',
+    url: '/api/web/location',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -43,12 +43,12 @@ export default function Location() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -119,7 +119,7 @@ export default function Location() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/location?id=${_id}`
+    var url = `/api/web/location?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -143,7 +143,7 @@ export default function Location() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/location?id=${masterAccountId}`
+      const url = `/api/web/location?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

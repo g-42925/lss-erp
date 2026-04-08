@@ -30,7 +30,7 @@ export default function Quotation() {
 
 
   const addQuotationFn = useFetch<any, any>({
-    url: 'api/web/quotations',
+    url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -38,7 +38,7 @@ export default function Quotation() {
   })
 
   const makeOrderFn = useFetch<any, FormData>({
-    url: 'api/web/order',
+    url: '/api/web/order',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -46,22 +46,22 @@ export default function Quotation() {
   })
 
   const getCustomersFn = useFetch<any, any>({
-    url: `api/web/customers?id=xxx`,
+    url: `/api/web/customers?id=xxx`,
     method: 'GET'
   })
 
   const getQuotationsFn = useFetch<any, any>({
-    url: `api/web/quotations?id=xxx`,
+    url: `/api/web/quotations?id=xxx`,
     method: 'GET'
   })
 
   const editQuotationsFn = useFetch<any, any>({
-    url: `api/web/quotations`,
+    url: `/api/web/quotations`,
     method: 'PUT'
   })
 
   const getProductsFn = useFetch<any, any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
@@ -180,9 +180,9 @@ export default function Quotation() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/quotations?id=${masterAccountId}&type=service`
-      const url2 = `api/web/products?id=${masterAccountId}&type=service`
-      const url3 = `api/web/customers?id=${masterAccountId}`
+      const url = `/api/web/quotations?id=${masterAccountId}&type=service`
+      const url2 = `/api/web/products?id=${masterAccountId}&type=service`
+      const url3 = `/api/web/customers?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

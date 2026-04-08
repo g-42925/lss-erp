@@ -36,12 +36,12 @@ export default function XPurchases() {
   const status = editPrForm.watch('status');
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/purchases',
+    url: '/api/web/purchases',
     method: 'PUT'
   })
 
   const getVendorsFn = useFetch<any, any>({
-    url: 'api/web/vendor',
+    url: '/api/web/vendor',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -49,7 +49,7 @@ export default function XPurchases() {
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/purchases',
+    url: '/api/web/purchases',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -57,7 +57,7 @@ export default function XPurchases() {
   })
 
   var editFn = useFetch<any, any>({
-    url: `api/web/purchases`,
+    url: `/api/web/purchases`,
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -65,22 +65,22 @@ export default function XPurchases() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/purchases?id=xxx`,
+    url: `/api/web/purchases?id=xxx`,
     method: 'GET'
   })
 
   var getProductsFn = useFetch<any[], any>({
-    url: `api/web/product?id=xxx`,
+    url: `/api/web/product?id=xxx`,
     method: 'GET'
   })
 
   var getSuppliersFn = useFetch<any[], any>({
-    url: `api/web/suppliers?id=xxx`,
+    url: `/api/web/suppliers?id=xxx`,
     method: 'GET'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/roles?id=xxx`,
+    url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -158,7 +158,7 @@ export default function XPurchases() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/roles?id=${_id}`
+    var url = `/api/web/roles?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -257,10 +257,10 @@ export default function XPurchases() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/purchases?id=${masterAccountId}&f=requested&type=payment`
-      const url2 = `api/web/products?id=${masterAccountId}&type=service`
-      const url4 = `api/web/vendor?id=${masterAccountId}`
-      const url3 = `api/web/suppliers?id=${masterAccountId}`
+      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=payment`
+      const url2 = `/api/web/products?id=${masterAccountId}&type=service`
+      const url4 = `/api/web/vendor?id=${masterAccountId}`
+      const url3 = `/api/web/suppliers?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

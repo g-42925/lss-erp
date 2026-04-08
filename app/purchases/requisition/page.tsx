@@ -34,12 +34,12 @@ export default function Requisition() {
   const status = editPrForm.watch('status');
 
   const putFn = useFetch<any, any>({
-    url: 'api/web/purchases',
+    url: '/api/web/purchases',
     method: 'PUT'
   })
 
   const addFn = useFetch<any, any>({
-    url: 'api/web/purchases',
+    url: '/api/web/purchases',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -47,7 +47,7 @@ export default function Requisition() {
   })
 
   var editFn = useFetch<any, any>({
-    url: `api/web/purchases`,
+    url: `/api/web/purchases`,
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -55,22 +55,22 @@ export default function Requisition() {
   })
 
   var getFn = useFetch<any[], any>({
-    url: `api/web/purchases?id=xxx`,
+    url: `/api/web/purchases?id=xxx`,
     method: 'GET'
   })
 
   var getProductsFn = useFetch<any[], any>({
-    url: `api/web/product?id=xxx`,
+    url: `/api/web/product?id=xxx`,
     method: 'GET'
   })
 
   var getSuppliersFn = useFetch<any[], any>({
-    url: `api/web/suppliers?id=xxx`,
+    url: `/api/web/suppliers?id=xxx`,
     method: 'GET'
   })
 
   var deleteFn = useFetch<any[], any>({
-    url: `api/web/roles?id=xxx`,
+    url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -188,7 +188,7 @@ export default function Requisition() {
   }
 
   async function del(_id: string) {
-    var url = `api/web/roles?id=${_id}`
+    var url = `/api/web/roles?id=${_id}`
     var body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
@@ -253,9 +253,9 @@ export default function Requisition() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `api/web/purchases?id=${masterAccountId}&f=requested&type=product`
-      const url2 = `api/web/products?id=${masterAccountId}&type=good`
-      const url3 = `api/web/suppliers?id=${masterAccountId}`
+      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=product`
+      const url2 = `/api/web/products?id=${masterAccountId}&type=good`
+      const url3 = `/api/web/suppliers?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 

@@ -27,7 +27,7 @@ export default function Vendor() {
   const router = useRouter()
 
   var getVendorsFn = useFetch<any[], any>({
-    url: `api/web/vendor?id=xxx`,
+    url: `/api/web/vendor?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -35,7 +35,7 @@ export default function Vendor() {
   })
 
   var addFn = useFetch<any, any>({
-    url: 'api/web/vendor',
+    url: '/api/web/vendor',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -43,7 +43,7 @@ export default function Vendor() {
   })
 
   var editFn = useFetch<any, any>({
-    url: 'api/web/vendor',
+    url: '/api/web/vendor',
     method: 'PUT',
     onError: (m) => {
       alert(m)
@@ -147,7 +147,7 @@ export default function Vendor() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url1 = `api/web/vendor?id=${masterAccountId}`
+      const url1 = `/api/web/vendor?id=${masterAccountId}`
       getVendorsFn.fn(url1, JSON.stringify({}), (r) => {
         setVendors(r)
       })

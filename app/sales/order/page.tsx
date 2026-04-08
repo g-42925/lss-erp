@@ -108,7 +108,7 @@ export default function Order() {
 
 
   const addOrderFn = useFetch<any, any>({
-    url: 'api/web/order',
+    url: '/api/web/order',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -116,14 +116,14 @@ export default function Order() {
   })
 
   const directSellFn = useFetch<any, any>({
-    url: 'api/web/csale',
+    url: '/api/web/csale',
     method: 'POST',
     onError: (m) => {
       alert('x')
     }
   })
   const getLocationsFn = useFetch<any, any>({
-    url: `api/web/location?id=xxx`,
+    url: `/api/web/location?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -131,7 +131,7 @@ export default function Order() {
   })
 
   const getOrdersFn = useFetch<any, any>({
-    url: `api/web/orders?id=xxx`,
+    url: `/api/web/orders?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -139,7 +139,7 @@ export default function Order() {
   })
 
   const getProductsFn = useFetch<any, any>({
-    url: `api/web/products?id=xxx`,
+    url: `/api/web/products?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -147,7 +147,7 @@ export default function Order() {
   })
 
   const getDSaleStockFn = useFetch<any, any>({
-    url: `api/web/csale`,
+    url: `/api/web/csale`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -238,7 +238,7 @@ export default function Order() {
   }
 
   async function onProdChg(e: any) {
-    var url = `api/web/csale?&prod=${e.target.value.split('/')[0]}`
+    var url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}`
 
     getDSaleStockFn.fn(url, JSON.stringify({}), result => {
       console.log(result)
@@ -357,7 +357,7 @@ export default function Order() {
       const saleDate = r.saleDate
       const salesOrderNumber = r.salesOrderNumber
       const [{ productId, qty }] = r.cart // (productId)
-      const _product = await fetch(`api/web/product?_id=${productId}`)
+      const _product = await fetch(`/api/web/product?_id=${productId}`)
       const response = await _product.json()
       const product = r.cart.length > 1 ? 'various item' : response.result
       const variousItem = cart.length > 1 ? true : false
@@ -400,9 +400,9 @@ export default function Order() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `api/web/order?id=${masterAccountId}&type=good`
-      const url = `api/web/products?id=${masterAccountId}&type=good`
-      const url2 = `api/web/location?id=${masterAccountId}`
+      const url4 = `/api/web/order?id=${masterAccountId}&type=good`
+      const url = `/api/web/products?id=${masterAccountId}&type=good`
+      const url2 = `/api/web/location?id=${masterAccountId}`
       const body = JSON.stringify({})
 
       getProductsFn.fn(url, body, result => { })
