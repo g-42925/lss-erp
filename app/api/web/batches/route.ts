@@ -43,7 +43,7 @@ export async function GET(request:NextRequest){
   try{
     await connectToDatabase()
     
-    var batches  = await Batche.aggregate([
+    let batches  = await Batche.aggregate([
       {
         $match: {
           productId: new ObjectId(

@@ -32,16 +32,16 @@ export default function Order() {
   const tax = useMemo(() => {
     const subtotals = cart.map((c) => {
       if (c.discountType === 'percent') {
-        var price = parseInt(c.product.split('/')[3])
-        var qty = parseInt(c.qty)
-        var _discount = parseInt(c.discountValue)
+        const price = parseInt(c.product.split('/')[3])
+        const qty = parseInt(c.qty)
+        const _discount = parseInt(c.discountValue)
         return (price * qty) - ((_discount / 100) * (price * qty))
       }
 
       if (c.discountType === 'fixed') {
-        var qty = parseInt(c.qty)
-        var price = parseInt(c.product.split('/')[3])
-        var _discount = parseInt(c.discountValue) * qty
+        const qty = parseInt(c.qty)
+        const price = parseInt(c.product.split('/')[3])
+        const _discount = parseInt(c.discountValue) * qty
         return (price * qty) - _discount
       }
     })
@@ -238,7 +238,7 @@ export default function Order() {
   }
 
   async function onProdChg(e: any) {
-    var url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}`
+    const url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}`
 
     getDSaleStockFn.fn(url, JSON.stringify({}), result => {
       console.log(result)
@@ -267,9 +267,9 @@ export default function Order() {
       }
 
       if (c.discountType === 'fixed') {
-        var qty = parseInt(c.qty)
-        var price = parseInt(c.product.split('/')[3])
-        var discount = parseInt(c.discountValue)
+        const qty = parseInt(c.qty)
+        const price = parseInt(c.product.split('/')[3])
+        const discount = parseInt(c.discountValue)
         return discount * qty
       }
     })

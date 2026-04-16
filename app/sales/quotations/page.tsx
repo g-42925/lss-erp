@@ -193,9 +193,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     }
   }, [masterAccountId])
 
-  const filteredQuotations = getQuotationsFn?.result?.filter(s =>
-    s.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  const filteredQuotations = getQuotationsFn?.result?.filter(s => s.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase())) || []
 
   return (
     <>
@@ -746,6 +744,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
     const taxValue = tax(total, _c, discountType, discountValue)
 
     const params = {
+      productType: 'good',
       taxValue,
       customerId,
       discountType,

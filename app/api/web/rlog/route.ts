@@ -6,7 +6,7 @@ export async function GET(request:NextRequest){
 		const url = new URL(request.url)
 		const so = url.searchParams.get("so")
 
-		var batches = await Batche.aggregate([
+		const batches = await Batche.aggregate([
 			{
 				$match:{
 					purchaseOrderNumber:so

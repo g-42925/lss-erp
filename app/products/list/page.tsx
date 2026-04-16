@@ -45,12 +45,12 @@ export default function List() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -81,7 +81,7 @@ export default function List() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = products.filter((r) => {
+      const result = products.filter((r) => {
         return r.productName.includes(v)
       })
 
@@ -113,7 +113,7 @@ export default function List() {
     })
 
     await putFn.fn('', body, (result) => {
-      var [target] = roles.filter((r) => r._id == result._id)
+      const [target] = roles.filter((r) => r._id == result._id)
 
       Object.keys(target).forEach(key => {
         target[key] = result[key]
@@ -126,8 +126,8 @@ export default function List() {
   }
 
   async function del(_id: string) {
-    var url = `/api/web/roles?id=${_id}`
-    var body = JSON.stringify({})
+    const url = `/api/web/roles?id=${_id}`
+    const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
       setRoles(
@@ -137,7 +137,7 @@ export default function List() {
   }
 
   async function edit(_id: string) {
-    var [filter] = roles.filter((r) => r._id == _id)
+    const [filter] = roles.filter((r) => r._id == _id)
 
     editRoleForm.reset({
       _id: filter._id,

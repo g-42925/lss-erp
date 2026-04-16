@@ -27,7 +27,7 @@ export default function Suppliers() {
   const editSupplierForm = useForm();
   const router = useRouter()
 
-  var getSuppliersFn = useFetch<any[], any>({
+  const getSuppliersFn = useFetch<any[], any>({
     url: `/api/web/suppliers?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -35,7 +35,7 @@ export default function Suppliers() {
     }
   })
 
-  var addFn = useFetch<any, any>({
+  const addFn = useFetch<any, any>({
     url: '/api/web/suppliers',
     method: 'POST',
     onError: (m) => {
@@ -43,7 +43,7 @@ export default function Suppliers() {
     }
   })
 
-  var editFn = useFetch<any, any>({
+  const editFn = useFetch<any, any>({
     url: '/api/web/suppliers',
     method: 'PUT',
     onError: (m) => {
@@ -72,7 +72,7 @@ export default function Suppliers() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = suppliers.filter((r) => {
+      const result = suppliers.filter((r) => {
         return r.bussinessName.toLowerCase().includes(v)
       })
 
@@ -102,7 +102,7 @@ export default function Suppliers() {
     const body = JSON.stringify({ ...data, addedOn: f.addedOn })
 
     await editFn.fn('', body, (result) => {
-      var [target] = suppliers.filter((s, index) => {
+      const [target] = suppliers.filter((s, index) => {
         return s._id === data._id
       })
 
@@ -123,7 +123,7 @@ export default function Suppliers() {
   }
 
   function edit(_id: string) {
-    var [supplier] = suppliers.filter((s) => {
+    const [supplier] = suppliers.filter((s) => {
       return s._id === _id
     })
 

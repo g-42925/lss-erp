@@ -71,7 +71,7 @@ export default function Roles() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = categories.filter((r) => {
+      const result = categories.filter((r) => {
         return r.categoryCode.includes(v)
       })
 
@@ -101,7 +101,7 @@ export default function Roles() {
     })
 
     await putFn.fn('', body, (result) => {
-      var [target] = categories.filter((r) => r._id == result._id)
+      const [target] = categories.filter((r) => r._id == result._id)
 
       Object.keys(target).forEach(key => {
         target[key] = result[key]

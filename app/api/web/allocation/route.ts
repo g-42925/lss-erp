@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 			{ $inc: { outQty: rest.qty } }
 		)
 
-		var company = await Companie.findOne({
+		const company = await Companie.findOne({
 			masterAccountId: id
 		})
 

@@ -56,7 +56,7 @@ export default function XPurchases() {
     }
   })
 
-  var editFn = useFetch<any, any>({
+  const editFn = useFetch<any, any>({
     url: `/api/web/purchases`,
     method: 'PUT',
     onError: (m) => {
@@ -64,22 +64,22 @@ export default function XPurchases() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/purchases?id=xxx`,
     method: 'GET'
   })
 
-  var getProductsFn = useFetch<any[], any>({
+  const getProductsFn = useFetch<any[], any>({
     url: `/api/web/product?id=xxx`,
     method: 'GET'
   })
 
-  var getSuppliersFn = useFetch<any[], any>({
+  const getSuppliersFn = useFetch<any[], any>({
     url: `/api/web/suppliers?id=xxx`,
     method: 'GET'
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -88,7 +88,7 @@ export default function XPurchases() {
   })
 
   async function submit(data: any) {
-    var body = JSON.stringify({
+    const body = JSON.stringify({
       ...data,
       status: 'requested',
       id: masterAccountId,
@@ -109,7 +109,7 @@ export default function XPurchases() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = roles.filter((r) => {
+      const result = roles.filter((r) => {
         return r.name.includes(v)
       })
 
@@ -134,7 +134,7 @@ export default function XPurchases() {
   }
 
   async function orderSubmit(data: any) {
-    var pOrdered = JSON.stringify({
+    const pOrdered = JSON.stringify({
       ...data,
       status: '_approved',
       PurchaseType: 'payment'
@@ -147,7 +147,7 @@ export default function XPurchases() {
     }
     else {
       await editFn.fn('', pOrdered, (result) => {
-        var [target] = pr.filter((r) => r._id == result._id)
+        const [target] = pr.filter((r) => r._id == result._id)
         target.status = "ordered"
         target.vendor = result.vnd
         target.finalPrice = result.finalPrice
@@ -158,8 +158,8 @@ export default function XPurchases() {
   }
 
   async function del(_id: string) {
-    var url = `/api/web/roles?id=${_id}`
-    var body = JSON.stringify({})
+    const url = `/api/web/roles?id=${_id}`
+    const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
       setRoles(
@@ -169,7 +169,7 @@ export default function XPurchases() {
   }
 
   async function _edit(_id: string) {
-    var [filter] = pr.filter((p) => p._id == _id)
+    const [filter] = pr.filter((p) => p._id == _id)
 
     editForm.reset({
       _id: filter._id,
@@ -181,7 +181,7 @@ export default function XPurchases() {
   }
 
   async function edit(_id: string) {
-    var [filter] = pr.filter((p) => p._id == _id)
+    const [filter] = pr.filter((p) => p._id == _id)
 
     editPrForm.reset({
       _id: filter._id,
@@ -199,9 +199,9 @@ export default function XPurchases() {
   }
 
   async function _editSubmit(data: any) {
-    var [target] = pr.filter((r) => r._id === data._id)
+    const [target] = pr.filter((r) => r._id === data._id)
 
-    var edited = JSON.stringify({ ...data, status: 'requested' })
+    const edited = JSON.stringify({ ...data, status: 'requested' })
 
     await editFn.fn('', edited, (result) => {
       target.quantity = result.quantity
@@ -213,7 +213,7 @@ export default function XPurchases() {
 
   async function editSubmit(data: any) {
 
-    var pOrdered = JSON.stringify({
+    const pOrdered = JSON.stringify({
       ...data,
       status: '__approved',
       purchaseType: 'payment',
@@ -221,7 +221,7 @@ export default function XPurchases() {
 
     if (data.editable) {
       await editFn.fn('', pOrdered, (result) => {
-        var [target] = pr.filter((r) => r._id == result._id)
+        const [target] = pr.filter((r) => r._id == result._id)
         target.finalPrice = result.finalPrice
         target.payAmount = result.payAmount
         target.vendor = result.vnd
@@ -235,7 +235,7 @@ export default function XPurchases() {
 
 
   async function order(_id: string) {
-    var [filter] = pr.filter((p) => p._id == _id)
+    const [filter] = pr.filter((p) => p._id == _id)
 
     orderForm.reset({
       _id: filter._id,

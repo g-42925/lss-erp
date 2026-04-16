@@ -1,27 +1,27 @@
 import mongoose from 'mongoose';
 
 const PurchaseSchema = new mongoose.Schema({
-  description: {type:String, required:false},
-  purchaseOrderNumber:{type:String,required:true},
-  measurementId:{type:mongoose.Schema.Types.ObjectId,required:false},
-  companyId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  productId: {type:mongoose.Schema.Types.ObjectId, required:false},
-  vendorId: {type:mongoose.Schema.Types.ObjectId, required:false},
-  supplierId: {type:mongoose.Schema.Types.ObjectId, required:false},
-  purchaseType: {type:String,required:true,enum:['product','payment']},
-  quantity: {type:Number, required:false},
-  estimatedPrice: {type:Number, required:true},
-  date: {type:Date,Default:Date.now},
-  finalPrice:{type:Number,required:false},
-  payAmount: {type:Number,Default:false},
-  editable: {type:Boolean,required:true},
-  unitCost: {type:Number,required:false},
-  status: { 
-    type: String, 
+  description: { type: String, required: false },
+  purchaseOrderNumber: { type: String, required: true },
+  measurementId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  productId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  vendorId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  supplierId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  purchaseType: { type: String, required: true, enum: ['product', 'payment'] },
+  quantity: { type: Number, required: false },
+  estimatedPrice: { type: Number, required: true },
+  date: { type: Date, Default: Date.now },
+  finalPrice: { type: Number, required: false },
+  payAmount: { type: Number, Default: false },
+  editable: { type: Boolean, required: true },
+  unitCost: { type: Number, required: false },
+  status: {
+    type: String,
     enum: [
       'requested',
       'approved',
-      'ordered', 
+      'ordered',
       'completed',
       'rejected'
     ]

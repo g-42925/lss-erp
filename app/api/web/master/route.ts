@@ -27,7 +27,7 @@ export async function POST(request:NextRequest) {
       });
     }
     else{
-      var newUser = {
+      const newUser = {
         username:params.username,
         email:params.email,
         password:_pwd,

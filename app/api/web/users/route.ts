@@ -12,7 +12,7 @@ export async function DELETE(request:NextRequest){
   const id = url.searchParams.get("id")?.trim();
   try {
     await connectToDatabase()
-    var result = await User.findByIdAndDelete(id);
+    const result = await User.findByIdAndDelete(id);
     return NextResponse.json(
       {
         noResult:false,

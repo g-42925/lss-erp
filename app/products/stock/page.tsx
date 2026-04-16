@@ -34,7 +34,7 @@ export default function Stock() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var [loc, prod] = v.split(":")
+      const [loc, prod] = v.split(":")
 
       if (prod) {
         var result = stock.filter((r) => {
@@ -80,12 +80,12 @@ export default function Stock() {
     }
   }
 
-  var getCustomersFn = useFetch<any, any>({
+  const getCustomersFn = useFetch<any, any>({
     url: `/api/web/customers?id=xxx`,
     method: 'GET'
   })
 
-  var addQuotationFn = useFetch<any, any>({
+  const addQuotationFn = useFetch<any, any>({
     url: '/api/web/quotations',
     method: 'POST',
     onError: (m) => {
@@ -93,7 +93,7 @@ export default function Stock() {
     }
   })
 
-  var openStockFn = useFetch<any, any>({
+  const openStockFn = useFetch<any, any>({
     url: `/api/web/stock`,
     method: 'POST',
     onError: (m) => {
@@ -101,7 +101,7 @@ export default function Stock() {
     }
   })
 
-  var getStockFn = useFetch<any, any>({
+  const getStockFn = useFetch<any, any>({
     url: `/api/web/stock`,
     method: 'GET'
   })
@@ -128,12 +128,12 @@ export default function Stock() {
     return `BAT-${new Date().toISOString().slice(0, 10)}-${Date.now()}`;
   }
 
-  var fetchLocationsFn = useFetch<any[], any>({
+  const fetchLocationsFn = useFetch<any[], any>({
     url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
-  var fetchProductsFn = useFetch<any[], any>({
+  const fetchProductsFn = useFetch<any[], any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -147,7 +147,7 @@ export default function Stock() {
   }
 
   function submit(data: any) {
-    var params = JSON.stringify(
+    const params = JSON.stringify(
       {
         ...data,
         id: masterAccountId,
@@ -156,10 +156,10 @@ export default function Stock() {
     )
 
     addQuotationFn.fn('', params, (result) => {
-      var product = products.find((p) => p._id === data.productId)
-      var customer = customers.find((c) => c._id === data.customerId)
+      const product = products.find((p) => p._id === data.productId)
+      const customer = customers.find((c) => c._id === data.customerId)
 
-      var q = {
+      const q = {
         ...result,
         product,
         customer
@@ -185,11 +185,11 @@ export default function Stock() {
       })
 
       fetchProductsFn.fn(url2, body, (result) => {
-        var filter = result.filter(f => {
+        const filter = result.filter(f => {
           return f.haveExpiredDate === false
         })
 
-        var _ids = filter.map((p) => {
+        const _ids = filter.map((p) => {
           return p._id
         })
 

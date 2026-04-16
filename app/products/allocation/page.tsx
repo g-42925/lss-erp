@@ -28,7 +28,7 @@ export default function Allocation() {
 
 	async function search(v: string) {
 		if (v.length > 0) {
-			var [loc, prod] = v.split(":")
+			const [loc, prod] = v.split(":")
 
 			if (prod) {
 				var result = stock.filter((r) => {

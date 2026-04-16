@@ -27,7 +27,7 @@ export async function POST(request:NextRequest) {
     }
 
     if(!r.isSuperAdmin){
-      var role = await Role.findOne({
+      const role = await Role.findOne({
        _id:r.roleId
       })
       

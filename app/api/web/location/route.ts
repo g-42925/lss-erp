@@ -42,7 +42,7 @@ export async function DELETE(request:NextRequest){
   const id = url.searchParams.get("id")?.trim();
   try {
     await connectToDatabase()
-    var result = await Location.findByIdAndDelete(id);
+    const result = await Location.findByIdAndDelete(id);
     return NextResponse.json(
       {
         noResult:false,
@@ -126,7 +126,7 @@ export async function POST(request:NextRequest) {
       )
     }
     else{
-      var newLocation = await Location.create({
+      const newLocation = await Location.create({
         ...result,
       })
       

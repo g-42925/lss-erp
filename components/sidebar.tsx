@@ -3,21 +3,20 @@
 import Link from "next/link";
 import useAuth from "@/store/auth";
 
-export default function Sidebar({children}:{children:any}){
+export default function Sidebar({ children }: { children: any }) {
   const companyName = useAuth((state) => state.name)
-  
 
   return (
-    <div className="drawer drawer-open bg-gray-200">
+    <div className="drawer drawer-open bg-gray-200 text-white">
       <input id="my-drawer-1" type="checkbox" className="drawer-toggle" />
       <div className="drawer-content">
         {children}
       </div>
       <div className="drawer-side">
-        <label htmlFor="my-drawer-1" arisa-label="close sidebar" className="drawer-overlay"></label>
+        <label htmlFor="my-drawer-1" aria-label="close sidebar" className="drawer-overlay"></label>
         <ul className="menu bg-base-200 min-h-full w-80 p-0 bg-gray-700">
           <li className="bg-gray-800 p-3 text-white"><a>{companyName}</a></li>
-          <li className="bg-gray-700 p-3 text-white">
+          <li>
             <details open>
               <summary>User Management</summary>
               <ul>
@@ -25,12 +24,12 @@ export default function Sidebar({children}:{children:any}){
                   <Link href="/users">Users</Link>
                 </li>
                 <li>
-                  <Link href="/roles">
-                    Roles
-                  </Link>
+                  <Link href="/roles">Roles</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details open>
               <summary>Contacts</summary>
               <ul>
@@ -38,17 +37,15 @@ export default function Sidebar({children}:{children:any}){
                   <Link href="/suppliers">Suppliers</Link>
                 </li>
                 <li>
-                  <Link href="/customers">
-                    Customers
-                  </Link>
+                  <Link href="/customers">Customers</Link>
                 </li>
                 <li>
-                  <Link href="/vendor">
-                    Vendor
-                  </Link>
+                  <Link href="/vendor">Vendor</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details open>
               <summary>Product</summary>
               <ul>
@@ -71,97 +68,95 @@ export default function Sidebar({children}:{children:any}){
                   <Link href="/products/measure">Measure</Link>
                 </li>
                 <li>
-                  <Link href="/products/allocation">Allocation</Link>                
+                  <Link href="/products/allocation">Allocation</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details>
-              <summary>
-                Warehouse
-              </summary>
+              <summary>Warehouse</summary>
               <ul>
                 <li>
-                  <Link href="/warehouse/receiving">
-                    Receiving
-                  </Link>
+                  <Link href="/warehouse/receiving">Receiving</Link>
                 </li>
                 <li>
-                  <Link href="/warehouse/delivery">
-                    Delivery
-                  </Link>
+                  <Link href="/warehouse/delivery">Delivery</Link>
                 </li>
                 <li>
-                  <Link href="/warehouse/receiving">
-                    Refund
-                  </Link>
+                  <Link href="/warehouse/receiving">Refund</Link>
+                </li>
+                <li>
+                  <Link href="/warehouse/inventory">Inventory</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details>
-              <summary>
-                Purchases
-              </summary>
+              <summary>Inventory</summary>
               <ul>
                 <li>
-                  <Link href="/purchases/requisition">
-                    Requisition
-                  </Link>
+                  <Link href="/inventory/items">Items</Link>
+                </li>
+                <li>
+                  <Link href="/inventory/logs">Procurement Logs</Link>
+                </li>
+                <li>
+                  <Link href="/inventory/usage">Usage Logs</Link>
+                </li>
+              </ul>
+
+            </details>
+          </li>
+          <li>
+            <details>
+              <summary>Purchases</summary>
+              <ul>
+                <li>
+                  <Link href="/purchases/requisition">Requisition</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details>
-              <summary>
-                Sales
-              </summary>
+              <summary>Sales</summary>
               <ul>
                 <li>
-                  <Link href="/sales/quotations">
-                    Quotation
-                  </Link>
+                  <Link href="/sales/quotations">Quotation</Link>
                 </li>
                 <li>
-                  <Link href="/sales/order">
-                    Order
-                  </Link>
+                  <Link href="/sales/order">Order</Link>
                 </li>
                 <li>
-                  <Link href="/sales/invoices">
-                    Invoice
-                  </Link>
+                  <Link href="/sales/invoices">Invoice</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details>
-              <summary>
-                Finance
-              </summary>
+              <summary>Finance</summary>
               <ul>
                 <li>
-                  <Link href="/finance/purchases">
-                    Purchases
-                  </Link>
+                  <Link href="/finance/purchases">Purchases</Link>
                 </li>
                 <li>
-                  <Link href="/finance/log">
-                    Log
-                  </Link>
+                  <Link href="/finance/inv-logs">Inventory Approval</Link>
                 </li>
               </ul>
             </details>
+          </li>
+          <li>
             <details>
-              <summary>
-                Debts & Receivable
-              </summary>
+              <summary>Debts &amp; Receivable</summary>
               <ul>
                 <li>
-                  <Link href="/debt">
-                    Debts
-                  </Link>
+                  <Link href="/debt">Debts</Link>
                 </li>
                 <li>
-                  <Link href="/receivable">
-                    Receivable
-                  </Link>
+                  <Link href="/receivable">Receivable</Link>
                 </li>
               </ul>
             </details>

@@ -26,7 +26,7 @@ export default function XEdit() {
   const searchParams = useSearchParams();
   const router = useRouter()
 
-  var getProductFn = useFetch<any, any>({
+  const getProductFn = useFetch<any, any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -34,7 +34,7 @@ export default function XEdit() {
     }
   })
 
-  var getUnitsFn = useFetch<any[], any>({
+  const getUnitsFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -42,7 +42,7 @@ export default function XEdit() {
     }
   })
 
-  var getCategoriesFn = useFetch<any[], any>({
+  const getCategoriesFn = useFetch<any[], any>({
     url: `/api/web/categories?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -50,7 +50,7 @@ export default function XEdit() {
     }
   })
 
-  var updateProductFn = useFetch<any, FormData>({
+  const updateProductFn = useFetch<any, FormData>({
     url: `/api/web/products`,
     method: 'PUT',
     onError: (m) => {

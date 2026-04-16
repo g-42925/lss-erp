@@ -40,7 +40,7 @@ export async function DELETE(request:NextRequest){
   const id = url.searchParams.get("id")?.trim();
 	try {
 		await connectToDatabase()
-		var result = await Role.findByIdAndDelete(id);
+		const result = await Role.findByIdAndDelete(id);
 		return NextResponse.json(
 			{
 				noResult:false,
@@ -125,7 +125,7 @@ export async function POST(request:NextRequest) {
 			)
 		}
 		else{
-			var newRole = await Role.create({
+			const newRole = await Role.create({
 				...result
 			})
 			

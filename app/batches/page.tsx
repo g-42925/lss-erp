@@ -33,7 +33,7 @@ export default function Batches() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = locations.filter((r) => {
+      const result = locations.filter((r) => {
         return r.name.includes(v)
       })
 
@@ -123,7 +123,7 @@ export default function Batches() {
   }
 
   function edit(batchNumber: string) {
-    var [filter] = batches.filter((b) => {
+    const [filter] = batches.filter((b) => {
       return b.batchNumber == batchNumber
     })
 

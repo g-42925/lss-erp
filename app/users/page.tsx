@@ -25,22 +25,22 @@ export default function Users() {
   const newUserForm = useForm();
   const editForm = useForm();
 
-  var getUsersFn = useFetch<any[], any>({
+  const getUsersFn = useFetch<any[], any>({
     url: `/api/web/users?id=xxx`,
     method: 'GET'
   })
 
-  var getRolesFn = useFetch<any[], any>({
+  const getRolesFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'GET'
   })
 
-  var addFn = useFetch<any, any>({
+  const addFn = useFetch<any, any>({
     url: '/api/web/users',
     method: 'POST'
   })
 
-  var editFn = useFetch<any, any>({
+  const editFn = useFetch<any, any>({
     url: '/api/web/users',
     method: 'PUT'
   })
@@ -56,7 +56,7 @@ export default function Users() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = users.filter((r) => {
+      const result = users.filter((r) => {
         return r.username.includes(v)
       })
 
@@ -81,7 +81,7 @@ export default function Users() {
   }
 
   function edit(_id: string) {
-    var [user] = users.filter((u) => {
+    const [user] = users.filter((u) => {
       return u._id === _id
     })
 
@@ -104,7 +104,7 @@ export default function Users() {
     }
     else {
       await editFn.fn('', body, (result) => {
-        var [filtered] = users.filter((u) => u._id == result._id)
+        const [filtered] = users.filter((u) => u._id == result._id)
         filtered.name = result.name
         filtered.username = result.username
         filtered.email = result.email
@@ -119,8 +119,8 @@ export default function Users() {
   }
 
   async function del(_id: string) {
-    var url = `/api/web/users?id=${_id}`
-    var body = JSON.stringify({})
+    const url = `/api/web/users?id=${_id}`
+    const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
       setUsers(

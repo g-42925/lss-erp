@@ -17,6 +17,12 @@ export default function Receivable() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const payRef = useRef<HTMLDialogElement>(null)
+  const historyRef = useRef<HTMLDialogElement>(null)
+
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [payAmount, setPayAmount] = useState<number>(0)
+  const [paymentMethod, setPaymentMethod] = useState<string>('Cash')
 
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
@@ -36,12 +42,12 @@ export default function Receivable() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -53,6 +59,35 @@ export default function Receivable() {
   async function search(v: string) {
 
   }
+
+  async function payInvoice(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedInvoice) return
+
+    putFn.fn('/api/web/receivable', JSON.stringify({ id: selectedInvoice._id, payAmount: Number(payAmount), method: paymentMethod }), () => {
+      payRef.current?.close()
+      getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
+        setInvoices(result)
+      })
+    })
+  }
+
+  async function revertPayment(history: { date: string, method: string, amount: number }) {
+    if (!confirm("Are you sure you want to void this payment? This will deduct the amount from the total paid.")) return;
+
+    putFn.fn('/api/web/receivable', JSON.stringify({
+      id: selectedInvoice._id,
+      action: 'revert',
+      historyDate: history.date,
+      historyAmount: history.amount
+    }), () => {
+      historyRef.current?.close()
+      getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
+        setInvoices(result)
+      })
+    })
+  }
+
 
 
   useEffect(() => {
@@ -112,15 +147,18 @@ export default function Receivable() {
                 </div>
                 :
                 <div>
-                  <table className="table">
+                  <table className="table text-center">
                     <thead>
                       <tr>
                         <th>Date</th>
+                        <th>Invoice Number</th>
+                        <th>Sales Order Number</th>
                         <th>Product</th>
                         <th>Customer</th>
                         <th>Value</th>
                         <th>Pay Amount</th>
                         <th>Remain</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -131,11 +169,23 @@ export default function Receivable() {
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                <td>{p.variousItem ? 'various item' : p.product.productName}</td>
-                                <td>{p.order.customerName ? p.order.customerName : p.customer.bussinessName}</td>
+                                <td>{p.invoiceNumber}</td>
+                                <td>{p.order.salesOrderNumber}</td>
+                                <td>{p.variousItem ? 'various item' : p.product?.productName}</td>
+                                <td>{p.order.customer?.bussinessName}</td>
                                 <td>{p.value}</td>
                                 <td>{p.payAmount}</td>
                                 <td>{p.value - p.payAmount}</td>
+                                <td>
+                                  <div className="flex gap-2">
+                                    {
+                                      p.value - p.payAmount > 0 && (
+                                        <button onClick={() => { setSelectedInvoice(p); setPayAmount(0); payRef.current?.showModal() }} className="btn btn-sm btn-primary">Pay</button>
+                                      )
+                                    }
+                                    <button onClick={() => { setSelectedInvoice(p); historyRef.current?.showModal() }} className="btn btn-sm btn-outline">History</button>
+                                  </div>
+                                </td>
                               </tr>
                             )
                           })
@@ -175,6 +225,90 @@ export default function Receivable() {
           </button>
         </div>
       </div>
+
+      <dialog ref={payRef} className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg mb-4">Pay Receivable</h3>
+          <form onSubmit={payInvoice} className="flex flex-col gap-4">
+            <div>
+              <label className="label">Amount to Pay</label>
+              <input
+                type="number"
+                required
+                min={1}
+                max={selectedInvoice ? selectedInvoice.value - selectedInvoice.payAmount : 0}
+                value={payAmount}
+                onChange={(e) => setPayAmount(Number(e.target.value))}
+                className="input input-bordered w-full"
+                placeholder="Enter amount"
+              />
+            </div>
+            <div>
+              <label className="label">Payment Method</label>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="select select-bordered w-full">
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button type="button" className="btn" onClick={() => payRef.current?.close()}>Cancel</button>
+              <button disabled={putFn.loading} type="submit" className="btn btn-primary">
+                {putFn.loading ? <span className="loading loading-spinner"></span> : 'Submit Payment'}
+              </button>
+            </div>
+          </form>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+
+      <dialog ref={historyRef} className="modal">
+        <div className="modal-box max-w-3xl">
+          <h3 className="font-bold text-lg mb-4">Payment History ({selectedInvoice?.invoiceNumber})</h3>
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Method</th>
+                  <th>Amount</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedInvoice?.paymentHistory?.length > 0 ? (
+                  selectedInvoice.paymentHistory.map((history: { date: string, method: string, amount: number, reverted?: boolean }, index: number) => (
+                    <tr key={index} className={history.reverted ? 'opacity-60 text-red-600 line-through' : ''}>
+                      <td>{new Date(history.date).toLocaleString('id-ID')} {history.reverted && '(Voided)'}</td>
+                      <td>{history.method}</td>
+                      <td>{history.amount}</td>
+                      <td>
+                        {!history.reverted && (
+                          <button onClick={() => revertPayment(history)} disabled={putFn.loading} className="btn btn-xs btn-error text-white">Void</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="text-center">No payment history found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end mt-4">
+            <button type="button" className="btn" onClick={() => historyRef.current?.close()}>Close</button>
+          </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
     </>
   )
 }

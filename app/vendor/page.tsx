@@ -26,7 +26,7 @@ export default function Vendor() {
   const editVendorForm = useForm();
   const router = useRouter()
 
-  var getVendorsFn = useFetch<any[], any>({
+  const getVendorsFn = useFetch<any[], any>({
     url: `/api/web/vendor?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -34,7 +34,7 @@ export default function Vendor() {
     }
   })
 
-  var addFn = useFetch<any, any>({
+  const addFn = useFetch<any, any>({
     url: '/api/web/vendor',
     method: 'POST',
     onError: (m) => {
@@ -42,7 +42,7 @@ export default function Vendor() {
     }
   })
 
-  var editFn = useFetch<any, any>({
+  const editFn = useFetch<any, any>({
     url: '/api/web/vendor',
     method: 'PUT',
     onError: (m) => {
@@ -71,7 +71,7 @@ export default function Vendor() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = vendors.filter((r) => {
+      const result = vendors.filter((r) => {
         return r.name.toLowerCase().includes(v)
       })
 
@@ -103,7 +103,7 @@ export default function Vendor() {
     const [f] = vendors.filter((s) => s._id === data._id)
     const body = JSON.stringify({ ...data })
     await editFn.fn('', body, (result) => {
-      var [target] = vendors.filter((s, index) => {
+      const [target] = vendors.filter((s, index) => {
         return s._id === data._id
       })
 
@@ -124,7 +124,7 @@ export default function Vendor() {
   }
 
   function edit(_id: string) {
-    var [vendor] = vendors.filter((v) => {
+    const [vendor] = vendors.filter((v) => {
       return v._id === _id
     })
 

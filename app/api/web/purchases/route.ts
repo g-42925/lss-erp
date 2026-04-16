@@ -10,266 +10,266 @@ import Supplier from "@/models/Supplier";
 import Vendor from "@/models/Vendor";
 import Log from '@/models/Log'
 
-export async function PUT(request:NextRequest){
-  try{
+export async function PUT(request: NextRequest) {
+  try {
     await connectToDatabase()
     const body = await request.json()
-    const {_id,...rest} = body
+    const { _id, ...rest } = body
 
-    
-    if(rest.status != 'ordered'){
 
-      var status = rest.status === '_approved'  || rest.status === '__approved' || rest.status === '___approved' ? 'ordered' : rest.status
+    if (rest.status != 'ordered') {
 
-      var purchase = await Purchase.findById(_id)
+      const status = rest.status === '_approved' || rest.status === '__approved' || rest.status === '___approved' ? 'ordered' : rest.status
+
+      await Purchase.findById(_id)
 
       // memberikan approvel atau menolak (oleh module finance)
 
-      if(status != 'ordered'){
+      if (status != 'ordered') {
         await Purchase.findByIdAndUpdate(
-          _id,{
-            ...rest,
-            status
-          }
+          _id, {
+          ...rest,
+          status
+        }
         )
       }
 
       // merubah supplier (melalui module purchase)
 
-      if(rest.status == '__approved'){
+      if (rest.status == '__approved') {
 
-        var first = await Log.findOne({
-          purchaseId:_id,
-          initial:true
+        const first = await Log.findOne({
+          purchaseId: _id,
+          initial: true
         })
 
-        if(first){
+        if (first) {
           await Log.findByIdAndUpdate(
-            first._id,{
-              amount:rest.payAmount
-            }
+            first._id, {
+            amount: rest.payAmount
+          }
           )
         }
 
-        if(rest.purchaseType === 'product'){
-          var spl = await Supplier.findById(rest.supplierId)
-          var result =  {...body,spl}
+        if (rest.purchaseType === 'product') {
+          const spl = await Supplier.findById(rest.supplierId)
+          const result = { ...body, spl }
           await Purchase.findByIdAndUpdate(
-            _id,{
-              finalPrice:rest.finalPrice,
-              payAmount:rest.payAmount,
-              supplierId:rest.supplierId,
-              quantity:rest.quantity
-            }
+            _id, {
+            finalPrice: rest.finalPrice,
+            payAmount: rest.payAmount,
+            supplierId: rest.supplierId,
+            quantity: rest.quantity
+          }
           )
 
           return NextResponse.json(
             {
-              noResult:false,
-              message:"",
-              result:result,
-              error:false
+              noResult: false,
+              message: "",
+              result: result,
+              error: false
             }
-          )   
+          )
         }
-        else{
-          var vnd = await Vendor.findById(rest.vendorId)
-          var result =  {...body,vnd}
+        else {
+          const vnd = await Vendor.findById(rest.vendorId)
+          const result = { ...body, vnd }
           await Purchase.findByIdAndUpdate(
-            _id,{
-              finalPrice:rest.finalPrice,
-              payAmount:rest.payAmount,
-              vendorId:rest.vendorId
-            }
+            _id, {
+            finalPrice: rest.finalPrice,
+            payAmount: rest.payAmount,
+            vendorId: rest.vendorId
+          }
           )
           return NextResponse.json(
             {
-              noResult:false,
-              message:"",
-              result:result,
-              error:false
+              noResult: false,
+              message: "",
+              result: result,
+              error: false
             }
-          )   
+          )
         }
       }
-      
+
       // merubah pay amount (melalui module finance)
 
-      if(rest.status === '___approved'){
-        if(rest.type === 'adjustment'){
-          var ref = await Log.findOne({paymentNumber:rest.reference})
-          if(rest.newPayAmt > ref.amount || ref.type === "adjustment"){
+      if (rest.status === '___approved') {
+        if (rest.type === 'adjustment') {
+          const ref = await Log.findOne({ paymentNumber: rest.reference })
+          if (rest.newPayAmt > ref.amount || ref.type === "adjustment") {
             return NextResponse.json({
-              noResult:true,
-              message:"correction amount is invalid",
-              result:true,
-              error:false
+              noResult: true,
+              message: "correction amount is invalid",
+              result: true,
+              error: false
             })
           }
-          else{
+          else {
             await Purchase.findByIdAndUpdate(
-              _id,{ 
-                $inc:{ 
-                  payAmount: -rest.newPayAmt
-                } 
-              },
+              _id, {
+              $inc: {
+                payAmount: -rest.newPayAmt
+              }
+            },
             )
           }
         }
 
-        var reference = rest.reference ?? null
+        const reference = rest.reference ?? null
 
-        var amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
+        const amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
 
-        if(rest.purchaseType === 'product'){
-          
+        if (rest.purchaseType === 'product') {
+
           await Log.create({
-            purchaseId:_id,
-            date:new Date(),
-            amount:amt,
-            initial:false,
-            paymentNumber:`PL-${String(Date.now()).slice(-5)}`,
-            type:rest.type,
+            purchaseId: _id,
+            date: new Date(),
+            amount: amt,
+            initial: false,
+            paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
+            type: rest.type,
             reference,
           })
-          
-          if(rest.type === "payment"){
+
+          if (rest.type === "payment") {
             await Purchase.findByIdAndUpdate(
-              _id,{
-                payAmount:rest.payAmount,
-                editable:false
-              }
-            )            
+              _id, {
+              payAmount: rest.payAmount,
+              editable: false
+            }
+            )
           }
           return NextResponse.json(
             {
-              noResult:false,
-              message:"",
-              result:body,
-              error:false
+              noResult: false,
+              message: "",
+              result: body,
+              error: false
             }
-          )          
+          )
         }
-        else{
+        else {
           await Log.create({
-            purchaseId:_id,
-            date:new Date(),
-            amount:amt,
-            initial:false,
-            paymentNumber:`PL-${String(Date.now()).slice(-5)}`,
-            type:rest.type,
+            purchaseId: _id,
+            date: new Date(),
+            amount: amt,
+            initial: false,
+            paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
+            type: rest.type,
             reference
           })
 
-          if(rest.type === "payment"){
+          if (rest.type === "payment") {
             await Purchase.findByIdAndUpdate(
-              _id,{
-                payAmount:rest.payAmount,
-                editable:false
-              }
+              _id, {
+              payAmount: rest.payAmount,
+              editable: false
+            }
             )
           }
 
           return NextResponse.json(
             {
-              noResult:false,
-              message:"",
-              result:body,
-              error:false
+              noResult: false,
+              message: "",
+              result: body,
+              error: false
             }
-          )   
+          )
         }
       }
 
       // melakukan order (melalui module purchase)
 
-      if(rest.status === '_approved'){
+      if (rest.status === '_approved') {
 
 
         await Log.create({
-          purchaseId:_id,
-          date:new Date(),
-          amount:rest.payAmount,
-          initial:true,
-          paymentNumber:`PL-${String(Date.now()).slice(-5)}`,
-          type:'payment'
+          purchaseId: _id,
+          date: new Date(),
+          amount: rest.payAmount,
+          initial: true,
+          paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
+          type: 'payment'
         })
 
-        if(rest.purchaseType === 'product'){
-          var splMeasurementConfig = {}
-          var spl = await Supplier.findById(rest.supplierId)
-          
-          var product = await Product.findById(rest.productId)
+        if (rest.purchaseType === 'product') {
+          let splMeasurementConfig = {}
+          const spl = await Supplier.findById(rest.supplierId)
 
-          if(product.toObject().purchaseUnit != product.toObject().warehouseUnit){
-            var config = await Measurement.findOne({
-              productId:rest.productId,
-              supplierId:spl._id,
-              supplierOf:spl.supplierOf
+          const product = await Product.findById(rest.productId)
+
+          if (product.toObject().purchaseUnit != product.toObject().warehouseUnit) {
+            const config = await Measurement.findOne({
+              productId: rest.productId,
+              supplierId: spl._id,
+              supplierOf: spl.supplierOf
             })
 
-            if(config){
+            if (config) {
               splMeasurementConfig = {
-                measurementId:config._id
+                measurementId: config._id
               }
             }
-            else{
+            else {
               return NextResponse.json(
                 {
-                  noResult:true,
-                  message:"measurement config not found for this product on this supplier",
-                  result:null,
-                  error:true
+                  noResult: true,
+                  message: "measurement config not found for this product on this supplier",
+                  result: null,
+                  error: true
                 }
               )
             }
           }
 
-          await Purchase.findByIdAndUpdate(_id,{
+          await Purchase.findByIdAndUpdate(_id, {
             ...rest,
-            status:'ordered',
+            status: 'ordered',
             ...splMeasurementConfig
           })
-          
-          var result =  {...body,spl}
-          
+
+          const result = { ...body, spl }
+
           return NextResponse.json(
             {
-              noResult:false,
-              message:"",
-              result:result,
-              error:false
+              noResult: false,
+              message: "",
+              result: result,
+              error: false
             }
           )
         }
-        else{
-          var vnd = await Vendor.findById(rest.vendorId)
+        else {
+          const vnd = await Vendor.findById(rest.vendorId)
 
 
-          await Purchase.findByIdAndUpdate(_id,{
+          await Purchase.findByIdAndUpdate(_id, {
             ...rest,
-            status:'ordered'
+            status: 'ordered'
           })
-          
-          var result =  {...body,vnd}
-          
+
+          const result = { ...body, vnd }
+
           return NextResponse.json(
             {
-              noResult:false,
-              message:"",
-              result:result,
-              error:false
+              noResult: false,
+              message: "",
+              result: result,
+              error: false
             }
           )
         }
       }
-      else{
+      else {
         return NextResponse.json(
           {
-            noResult:false,
-            message:"",
-            result:body,
-            error:false
+            noResult: false,
+            message: "",
+            result: body,
+            error: false
           }
         )
       }
@@ -278,183 +278,165 @@ export async function PUT(request:NextRequest){
     // rumus unit cost
     // (total semua harga purchase sebelumnya + harga beli terbaru) / (total stock + jumlah beli)
 
-    if(rest.status === "ordered"){
-      var purchase = await Purchase.findById(_id)
+    if (rest.status === "ordered") {
+      const purchase = await Purchase.findById(_id)
 
-      if(purchase.toObject().hasOwnProperty('measurementId')){
-        var config = await Measurement.findById(purchase.measurementId)
+      if (purchase.toObject().hasOwnProperty('measurementId')) {
+        const config = await Measurement.findById(purchase.measurementId)
 
-        var product = await Product.findById(purchase.productId)
-        
-        if(product.toObject().hasOwnProperty('stockValue')){
-          var newStockValue = product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty))
-         
+        const product = await Product.findById(purchase.productId)
+
+        if (product.toObject().hasOwnProperty('stockValue')) {
+          const newStockValue = product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty))
+
           await Product.findByIdAndUpdate(
-            product._id,{
-              stockValue:newStockValue,
-            }
+            product._id, {
+            stockValue: newStockValue,
+          }
           )
         }
-        else{
+        else {
           await Product.findByIdAndUpdate(
-            product._id,{
-              stockValue:(purchase.finalPrice/purchase.quantity) * parseInt(rest.qty),
-            }
+            product._id, {
+            stockValue: (purchase.finalPrice / purchase.quantity) * parseInt(rest.qty),
+          }
           )
         }
 
         await Batche.create({
           ...rest,
-          status:'ACTIVE',
-          batchNumber:`B-${String(Date.now()).slice(-5)}`,
-          accumulative:config.ratio * rest.qty
-        })        
+          status: 'ACTIVE',
+          batchNumber: `B-${String(Date.now()).slice(-5)}`,
+          accumulative: config.ratio * rest.qty
+        })
       }
-      else{
-        var product = await Product.findById(purchase.productId)
+      else {
+        const product = await Product.findById(purchase.productId)
 
-        if(product.toObject().hasOwnProperty('prevUnitCost')){         
+        if (product.toObject().hasOwnProperty('prevUnitCost')) {
           await Product.findByIdAndUpdate(
-            product._id,{
-              stockValue:product.stockValue + ((purchase.finalPrice/purchase.quantity) * parseInt(rest.qty)),
-            }
+            product._id, {
+            stockValue: product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty)),
+          }
           )
         }
-        else{
+        else {
           await Product.findByIdAndUpdate(
-            product._id,{
-              stockValue:(purchase.finalPrice/purchase.quantity) * parseInt(rest.qty),
-            }
-          ) 
+            product._id, {
+            stockValue: (purchase.finalPrice / purchase.quantity) * parseInt(rest.qty),
+          }
+          )
         }
 
         await Batche.create({
           ...rest,
-          status:'ACTIVE',
-          batchNumber:`B-${String(Date.now()).slice(-5)}`,
-          accumulative:rest.qty
+          status: 'ACTIVE',
+          batchNumber: `B-${String(Date.now()).slice(-5)}`,
+          accumulative: rest.qty
         })
       }
 
       return NextResponse.json({
-        noResult:false,
-        message:"",
-        result:{},
-        error:false
-      })      
+        noResult: false,
+        message: "",
+        result: {},
+        error: false
+      })
     }
   }
-  catch(e:any){
+  catch (e: any) {
     return NextResponse.json({
-      noResult:true,
-      message:e.message,
-      result:null,
-      error:true
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
     })
   }
 }
 
-export async function POST(request:NextRequest){
-  try{
+export async function POST(request: NextRequest) {
+  try {
     await connectToDatabase()
-    const body = await request.json()
-
-  }
-  catch(e:any){
-    return NextResponse.json({
-      noResult:true,
-      message:e.message,
-      result:null,
-      error:true
+    const params = await request.json()
+    const company = await Companie.findOne({
+      masterAccountId: params.id
     })
+
+    const p = await Purchase.findOne({
+      companyId: company._id,
+      productId: params.productId,
+      status: 'requested'
+    })
+
+    if (p) {
+      return NextResponse.json({
+        noResult: true,
+        message: "product already ordered",
+        result: null,
+        error: true
+      })
+    }
+
+    const result = await Purchase.create({
+      ...params,
+      companyId: company._id,
+      editable: true,
+      receivedQty: 0,
+      purchaseOrderNumber: `PO-${String(Date.now()).slice(-5)}`
+    })
+
+    const requested = result._doc
+
+    const [agg] = await Purchase.aggregate(
+      [
+        {
+          $match: {
+            _id: requested._id
+          }
+        },
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'productId',
+            foreignField: '_id',
+            as: 'product'
+          },
+
+        },
+        {
+          $unwind: '$product'
+        },
+      ]
+    )
+
+    const r = {
+      ...requested,
+      ...(params.purchaseType === 'product' && { product: agg?.product })
+    }
+
+    return NextResponse.json(
+      {
+        noResult: false,
+        message: "",
+        result: r,
+        error: false
+      }
+    )
+  }
+  catch (e: any) {
+    return NextResponse.json(
+      {
+        noResult: true,
+        message: e.message,
+        result: null,
+        error: true
+      }
+    )
   }
 }
 
-// export async function POST(request:NextRequest){
-//   try{
-//     await connectToDatabase()
-//     const params = await request.json()
-//     const company = await Companie.findOne({
-//       masterAccountId:params.id
-//     })
 
-//     var p = await Purchase.findOne({
-//       companyId:company._id,
-//       productId:params.productId,
-//       status:'requested'
-//     })
-
-//     if(p){
-//       return NextResponse.json({
-//         noResult:true,
-//         message:"product already ordered",
-//         result:null,
-//         error:true
-//       })
-//     }
-
-//     var result = await Purchase.create({
-//       ...params,
-//       companyId:company._id,
-//       editable:true,
-//       receivedQty:0,
-//       purchaseOrderNumber:`SO-${String(Date.now()).slice(-5)}`
-//     })
-
-//     var requested = result._doc
-
-//     var [agg] = await Purchase.aggregate(
-//       [
-//         {
-//           $match:{
-//             _id:requested._id
-//           }
-//         },
-//         {
-//           $lookup:{
-//             from:'products',
-//             localField:'productId',
-//             foreignField:'_id',
-//             as:'product'
-//           },
-
-//         },
-//         {
-//           $unwind:'$product'
-//         },
-//       ]
-//     )
-
-//     var r = {
-//       ...requested,
-//     }
-
-//     if(params.purchaseType === 'product'){
-//       r.product = agg.product
-//     }
-
-//     return NextResponse.json(
-//       {
-//         noResult:false,
-//         message:"",
-//         result:r,
-//         error:false
-//       }
-//     )
-//   }
-//   catch(e:any){
-//     return NextResponse.json(
-//       {
-//         noResult:true,
-//         message:e.message,
-//         result:null,
-//         error:true
-//       }
-//     )
-//   }
-// }
-
-export async function GET(request:NextRequest){	
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   const type = url.searchParams.get("type");
@@ -462,81 +444,81 @@ export async function GET(request:NextRequest){
   try {
     await connectToDatabase()
     const cmp = await Companie.findOne({
-      masterAccountId:id
+      masterAccountId: id
     })
-    
+
     const prs = await Purchase.aggregate(
       [
         {
-          $match:{
-            companyId:cmp._id,
-            purchaseType:type
+          $match: {
+            companyId: cmp._id,
+            purchaseType: type
           }
         },
         {
-          $lookup:{
-            from:'products',
-            localField:'productId',
-            foreignField:'_id',
-            as:'product'
+          $lookup: {
+            from: 'products',
+            localField: 'productId',
+            foreignField: '_id',
+            as: 'product'
           }
         },
         {
-          $unwind:{
-            path:'$product',
-            preserveNullAndEmptyArrays:true
+          $unwind: {
+            path: '$product',
+            preserveNullAndEmptyArrays: true
           }
         },
         {
-          $project:{
-            'productId':0,
-            'companyId':0
+          $project: {
+            'productId': 0,
+            'companyId': 0
           }
         },
         {
-          $lookup:{
-            from:'vendors',
-            localField:'vendorId',
-            foreignField:'_id',
-            as:'vendor'
+          $lookup: {
+            from: 'vendors',
+            localField: 'vendorId',
+            foreignField: '_id',
+            as: 'vendor'
           }
         },
         {
-          $unwind:{
-            path:'$vendor',
-            preserveNullAndEmptyArrays:true
+          $unwind: {
+            path: '$vendor',
+            preserveNullAndEmptyArrays: true
           }
         },
         {
-          $lookup:{
-            from:'suppliers',
-            localField:'supplierId',
-            foreignField:'_id',
-            as:'supplier'
+          $lookup: {
+            from: 'suppliers',
+            localField: 'supplierId',
+            foreignField: '_id',
+            as: 'supplier'
           }
         },
         {
-          $unwind:{
-            path:'$supplier',
-            preserveNullAndEmptyArrays:true
+          $unwind: {
+            path: '$supplier',
+            preserveNullAndEmptyArrays: true
           }
         },
         {
-          $lookup:{
-            from:'batches',
-            localField:'purchaseOrderNumber',
-            foreignField:'purchaseOrderNumber',
-            as:'batches'
+          $lookup: {
+            from: 'batches',
+            localField: 'purchaseOrderNumber',
+            foreignField: 'purchaseOrderNumber',
+            as: 'batches'
           }
         },
         {
-          $addFields:{
+          $addFields: {
             receivedQty: { $sum: "$batches.qty" }
           }
         },
         {
-          $project:{
-            'batches':0
+          $project: {
+            'batches': 0
           }
         }
       ]
@@ -544,21 +526,21 @@ export async function GET(request:NextRequest){
 
     return NextResponse.json(
       {
-        noResult:false,
-        message:"",
-        result:prs,
-        error:false
+        noResult: false,
+        message: "",
+        result: prs,
+        error: false
       }
     )
-  } 
-  catch (e:any) {
+  }
+  catch (e: any) {
     return NextResponse.json(
       {
-        noResult:true,
-        message:e.message,
-        result:null,
-        error:true
+        noResult: true,
+        message: e.message,
+        result: null,
+        error: true
       }
     )
-  }	
+  }
 }

@@ -26,7 +26,7 @@ export default function Rlog() {
 
   const so = searchParams.get('so');
 
-  var fetchBatchesFn = useFetch<any[], any>({
+  const fetchBatchesFn = useFetch<any[], any>({
     url: `/api/web/rlog?so=xxx`,
     method: 'GET'
   })

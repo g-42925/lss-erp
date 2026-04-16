@@ -32,12 +32,12 @@ export default function Delivery() {
     }
   })
 
-  var getDeliveries = useFetch<any[], any>({
+  const getDeliveries = useFetch<any[], any>({
     url: `/api/web/delivery?id=xxx`,
     method: 'GET'
   })
 
-  var getBatchesFn = useFetch<any, any>({
+  const getBatchesFn = useFetch<any, any>({
     url: `/api/web/delivery?id=xxx`,
     method: 'GET'
   })
@@ -47,8 +47,8 @@ export default function Delivery() {
       alert('can not deliver more than order qty')
     }
     else {
-      var [locId, batchNumber, remain] = data.batchDetail.split('/')
-      var _remain = batches.map((b) => b.accumulative - b.outQty).reduce((acc, curr) => {
+      const [locId, batchNumber, remain] = data.batchDetail.split('/')
+      const _remain = batches.map((b) => b.accumulative - b.outQty).reduce((acc, curr) => {
         return acc + curr
       }, 0)
 
@@ -57,7 +57,7 @@ export default function Delivery() {
         alert('can not deliver more than remain qty')
       }
       else {
-        var params = {
+        const params = {
           locationId: locId,
           batchNumber: batchNumber,
           qty: parseInt(data.qty),
@@ -82,7 +82,7 @@ export default function Delivery() {
   }
 
   function getBatches(salesOrderNumber: string) {
-    var url = `/api/web/delivery?so=${salesOrderNumber}&f=x`
+    const url = `/api/web/delivery?so=${salesOrderNumber}&f=x`
 
     getBatchesFn.fn(url, JSON.stringify({}), result => {
       setBatches(result.batches)

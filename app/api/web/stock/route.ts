@@ -129,9 +129,9 @@ export async function POST(request:NextRequest){
       )
     }
     else{
-      var batchNumber = `B-${String(Date.now()).slice(-5)}`
+      const batchNumber = `B-${String(Date.now()).slice(-5)}`
 
-      var newBatch = await Batche.create({
+      const newBatch = await Batche.create({
         ...params,
         batchNumber,
         qty:1,
@@ -172,7 +172,7 @@ export async function POST(request:NextRequest){
         }
       ])
 
-      var result = {
+      const result = {
         ...newBatch._doc,
         product:batch.product,
         locationName:batch.location.name,

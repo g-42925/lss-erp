@@ -46,28 +46,28 @@ export default function Measure() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
-  var getSuppliersFn = useFetch<any[], any>({
+  const getSuppliersFn = useFetch<any[], any>({
     url: `/api/web/supplier?id=xxx`,
     method: 'GET'
   })
 
 
-  var getMeasurementsFn = useFetch<any[], any>({
+  const getMeasurementsFn = useFetch<any[], any>({
     url: `/api/web/measure?id=xxx`,
     method: 'GET'
   })
 
-  var getUnitFn = useFetch<any[], any>({
+  const getUnitFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
     method: 'GET'
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/location?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -85,9 +85,9 @@ export default function Measure() {
 
 
     await addFn.fn('', body, (r) => {
-      var supplier = getSuppliersFn.result?.find((s) => s._id == data.supplierId)
-      var product = getFn.result?.find((s) => s._id == data.productId)
-      var newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
+      const supplier = getSuppliersFn.result?.find((s) => s._id == data.supplierId)
+      const product = getFn.result?.find((s) => s._id == data.productId)
+      const newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
       setMeasurement([newMeasurement, ...measurements])
       modalRef.current?.close()
     })
@@ -95,7 +95,7 @@ export default function Measure() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var [loc, prod] = v.split(":")
+      const [loc, prod] = v.split(":")
 
       if (prod) {
         var result = measurements.filter((r) => {
@@ -142,14 +142,14 @@ export default function Measure() {
   }
 
   async function editSubmit(data: any) {
-    var param = JSON.stringify(data)
+    const param = JSON.stringify(data)
 
     await editFn.fn('', param, r => {
-      var supplier = getSuppliersFn.result?.find((s) => s._id == r.supplierId)
-      var product = getFn.result?.find((s) => s._id == r.productId)
-      var newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
+      const supplier = getSuppliersFn.result?.find((s) => s._id == r.supplierId)
+      const product = getFn.result?.find((s) => s._id == r.productId)
+      const newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
 
-      var [target] = measurements.filter((m) => m._id == r._id)
+      const [target] = measurements.filter((m) => m._id == r._id)
 
       target.ratio = newMeasurement.ratio
       target.supplier = newMeasurement.supplier
@@ -162,8 +162,8 @@ export default function Measure() {
   }
 
   async function del(_id: string) {
-    var url = `/api/web/location?id=${_id}`
-    var body = JSON.stringify({})
+    const url = `/api/web/location?id=${_id}`
+    const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
       setLocations(

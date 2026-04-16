@@ -42,12 +42,12 @@ export default function Location() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/location?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -76,7 +76,7 @@ export default function Location() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = locations.filter((r) => {
+      const result = locations.filter((r) => {
         return r.name.startsWith(v)
       })
 
@@ -106,7 +106,7 @@ export default function Location() {
     })
 
     await putFn.fn('', body, (result) => {
-      var [target] = locations.filter((r) => r._id == result._id)
+      const [target] = locations.filter((r) => r._id == result._id)
 
       Object.keys(target).forEach(key => {
         target[key] = result[key]
@@ -119,8 +119,8 @@ export default function Location() {
   }
 
   async function del(_id: string) {
-    var url = `/api/web/location?id=${_id}`
-    var body = JSON.stringify({})
+    const url = `/api/web/location?id=${_id}`
+    const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
       setLocations(
@@ -130,7 +130,7 @@ export default function Location() {
   }
 
   async function edit(_id: string) {
-    var [filter] = locations.filter((r) => r._id == _id)
+    const [filter] = locations.filter((r) => r._id == _id)
 
     editLocationForm.reset({
       _id: filter._id,

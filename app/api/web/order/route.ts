@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const contractFile = formData.get("contract") as File
     const attachmentFile = formData.get("attachment") as File
-    const payTerm = formData.get("payTerm") as String
-    const qNumber = formData.get("qNumber") as String
-    const id = formData.get("id") as String
+    const payTerm = formData.get("payTerm") as string
+    const qNumber = formData.get("qNumber") as string
+    const id = formData.get("id") as string
 
     const company = await Companie.findOne({
       masterAccountId: id
@@ -60,14 +60,14 @@ export async function POST(request: NextRequest) {
       contractUploadUrl = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${h1.Metadata?.cid}`
     }
     if (attachmentFile) {
-      const attachmentFileName = contractFile.name;
-      const attachmentFileBuffer = Buffer.from(await contractFile.arrayBuffer());
+      const attachmentFileName = attachmentFile.name;
+      const attachmentFileBuffer = Buffer.from(await attachmentFile.arrayBuffer());
 
       const attachmentUploadCmd = new PutObjectCommand({
         Bucket: "leryn-storage",
         Key: attachmentFileName,
         Body: attachmentFileBuffer,
-        ContentType: contractFile.type,
+        ContentType: attachmentFile.type,
         Metadata: {
           cid: "true", // 👈 sama seperti PHP
         },
@@ -85,9 +85,91 @@ export async function POST(request: NextRequest) {
       attachmentUploadUrl = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${h2.Metadata?.cid}`
     }
 
+    // ─── DIRECT SERVICE ORDER (no quotation) ─────────────────────────────
+    const directOrder = formData.get("directOrder") as string
+    if (directOrder === "true") {
+      const productRaw = formData.get("productId") as string // "id/sellingPrice"
+      const [productId, defaultPrice] = productRaw ? productRaw.split("/") : ["", "0"]
+      const customerName = formData.get("customerName") as string
+      const price = parseFloat(formData.get("price") as string) || parseFloat(defaultPrice) || 0
+      const contractType = formData.get("contractType") as string
+      const frequency = formData.get("frequency") as string
+      const range = parseInt(formData.get("range") as string) || 0
+      const so = `SO-${String(Date.now()).slice(-5)}`
+
+      const order = await Order.create({
+        salesOrderId: Date.now(),
+        salesOrderNumber: so,
+        saleDate: new Date(),
+        companyId: company._id,
+        customerName: customerName,
+        productType: "service",
+        contractType,
+        frequency,
+        range,
+        payTerm: parseInt(payTerm) || 0,
+        total: price,
+        taxValue: 0,
+        discountType: "none",
+        discountValue: 0,
+        contract: contractUploadUrl,
+        attachment: attachmentUploadUrl,
+        type: "direct",
+        cart: [
+          {
+            productId: new ObjectId(productId),
+            qty: 1,
+            subTotal: price,
+          }
+        ]
+      })
+
+      const [_o] = await Order.aggregate([
+        { $match: { _id: new ObjectId(order._id) } },
+        {
+          $lookup: {
+            from: "products",
+            localField: "cart.productId",
+            foreignField: "_id",
+            as: "productArr"
+          }
+        },
+        {
+          $addFields: {
+            product: { $arrayElemAt: ["$productArr", 0] }
+          }
+        },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "customerId",
+            foreignField: "_id",
+            as: "customerArr"
+          }
+        },
+        {
+          $addFields: {
+            customer: { $arrayElemAt: ["$customerArr", 0] }
+          }
+        },
+        {
+          $project: { productArr: 0, customerArr: 0 }
+        }
+      ])
+
+      return NextResponse.json({
+        noResult: false,
+        message: "",
+        result: _o,
+        error: false
+      })
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const quotation = await Quotation.findOne({
       quotationNumber: qNumber
     })
+
 
     if (!quotation) {
       return NextResponse.json(
@@ -181,20 +263,9 @@ export async function POST(request: NextRequest) {
         }
       )
     }
-
-
-
-    return NextResponse.json(
-      {
-        noResult: false,
-        message: "",
-        result: {},
-        error: false
-      }
-    )
   }
-  catch (e: unknown) {
-    console.log('ok')
+  catch (e: any) {
+    console.log(e)
     return NextResponse.json(
       {
         noResult: true,

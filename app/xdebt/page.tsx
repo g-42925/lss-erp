@@ -38,12 +38,12 @@ export default function XDebt() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {

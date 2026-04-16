@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
       companyId: company._id,
       salesOrderId: order._id,
       date: new Date(),
-      invoiceNumber: `I-${String(Date.now()).slice(-5)}`
+      invoiceNumber: `I-${String(Date.now()).slice(-5)}`,
+      paid: false,
+      payAmount: 0,
     })
 
     const requested = result._doc

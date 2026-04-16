@@ -25,17 +25,17 @@ export default function Receiving() {
 
   const router = useRouter()
 
-  var fetchLocationsFn = useFetch<any[], any>({
+  const fetchLocationsFn = useFetch<any[], any>({
     url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/purchases?id=xxx`,
     method: 'GET'
   })
 
-  var editFn = useFetch<any, any>({
+  const editFn = useFetch<any, any>({
     url: `/api/web/purchases`,
     method: 'PUT',
     onError: (m) => {
@@ -45,7 +45,7 @@ export default function Receiving() {
 
   function search(v: string) {
     if (v.length > 0) {
-      var result = purchases.filter((r) => {
+      const result = purchases.filter((r) => {
         return r.purchaseOrderNumber === v
       })
 
@@ -71,9 +71,9 @@ export default function Receiving() {
 
 
   async function editSubmit(data: any) {
-    var { max, product, estimatedPrice, supplier, finalPrice, ...rest } = data
+    const { max, product, estimatedPrice, supplier, finalPrice, ...rest } = data
 
-    var additional = {
+    const additional = {
       isOpening: false,
       createdAt: new Date().toISOString().slice(0, 10),
       outQty: 0,
@@ -98,7 +98,7 @@ export default function Receiving() {
   }
 
   async function edit(_id: string) {
-    var [filter] = purchases.filter((p) => p._id == _id)
+    const [filter] = purchases.filter((p) => p._id == _id)
 
     console.log({ filter })
 

@@ -457,10 +457,10 @@ export default function Quotation() {
             <label className="w-[100px]">Attachment (Opt)</label>
             <input {...makeOrderForm.register("attachment")} type="file" className="file-input file-input-bordered flex-1" />
           </div>
-          <div className="flex flex-row items-center gap-3">
+          <div className="flex flex-row items-center gap-3 hidden">
             <label className="w-[100px]">Debt</label>
             <select {...makeOrderForm.register("debt")} className="select flex-1 border-gray-300 border">
-              <option value="no">No</option>
+              <option selected value="no">No</option>
               <option value="yes">Yes</option>
             </select>
           </div>

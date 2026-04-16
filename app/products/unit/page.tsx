@@ -39,7 +39,7 @@ export default function Unit() {
     }
   })
 
-  var getFn = useFetch<any[], any>({
+  const getFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
     method: 'GET',
     onError: (m) => {
@@ -47,7 +47,7 @@ export default function Unit() {
     }
   })
 
-  var deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -76,7 +76,7 @@ export default function Unit() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = unit.filter((r) => {
+      const result = unit.filter((r) => {
         return r.shortName.includes(v)
       })
 
@@ -106,7 +106,7 @@ export default function Unit() {
     })
 
     await putFn.fn('', body, (result) => {
-      var [target] = unit.filter((r) => r._id == result._id)
+      const [target] = unit.filter((r) => r._id == result._id)
 
       Object.keys(target).forEach(key => {
         target[key] = result[key]
@@ -119,8 +119,8 @@ export default function Unit() {
   }
 
   async function del(_id: string) {
-    var url = `/api/web/roles?id=${_id}`
-    var body = JSON.stringify({})
+    const url = `/api/web/roles?id=${_id}`
+    const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
       setUnit(
@@ -130,7 +130,7 @@ export default function Unit() {
   }
 
   async function edit(_id: string) {
-    var [filter] = unit.filter((c) => c._id == _id)
+    const [filter] = unit.filter((c) => c._id == _id)
 
     editUnitForm.reset({
       _id: filter._id,

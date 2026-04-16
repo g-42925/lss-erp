@@ -69,10 +69,10 @@ export default function Purchases() {
   }
 
   async function _editSubmit(data: any) {
-    var newPayAmt = parseInt(data.payAmount) - data.currPayAmt
-    var amount = data.type === "adjustment" ? data.payAmount : newPayAmt
+    const newPayAmt = parseInt(data.payAmount) - data.currPayAmt
+    const amount = data.type === "adjustment" ? data.payAmount : newPayAmt
 
-    var pOrdered = JSON.stringify({
+    const pOrdered = JSON.stringify({
       ...data,
       status: '___approved',
       purchaseType: 'product',
@@ -82,7 +82,7 @@ export default function Purchases() {
     if (parseInt(data.payAmount) > data.finalPrice || data.payAmount < data.currPayAmt) {
       if (data.type === "adjustment") {
         await editFn.fn('', pOrdered, (result) => {
-          var [target] = pr.filter((r) => r._id == result._id)
+          const [target] = pr.filter((r) => r._id == result._id)
 
           target.payAmount = result.payAmount
           _editRef.current?.close()
@@ -94,7 +94,7 @@ export default function Purchases() {
     }
     else {
       await editFn.fn('', pOrdered, (result) => {
-        var [target] = pr.filter((r) => r._id == result._id)
+        const [target] = pr.filter((r) => r._id == result._id)
 
         target.payAmount = result.payAmount
         _editRef.current?.close()
@@ -106,7 +106,7 @@ export default function Purchases() {
     const pApproved = JSON.stringify(data)
 
     await editFn.fn('', pApproved, (result) => {
-      var [target] = pr.filter((r) => r._id == result._id)
+      const [target] = pr.filter((r) => r._id == result._id)
 
       target.status = result.status
 
@@ -117,7 +117,7 @@ export default function Purchases() {
   }
 
   async function _edit(_id: string) {
-    var [filter] = pr.filter((p) => p._id == _id)
+    const [filter] = pr.filter((p) => p._id == _id)
 
     editPrForm.reset({
       _id: filter._id,
@@ -134,7 +134,7 @@ export default function Purchases() {
     _editRef.current?.showModal()
   }
   async function edit(_id: string) {
-    var [filter] = pr.filter((p) => p._id == _id)
+    const [filter] = pr.filter((p) => p._id == _id)
 
     editPrForm.reset({
       _id: filter._id,

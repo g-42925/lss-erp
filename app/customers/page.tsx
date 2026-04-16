@@ -72,7 +72,7 @@ export default function Customers() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      var result = customers.filter((r) => {
+      const result = customers.filter((r) => {
         return r.bussinessName.toLowerCase().includes(v)
       })
 
@@ -102,7 +102,7 @@ export default function Customers() {
     const body = JSON.stringify({ ...data, addedOn: f.addedOn })
 
     await editFn.fn('', body, (result) => {
-      var [target] = customers.filter((s, index) => {
+      const [target] = customers.filter((s, index) => {
         return s._id === data._id
       })
 
@@ -118,7 +118,7 @@ export default function Customers() {
 
 
   function edit(_id: string) {
-    var [customer] = customers.filter((s) => {
+    const [customer] = customers.filter((s) => {
       return s._id === _id
     })
 
