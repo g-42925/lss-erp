@@ -170,10 +170,10 @@ export default function Roles() {
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Roles <span className="text-sm leading-loose">Manage roles</span></span>
+        <span className="text-2xl text-black">Roles <span className="text-sm leading-loose">Manage roles</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
-            <span className="self-center">All roles</span>
+            <span className="self-center text-black">All roles</span>
             <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -182,16 +182,16 @@ export default function Roles() {
             </button>
           </div>
           <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center">
+            <div className="flex flex-row gap-2 items-center text-black">
               Show
-              <select className="select w-16">
+              <select className="select w-16 text-black">
                 <option>20</option>
                 <option>30</option>
                 <option>40</option>
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="text-black ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -207,7 +207,7 @@ export default function Roles() {
                 </div>
                 :
                 <div>
-                  <table className="table">
+                  <table className="table text-black">
                     <thead>
                       <tr>
                         <th>Role</th>
@@ -271,24 +271,24 @@ export default function Roles() {
       <dialog id="my_modal_2" ref={editRef} className="modal">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Role</span>
+            <span className="text-2xl text-black ">Edit Role</span>
             <form onSubmit={editRoleForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col gap-3">
-              <input {...editRoleForm.register('_id')} type="hidden" placeholder="current role _id " className="w-full p-3 rounded-md border1 border-black" />
-              <input {...editRoleForm.register("name")} type="text" placeholder="current role name" className="w-full p-3 rounded-md border-1 border-black" />
-              <select {...editRoleForm.register("permission")} className="select w-full">
+              <input {...editRoleForm.register('_id')} type="hidden" placeholder="current role _id " className="text-black w-full p-3 rounded-md border1 border-black" />
+              <input {...editRoleForm.register("name")} type="text" placeholder="current role name" className="text-black w-full p-3 rounded-md border-1 border-black" />
+              <select {...editRoleForm.register("permission")} className="text-black select w-full">
                 <option disabled>select permission</option>
                 <option value="readonly">Read only</option>
                 <option value="addonly">Add only</option>
                 <option value="addandedit">Add and edit</option>
               </select>
               <div className="flex flex-row gap-3">
-                <label className="label">
+                <label className="label text-black">
                   <input {...editRoleForm.register("page")} value="suppliers" type="checkbox" className="checkbox" /> Suppliers
                 </label>
-                <label className="label">
+                <label className="label text-black">
                   <input {...editRoleForm.register("page")} value="customers" type="checkbox" className="checkbox" /> Customers
                 </label>
-                <label className="label">
+                <label className="label text-black">
                   <input {...editRoleForm.register("page")} value="contacts" type="checkbox" className="checkbox" /> Contacts
                 </label>
               </div>

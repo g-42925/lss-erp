@@ -109,7 +109,7 @@ export default function Invoices() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 print:hidden">
+      <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
         <span className="text-2xl">Invoices</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
@@ -222,7 +222,7 @@ export default function Invoices() {
           </button>
         </div>
       </div>
-      <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newInvoiceForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
           <div className="flex flex-row items-center gap-3">
@@ -276,8 +276,8 @@ export default function Invoices() {
               <p className="text-sm text-gray-800"><span className="font-bold">No:</span> {selectedInvoice?.invoiceNumber}</p>
               <p className="text-sm text-gray-600"><span className="font-bold">Date:</span> {selectedInvoice ? new Date(selectedInvoice.date).toLocaleDateString('id-ID') : ''}</p>
               <p className="text-sm mt-1">
-                <span className={`px-2 py-1 text-xs font-bold rounded print:border print:border-black print:text-black ${selectedInvoice?.paid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {selectedInvoice?.paid ? 'PAID' : 'UNPAID'}
+                <span className={`px-2 py-1 text-xs font-bold rounded print:border print:border-black print:text-black ${Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0) === 0 ? 'bg-green-900 text-white' : 'bg-red-900 text-white'}`}>
+                  {Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0) === 0 ? 'PAID' : 'UNPAID'}
                 </span>
               </p>
             </div>
@@ -296,18 +296,20 @@ export default function Invoices() {
                   selectedInvoice.order.cart.map((cartItem: any, idx: number) => {
                     const matchedProduct = products.find(p => p._id === cartItem.productId)
                     return (
-                      <tr key={idx}>
-                        <td className="py-4 text-gray-800">{matchedProduct ? matchedProduct.productName : 'Unknown Product'} <span className="text-gray-500 whitespace-nowrap ml-2">x{cartItem.qty}</span></td>
-                        <td className="py-4 text-gray-800 text-right font-medium">{Number(cartItem.subTotal)?.toLocaleString('id-ID')}</td>
+                      <tr key={"various"}>
+                        <td className="py-4 text-gray-800">{matchedProduct?.productName} x {cartItem.qty}</td>
+                        <td className="py-4 text-gray-800 text-right font-medium">{Number(cartItem?.subTotal)?.toLocaleString('id-ID')}</td>
                       </tr>
                     )
                   })
-                ) : (
-                  <tr>
-                    <td className="py-4 text-gray-800">{selectedInvoice?.product?.productName}</td>
-                    <td className="py-4 text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.total)?.toLocaleString('id-ID')}</td>
-                  </tr>
-                )}
+                )
+                  :
+                  (
+                    <tr key={"single"}>
+                      <td className="py-4 text-gray-800">{selectedInvoice?.product?.productName} x {selectedInvoice?.order?.cart[0].qty}</td>
+                      <td className="py-4 text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.total)?.toLocaleString('id-ID')}</td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>

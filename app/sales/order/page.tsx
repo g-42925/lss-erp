@@ -24,6 +24,7 @@ export default function Order() {
   const [debt, setDebt] = useState<string>('no')
   const [payTerm, setPayTerm] = useState<number>(0)
   const [payAmt, setPayAmt] = useState<number>(0)
+  const [paymentMethod, setPaymentMethod] = useState<string>('cash')
 
   const newOrderForm = useForm()
   const router = useRouter()
@@ -349,7 +350,8 @@ export default function Order() {
       total,
       debt,
       payTerm,
-      payAmount: _payAmt
+      payAmount: _payAmt,
+      paymentMethod
     })
 
 
@@ -415,7 +417,7 @@ export default function Order() {
 
   return directSellMode ? (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap- text-black">
         <span className="text-2xl">Product Order</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
@@ -447,6 +449,13 @@ export default function Order() {
                   </option>
                 </select>
               </div>
+              <div className={`flex flex-row items-center gap-3`}>
+                <label className="w-[85px]">Payment Method</label>
+                <select {...newOrderForm.register('paymentMethod', { onChange: (e) => setPaymentMethod(e.target.value) })} className="select w-full">
+                  <option>Cash</option>
+                  <option>Bank</option>
+                </select>
+              </div>
               <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
                 <label className="w-[70px]">Pay term</label>
                 <label className="input flex-1">
@@ -454,16 +463,10 @@ export default function Order() {
                   <span className="badge badge-neutral badge-xs aspect-square">Days</span>
                 </label>
               </div>
-              {
-                debt === 'yes'
-                  ?
-                  <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
-                    <label className="w-[70px]">Pay Amount</label>
-                    <input defaultValue={0} placeholder="quantity" {...newOrderForm.register("payAmount", { onChange: (e) => setPayAmt(parseInt(e.target.value)) })} type="text" className="input flex-1" />
-                  </div>
-                  :
-                  <></>
-              }
+              <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
+                <label className="w-[70px]">Pay Amount</label>
+                <input defaultValue={0} placeholder="quantity" {...newOrderForm.register("payAmount", { onChange: (e) => setPayAmt(parseInt(e.target.value)) })} type="text" className="input flex-1" />
+              </div>
             </form>
             <form className="flex-1 flex flex-col gap-3 p-6" onSubmit={newOrderForm.handleSubmit(addToCart)}>
               <div className="flex flex-row items-center gap-3">
@@ -549,7 +552,7 @@ export default function Order() {
     :
     (
       <>
-        <div className="h-full p-6 flex flex-col gap-3">
+        <div className="h-full p-6 flex flex-col gap-3 text-black">
           <span className="text-2xl">Product Order</span>
           <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
             <div className="flex flex-row">
@@ -606,7 +609,6 @@ export default function Order() {
                           <th>Discount</th>
                           <th>Tax</th>
                           <th>Pay Term</th>
-                          <th>Contract</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -624,7 +626,6 @@ export default function Order() {
                                   <td>{x.discountType === "percent" ? Math.round(x.total * (x.discountValue / 100)) : x.total - x.discountValue}</td>
                                   <td>{x.taxValue}</td>
                                   <td>{x.payTerm} (Days)</td>
-                                  <td>-</td>
                                 </tr>
                               )
                             })
@@ -664,7 +665,7 @@ export default function Order() {
             </button>
           </div>
         </div>
-        <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+        <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
           <form onSubmit={newOrderForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
             <h3 className="text-lg font-bold">Make order</h3>
             <div className="flex flex-row items-center gap-3">
@@ -692,7 +693,7 @@ export default function Order() {
             </div>
           </form>
         </dialog>
-        <dialog id="my_modal_3" ref={cartRef} className="modal">
+        <dialog id="my_modal_3" ref={cartRef} className="modal text-black">
           <div className="modal-box flex flex-col gap-3">
             <h3 className="text-lg font-bold">Cart!</h3>
             <p className="py-4">Please review your order once more</p>
@@ -734,7 +735,7 @@ export default function Order() {
             </div>
           </div>
         </dialog>
-        <dialog ref={customRef} id="my_modal_2" className="modal h-full">
+        <dialog ref={customRef} id="my_modal_2" className="modal h-full text-black">
           <form onSubmit={newOrderForm.handleSubmit(addToCart)} className="h-120 modal-box flex flex-col gap-3">
             <h3 className="text-lg font-bold">Preorder</h3>
             <div className="flex flex-row items-center gap-3">

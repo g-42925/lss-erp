@@ -145,7 +145,7 @@ export default function Receiving() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Receiving</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -244,7 +244,7 @@ export default function Receiving() {
           }
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal">
+      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Receive</span>

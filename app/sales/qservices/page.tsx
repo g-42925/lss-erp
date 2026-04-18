@@ -202,7 +202,7 @@ export default function Quotation() {
 
   return (
     <>
-      <div className="h-full p-6 h-full flex flex-col gap-3">
+      <div className="h-full p-6 h-full flex flex-col gap-3 text-black">
         <span className="text-2xl">Services Quotations</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
@@ -320,7 +320,7 @@ export default function Quotation() {
           }
         </div>
       </div>
-      <dialog ref={editRef} id="my_modal_2" className="modal h-full">
+      <dialog ref={editRef} id="my_modal_2" className="modal h-full text-black">
         <form onSubmit={editQuotationForm.handleSubmit(editSubmit)} className="h-140 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Edit quotation</h3>
           <div className="flex flex-row items-center gap-2">
@@ -381,7 +381,7 @@ export default function Quotation() {
           </div>
         </form>
       </dialog>
-      <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-140 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make quotation</h3>
           <div className="flex flex-row items-center gap-2">
@@ -442,20 +442,19 @@ export default function Quotation() {
           </div>
         </form>
       </dialog>
-      <dialog ref={orderRef} id="make_order_modal" className="modal h-full">
-        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-120 w-[500px] modal-box flex flex-col gap-3">
+      <dialog ref={orderRef} id="make_order_modal" className="modal h-full text-black">
+        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-72 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make Order for {selectedQNumber}</h3>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[100px]">Pay Term</label>
-            <input {...makeOrderForm.register("payTerm", { required: true })} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. Net 30" />
+            <label className="input flex-1">
+              <input {...makeOrderForm.register("payTerm", { required: true })} type="text" placeholder="pay term" />
+              <span className="badge badge-neutral badge-xs aspect-square">Days</span>
+            </label>
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[100px]">Contract (Opt)</label>
             <input {...makeOrderForm.register("contract")} type="file" className="file-input file-input-bordered flex-1" />
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[100px]">Attachment (Opt)</label>
-            <input {...makeOrderForm.register("attachment")} type="file" className="file-input file-input-bordered flex-1" />
           </div>
           <div className="flex flex-row items-center gap-3 hidden">
             <label className="w-[100px]">Debt</label>

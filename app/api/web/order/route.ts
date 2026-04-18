@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const payTerm = formData.get("payTerm") as string
     const qNumber = formData.get("qNumber") as string
     const id = formData.get("id") as string
+    const paymentMethod = formData.get("paymentMethod") as string
 
     const company = await Companie.findOne({
       masterAccountId: id
@@ -96,6 +97,15 @@ export async function POST(request: NextRequest) {
       const frequency = formData.get("frequency") as string
       const range = parseInt(formData.get("range") as string) || 0
       const so = `SO-${String(Date.now()).slice(-5)}`
+      const cart = JSON.parse(formData.get("cart") as string)
+
+      const _cart = cart.map((item: any) => {
+        return {
+          productId: new ObjectId(item.productId.split('/')[0]),
+          qty: item.qty,
+          subTotal: item.subTotal,
+        }
+      })
 
       const order = await Order.create({
         salesOrderId: Date.now(),
@@ -115,13 +125,7 @@ export async function POST(request: NextRequest) {
         contract: contractUploadUrl,
         attachment: attachmentUploadUrl,
         type: "direct",
-        cart: [
-          {
-            productId: new ObjectId(productId),
-            qty: 1,
-            subTotal: price,
-          }
-        ]
+        cart: _cart
       })
 
       const [_o] = await Order.aggregate([
@@ -239,6 +243,8 @@ export async function POST(request: NextRequest) {
       )
 
       const paid = formData.get("debt") === 'yes' ? false : true
+      const payAmt = formData.get("payAmt")
+      const method = formData.get("method")
 
 
       if (rest.productType === "good") {
@@ -250,7 +256,14 @@ export async function POST(request: NextRequest) {
           salesOrderNumber: so,
           payAmount: formData.get("payAmt"),
           paid: paid,
-          date: new Date()
+          date: new Date(),
+          paymentHistory: [
+            {
+              amount: payAmt,
+              method: method,
+              date: new Date()
+            }
+          ]
         })
       }
 

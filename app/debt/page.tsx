@@ -17,16 +17,21 @@ export default function Debt() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const payRef = useRef<HTMLDialogElement>(null)
+  const logsRef = useRef<HTMLDialogElement>(null)
 
   const [debts, SetDebts] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
+  const [logs, setLogs] = useState<any[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
 
   const newRoleForm = useForm()
   const editRoleForm = useForm()
+  const payForm = useForm()
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
-    url: '/api/web/roles',
+    url: '/api/web/purchases',
     method: 'PUT'
   })
 
@@ -45,6 +50,54 @@ export default function Debt() {
 
   async function search(v: string) {
 
+  }
+
+  const getLogsFn = useFetch<any[], any>({
+    url: `/api/web/log/purchase`,
+    method: 'GET'
+  })
+
+  async function openPay(debt: any) {
+    payForm.reset({
+      _id: debt._id,
+      productName: debt.product.productName,
+      currPayAmt: debt.payAmount,
+      finalPrice: debt.finalPrice,
+      payAmount: 0,
+      paymentMethod: "Cash"
+    })
+    payRef.current?.showModal()
+  }
+
+  async function paySubmit(data: any) {
+     const newPayAmt = parseInt(data.payAmount)
+     if (newPayAmt <= 0) return alert("Amount must be greater than 0")
+     const payload = JSON.stringify({
+       _id: data._id,
+       type: "payment",
+       newPayAmt: newPayAmt,
+       payAmount: parseInt(data.currPayAmt) + newPayAmt,
+       status: '___approved',
+       reference: null,
+       paymentMethod: data.paymentMethod
+     })
+     
+     await putFn.fn('', payload, (result) => {
+       const target = debts.find((d) => d._id === result._id)
+       if(target) target.payAmount = result.payAmount
+       payRef.current?.close()
+       SetDebts([...debts])
+     })
+  }
+
+  async function viewLogs(debtId: string) {
+     setLogsLoading(true)
+     setLogs([])
+     logsRef.current?.showModal()
+     getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debtId}`, "{}", (res) => {
+        setLogs(res)
+        setLogsLoading(false)
+     })
   }
 
 
@@ -66,7 +119,7 @@ export default function Debt() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Debts</span>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -113,6 +166,7 @@ export default function Debt() {
                         <th>Price</th>
                         <th>Pay Amount</th>
                         <th>Remain</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -128,6 +182,14 @@ export default function Debt() {
                                 <td>{p.finalPrice}</td>
                                 <td>{p.payAmount}</td>
                                 <td>{p.finalPrice - p.payAmount}</td>
+                                <td className="flex flex-row gap-3">
+                                  <button className="btn btn-sm btn-primary" onClick={() => openPay(p)}>
+                                    Pay
+                                  </button>
+                                  <button className="btn btn-sm btn-secondary" onClick={() => viewLogs(p._id)}>
+                                    Logs
+                                  </button>
+                                </td>
                               </tr>
                             )
                           })
@@ -166,6 +228,77 @@ export default function Debt() {
             </Link>
           </button>
         </div>
+
+        <dialog id="pay_modal" ref={payRef} className="modal text-black">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Add Payment</h3>
+            <form onSubmit={payForm.handleSubmit(paySubmit)} className="flex flex-col gap-3 mt-4">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Product</legend>
+                <input className="input w-full" {...payForm.register("productName")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Remaining Debt</legend>
+                <input className="input w-full" value={parseInt(payForm.watch("finalPrice") || 0) - parseInt(payForm.watch("currPayAmt") || 0)} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Pay Amount</legend>
+                <input className="input w-full" {...payForm.register("payAmount")} type="number" required />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Payment Method</legend>
+                <select className="select w-full" {...payForm.register("paymentMethod")}>
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="E-Wallet">E-Wallet</option>
+                </select>
+              </fieldset>
+              {putFn.noResult || putFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
+              <div className="modal-action">
+                <button type="button" className="btn" onClick={() => payRef.current?.close()}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={putFn.loading}>Save Payment</button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+
+        <dialog id="logs_modal" ref={logsRef} className="modal text-black">
+          <div className="modal-box">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Payment Logs</h3>
+              <button className="btn btn-sm btn-circle" onClick={() => logsRef.current?.close()}>✕</button>
+            </div>
+            {logsLoading ? (
+              <div className="flex flex-col justify-center items-center p-6"><span className="loading loading-spinner"></span></div>
+            ) : logs.length === 0 ? (
+              <p>No payment logs found.</p>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Number</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Init</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map((L, i) => (
+                    <tr key={i}>
+                      <td>{new Date(L.date).toLocaleString('id-ID')}</td>
+                      <td>{L.paymentNumber}</td>
+                      <td>{L.amount}</td>
+                      <td>{L.paymentMethod || '-'}</td>
+                      <td>{L.initial ? 'Yes' : 'No'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </dialog>
 
       </div>
     </>

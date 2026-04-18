@@ -31,7 +31,7 @@ export default function Allocation() {
 			const [loc, prod] = v.split(":")
 
 			if (prod) {
-				var result = stock.filter((r) => {
+				const result = stock.filter((r) => {
 					return r.locationName.includes(loc) && r.product.productName.includes(prod)
 				})
 
@@ -49,7 +49,7 @@ export default function Allocation() {
 				}
 			}
 			else {
-				var result = stock.filter((r) => {
+				const result = stock.filter((r) => {
 					return r.locationName.includes(loc) || r.product.productName === loc
 				})
 
@@ -185,7 +185,7 @@ export default function Allocation() {
 
 	return (
 		<>
-			<div className="h-full p-6 flex flex-col gap-3">
+			<div className="h-full p-6 flex flex-col gap-3 text-black">
 				<span className="text-2xl">Allocation <span className="text-sm leading-loose">Manage allocation</span></span>
 				<div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
 					<div className="flex flex-row">
@@ -272,7 +272,7 @@ export default function Allocation() {
 					}
 				</div>
 			</div>
-			<dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+			<dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
 				<form onSubmit={openingStockForm.handleSubmit(handleSubmit)} className="modal-box flex flex-col gap-3">
 					<h3 className="text-lg font-bold">Allocate</h3>
 					<div className="flex flex-row items-center gap-2">

@@ -24,6 +24,10 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
 
   const [searchTerm, setSearchTerm] = useState('')
 
+  const [isDebt, setIsDebt] = useState(false)
+  const [method, setMethod] = useState(false)
+  const [total, setTotal] = useState(0)
+
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
   const orderRef = useRef<HTMLDialogElement>(null)
@@ -58,6 +62,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     formData.append("qNumber", selectedQNumber)
     formData.append("id", masterAccountId)
     formData.append("payTerm", data.payTerm || "")
+    formData.append("method", data.paymentMethod)
     if (data.contract && data.contract[0]) {
       formData.append("contract", data.contract[0])
     }
@@ -71,7 +76,8 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     })
   }
 
-  function openMakeOrder(qNumber: string) {
+  function openMakeOrder(qNumber: string, s: any) {
+    setTotal(s.cart.reduce((a: number, b: any) => a + b.subTotal, 0))
     setSelectedQNumber(qNumber)
     makeOrderForm.reset()
     orderRef.current?.showModal()
@@ -173,6 +179,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     return Math.round(ppns.reduce((a, b) => a + b, 0))
   }
 
+
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/quotations?id=${masterAccountId}&type=good`
@@ -193,11 +200,15 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     }
   }, [masterAccountId])
 
+  useEffect(() => {
+    makeOrderForm.setValue("payAmt", isDebt === "no" ? total : 0);
+  }, [isDebt, total]);
+
   const filteredQuotations = getQuotationsFn?.result?.filter(s => s.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase())) || []
 
   return (
     <>
-      <div className="h-full p-6 h-full flex flex-col gap-3">
+      <div className="h-full p-6 h-full flex flex-col gap-3 text-black">
         <span className="text-2xl">Product Quotation <span className="text-sm leading-loose"></span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
@@ -267,7 +278,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
                                     <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
                                   </svg>
                                 </button>
-                                <button onClick={() => openMakeOrder(s.quotationNumber)}>
+                                <button onClick={() => openMakeOrder(s.quotationNumber, s)}>
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                   </svg>
@@ -283,7 +294,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
           }
         </div>
       </div>
-      <dialog ref={editRef} id="my_modal_1" className="modal h-full">
+      <dialog ref={editRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={editQuotationForm.handleSubmit(editSubmit)} className="h-100 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make quotation</h3>
           <div className="flex flex-row items-center gap-2">
@@ -325,7 +336,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
           </div>
         </form>
       </dialog>
-      <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newQuotationForm.handleSubmit(submit)} className="h-100 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make quotation</h3>
           <div className="flex flex-row items-center gap-2">
@@ -367,31 +378,33 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
           </div>
         </form>
       </dialog>
-      <dialog ref={orderRef} id="make_order_modal" className="modal h-full">
-        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-120 w-[500px] modal-box flex flex-col gap-3">
+      <dialog ref={orderRef} id="make_order_modal" className="modal h-full text-black">
+        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-96 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make Order for {selectedQNumber}</h3>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[100px]">Pay Term</label>
-            <input {...makeOrderForm.register("payTerm", { required: true })} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. Net 30" />
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[100px]">Contract (Opt)</label>
-            <input {...makeOrderForm.register("contract")} type="file" className="file-input file-input-bordered flex-1" />
-          </div>
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[100px]">Attachment (Opt)</label>
-            <input {...makeOrderForm.register("attachment")} type="file" className="file-input file-input-bordered flex-1" />
+            <label className="input flex-1">
+              <input {...makeOrderForm.register("payTerm", { required: true })} type="text" placeholder="pay term" />
+              <span className="badge badge-neutral badge-xs aspect-square">Days</span>
+            </label>
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[100px]">Debt</label>
-            <select {...makeOrderForm.register("debt")} className="select flex-1 border-gray-300 border">
+            <select {...makeOrderForm.register("debt", { onChange: (e) => setIsDebt(e.target.value) })} className="select flex-1 border-gray-300 border">
               <option value="no">No</option>
-              <option value="yes">Yes</option>
+              <option selected value="yes">Yes</option>
             </select>
           </div>
-          <div className={`flex flex-row items-center gap-3 ${makeOrderForm.watch("debt") === "yes" ? "" : "hidden"}`}>
+          <div className={`flex flex-row items-center gap-3`}>
             <label className="w-[100px]">Pay Amount</label>
-            <input {...makeOrderForm.register("payAmt")} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. 10000" />
+            <input {...makeOrderForm.register("payAmt", { onChange: (e) => e.target.value > 0 ? setMethod(true) : setMethod(false) })} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. 10000" />
+          </div>
+          <div className={`flex flex-row items-center gap-3`}>
+            <label className="w-[100px]">payment method</label>
+            <select {...makeOrderForm.register("paymentMethod")} className="select flex-1 border-gray-300 border">
+              <option value="cash">Cash</option>
+              <option value="bank">Bank</option>
+            </select>
           </div>
           {makeOrderFn.loading && <span className="loading loading-spinner"></span>}
           {makeOrderFn.noResult || makeOrderFn.error ? <label className="input-validator text-red-900" htmlFor="role">{makeOrderFn.message}</label> : null}
@@ -516,7 +529,7 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Product Quotation (Edit)</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
@@ -764,7 +777,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Product Quotation</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">

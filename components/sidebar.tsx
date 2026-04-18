@@ -86,9 +86,6 @@ export default function Sidebar({ children }: { children: any }) {
                 <li>
                   <Link href="/warehouse/receiving">Refund</Link>
                 </li>
-                <li>
-                  <Link href="/warehouse/inventory">Inventory</Link>
-                </li>
               </ul>
             </details>
           </li>

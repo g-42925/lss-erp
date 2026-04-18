@@ -80,7 +80,7 @@ export default function Invoices() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 print:hidden">
+      <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
         <span className="text-2xl">Invoices</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
@@ -204,7 +204,7 @@ export default function Invoices() {
           </button>
         </div>
       </div>
-      <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newInvoiceForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
           <div className="flex flex-row items-center gap-3">
@@ -241,7 +241,7 @@ export default function Invoices() {
         </form>
       </dialog>
 
-      <dialog ref={invoiceModalRef} className="modal h-full print:block print:opacity-100 print:pointer-events-auto print:visible">
+      <dialog ref={invoiceModalRef} className="modal h-full print:block print:opacity-100 print:pointer-events-auto print:visible text-black">
         <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
           <div className="flex justify-between items-start border-b pb-4 print:border-b-2 print:border-gray-200">
             <div>

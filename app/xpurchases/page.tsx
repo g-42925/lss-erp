@@ -287,7 +287,7 @@ export default function XPurchases() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Purchases</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -421,7 +421,7 @@ export default function XPurchases() {
           }
         </div>
       </div>
-      <dialog id="my_modal_0" ref={_editRef} className="modal">
+      <dialog id="my_modal_0" ref={_editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Purchase Requisition</span>
@@ -444,7 +444,7 @@ export default function XPurchases() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal">
+      <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Purchase Requisition</span>
@@ -467,7 +467,7 @@ export default function XPurchases() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_2" ref={orderRef} className="modal">
+      <dialog id="my_modal_2" ref={orderRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Make purchase order</span>
@@ -502,6 +502,15 @@ export default function XPurchases() {
                   }
                 </select>
               </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Payment Method</legend>
+                <select {...orderForm.register("paymentMethod")} className="select w-full">
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="E-Wallet">E-Wallet</option>
+                </select>
+              </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <button disabled={disabled} type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
                 Make
@@ -510,7 +519,7 @@ export default function XPurchases() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_3" ref={editRef} className="modal">
+      <dialog id="my_modal_3" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>

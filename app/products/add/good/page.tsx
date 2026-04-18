@@ -88,7 +88,7 @@ export default function Add() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Add new product</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x relative">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
@@ -266,7 +266,7 @@ export default function Add() {
         </div>
       </div>
 
-      <div className="modal">
+      <div className="modal text-black">
         <div className="modal-box p-0 bg-transparent shadow-none">
           <label htmlFor="lightbox-modal" className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</label>
           <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" />

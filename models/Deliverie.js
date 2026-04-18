@@ -2,32 +2,29 @@ import mongoose from 'mongoose';
 import { type } from 'os';
 
 const deliverySchema = new mongoose.Schema({
-  companyId:{
-    type:mongoose.Schema.Types.ObjectId,
-    required:true
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
   },
-  salesOrderNumber:{
-    type:String,
-    required:true
+  salesOrderNumber: {
+    type: String,
+    required: true
   },
-  date:{
-    type:Date,
-    default:Date.now
+  items: [
+    {
+      productId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      qty: { type: Number, required: true },
+      batchNumber: { type: String, required: true },
+      locationId: { type: mongoose.Schema.Types.ObjectId, required: true }
+    }
+  ],
+  date: {
+    type: Date,
+    default: Date.now
   },
-  qty:{
-    type:Number,
-    required:true
-  },
-  deliveryNumber:{
-    type:String,
-    required:true
-  },
-  batchNumber:{
-    type:String,
-    required:true
-  },
-  locationId:{
-    type:mongoose.Schema.Types.ObjectId
+  deliveryNumber: {
+    type: String,
+    required: true
   }
 });
 

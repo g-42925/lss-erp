@@ -159,7 +159,7 @@ export default function Location() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Location <span className="text-sm leading-loose">Manage location</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -249,7 +249,7 @@ export default function Location() {
           }
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal">
+      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Role</span>
@@ -272,7 +272,7 @@ export default function Location() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal">
+      <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Location</span>

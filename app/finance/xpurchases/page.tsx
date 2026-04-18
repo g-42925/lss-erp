@@ -345,6 +345,15 @@ export default function XPurchases() {
                   <option>adjustment</option>
                 </select>
               </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Payment Method</legend>
+                <select {...editPrForm.register("paymentMethod")} className="select w-full">
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="E-Wallet">E-Wallet</option>
+                </select>
+              </fieldset>
               {
                 type === "adjustment"
                   ?

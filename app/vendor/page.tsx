@@ -164,7 +164,7 @@ export default function Vendor() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Vendors <span className="text-sm leading-loose">Manage your vendor</span></span>
         <label className="input w-full">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -306,7 +306,7 @@ export default function Vendor() {
           }
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal">
+      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Vendor</span>
@@ -338,7 +338,7 @@ export default function Vendor() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal">
+      <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Vendor</span>

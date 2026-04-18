@@ -29,6 +29,10 @@ const logSchema = new mongoose.Schema({
   reference: {
     type: String,
     required: false
+  },
+  paymentMethod: {
+    type: String,
+    required: false
   }
 });
 

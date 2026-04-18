@@ -8,7 +8,7 @@ const orderSchema = new mongoose.Schema({
   discountValue: { type: Number, required: false },
   taxValue: { type: Number, required: false },
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
-  customerId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  customerId: { type: mongoose.Schema.Types.ObjectId, required: false, ref: 'Customer' },
   customerName: { type: String, required: false },
   contract: { type: String, required: false },
   attachment: { type: String, required: false },
@@ -22,7 +22,7 @@ const orderSchema = new mongoose.Schema({
   range: { type: Number, required: false },
   cart: [
     {
-      productId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      productId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Product' },
       qty: { type: Number, required: true },
       subTotal: { type: Number, required: true },
     }

@@ -243,7 +243,14 @@ export async function POST(request: NextRequest) {
 			salesOrderNumber: result.salesOrderNumber,
 			payAmount: params.payAmount,
 			paid: paid,
-			date: new Date()
+			date: new Date(),
+			paymentHistory: [
+				{
+					amount: params.payAmount,
+					method: params.paymentMethod,
+					date: new Date()
+				}
+			]
 		})
 
 		return NextResponse.json({

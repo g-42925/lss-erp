@@ -107,7 +107,7 @@ export default function Receivable() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Receivables</span>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -224,7 +224,7 @@ export default function Receivable() {
         </div>
       </div>
 
-      <dialog ref={payRef} className="modal">
+      <dialog ref={payRef} className="modal text-black">
         <div className="modal-box">
           <h3 className="font-bold text-lg mb-4">Pay Receivable</h3>
           <form onSubmit={payInvoice} className="flex flex-col gap-4">
@@ -264,7 +264,7 @@ export default function Receivable() {
         </form>
       </dialog>
 
-      <dialog ref={historyRef} className="modal">
+      <dialog ref={historyRef} className="modal text-black">
         <div className="modal-box max-w-3xl">
           <h3 className="font-bold text-lg mb-4">Payment History ({selectedInvoice?.invoiceNumber})</h3>
           <div className="overflow-x-auto">

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, useCallback } from "react"
 import { useRouter } from 'next/navigation'
 
 
@@ -15,13 +14,11 @@ export default function Delivery() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
-  const [searchResult, setSearchResult] = useState<any[]>([])
-  const [batches, setBatches] = useState<any[]>([])
-  const [limit, setLimit] = useState<number>(-1)
+  const [orderItems, setOrderItems] = useState<any[]>([])
   const [deliveries, setDeliveries] = useState<any[]>([])
+  const [deliveryPayload, setDeliveryPayload] = useState<{ [key: string]: { qty: number, batchDetail: string } }>({})
 
   const newPrForm = useForm()
-  const editPrForm = useForm()
   const router = useRouter()
 
   const addFn = useFetch<any, any>({
@@ -32,74 +29,88 @@ export default function Delivery() {
     }
   })
 
-  const getDeliveries = useFetch<any[], any>({
+  const getDeliveries = useFetch<any, any>({
     url: `/api/web/delivery?id=xxx`,
     method: 'GET'
   })
 
-  const getBatchesFn = useFetch<any, any>({
+  const getOrderDetailsFn = useFetch<any, any>({
     url: `/api/web/delivery?id=xxx`,
     method: 'GET'
   })
 
   async function submit(data: any) {
-    if (parseInt(data.qty) > limit) {
-      alert('can not deliver more than order qty')
-    }
-    else {
-      const [locId, batchNumber, remain] = data.batchDetail.split('/')
-      const _remain = batches.map((b) => b.accumulative - b.outQty).reduce((acc, curr) => {
-        return acc + curr
-      }, 0)
-
-
-      if (parseInt(data.qty) > remain) {
-        alert('can not deliver more than remain qty')
-      }
-      else {
-        const params = {
-          locationId: locId,
-          batchNumber: batchNumber,
-          qty: parseInt(data.qty),
-          salesOrderNumber: data.salesOrderNumber,
-          date: new Date(),
-          id: masterAccountId,
-          remain: _remain
+    const items = Object.entries(deliveryPayload)
+      .filter(([_, val]) => val.qty > 0 && val.batchDetail)
+      .map(([productId, val]) => {
+        const [locId, batchNumber] = val.batchDetail.split('/')
+        return {
+          productId,
+          qty: val.qty,
+          batchNumber,
+          locationId: locId
         }
+      })
 
-        await addFn.fn('', JSON.stringify(params), r => {
-          newPrForm.reset({ salesOrderNumber: '' })
-          setDeliveries([r, ...deliveries])
-          setLimit(-1)
-          modalRef.current?.close()
-        })
-      }
+    if (items.length === 0) {
+      alert('Please select at least one item with a valid batch and quantity')
+      return
     }
-  }
 
-  async function search(v: string) {
+    const params = {
+      id: masterAccountId,
+      salesOrderNumber: data.salesOrderNumber,
+      items: items
+    }
 
-  }
-
-  function getBatches(salesOrderNumber: string) {
-    const url = `/api/web/delivery?so=${salesOrderNumber}&f=x`
-
-    getBatchesFn.fn(url, JSON.stringify({}), result => {
-      setBatches(result.batches)
-      setLimit(result.limit)
+    await addFn.fn('', JSON.stringify(params), () => {
+      newPrForm.reset({ salesOrderNumber: '' })
+      setOrderItems([])
+      setDeliveryPayload({})
+      // Refresh deliveries
+      const url = `/api/web/delivery?id=${masterAccountId}&f=all`
+      getDeliveries.fn(url, JSON.stringify({}), (result) => {
+        setDeliveries(result)
+      })
+      modalRef.current?.close()
     })
   }
 
+  const getOrderDetails = useCallback((salesOrderNumber: string) => {
+    if (!salesOrderNumber || salesOrderNumber.length < 3) return
+
+    const url = `/api/web/delivery?so=${salesOrderNumber}&f=x`
+
+    getOrderDetailsFn.fn(url, JSON.stringify({}), result => {
+      setOrderItems(result)
+      // Initialize payload
+      const initialPayload: any = {}
+      result.forEach((item: any) => {
+        initialPayload[item.product._id] = { qty: 0, batchDetail: '' }
+      })
+      setDeliveryPayload(initialPayload)
+    })
+  }, [masterAccountId, getOrderDetailsFn])
+
+  const handleItemChange = useCallback((productId: string, field: 'qty' | 'batchDetail', value: any) => {
+    setDeliveryPayload(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [field]: field === 'qty' ? parseInt(value) || 0 : value
+      }
+    }))
+  }, [])
+
   useEffect(() => {
-    if (hasHydrated) {
-      const url = `/api/web/delivery?id=${masterAccountId}&f=all&id=${masterAccountId}`
+    if (hasHydrated && masterAccountId) {
+      const url = `/api/web/delivery?id=${masterAccountId}&f=all`
 
       getDeliveries.fn(url, JSON.stringify({}), (result) => {
         setDeliveries(result)
-        setLimit(0)
       })
     }
-  }, [masterAccountId])
+  }, [masterAccountId, hasHydrated])
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
@@ -108,103 +119,76 @@ export default function Delivery() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Deliveries</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
-            <span className="self-center">Deliveries status</span>
-            <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
+        <span className="text-2xl font-bold">Warehouse Deliveries</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 shadow-xl flex flex-col p-6 gap-6 rounded-lg">
+          <div className="flex flex-row items-center border-b pb-4">
+            <span className="text-lg font-semibold">Processed Deliveries</span>
+            <button onClick={() => modalRef.current?.showModal()} className="btn btn-primary ml-auto flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Add
+              New Delivery
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-row gap-4 items-center">
             <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
+              <span className="text-sm text-gray-500">Show</span>
+              <select className="select select-bordered select-sm w-20">
                 <option>20</option>
-                <option>30</option>
-                <option>40</option>
+                <option>50</option>
+                <option>100</option>
               </select>
-              Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <div className="relative ml-auto w-64">
+              <input type="search" placeholder="Search deliveries..." className="input input-bordered w-full pr-10" />
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+            </div>
           </div>
           {
             getDeliveries.loading
               ?
               <div className="flex-1 flex flex-col justify-center items-center">
-                <span className="loading loading-spinner loading-xl"></span>
+                <span className="loading loading-spinner loading-xl text-blue-900"></span>
+                <span className="mt-4 text-gray-500 font-medium">Loading deliveries...</span>
               </div>
               :
               getDeliveries.error || getDeliveries.noResult
                 ?
-                <div>
-                  <p>{getDeliveries.message}</p>
+                <div className="flex flex-col items-center justify-center p-12 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">{getDeliveries.message || "No deliveries found"}</p>
                 </div>
                 :
-                <div>
-                  <table className="table text-center">
-                    <thead>
+                <div className="overflow-x-auto">
+                  <table className="table table-zebra w-full text-center">
+                    <thead className="bg-gray-100 uppercase text-xs">
                       <tr>
                         <th>Date</th>
-                        <th>Delivery Number</th>
-                        <th>Sales Order Number</th>
+                        <th>Delivery #</th>
+                        <th>SO #</th>
                         <th>Location</th>
                         <th>Product</th>
                         <th>Customer</th>
-                        <th>Quantity</th>
+                        <th>Qty</th>
                       </tr>
                     </thead>
                     <tbody>
                       {
-                        searchResult.length < 1
-                          ?
-                          deliveries.map((p, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                <td>{p.deliveryNumber}</td>
-                                <td>{p.salesOrderNumber}</td>
-                                <td>{p.location.name}</td>
-                                <td>{p.order.product.productName}</td>
-                                <td>{p.order.customer.bussinessName}</td>
-                                <td>{p.qty}</td>
-                                <td>
-                                  <button className="cursor">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                      <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-                                      <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
-                                    </svg>
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((role, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
+                        deliveries.map((p, index) => {
+                          return (
+                            <tr key={index} className="hover">
+                              <td className="font-medium text-xs">{new Date(p.date).toLocaleString('id-ID')}</td>
+                              <td className="font-bold text-blue-700">{p.deliveryNumber}</td>
+                              <td className="font-medium">{p.salesOrderNumber}</td>
+                              <td><span className="badge badge-ghost">{p.location?.name}</span></td>
+                              <td className="font-semibold">{p.product?.productName}</td>
+                              <td>{Object.keys(p.customer).length === 0 ? p.order?.customerName : p.customer?.bussinessName}</td>
+                              <td><span className="font-bold">{p.qty}</span></td>
+                            </tr>
+                          )
+                        })
                       }
                     </tbody>
                   </table>
@@ -212,42 +196,106 @@ export default function Delivery() {
           }
         </div>
       </div>
-      <dialog id="my_modal_1" ref={modalRef} className="modal">
-        <div className="modal-box">
-          <div className="flex flex-col gap-3">
-            <span className="text-2xl">Make delivery info</span>
-            <form onSubmit={newPrForm.handleSubmit(submit)} className="h-92 relative flex flex-col gap-3">
-              <div className="flex flex-col gap-3">
+
+      <dialog ref={modalRef} className="modal text-black">
+        <div className="modal-box w-11/12 max-w-5xl">
+          <form method="dialog">
+            <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+          </form>
+          <div className="flex flex-col gap-6">
+            <h3 className="text-2xl font-bold border-b pb-2">Create New Delivery</h3>
+            <form onSubmit={newPrForm.handleSubmit(submit)} className="flex flex-col gap-6">
+              <div className="flex flex-row gap-4">
                 <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">Sales Order Number</legend>
-                  <input onKeyUp={(e) => getBatches(e.target.value)} {...newPrForm.register("salesOrderNumber")} className="input w-full" />
-                </fieldset>
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">Batch</legend>
-                  <select {...newPrForm.register("batchDetail")} className="select w-full">
-                    <option>...</option>
-                    {
-                      batches.map((b, index) => {
-                        return <option value={`${b.locationId}/${b.batchNumber}/${b.remain}`} key={index}>{`${b.location.name} - ${b.batchNumber} (${b.remain})`}</option>
-                      })
-                    }
-                  </select>
-                </fieldset>
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">Quantity</legend>
-                  <input {...newPrForm.register("qty")} className="input w-full" />
-                  {limit > -1 ? <p className="label">max qty {limit}</p> : <></>}
+                  <legend className="fieldset-legend font-semibold">Sales Order Number</legend>
+                  <div className="flex gap-2">
+                    <input
+                      {...newPrForm.register("salesOrderNumber")}
+                      placeholder="Enter SO Number (e.g. SO-001)"
+                      className="input input-bordered w-full"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => getOrderDetails(newPrForm.getValues("salesOrderNumber"))}
+                      className="btn btn-neutral"
+                      disabled={getOrderDetailsFn.loading}
+                    >
+                      {getOrderDetailsFn.loading ? <span className="loading loading-spinner"></span> : "Fetch Details"}
+                    </button>
+                  </div>
                 </fieldset>
               </div>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
-                Add
-              </button>
+
+              {orderItems.length > 0 && (
+                <div className="flex flex-col gap-4">
+                  <h4 className="font-semibold text-lg">Order Items</h4>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="table w-full">
+                      <thead className="bg-gray-50 uppercase text-xs">
+                        <tr>
+                          <th>Product</th>
+                          <th>Ordered</th>
+                          <th>Delivered</th>
+                          <th>Available Batches</th>
+                          <th className="w-32">Qty to Deliver</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderItems.map((item, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <div className="font-bold">{item.product.productName}</div>
+                              <div className="text-xs opacity-50">{item.product.productId}</div>
+                            </td>
+                            <td>{item.orderedQty}</td>
+                            <td>{item.deliveredQty}</td>
+                            <td>
+                              <select
+                                className="select select-bordered select-sm w-full"
+                                onChange={(e) => handleItemChange(item.product._id, 'batchDetail', e.target.value)}
+                                value={deliveryPayload[item.product._id]?.batchDetail || ''}
+                              >
+                                <option value="">Select Batch/Location</option>
+                                {item.batches.map((b: any, bIdx: number) => (
+                                  <option key={bIdx} value={`${b.locationId}/${b.batchNumber}/${b.remain}`}>
+                                    {b.location.name} - {b.batchNumber} (Stock: {b.remain})
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                className={`input input-bordered input-sm w-full ${deliveryPayload[item.product._id]?.qty > item.limit ? 'input-error' : ''}`}
+                                placeholder="0"
+                                max={item.limit}
+                                min={0}
+                                onChange={(e) => handleItemChange(item.product._id, 'qty', e.target.value)}
+                                value={deliveryPayload[item.product._id]?.qty || 0}
+                              />
+                              {item.limit > 0 && <span className="text-[10px] text-gray-400 mt-1 block">Max: {item.limit}</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {addFn.error && <div className="alert alert-error text-sm py-2">Error processing delivery</div>}
+
+              <div className="modal-action">
+                <button type="submit" className="btn btn-primary px-8" disabled={addFn.loading}>
+                  {addFn.loading ? <span className="loading loading-spinner"></span> : "Save Delivery"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </dialog>
-      <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
+
+      <button className="btn btn-circle btn-neutral fixed right-12 bottom-12 shadow-2xl">
         <Link href="/xpurchases">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
@@ -256,8 +304,4 @@ export default function Delivery() {
       </button>
     </>
   )
-}
-
-type Failed = {
-  message: string
 }

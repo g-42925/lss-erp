@@ -131,6 +131,7 @@ export async function PUT(request: NextRequest) {
             paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
             type: rest.type,
             reference,
+            paymentMethod: rest.paymentMethod,
           })
 
           if (rest.type === "payment") {
@@ -158,7 +159,8 @@ export async function PUT(request: NextRequest) {
             initial: false,
             paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
             type: rest.type,
-            reference
+            reference,
+            paymentMethod: rest.paymentMethod
           })
 
           if (rest.type === "payment") {
@@ -192,7 +194,8 @@ export async function PUT(request: NextRequest) {
           amount: rest.payAmount,
           initial: true,
           paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
-          type: 'payment'
+          type: 'payment',
+          paymentMethod: rest.paymentMethod
         })
 
         if (rest.purchaseType === 'product') {

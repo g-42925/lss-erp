@@ -45,7 +45,7 @@ export default function Master() {
     })
   }
   return (
-    <div className="bg-gray-900 h-screen flex flex-col gap-3 justify-center items-center">
+    <div className="bg-gray-900 h-screen flex flex-col gap-3 justify-center items-center text-black">
       {resetFn.noResult || resetFn.error ? <Message message={resetFn.message} /> : <></>}
       <div className="w-full max-w-sm bg-white rounded-md shadow-lg p-8">
 

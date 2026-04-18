@@ -166,7 +166,7 @@ export default function Purchases() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Purchases</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
@@ -296,7 +296,7 @@ export default function Purchases() {
           }
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal">
+      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>
@@ -339,7 +339,7 @@ export default function Purchases() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_3" ref={_editRef} className="modal">
+      <dialog id="my_modal_3" ref={_editRef} className="modal texr-black">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>
@@ -361,6 +361,15 @@ export default function Purchases() {
                 <select {...editPrForm.register("type")} className="select w-full">
                   <option>payment</option>
                   <option>adjustment</option>
+                </select>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Payment Method</legend>
+                <select {...editPrForm.register("paymentMethod")} className="select w-full">
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="E-Wallet">E-Wallet</option>
                 </select>
               </fieldset>
               {

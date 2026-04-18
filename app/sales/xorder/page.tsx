@@ -132,28 +132,19 @@ export default function XOrder() {
   }
 
   function submitDirectOrder(data: any) {
+
     const now = Date.now()
 
     const cart = [
       {
         productId: data.productId,
         qty: data.qty,
-        subTotal: data.subTotal,
+        subTotal: data.price,
       }
     ]
 
-    // const params = {
-    //   id: masterAccountId,
-    //   total: parseInt(data.price),
-    //   salesOrderNumber: `SO-${String(now).slice(-5)}`,
-    //   saleDate: now,
-    //   productType: "service",
-    //   type: "direct",
-    //   ...data,
-    //   cart
-    // }
 
-    // console.log(params)
+
 
     const formData = new FormData()
 
@@ -235,7 +226,7 @@ export default function XOrder() {
   if (directMode) {
     return (
       <>
-        <div className="h-full p-6 flex flex-col gap-3">
+        <div className="h-full p-6 flex flex-col gap-3 text-black">
           <span className="text-2xl">Services Order</span>
           <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative overflow-y-auto">
             <div className="flex flex-row items-center gap-3">
@@ -339,18 +330,6 @@ export default function XOrder() {
                 </div>
               )}
 
-              {/* Attachment */}
-              {!hidden && (
-                <div className="flex flex-row items-center gap-3">
-                  <label className="w-[110px] text-sm font-medium">Attachment</label>
-                  <input
-                    onChange={(e) => setDirectAttachment(e.target.files?.[0] ?? null)}
-                    type="file"
-                    className="file-input flex-1"
-                  />
-                </div>
-              )}
-
               {addDirectServiceOrderFn.error || addDirectServiceOrderFn.noResult ? (
                 <p className="text-red-700 text-sm">Something went wrong. Please try again.</p>
               ) : null}
@@ -382,7 +361,7 @@ export default function XOrder() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Services Order</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
@@ -518,7 +497,7 @@ export default function XOrder() {
           </button>
         </div>
       </div>
-      <dialog ref={modalRef} id="my_modal_1" className="modal h-full">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newOrderForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make order (From Quotation)</h3>
           <div className="flex flex-row items-center gap-3">
@@ -547,8 +526,8 @@ export default function XOrder() {
           </div>
         </form>
       </dialog>
-      <dialog ref={invoiceModalRef} className="modal h-full">
-        <form onSubmit={newInvoiceForm.handleSubmit(submitInvoice)} className="h-96 modal-box flex flex-col gap-3">
+      <dialog ref={invoiceModalRef} className="modal h-full text-black">
+        <form onSubmit={newInvoiceForm.handleSubmit(submitInvoice)} className="h-72 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Sales Order Number</label>

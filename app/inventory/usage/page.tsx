@@ -75,7 +75,7 @@ export default function InvUsagePage() {
             placeholder="Search number, item, note…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="text-black border border-slate-200 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="text-blackborder border-slate-200 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-amber-300"
           />
         </div>
 
