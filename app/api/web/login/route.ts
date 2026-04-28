@@ -1,24 +1,46 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
+import Assignment from '@/models/Assignment'
 import Role from '@/models/Role'
 import User from '@/models/User'
 import CryptoJS from "crypto-js";
 
-export async function POST(request:NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     const params = await request.json()
     const password = params.password
-    console.log(password)
     const pwd = CryptoJS.MD5(password)
-    console.log(pwd.toString())
+    const _pages: string[] = []
+
+    let permission = ''
+
     const r = await User.findOne({
-      email:params.email,
-      password:pwd.toString()
+      email: params.email,
+      password: pwd.toString()
     })
 
-    if(!r){
+    if (r) {
+      if (!r.isSuperAdmin) {
+        const role = await Role.findOne({ _id: r.roleId })
+        permission = role.permission
+
+        const pages = await Assignment.find({
+          roleId: r.roleId
+        })
+
+        pages.map((page) => {
+          _pages.push(page.link)
+        })
+      }
+    }
+
+
+
+
+
+    if (!r) {
       return NextResponse.json({
         noResult: true,
         message: "no account found",
@@ -26,39 +48,26 @@ export async function POST(request:NextRequest) {
       });
     }
 
-    if(!r.isSuperAdmin){
-      const role = await Role.findOne({
-       _id:r.roleId
-      })
-      
-      return NextResponse.json({
-        noResult: false,
-        message: "",
-        result: {
-          ...r,
-          role:role
-        }
-      });  
-    }
-    else{
-      return NextResponse.json({
-        noResult: false,
-        message: "",
-        result: {
-          ...r,
-          role:{}
-        }
-      });
-    }
-  } 
-	catch (e:any) {
+
+    return NextResponse.json({
+      noResult: false,
+      message: "",
+      result: {
+        ...r,
+        pages: _pages,
+        permission,
+      }
+    });
+
+  }
+  catch (e: any) {
     console.log(e)
     return NextResponse.json(
       {
-				noResult:true,
-				message:e.message,
-				result:null
-			}
+        noResult: true,
+        message: e.message,
+        result: null
+      }
     )
   }
 }

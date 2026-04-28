@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
+import Batches from '@/models/Batche'
 import Invoice from '@/models/Invoice'
 import Location from '@/models/Location'
 import Order from "@/models/Order"
@@ -24,8 +25,8 @@ export async function GET(request: NextRequest) {
 			},
 			{
 				$lookup: {
-					as: "allocations",
-					from: "allocations",
+					as: "batches",
+					from: "batches",
 					let: { locationId: "$_id" },
 					pipeline: [
 						{
@@ -43,12 +44,17 @@ export async function GET(request: NextRequest) {
 			},
 			{
 				$addFields: {
-					allocated: { $sum: "$allocations.qty" }
+					available: {
+						$subtract: [
+							{ $sum: "$batches.accumulative" },
+							{ $sum: "$batches.outQty" }
+						]
+					}
 				}
 			},
 			{
 				$match: {
-					allocated: { $gt: 0 }
+					available: { $gt: 0 }
 				}
 			}
 		])
@@ -59,7 +65,6 @@ export async function GET(request: NextRequest) {
 			result: result,
 			error: false
 		})
-
 	}
 	catch (e: unknown) {
 		return NextResponse.json({
@@ -71,7 +76,13 @@ export async function GET(request: NextRequest) {
 	}
 }
 
+
 export async function POST(request: NextRequest) {
+
+	function formatNumber(x: number) {
+		return String(x).padStart(4, '0');
+	}
+
 	try {
 		await connectToDatabase()
 		const params = await request.json()
@@ -178,32 +189,32 @@ export async function POST(request: NextRequest) {
 
 				const unitCost = product.stockValue / (product.remain + product.allocated)
 
-				const stock = await Allocation.find({
+				const stock = await Batches.find({
 					productId: c.productId,
 					locationId: location
 				})
 
 				for (const n of stock) {
 
-					if (quantity <= 0) break
+					if (quantity === 0) break
 
-					if (n.qty >= quantity) {
+					if ((n.accumulative - n.outQty) >= quantity) {
 
-						await Allocation.findByIdAndUpdate(
+						await Batches.findByIdAndUpdate(
 							n._id,
-							{ $inc: { qty: -quantity } }
+							{ $inc: { outQty: quantity } }
 						)
 
 						quantity = 0
-						break
 					}
 					else {
 
-						quantity = quantity - n.qty
+						await Batches.findByIdAndUpdate(
+							n._id,
+							{ $inc: { outQty: n.accumulative - n.outQty } }
+						)
 
-						await Allocation.findByIdAndUpdate(n._id, {
-							qty: 0
-						})
+						quantity -= (n.accumulative - n.outQty)
 					}
 
 				}
@@ -218,11 +229,15 @@ export async function POST(request: NextRequest) {
 			})
 		)
 
+		const orders = await Order.find({
+			companyId: company._id,
+		})
+
 		const result = await Order.create({
 			companyId: company._id,
 			salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
 			cart: params.cart, // product id, qty, price
-			customerName: params.customerName,
+			customCustomer: params.customer,
 			productType: 'good',
 			type: 'direct',
 			discountType: params.discountType,
@@ -235,9 +250,14 @@ export async function POST(request: NextRequest) {
 
 		const paid = params.debt === 'yes' ? false : true
 
+		const now = new Date();
+		const shortYear = String(now.getFullYear()).slice(-2);
+		const month = String(now.getMonth() + 1).padStart(2, '0');
+		const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
+
 		await Invoice.create({
 			companyId: company._id,
-			invoiceNumber: `INV-${String(Date.now()).slice(-5)}`,
+			invoiceNumber: invoiceNumber,
 			invoiceType: 'product',
 			salesOrderId: result._id,
 			salesOrderNumber: result.salesOrderNumber,

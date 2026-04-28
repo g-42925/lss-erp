@@ -339,7 +339,7 @@ export default function Purchases() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_3" ref={_editRef} className="modal texr-black">
+      <dialog id="my_modal_3" ref={_editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>

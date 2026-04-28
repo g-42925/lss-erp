@@ -3,14 +3,13 @@
 import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
+import withAuth from "@/hofs/withAuth";
 
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
-export default function Requisition() {
-  const loggedIn = useAuth((state) => state.loggedIn)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
+function Requisition() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
@@ -272,10 +271,6 @@ export default function Requisition() {
     }
   }, [masterAccountId])
 
-  if (!hasHydrated) return null
-  if (!loggedIn) router.push('/login')
-  if (!isSuperAdmin) router.push('/dashboard')
-
 
   return (
     <>
@@ -525,8 +520,6 @@ export default function Requisition() {
                 <select {...orderForm.register("paymentMethod")} className="select w-full">
                   <option value="Cash">Cash</option>
                   <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="E-Wallet">E-Wallet</option>
                 </select>
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
@@ -590,6 +583,8 @@ export default function Requisition() {
     </>
   )
 }
+
+export default withAuth(Requisition)
 
 type Failed = {
   message: string

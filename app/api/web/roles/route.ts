@@ -3,149 +3,158 @@ import { NextRequest, NextResponse } from "next/server";
 
 import Role from '@/models/Role'
 import Companie from '@/models/Companie'
+import Assignment from '@/models/Assignment'
 
 export async function PUT(req: Request) {
-  const body = await req.json();
-	const {_id,...rest} = body
+	const body = await req.json();
+	const { _id, ...rest } = body
 
-	try{
+	try {
 		await connectToDatabase()
 		await Role.findByIdAndUpdate(
-			_id,rest
+			_id, rest
 		)
 		return NextResponse.json(
 			{
-				noResult:false,
-				message:"",
-				result:body,
-				error:false
+				noResult: false,
+				message: "",
+				result: body,
+				error: false
 			}
 		);
 	}
-	catch(e:any){
+	catch (e: any) {
 		return NextResponse.json(
 			{
-				noResult:true,
-				message:e.message,
-				result:null,
-				error:true
+				noResult: true,
+				message: e.message,
+				result: null,
+				error: true
 			}
-		)		
+		)
 	}
 
 }
 
-export async function DELETE(request:NextRequest){	
-  const url = new URL(request.url);
-  const id = url.searchParams.get("id")?.trim();
+export async function DELETE(request: NextRequest) {
+	const url = new URL(request.url);
+	const id = url.searchParams.get("id")?.trim();
 	try {
 		await connectToDatabase()
 		const result = await Role.findByIdAndDelete(id);
 		return NextResponse.json(
 			{
-				noResult:false,
-				message:"",
-				result:id,
-				error:false
+				noResult: false,
+				message: "",
+				result: id,
+				error: false
 			}
 		)
-	} 
-	catch (e:any) {
+	}
+	catch (e: any) {
 		return NextResponse.json(
 			{
-				noResult:true,
-				message:e.message,
-				result:null,
-				error:true
+				noResult: true,
+				message: e.message,
+				result: null,
+				error: true
 			}
 		)
-	}	
+	}
 }
 
-export async function GET(request:NextRequest){	
-  const url = new URL(request.url);
-  const id = url.searchParams.get("id");
+export async function GET(request: NextRequest) {
+	const url = new URL(request.url);
+	const id = url.searchParams.get("id");
 
 	try {
 		await connectToDatabase()
 		const company = await Companie.findOne({
-			masterAccountId:id
+			masterAccountId: id
 		})
 		const roles = await Role.find({
-			companyId:company._id
+			companyId: company._id
 		})
+
 		return NextResponse.json(
 			{
-				noResult:false,
-				message:"",
-				result:roles,
-				error:false
+				noResult: false,
+				message: "",
+				result: roles,
+				error: false
 			}
 		)
-	} 
-	catch (e:any) {
+	}
+	catch (e: any) {
 		return NextResponse.json(
 			{
-				noResult:true,
-				message:e.message,
-				result:null,
-				error:true
+				noResult: true,
+				message: e.message,
+				result: null,
+				error: true
 			}
 		)
-	}	
+	}
 }
 
-export async function POST(request:NextRequest) {
+export async function POST(request: NextRequest) {
 	try {
 		await connectToDatabase()
 		const params = await request.json()
 		const company = await Companie.findOne({
-			masterAccountId:params.id
+			masterAccountId: params.id
 		})
 		const isExist = await Role.findOne({
-			companyId:company._id,
-			name:params.name
+			companyId: company._id,
+			name: params.name
 		})
 
 		const result = {
-			name:params.name,
-			permission:params.permission,
-			page:params.page,
-			companyId:company._id
+			companyId: company._id,
+			name: params.name,
+			permission: params.permission,
+			isSuperAdmin: false
 		}
 
-		if(isExist){
+		if (isExist) {
 			return NextResponse.json(
 				{
-					noResult:true,
-					message:"Role is exist",
-					result:null,
-					error:false,
+					noResult: true,
+					message: "Role is exist",
+					result: null,
+					error: false,
 				}
 			)
 		}
-		else{
+		else {
 			const newRole = await Role.create({
 				...result
 			})
-			
+
+			params.page.forEach(async (page: string) => {
+				await Assignment.create({
+					roleId: newRole._id,
+					link: page
+				})
+			})
+
 			return NextResponse.json(
 				{
-					noResult:false,
-					message:"",
-					result:newRole,
-					error:false
+					noResult: false,
+					message: "",
+					result: newRole,
+					error: false
 				}
 			)
 		}
-	} 
-	catch (e:any) {
+	}
+	catch (e: any) {
 		return NextResponse.json(
 			{
-				noResult:true,
-				message:e.message,
-				result:null,
-				error:true
+				noResult: true,
+				message: e.message,
+				result: null,
+				error: true
 			}
 		)
 	}

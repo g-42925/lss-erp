@@ -1,16 +1,11 @@
 "use client"
 
-import Image from "next/image"
-import useAuth from "@/store/auth"
-import Sidebar from "@/components/sidebar";
-import { redirect } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import useFetch from "@/hooks/useFetch";
+import useAuth from "@/store/auth";
 
 export default function Users() {
-  const loggedIn = useAuth((state) => state.loggedIn)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const masterAccountId = useAuth((state) => state.masterAccountId)
 
@@ -134,31 +129,33 @@ export default function Users() {
   }
 
   async function submit(data: any) {
-    const [roleName, roleId] = data.roleName.split('/')
+    console.log(data)
+    // const [roleId, role] = data.role.split('/')
+    // alert(role)
 
-    const body = JSON.stringify({
-      ...data,
-      roleName,
-      roleId,
-      isSuperAdmin: false,
-      masterAccountId
-    })
+    // const body = JSON.stringify({
+    //   ...data,
+    //   roleId,
+    //   role,
+    //   isSuperAdmin: false,
+    //   masterAccountId
+    // })
 
-    await addFn.fn('', body, (result) => {
-      modalRef.current?.close()
-      setUsers(
-        [
-          ...users,
-          result
-        ]
-      )
-    })
+    // await addFn.fn('', body, (result) => {
+    //   modalRef.current?.close()
+    //   setUsers(
+    //     [
+    //       ...users,
+    //       result
+    //     ]
+    //   )
+    // })
 
   }
 
-  if (!hasHydrated) return null
-  if (!loggedIn) redirect('/login')
-  if (!isSuperAdmin) redirect('/dashboard')
+  //if (!hasHydrated) return null
+  //if (!loggedIn) redirect('/login')
+  //if (!isSuperAdmin) redirect('/dashboard')
 
   useEffect(() => {
     if (hasHydrated) {
@@ -175,7 +172,7 @@ export default function Users() {
         setRoles(result)
       })
     }
-  }, [masterAccountId])
+  }, [hasHydrated])
 
   return (
     <>
@@ -329,7 +326,7 @@ export default function Users() {
                 {
                   roles.map((r) => {
                     return (
-                      <option value={`${r.name}/${r._id}`}>{r.name}</option>
+                      <option key={r._id} value={`${r._id}/${r.name}`}>{r.name}</option>
                     )
                   })
                 }
@@ -350,7 +347,7 @@ export default function Users() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal">
+      <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add User</span>
@@ -359,12 +356,11 @@ export default function Users() {
               <input {...newUserForm.register("username")} type="text" placeholder="username" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newUserForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newUserForm.register("password")} type="text" placeholder="password" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <select {...newUserForm.register("roleName")} className="select w-full mb-3">
-                <option disabled>Pick a role</option>
+              <select {...newUserForm.register("role")} className="select w-full mb-3">
                 {
                   roles.map((r) => {
                     return (
-                      <option key={r._id} value={`${r.name}/${r._id}`}>{r.name}</option>
+                      <option key={r._id} value={`${r._id}/${r.name}`}>{r.name}</option>
                     )
                   })
                 }

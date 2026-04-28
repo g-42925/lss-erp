@@ -23,6 +23,7 @@ export default function Receivable() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [payAmount, setPayAmount] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<string>('Cash')
+  const [payDate, setPayDate] = useState<Date>(new Date())
 
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
@@ -64,7 +65,14 @@ export default function Receivable() {
     e.preventDefault()
     if (!selectedInvoice) return
 
-    putFn.fn('/api/web/receivable', JSON.stringify({ id: selectedInvoice._id, payAmount: Number(payAmount), method: paymentMethod }), () => {
+    const params = {
+      id: selectedInvoice._id,
+      payAmount: Number(payAmount),
+      method: paymentMethod,
+      date: payDate
+    }
+
+    putFn.fn('/api/web/receivable', JSON.stringify(params), () => {
       payRef.current?.close()
       getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
         setInvoices(result)
@@ -230,6 +238,16 @@ export default function Receivable() {
         <div className="modal-box">
           <h3 className="font-bold text-lg mb-4">Pay Receivable</h3>
           <form onSubmit={payInvoice} className="flex flex-col gap-4">
+            <div>
+              <label className="label">Pay Date</label>
+              <input
+                type="date"
+                required
+                className="input input-bordered w-full"
+                defaultValue={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setPayDate(new Date(e.target.value))}
+              />
+            </div>
             <div>
               <label className="label">Amount to Pay</label>
               <input

@@ -2,7 +2,7 @@
 
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
-import Sidebar from '@/components/sidebar'
+import Image from "next/image"
 import Link from "next/link";
 
 import { useForm } from 'react-hook-form'
@@ -29,6 +29,7 @@ export default function Invoices() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
 
   function openInvoice(invoice: any) {
+    console.log(invoice)
     setSelectedInvoice(invoice)
     invoiceModalRef.current?.showModal()
   }
@@ -54,6 +55,14 @@ export default function Invoices() {
 
   const getInvoicesFn = useFetch<any, any>({
     url: `/api/web/orders?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getCompaniesFn = useFetch<any, any>({
+    url: `/api/web/companies?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -94,6 +103,7 @@ export default function Invoices() {
     if (hasHydrated) {
       const url4 = `/api/web/invoice?id=${masterAccountId}&type=product`
       const url5 = `/api/web/products?id=${masterAccountId}&type=good`
+      const url6 = `/api/web/companies?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
@@ -104,6 +114,8 @@ export default function Invoices() {
       getProductsFn.fn(url5, body, (result: any) => {
         setProducts(result)
       })
+
+      getCompaniesFn.fn(url6, body, (result: any) => { })
     }
   }, [masterAccountId])
 
@@ -171,7 +183,7 @@ export default function Invoices() {
                                 <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
                                 <td>{s.invoiceNumber}</td>
                                 <td>{s.salesOrderNumber}</td>
-                                <td>{s.order.customerName ?? s.order.customer.bussinessName}</td>
+                                <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
                                 <td>{s.variousItem ? s.product : s.product.productName}</td>
                                 <td>{s.order.total}</td>
                                 <td>{s.payAmount}</td>
@@ -187,12 +199,19 @@ export default function Invoices() {
                             )
                           })
                           :
-                          searchResult.map((role, index) => {
+                          searchResult.map((s, index) => {
                             return (
                               <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
+                                <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
+                                <td>{s.invoiceNumber}</td>
+                                <td>{s.salesOrderNumber}</td>
+                                <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
+                                <td>{s.variousItem ? s.product : s.product.productName}</td>
+                                <td>{s.order.total}</td>
+                                <td>{s.payAmount}</td>
+                                <td>{s.paid ? 'yes' : 'no'}</td>
+                                <td>
+                                  <button onClick={() => openInvoice(s)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                     </svg>
@@ -257,19 +276,29 @@ export default function Invoices() {
         <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
           <div className="flex justify-between items-start border-b pb-4 print:border-b-2 print:border-gray-200">
             <div>
-              <h2 className="text-3xl font-bold uppercase tracking-widest text-gray-800">Invoice</h2>
-              <p className="text-sm text-gray-500 mt-1">Order # {selectedInvoice?.salesOrderNumber}</p>
+              {getCompaniesFn.result?.[0]?.logo ? (
+                <Image
+                  src={getCompaniesFn.result[0].logo}
+                  alt="Logo"
+                  width={100}
+                  height={100}
+                />
+              ) : null}
+              <p className="text-2xl text-gray-500 mt-1 text-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
+              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
+              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
             </div>
             <div className="text-right">
-              <h3 className="font-bold text-lg text-gray-800">LSS ERP</h3>
-              <p className="text-sm text-gray-500">lss-erp@example.com</p>
+              <h3 className="font-bold text-lg text-gray-800">{getCompaniesFn.result?.[0]?.name}</h3>
+              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.email}</p>
             </div>
           </div>
 
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Billed To</p>
-              <h4 className="font-bold text-gray-800">{selectedInvoice?.order?.customerName ?? selectedInvoice?.order?.customer?.bussinessName}</h4>
+              <h4 className="font-bold text-gray-800">xxx</h4>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Invoice Info</p>

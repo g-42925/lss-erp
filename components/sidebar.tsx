@@ -2,9 +2,17 @@
 
 import Link from "next/link";
 import useAuth from "@/store/auth";
+import { useRouter } from "next/navigation";
 
 export default function Sidebar({ children }: { children: any }) {
   const companyName = useAuth((state) => state.name)
+  const logout = useAuth((state) => state.logout)
+  const router = useRouter()
+
+  function _logout() {
+    logout()
+    router.push('/login')
+  }
 
   return (
     <div className="drawer drawer-open bg-gray-200 text-white">
@@ -15,7 +23,15 @@ export default function Sidebar({ children }: { children: any }) {
       <div className="drawer-side">
         <label htmlFor="my-drawer-1" aria-label="close sidebar" className="drawer-overlay"></label>
         <ul className="menu bg-base-200 min-h-full w-80 p-0 bg-gray-700">
-          <li className="bg-gray-800 p-3 text-white"><a>{companyName}</a></li>
+          <li className="bg-gray-800 p-3 text-white flex flex-row gap-3">
+            <a>{companyName}</a>
+            <button className="ml-auto" onClick={() => _logout()}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
+              </svg>
+
+            </button>
+          </li>
           <li>
             <details open>
               <summary>User Management</summary>
@@ -67,9 +83,6 @@ export default function Sidebar({ children }: { children: any }) {
                 <li>
                   <Link href="/products/measure">Measure</Link>
                 </li>
-                <li>
-                  <Link href="/products/allocation">Allocation</Link>
-                </li>
               </ul>
             </details>
           </li>
@@ -84,7 +97,7 @@ export default function Sidebar({ children }: { children: any }) {
                   <Link href="/warehouse/delivery">Delivery</Link>
                 </li>
                 <li>
-                  <Link href="/warehouse/receiving">Refund</Link>
+                  <Link href="/warehouse/refund">Refund</Link>
                 </li>
               </ul>
             </details>
@@ -95,9 +108,6 @@ export default function Sidebar({ children }: { children: any }) {
               <ul>
                 <li>
                   <Link href="/inventory/items">Items</Link>
-                </li>
-                <li>
-                  <Link href="/inventory/logs">Procurement Logs</Link>
                 </li>
                 <li>
                   <Link href="/inventory/usage">Usage Logs</Link>
@@ -137,23 +147,16 @@ export default function Sidebar({ children }: { children: any }) {
               <summary>Finance</summary>
               <ul>
                 <li>
-                  <Link href="/finance/purchases">Purchases</Link>
+                  <Link href="/finance/purchases">Purchases Approval</Link>
                 </li>
                 <li>
                   <Link href="/finance/inv-logs">Inventory Approval</Link>
                 </li>
-              </ul>
-            </details>
-          </li>
-          <li>
-            <details>
-              <summary>Debts &amp; Receivable</summary>
-              <ul>
                 <li>
-                  <Link href="/debt">Debts</Link>
+                  <Link href="/finance/debt">Debts</Link>
                 </li>
                 <li>
-                  <Link href="/receivable">Receivable</Link>
+                  <Link href="/finance/receivable">Receivable</Link>
                 </li>
               </ul>
             </details>

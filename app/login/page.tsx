@@ -1,10 +1,8 @@
 "use client"
 
-import Image from "next/image";
 import useAuth from '@/store/auth'
-import CryptoJS from "crypto-js";
+import { useRouter } from 'next/navigation';
 
-import { redirect, useRouter } from "next/navigation";
 import { useState } from "react";
 import useFetch from "@/hooks/useFetch";
 
@@ -39,21 +37,25 @@ export default function Login() {
 		})
 
 		await loginFn.fn('', body, (result) => {
+			const permission = result._doc.isSuperAdmin ? 'rw' : result.permission
+
+			document.cookie = `permission=${permission}`
+
 			login(
 				{
 					email: result._doc._email,
 					loggedIn: true,
 					name: result._doc.name,
-					role: result._doc.roleName,
-					isSuperAdmin: result._doc.isSuperAdmin,
 					masterAccountId: result._doc.masterAccountId,
 					_id: result._doc._id,
-					roleDetail: {
-						page: result.role.page,
-						permission: result.role.permission
-					}
+					permission: result.permission,
+					pages: result.pages,
+					roleId: result.roleId,
+					isSuperAdmin: result._doc.isSuperAdmin
 				}
 			)
+
+
 			router.push(
 				'/dashboard'
 			)

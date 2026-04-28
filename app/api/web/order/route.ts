@@ -10,6 +10,10 @@ import Invoice from '@/models/Invoice'
 
 
 export async function POST(request: NextRequest) {
+  function formatNumber(x: number) {
+    return String(x).padStart(4, '0');
+  }
+
   try {
     await connectToDatabase()
     let contractUploadUrl: string | null = null
@@ -208,6 +212,10 @@ export async function POST(request: NextRequest) {
 
       const _order = await Order.create(order)
 
+      const orders = await Order.find({
+        companyId: company._id,
+      })
+
       const [_o] = await Order.aggregate(
         [
           {
@@ -246,11 +254,16 @@ export async function POST(request: NextRequest) {
       const payAmt = formData.get("payAmt")
       const method = formData.get("method")
 
+      const now = new Date();
+      const shortYear = String(now.getFullYear()).slice(-2);
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
+
 
       if (rest.productType === "good") {
         await Invoice.create({
           companyId: company._id,
-          invoiceNumber: `INV-${String(Date.now()).slice(-5)}`,
+          invoiceNumber: invoiceNumber,
           invoiceType: 'product',
           salesOrderId: _order._id,
           salesOrderNumber: so,

@@ -1,15 +1,14 @@
 "use client"
 
-import Image from "next/image"
+import withAuth from "@/hofs/withAuth"
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
 
-export default function Roles() {
+function Roles() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -49,6 +48,11 @@ export default function Roles() {
     method: 'GET'
   })
 
+  const getFeaturesFn = useFetch<any[], any>({
+    url: `/api/web/features`,
+    method: 'GET'
+  })
+
   const deleteFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
@@ -58,11 +62,9 @@ export default function Roles() {
   })
 
   async function submit(data: any) {
-    const pages = data.page.join('/')
     const body = JSON.stringify({
       ...data,
       id: masterAccountId,
-      page: pages
     })
 
     await addFn.fn('', body, (role) => {
@@ -153,12 +155,18 @@ export default function Roles() {
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/roles?id=${masterAccountId}`
+      const featuresUrl = `/api/web/features`
 
       const body = JSON.stringify({})
+
+      getFeaturesFn.fn(featuresUrl, body, (result) => {
+        //setFeatures(result)
+      })
 
       getFn.fn(url, body, (result) => {
         setRoles(result)
       })
+
     }
   }, [masterAccountId])
 
@@ -268,7 +276,7 @@ export default function Roles() {
           }
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal">
+      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl text-black ">Edit Role</span>
@@ -277,9 +285,8 @@ export default function Roles() {
               <input {...editRoleForm.register("name")} type="text" placeholder="current role name" className="text-black w-full p-3 rounded-md border-1 border-black" />
               <select {...editRoleForm.register("permission")} className="text-black select w-full">
                 <option disabled>select permission</option>
-                <option value="readonly">Read only</option>
-                <option value="addonly">Add only</option>
-                <option value="addandedit">Add and edit</option>
+                <option value="r">Read only</option>
+                <option value="rw">Read and write</option>
               </select>
               <div className="flex flex-row gap-3">
                 <label className="label text-black">
@@ -307,40 +314,51 @@ export default function Roles() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal">
-        <div className="modal-box">
+      <dialog id="my_modal_1" ref={modalRef} className="modal text-black w-full">
+        <div className="modal-box w-1/2">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Role</span>
-            <form onSubmit={newRoleForm.handleSubmit(submit)} className="h-96 relative flex flex-col gap-3">
-              <input {...newRoleForm.register("name")} type="text" placeholder="new role name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <select {...newRoleForm.register("permission")} className="select w-full">
-                <option disabled selected>select permission</option>
-                <option value="readonly">Read only</option>
-                <option value="addonly">Add only</option>
-                <option value="addandedit">Add and edit</option>
-              </select>
-              <div className="flex flex-row gap-3">
-                <label className="label">
-                  <input value="suppliers" {...newRoleForm.register("page")} type="checkbox" className="checkbox" /> Suppliers
-                </label>
-                <label className="label">
-                  <input value="customers" {...newRoleForm.register("page")} type="checkbox" className="checkbox" /> Customers
-                </label>
-                <label className="label">
-                  <input value="contacts" {...newRoleForm.register("page")} type="checkbox" className="checkbox" /> Contacts
-                </label>
+            <form onSubmit={newRoleForm.handleSubmit(submit)} className="h-96 flex flex-col gap-3">
+              <div className="flex-1">
+                <input {...newRoleForm.register("name")} type="text" placeholder="new role name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+                <select {...newRoleForm.register("permission")} className="select w-full">
+                  <option disabled selected>select permission</option>
+                  <option value="r">Read only</option>
+                  <option value="rw">Read and write</option>
+                </select>
               </div>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <div className="modal-action">
+              <div className="flex flex-col gap-3 flex-1">
+                {
+                  getFeaturesFn.noResult || getFeaturesFn.error
+                    ? <label className="label flex items-center gap-2 whitespace-nowrap" htmlFor="role">something went wrong</label>
+                    : getFeaturesFn?.result?.map((feature, index) => {
+                      return (
+                        <div key={index} className="flex flex-col gap-2">
+                          <span className="text-black">{feature._id}</span>
+
+                          <div className="flex flex-wrap gap-3">
+                            {feature.features.map((f, i) => (
+                              <label key={i} className="flex items-center gap-2 w-40">
+                                <input {...newRoleForm.register("page")} value={f.link} type="checkbox" className="checkbox" />
+                                {f.name}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })
+                }
+              </div>
+              <div className="flex flex-row justify-end gap-3">
                 <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
+                  <button className="btn p-3 rounded-md text-white bg-gray-400">
                     Cancel
                   </button>
                 </form>
+                <button type="submit" className="p-3 rounded-md text-white bg-blue-900">
+                  Add
+                </button>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
-                Add
-              </button>
             </form>
           </div>
         </div>
@@ -352,3 +370,7 @@ export default function Roles() {
 type Failed = {
   message: string
 }
+
+export default withAuth(
+  Roles
+)

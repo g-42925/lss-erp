@@ -21,6 +21,7 @@ export default function Order() {
   const [discount, setDiscount] = useState<string>("0")
   const [directSellMode, setDirectSellMode] = useState<boolean>(false)
   const [customerName, setCustomerName] = useState<string>("")
+  const [customerAddress, setCustomerAddress] = useState<string>("")
   const [debt, setDebt] = useState<string>('no')
   const [payTerm, setPayTerm] = useState<number>(0)
   const [payAmt, setPayAmt] = useState<number>(0)
@@ -156,6 +157,9 @@ export default function Order() {
   })
 
   async function addToCart(data: any) {
+    console.log(data)
+
+
     const tax = data.ppn === 'yes' ? 'PPN11' : 'PPN00'
 
     const [_id, name, limit, price, discountType, discountValue] = data.product.split('/')
@@ -171,6 +175,10 @@ export default function Order() {
       debt: data.debt,
       locationId: data.locationId
     }
+
+    console.log(
+      item
+    )
 
     if (data.qty > parseInt(limit)) {
       alert('stock not enough')
@@ -241,9 +249,7 @@ export default function Order() {
   async function onProdChg(e: any) {
     const url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}`
 
-    getDSaleStockFn.fn(url, JSON.stringify({}), result => {
-      console.log(result)
-    })
+    getDSaleStockFn.fn(url, JSON.stringify({}), result => { })
   }
 
   function cartToggle(dst: string) {
@@ -340,18 +346,23 @@ export default function Order() {
       }
     })
 
+    const customer = {
+      name: customerName,
+      address: customerAddress
+    }
+
     const params = JSON.stringify({
       id: masterAccountId,
       cart: _cart,
       discountType,
       discountValue,
       tax,
-      customerName,
-      total,
+      total: payAmount, // use payAmount: it picks _total (which tracks cart/discount) when tax === 0
       debt,
       payTerm,
       payAmount: _payAmt,
-      paymentMethod
+      paymentMethod,
+      customer
     })
 
 
@@ -364,6 +375,7 @@ export default function Order() {
       const product = r.cart.length > 1 ? 'various item' : response.result
       const variousItem = cart.length > 1 ? true : false
       const customerName = r.customerName
+      const customerAddress = r.customerAddress
       const quantity = variousItem ? '?' : qty
       const total = r.total
       const discountType = r.discountType
@@ -377,6 +389,7 @@ export default function Order() {
         product,
         variousItem,
         customerName,
+        customerAddress,
         quantity,
         total,
         discountType,
@@ -407,10 +420,12 @@ export default function Order() {
       const url2 = `/api/web/location?id=${masterAccountId}`
       const body = JSON.stringify({})
 
-      getProductsFn.fn(url, body, result => { })
+      getProductsFn.fn(url, body, result => {
+        console.log(JSON.stringify(result))
+      })
       getLocationsFn.fn(url2, body, result => { })
       getOrdersFn.fn(url4, body, (result) => {
-        console.log(result)
+        //console.log(result)
       })
     }
   }, [masterAccountId])
@@ -429,6 +444,15 @@ export default function Order() {
                   type="text"
                   className="input flex-1"
                   onChange={(e) => setCustomerName(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[70px]">Address</label>
+                <input
+                  placeholder="address"
+                  type="text"
+                  className="input flex-1"
+                  onChange={(e) => setCustomerAddress(e.target.value)}
                 />
               </div>
               <div className="flex flex-row items-center gap-3">
@@ -476,7 +500,7 @@ export default function Order() {
                   {
                     getProductsFn?.result?.map((p) => {
                       return (
-                        <option key={p._id} value={`${p._id}/${p.productName}/${p.allocated}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
+                        <option key={p._id} value={`${p._id}/${p.productName}/${p.remain}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
                       )
                     })
                   }
@@ -489,7 +513,7 @@ export default function Order() {
                   {
                     getDSaleStockFn?.result?.map((l) => {
                       return (
-                        <option key={l._id} value={l._id} >{l.name} ({l.allocated})</option>
+                        <option key={l._id} value={l._id} >{l.name} ({l.available})</option>
                       )
                     })
                   }
@@ -621,9 +645,9 @@ export default function Order() {
                                   <td>{x.saleDate}</td>
                                   <td>{x.salesOrderNumber}</td>
                                   <td>{x.variousItem ? 'various item' : x.product.productName}</td>
-                                  <td>{x.customerName ?? x.customer.bussinessName}</td>
+                                  <td>{x.customCustomer ? x.customCustomer.name : x.customer.bussinessName}</td>
                                   <td>{x.total}</td>
-                                  <td>{x.discountType === "percent" ? Math.round(x.total * (x.discountValue / 100)) : x.total - x.discountValue}</td>
+                                  <td>{x.discountType === "percent" ? x.total * (x.discountValue / 100) : x.discountValue}</td>
                                   <td>{x.taxValue}</td>
                                   <td>{x.payTerm} (Days)</td>
                                 </tr>

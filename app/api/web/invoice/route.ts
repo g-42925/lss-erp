@@ -6,6 +6,11 @@ import Invoice from '@/models/Invoice'
 import Order from '@/models/Order'
 
 export async function POST(request: NextRequest) {
+
+  function formatNumber(x: number) {
+    return String(x).padStart(4, '0');
+  }
+
   try {
     await connectToDatabase()
     const params = await request.json()
@@ -13,9 +18,18 @@ export async function POST(request: NextRequest) {
       masterAccountId: params.id
     })
 
+    const orders = await Order.find({
+      companyId: company._id,
+    })
+
     const order = await Order.findOne({
       salesOrderNumber: params.salesOrderNumber
     })
+
+    const now = new Date();
+    const shortYear = String(now.getFullYear()).slice(-2);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
 
 
     const result = await Invoice.create({
@@ -23,7 +37,7 @@ export async function POST(request: NextRequest) {
       companyId: company._id,
       salesOrderId: order._id,
       date: new Date(),
-      invoiceNumber: `I-${String(Date.now()).slice(-5)}`,
+      invoiceNumber: invoiceNumber,
       paid: false,
       payAmount: 0,
     })

@@ -198,7 +198,7 @@ export async function PUT(request: NextRequest) {
     await connectToDatabase()
 
     const body = await request.json()
-    const { id, payAmount, method, action, historyDate, historyAmount } = body
+    const { id, payAmount, date, method, action, historyDate, historyAmount } = body
 
     if (action === 'revert') {
       if (!id || !historyDate || typeof historyAmount !== 'number') {
@@ -211,7 +211,7 @@ export async function PUT(request: NextRequest) {
 
       await Invoice.findOneAndUpdate(
         { _id: id, "paymentHistory.date": new Date(historyDate) },
-        { 
+        {
           $set: { "paymentHistory.$.reverted": true },
           $inc: { payAmount: -historyAmount }
         },
@@ -235,7 +235,7 @@ export async function PUT(request: NextRequest) {
 
     await Invoice.findByIdAndUpdate(id, {
       $inc: { payAmount: payAmount },
-      $push: { paymentHistory: { amount: payAmount, method: method, date: new Date(), reverted: false } }
+      $push: { paymentHistory: { amount: payAmount, method: method, date: date, reverted: false } }
     }, { strict: false })
 
     return NextResponse.json({
