@@ -237,14 +237,15 @@ export async function POST(request: NextRequest) {
 			companyId: company._id,
 			salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
 			cart: params.cart, // product id, qty, price
-			customCustomer: params.customer,
+			customCustomer: params.customCustomer,
 			productType: 'good',
 			type: 'direct',
 			discountType: params.discountType,
 			discountValue: params.discountValue,
 			taxValue: params.tax,
+			taxes: params.taxes,
 			saleDate: new Date(),
-			payTerm: params.payTerm,
+			payTerm: new Date(params.payTerm),
 			total: params.total
 		})
 

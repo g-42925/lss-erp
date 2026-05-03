@@ -7,6 +7,12 @@ const orderSchema = new mongoose.Schema({
   discountType: { type: String, enum: ['percent', 'fixed', 'none'] },
   discountValue: { type: Number },
   taxValue: { type: Number },
+  taxes: [
+    {
+      taxName: { type: String },
+      taxValue: { type: Number }
+    }
+  ],
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   customCustomer: {
@@ -15,7 +21,7 @@ const orderSchema = new mongoose.Schema({
   },
   contract: { type: String },
   attachment: { type: String },
-  payTerm: { type: Number },
+  payTerm: { type: Date },
   quotationNumber: { type: String },
   saleDate: { type: Date, required: true },
   productType: { type: String, enum: ['good', 'service'] },
@@ -28,6 +34,12 @@ const orderSchema = new mongoose.Schema({
       productId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Product' },
       qty: { type: Number, required: true },
       subTotal: { type: Number, required: true },
+      taxes: [
+        {
+          taxName: { type: String },
+          taxValue: { type: Number }
+        }
+      ]
     }
   ],
 });

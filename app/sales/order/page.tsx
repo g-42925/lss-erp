@@ -23,15 +23,19 @@ export default function Order() {
   const [customerName, setCustomerName] = useState<string>("")
   const [customerAddress, setCustomerAddress] = useState<string>("")
   const [debt, setDebt] = useState<string>('no')
-  const [payTerm, setPayTerm] = useState<number>(0)
+  const [payTerm, setPayTerm] = useState<string>(new Date().toISOString().split('T')[0])
   const [payAmt, setPayAmt] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<string>('cash')
 
-  const newOrderForm = useForm()
-  const router = useRouter()
+  const newOrderForm = useForm({
+    defaultValues: {
+      payTerm: payTerm
+    }
+  })
 
+  const orderTaxesSummary = useMemo(() => {
+    const summary: Record<string, number> = {};
 
-  const tax = useMemo(() => {
     const subtotals = cart.map((c) => {
       if (c.discountType === 'percent') {
         const price = parseInt(c.product.split('/')[3])
@@ -46,51 +50,45 @@ export default function Order() {
         const _discount = parseInt(c.discountValue) * qty
         return (price * qty) - _discount
       }
+      return 0;
     })
 
-    const total = subtotals.reduce((a, b) => a + b, 0)
+    const totalSubtotal = subtotals.reduce((a, b) => a + b, 0)
 
-    const ppns = cart.map(c => {
-      if (cart.length === 1) {
-        if (c.tax === 'PPN11') {
-          if (discount.includes("%")) {
-            return (total - (total * (parseInt(discount) / 100))) * 0.11 // works
-          }
-          else {
-            return (total - parseInt(discount)) * 0.11 // works
-          }
-        }
-        else {
-          return 0
-        }
-      }
-      else {
-        if (c.tax === 'PPN11') {
-          if (discount.includes("%")) {
-            return ((c.price - c.discountValue) - ((c.price - c.discountValue) * (parseInt(discount) / 100))) * 0.11 // works
-          }
-          else {
-            const proportion = (c.price - c.discountValue) / total
-            const proportionValue = parseInt(discount) * proportion
-            return ((c.price - c.discountValue) - proportionValue) * 0.11 // works
-          }
-        }
-        else {
-          return 0
-        }
-      }
-    })
+    cart.forEach((c) => {
+       if(!c.taxes || c.taxes.length === 0) return;
+       
+       let taxableAmount = 0;
+       
+       if (cart.length === 1) {
+         if (discount.includes("%")) {
+           taxableAmount = totalSubtotal - (totalSubtotal * (parseInt(discount) / 100));
+         } else {
+           taxableAmount = totalSubtotal - parseInt(discount);
+         }
+       } else {
+         if (discount.includes("%")) {
+           taxableAmount = (c.price - c.discountValue) - ((c.price - c.discountValue) * (parseInt(discount) / 100));
+         } else {
+           const proportion = (c.price - c.discountValue) / totalSubtotal;
+           const proportionValue = parseInt(discount) * proportion;
+           taxableAmount = (c.price - c.discountValue) - proportionValue;
+         }
+       }
 
-    const _ppn = ppns.reduce((a, b) => a + b, 0)
+       c.taxes.forEach((t: any) => {
+          const taxAmt = taxableAmount * (t.taxValue / 100);
+          if(!summary[t.taxName]) summary[t.taxName] = 0;
+          summary[t.taxName] += taxAmt;
+       });
+    });
 
-    if (discount === 0) {
-      return 0
-    }
-    else {
-      return (Math.round(_ppn as number))
-    }
+    return Object.keys(summary).map(name => ({ taxName: name, taxValue: Math.round(summary[name]) }));
+  }, [discount, cart]);
 
-  }, [discount, cart])
+  const tax = useMemo(() => {
+    return orderTaxesSummary.reduce((a, b) => a + b.taxValue, 0);
+  }, [orderTaxesSummary])
 
   const _total = useMemo(() => {
     const subTotal = getSubTotal(cart)
@@ -121,7 +119,7 @@ export default function Order() {
     url: '/api/web/csale',
     method: 'POST',
     onError: (m) => {
-      alert('x')
+      alert(m)
     }
   })
   const getLocationsFn = useFetch<any, any>({
@@ -156,11 +154,27 @@ export default function Order() {
     }
   })
 
+  const getTaxesFn = useFetch<any[], any>({
+    url: `/api/web/tax?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
   async function addToCart(data: any) {
     console.log(data)
 
-
-    const tax = data.ppn === 'yes' ? 'PPN11' : 'PPN00'
+    let taxes: { taxName: string, taxValue: number }[] = []
+    if (data.ppn) {
+      const selectedTaxes = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
+      taxes = selectedTaxes
+        .filter((p: string) => p !== 'no')
+        .map((p: string) => {
+          const [n, v] = p.split('|')
+          return { taxName: n, taxValue: parseFloat(v) }
+        });
+    }
 
     const [_id, name, limit, price, discountType, discountValue] = data.product.split('/')
 
@@ -171,7 +185,7 @@ export default function Order() {
       price: parseInt(data.qty) * parseInt(price),
       discountType: discountType,
       discountValue: parseInt(discountValue),
-      tax: tax,
+      taxes: taxes,
       debt: data.debt,
       locationId: data.locationId
     }
@@ -342,11 +356,12 @@ export default function Order() {
         productId,
         qty,
         subTotal,
+        taxes: c.taxes,
         loc: c.locationId
       }
     })
 
-    const customer = {
+    const customCustomer = {
       name: customerName,
       address: customerAddress
     }
@@ -357,12 +372,13 @@ export default function Order() {
       discountType,
       discountValue,
       tax,
+      taxes: orderTaxesSummary,
       total: payAmount, // use payAmount: it picks _total (which tracks cart/discount) when tax === 0
       debt,
       payTerm,
       payAmount: _payAmt,
       paymentMethod,
-      customer
+      customCustomer
     })
 
 
@@ -374,8 +390,6 @@ export default function Order() {
       const response = await _product.json()
       const product = r.cart.length > 1 ? 'various item' : response.result
       const variousItem = cart.length > 1 ? true : false
-      const customerName = r.customerName
-      const customerAddress = r.customerAddress
       const quantity = variousItem ? '?' : qty
       const total = r.total
       const discountType = r.discountType
@@ -388,14 +402,13 @@ export default function Order() {
         salesOrderNumber,
         product,
         variousItem,
-        customerName,
-        customerAddress,
         quantity,
         total,
         discountType,
         discountValue,
         taxValue,
         payTerm,
+        customCustomer
       }
 
       getOrdersFn.reset(
@@ -418,15 +431,12 @@ export default function Order() {
       const url4 = `/api/web/order?id=${masterAccountId}&type=good`
       const url = `/api/web/products?id=${masterAccountId}&type=good`
       const url2 = `/api/web/location?id=${masterAccountId}`
-      const body = JSON.stringify({})
+      const url3 = `/api/web/tax?id=${masterAccountId}`
 
-      getProductsFn.fn(url, body, result => {
-        console.log(JSON.stringify(result))
-      })
-      getLocationsFn.fn(url2, body, result => { })
-      getOrdersFn.fn(url4, body, (result) => {
-        //console.log(result)
-      })
+      getProductsFn.fn(url, JSON.stringify({}), _ => { })
+      getLocationsFn.fn(url2, JSON.stringify({}), _ => { })
+      getOrdersFn.fn(url4, JSON.stringify({}), (_) => { })
+      getTaxesFn.fn(url3, JSON.stringify({}), (_) => { })
     }
   }, [masterAccountId])
 
@@ -483,8 +493,7 @@ export default function Order() {
               <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
                 <label className="w-[70px]">Pay term</label>
                 <label className="input flex-1">
-                  <input {...newOrderForm.register('payTerm', { onChange: (e) => setPayTerm(parseInt(e.target.value)) })} type="text" placeholder="pay term" />
-                  <span className="badge badge-neutral badge-xs aspect-square">Days</span>
+                  <input {...newOrderForm.register('payTerm', { onChange: (e) => setPayTerm(e.target.value) })} type="date" placeholder="pay term" />
                 </label>
               </div>
               <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
@@ -525,13 +534,15 @@ export default function Order() {
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select {...newOrderForm.register('ppn')} className="select w-full">
-                  <option>
-                    yes
+                <select multiple {...newOrderForm.register('ppn')} className="select w-full h-24">
+                  <option value="no">
+                    no tax
                   </option>
-                  <option>
-                    no
-                  </option>
+                  {
+                    getTaxesFn?.result?.map((t: any) => {
+                      return <option key={t._id} value={`${t.name}|${t.value}`}>{t.name} ({t.value}%)</option>
+                    })
+                  }
                 </select>
               </div>
               <div className="flex flex-row gap-2 mt-6">
@@ -642,14 +653,14 @@ export default function Order() {
                             getOrdersFn?.result?.map((x, index) => {
                               return (
                                 <tr key={index}>
-                                  <td>{x.saleDate}</td>
-                                  <td>{x.salesOrderNumber}</td>
+                                  <td>{new Date(x.saleDate).toLocaleString("id-ID")}</td>
+                                  <td>{'xxx'}</td>
                                   <td>{x.variousItem ? 'various item' : x.product.productName}</td>
                                   <td>{x.customCustomer ? x.customCustomer.name : x.customer.bussinessName}</td>
                                   <td>{x.total}</td>
                                   <td>{x.discountType === "percent" ? x.total * (x.discountValue / 100) : x.discountValue}</td>
                                   <td>{x.taxValue}</td>
-                                  <td>{x.payTerm} (Days)</td>
+                                  <td>{x.payTerm ? new Date(x.payTerm).toLocaleString("id-ID") : '-'}</td>
                                 </tr>
                               )
                             })
@@ -791,6 +802,17 @@ export default function Order() {
             <div className="flex flex-row items-center gap-3">
               <label className="w-[70px]">Qty</label>
               <input placeholder="quantity" {...newOrderForm.register("qty")} type="text" className="input flex-1" />
+            </div>
+            <div className="flex flex-row items-center gap-3">
+              <label className="w-[85px]">Tax</label>
+              <select multiple {...newOrderForm.register('ppn')} className="select w-full h-24">
+                <option value="no">no tax</option>
+                {
+                  getTaxesFn?.result?.map((t: any) => {
+                    return <option key={t._id} value={`${t.name}|${t.value}`}>{t.name} ({t.value}%)</option>
+                  })
+                }
+              </select>
             </div>
             {addOrderFn.noResult || addOrderFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
             <div className="flex flex-row gap-3 modal-action">

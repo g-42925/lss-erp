@@ -6,7 +6,6 @@ const useAuth = create<Auth>()(
     persist(
       (set) => ({
         login: (r: any) => {
-          console.log(r)
           set(() => ({
             ...r
           }))

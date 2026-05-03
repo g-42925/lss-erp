@@ -1,23 +1,23 @@
 import { useCallback, useState } from "react";
 
-export default function useFetch<R,B>(config:Conf<B>){
-  const [result, setResult] = useState<R | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [noResult, setNoResult] = useState(false);
-  const [message, setMessage] = useState("");
+export default function useFetch<R, B>(config: Conf<B>) {
+	const [result, setResult] = useState<R | null>(null);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(false);
+	const [noResult, setNoResult] = useState(false);
+	const [message, setMessage] = useState("");
 
-  const fetchFn = async (url:string,body:B,callback:(r:R) => void) => {
+	const fetchFn = async (url: string, body: B, callback: (r: R) => void) => {
 		const contentType = "application/json"
 
-		if(url != '') config.url = url
-		
+		if (url != '') config.url = url
+
 		let request = null
 
-    setLoading(true);
-    setError(false);
-    setNoResult(false);
-    setMessage("");
+		setLoading(true);
+		setError(false);
+		setNoResult(false);
+		setMessage("");
 
 		const isFormData = body instanceof FormData;
 
@@ -25,8 +25,8 @@ export default function useFetch<R,B>(config:Conf<B>){
 
 		const b = body ? body : undefined
 
-		try{
-      if(config.method == "POST" || config.method == "PUT"){
+		try {
+			if (config.method == "POST" || config.method == "PUT") {
 				request = await fetch(config.url, {
 					method: config.method,
 					body: b as string,
@@ -34,72 +34,72 @@ export default function useFetch<R,B>(config:Conf<B>){
 				})
 			}
 
-			if(config.method === "GET" || config.method === "DELETE"){
+			if (config.method === "GET" || config.method === "DELETE") {
 				request = await fetch(config.url, {
 					next: { revalidate: 0 },
 					method: config.method,
 					headers,
 				})
 			}
-			
+
 			const _request = request as Response
-			
+
 			if (!_request.ok) throw new Error(`HTTP error status ${_request.status}`);
-			
+
 			const response = await _request.json()
 
-			if(response.noResult){
+			if (response.noResult) {
 				setNoResult(true)
 				setMessage(response.message)
 				config.onError?.(response.message)
 			}
-			else{
+			else {
 				setResult(
 					response.result
 				)
-        
+
 				callback(
 					response.result
 				)
 			}
 		}
-		catch(e:any){
-      setTimeout(() => {
+		catch (e: any) {
+			setTimeout(() => {
 				setMessage(e.message)
 				setError(true)
-			},3000)
+			}, 3000)
 
-      config.onError?.(e.message)
+			config.onError?.(e.message)
 		}
-		finally{
+		finally {
 			setTimeout(() => {
 				setLoading(false);
-			},3000)
+			}, 3000)
 		}
-  }
+	}
 
 	const fn = useCallback(
-		fetchFn, 
+		fetchFn,
 		[config.url]
-  )
+	)
 
-	const reset = (v:any) => {
+	const reset = (v: any) => {
 		setResult(v)
 	}
 
 	return {
-	  result,
-    loading,
-    error,
-    noResult,
-    message,
+		result,
+		loading,
+		error,
+		noResult,
+		message,
 		reset,
-    fn,
+		fn,
 	}
 }
 
 type Conf<T> = {
-  url:string,
-	method:string,
-	onError?:(m:string) => void
+	url: string,
+	method: string,
+	onError?: (m: string) => void
 }

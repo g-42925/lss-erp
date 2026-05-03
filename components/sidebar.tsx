@@ -139,6 +139,9 @@ export default function Sidebar({ children }: { children: any }) {
                 <li>
                   <Link href="/sales/invoices">Invoice</Link>
                 </li>
+                <li>
+                  <Link href="/sales/taxes">Taxes</Link>
+                </li>
               </ul>
             </details>
           </li>

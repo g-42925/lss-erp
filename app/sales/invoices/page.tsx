@@ -36,9 +36,6 @@ export default function Invoices() {
 
 
   const newInvoiceForm = useForm()
-  const newQuotationForm = useForm()
-  const editQuotationForm = useForm()
-  const newOrderForm = useForm()
 
   const addInvoiceFn = useFetch<any, any>({
     url: '/api/web/invoice',
@@ -99,6 +96,15 @@ export default function Invoices() {
     console.log(file)
   }
 
+  function countDiscount(invoice: any) {
+    if (invoice) {
+      const { sellingPrice } = invoice.product
+      const { cart, discountType, discountValue } = invoice.order
+      return (sellingPrice * cart[0].qty) * (discountValue / 100)
+
+    }
+  }
+
   useEffect(() => {
     if (hasHydrated) {
       const url4 = `/api/web/invoice?id=${masterAccountId}&type=product`
@@ -107,15 +113,12 @@ export default function Invoices() {
 
       const body = JSON.stringify({})
 
-      getInvoicesFn.fn(url4, body, (result) => {
-        console.log(result)
-      })
-
+      getInvoicesFn.fn(url4, body, (result) => { })
+      getCompaniesFn.fn(url6, body, (result: any) => { })
       getProductsFn.fn(url5, body, (result: any) => {
         setProducts(result)
       })
 
-      getCompaniesFn.fn(url6, body, (result: any) => { })
     }
   }, [masterAccountId])
 
@@ -289,21 +292,18 @@ export default function Invoices() {
               <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
               <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
             </div>
-            <div className="text-right">
-              <h3 className="font-bold text-lg text-gray-800">{getCompaniesFn.result?.[0]?.name}</h3>
-              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.email}</p>
-            </div>
           </div>
 
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Billed To</p>
-              <h4 className="font-bold text-gray-800">xxx</h4>
+              <h4 className="font-bold text-gray-800">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.name : selectedInvoice?.order.customer.bussinessName}</h4>
+              <h4 className="font-bold text-gray-800">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.address : selectedInvoice?.order.customer.address}</h4>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Invoice Info</p>
-              <p className="text-sm text-gray-800"><span className="font-bold">No:</span> {selectedInvoice?.invoiceNumber}</p>
-              <p className="text-sm text-gray-600"><span className="font-bold">Date:</span> {selectedInvoice ? new Date(selectedInvoice.date).toLocaleDateString('id-ID') : ''}</p>
+              <p className="text-sm text-gray-800"><span className="font-bold">No: </span> {selectedInvoice?.invoiceNumber}</p>
+              <p className="text-sm text-gray-600"><span className="font-bold">Termin: </span>{selectedInvoice?.order?.payTerm ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : '-'}</p>
               <p className="text-sm mt-1">
                 <span className={`px-2 py-1 text-xs font-bold rounded print:border print:border-black print:text-black ${Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0) === 0 ? 'bg-green-900 text-white' : 'bg-red-900 text-white'}`}>
                   {Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0) === 0 ? 'PAID' : 'UNPAID'}
@@ -317,6 +317,8 @@ export default function Invoices() {
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
                 </tr>
               </thead>
@@ -326,8 +328,9 @@ export default function Invoices() {
                     const matchedProduct = products.find(p => p._id === cartItem.productId)
                     return (
                       <tr key={"various"}>
-                        <td className="py-4 text-gray-800">{matchedProduct?.productName} x {cartItem.qty}</td>
-                        <td className="py-4 text-gray-800 text-right font-medium">{Number(cartItem?.subTotal)?.toLocaleString('id-ID')}</td>
+                        <td className="py-4 text-gray-800">{matchedProduct?.productName}</td>
+                        <td className="py-4 text-gray-800 text-right">{cartItem.qty}</td>
+                        <td className="py-4 text-gray-800 text-right font-medium">{cartItem?.subTotal}</td>
                       </tr>
                     )
                   })
@@ -335,8 +338,10 @@ export default function Invoices() {
                   :
                   (
                     <tr key={"single"}>
-                      <td className="py-4 text-gray-800">{selectedInvoice?.product?.productName} x {selectedInvoice?.order?.cart[0].qty}</td>
-                      <td className="py-4 text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.total)?.toLocaleString('id-ID')}</td>
+                      <td className="py-4 text-gray-800">{selectedInvoice?.product?.productName}</td>
+                      <td className="py-4 text-gray-800 text-right">{selectedInvoice?.product?.sellingPrice}</td>
+                      <td className="py-4 text-gray-800 text-right">{selectedInvoice?.order?.cart[0].qty}</td>
+                      <td className="py-4 text-gray-800 text-right font-medium">{(selectedInvoice?.order?.total - selectedInvoice?.order?.taxValue) + countDiscount(selectedInvoice)}</td>
                     </tr>
                   )}
               </tbody>
