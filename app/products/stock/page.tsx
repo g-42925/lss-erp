@@ -11,7 +11,7 @@ import { useForm, useWatch } from "react-hook-form";
 export default function Stock() {
   const [mounted, setMounted] = useState<boolean>(false);
   const [stock, setStock] = useState<any[]>([])
-  const [locations, setLocations] = useState<any[]>([])
+  const [warehouses, setWarehouses] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [nonExpiredProduct, setNonExpiredProducts] = useState<any[]>([])
 
@@ -22,6 +22,7 @@ export default function Stock() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const locationId = useAuth((state) => state.locationId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
 
   const modalRef = useRef<HTMLDialogElement>(null)
@@ -109,6 +110,7 @@ export default function Stock() {
   function handleSubmit(data: any) {
     const body = JSON.stringify({
       ...data,
+      locationId: locationId,
       status: 'ACTIVE',
       isOpening: true,
       outQty: 0
@@ -128,8 +130,8 @@ export default function Stock() {
     return `BAT-${new Date().toISOString().slice(0, 10)}-${Date.now()}`;
   }
 
-  const fetchLocationsFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+  const fetchWarehousesFn = useFetch<any[], any>({
+    url: `/api/web/warehouse?id=xxx`,
     method: 'GET'
   })
 
@@ -170,26 +172,26 @@ export default function Stock() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/location?id=${masterAccountId}`
-      const url3 = `/api/web/stock?id=${masterAccountId}`
-      const url2 = `/api/web/products?id=${masterAccountId}&type=good`
+      const urlStock = `/api/web/stock?id=${masterAccountId}`
+      const urlProducts = `/api/web/products?id=${masterAccountId}&type=good`
+      const urlWarehouses = `/api/web/warehouse?id=${masterAccountId}&lId=${locationId}`
 
       const body = JSON.stringify({})
 
-      getCustomersFn.fn(url3, body, (result) => {
+      getCustomersFn.fn(urlStock, body, (result) => {
         setCustomers(result)
       })
 
-      fetchLocationsFn.fn(url, body, (result) => {
-        setLocations(result)
+      fetchWarehousesFn.fn(urlWarehouses, body, (result) => {
+        setWarehouses(result)
       })
 
-      fetchProductsFn.fn(url2, body, (result) => {
-        const filter = result.filter(f => {
+      fetchProductsFn.fn(urlProducts, body, (result) => {
+        const filter = result.filter((f: any) => {
           return f.haveExpiredDate === false
         })
 
-        const _ids = filter.map((p) => {
+        const _ids = filter.map((p: any) => {
           return p._id
         })
 
@@ -200,7 +202,7 @@ export default function Stock() {
         setProducts(result)
       })
 
-      getStockFn.fn(url3, body, (r) => {
+      getStockFn.fn(urlStock, body, (r) => {
         setStock(r)
       })
 
@@ -208,7 +210,7 @@ export default function Stock() {
         true
       )
     }
-  }, [masterAccountId])
+  }, [masterAccountId, locationId])
 
   if (!mounted) return null;
 
@@ -302,18 +304,19 @@ export default function Stock() {
         <form onSubmit={openingStockForm.handleSubmit(handleSubmit)} className="modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Add opening stock</h3>
           <div className="flex flex-row items-center gap-2">
-            <label className="w-[60px]">Location</label>
-            <select  {...openingStockForm.register("locationId")} className="select flex-1">
-              <option>
-                Select Location
+            <label className="w-[100px]">Warehouse</label>
+            <select {...openingStockForm.register("warehouseId", { required: true })} className="select flex-1">
+              <option value="">
+                Select Warehouse
               </option>
               {
-                locations.map((location) => {
-                  return <option value={location._id} key={location._id}>{location.name}</option>
+                warehouses.map((warehouse) => {
+                  return <option value={warehouse._id} key={warehouse._id}>{warehouse.name}</option>
                 })
               }
             </select>
           </div>
+          <input type="hidden" {...openingStockForm.register("locationId")} value={locationId} />
           <div className="flex flex-row items-center gap-2">
             <label className="w-[60px]">Product</label>
             <select  {...openingStockForm.register("productId")} className="select flex-1">

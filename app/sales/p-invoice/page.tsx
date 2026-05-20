@@ -6,7 +6,7 @@ import Image from "next/image"
 import Link from "next/link";
 
 import { useForm } from 'react-hook-form'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 
 export default function Invoices() {
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -18,6 +18,7 @@ export default function Invoices() {
   const [quotations, setQuotations] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
+  const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const [contract, setContract] = useState<File | null>(null)
   const [orders, setOrders] = useState<any[]>([])
   const [contractFileName, setContractFileName] = useState<File | null>(null)
@@ -38,11 +39,16 @@ export default function Invoices() {
   const newInvoiceForm = useForm()
 
   const addInvoiceFn = useFetch<any, any>({
-    url: '/api/web/invoice',
+    url: '/api/web/invoice/product',
     method: 'POST',
     onError: (m) => {
       alert(m)
     }
+  })
+
+  const getBankAccountsFn = useFetch<any, any>({
+    url: `/api/web/bank-accounts?oduid=xxx`,
+    method: 'GET'
   })
 
   const getProductsFn = useFetch<any, any>({
@@ -66,8 +72,16 @@ export default function Invoices() {
     }
   })
 
+  const getTaxesFn = useFetch<any, any>({
+    url: `/api/web/tax?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
 
-  function submit(data: any) {
+
+  const submit = useCallback((data: any) => {
     const body = JSON.stringify({
       ...data,
       id: masterAccountId,
@@ -80,7 +94,7 @@ export default function Invoices() {
       ])
       modalRef.current?.close()
     })
-  }
+  }, [masterAccountId, invoices, addInvoiceFn])
 
   async function attachmentSubmit(e: any) {
     const file = e.target.files[0]
@@ -98,32 +112,164 @@ export default function Invoices() {
 
   function countDiscount(invoice: any) {
     if (invoice) {
-      const { sellingPrice } = invoice.product
-      const { cart, discountType, discountValue } = invoice.order
-      return (sellingPrice * cart[0].qty) * (discountValue / 100)
+      const { sellingPrice } = invoice?.product
+      const { cart, discountType, discountValue, total, taxValue } = invoice.order
 
+      const subTotals = cart.map((c) => {
+        const product = products.find(p => p._id === c.productId)
+        return product.sellingPrice * c.qty
+      })
+
+      const _total = subTotals.reduce((sum, current) => {
+        return sum + current;
+      }, 0);
+
+      if (discountType === "percent") {
+        const r1 = (sellingPrice * cart[0].qty) * (discountValue / 100)
+        const r2 = _total * (discountValue / 100)
+        return cart.length > 1 ? r2 : r1
+      }
+
+      if (discountType === "fixed") {
+        const r1 = (sellingPrice * cart[0].qty) - discountValue
+        const r2 = _total - discountValue
+        return cart.length > 1 ? r2 : r1
+      }
     }
+    else {
+      return 0
+    }
+  }
+
+  function countTotal(invoice: any) {
+    if (invoice) {
+      const { sellingPrice } = invoice.product
+      const { cart, discountType, discountValue, total, taxValue } = invoice.order
+
+      const subTotals = cart.map((c) => {
+        const product = products.find(p => p._id === c.productId)
+        return product.sellingPrice * c.qty
+      })
+
+      const _total = subTotals.reduce((sum, current) => {
+        return sum + current;
+      }, 0);
+
+
+      if (discountType === "percent") {
+        const r1 = (sellingPrice * cart[0].qty) * (discountValue / 100)
+        const r2 = (total - taxValue) + (_total * (discountValue / 100))
+
+        return cart.length > 1 ? r2 : r1
+      }
+
+      if (discountType === "fixed") {
+        const r1 = (sellingPrice * cart[0].qty) - discountValue
+        const r2 = _total - discountValue
+
+        return cart.length > 1 ? r2 : r1
+      }
+    }
+  }
+
+  function whatTax(taxName: string) {
+    const [{ value }] = getTaxesFn.result?.filter((t: any) => t.name === taxName)
+    return `${value}%`
   }
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `/api/web/invoice?id=${masterAccountId}&type=product`
+      const url4 = `/api/web/invoice/product?id=${masterAccountId}&type=product`
       const url5 = `/api/web/products?id=${masterAccountId}&type=good`
       const url6 = `/api/web/companies?id=${masterAccountId}`
+      const url7 = `/api/web/bank-accounts?id=${masterAccountId}`
+      const url8 = `/api/web/tax?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
+      getTaxesFn.fn(url8, body, (result: any) => { })
+      getBankAccountsFn.fn(url7, body, (result: any) => { setBankAccounts(result) })
       getInvoicesFn.fn(url4, body, (result) => { })
       getCompaniesFn.fn(url6, body, (result: any) => { })
       getProductsFn.fn(url5, body, (result: any) => {
         setProducts(result)
       })
-
     }
   }, [masterAccountId])
 
   return (
     <>
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 10mm;
+            size: A4;
+          }
+
+          body * {
+            visibility: hidden;
+          }
+
+          .print-area, .print-area * {
+            visibility: visible;
+          }
+
+          .print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            overflow: visible !important;
+          }
+
+          .modal-box {
+            max-width: 100% !important;
+            width: 100% !important;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            height: auto !important;
+          }
+
+          thead {
+            display: table-header-group !important;
+          }
+
+          tbody {
+            display: table-row-group !important;
+          }
+
+          tfoot {
+            display: table-footer-group !important;
+          }
+
+          tr, .invoice-header, .bank-accounts-section {
+            page-break-inside: avoid !important;
+            page-break-after: auto;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            page-break-inside: auto;
+          }
+
+          .print-hidden, .modal-action {
+            display: none !important;
+          }
+
+          .page-break {
+            page-break-after: always;
+          }
+        }
+      `}
+      </style>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
         <span className="text-2xl">Invoices</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
@@ -236,7 +382,7 @@ export default function Invoices() {
                 </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-10 bottom-10">
-            <Link href="/sales/xinvoices">
+            <Link href="/sales/svc-invoice">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
               </svg>
@@ -245,7 +391,7 @@ export default function Invoices() {
         </div>
       </div>
       <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
-        <form onSubmit={newInvoiceForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
+        <form onSubmit={newInvoiceForm.handleSubmit((data) => submit(data))} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Sales Order Number</label>
@@ -275,94 +421,145 @@ export default function Invoices() {
         </form>
       </dialog>
 
-      <dialog ref={invoiceModalRef} className="modal h-full print:block print:opacity-100 print:pointer-events-auto print:visible">
-        <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
+      <dialog ref={invoiceModalRef} className="print-area modal h-full print:block print:opacity-100 print:pointer-events-auto print:visible">
+        <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:block print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
           <div className="flex justify-between items-start border-b pb-4 print:border-b-2 print:border-gray-200">
-            <div>
+            <div className="flex flex-row gap-3 items-center w-full invoice-header">
               {getCompaniesFn.result?.[0]?.logo ? (
                 <Image
                   src={getCompaniesFn.result[0].logo}
+                  className="object-contain"
                   alt="Logo"
-                  width={100}
-                  height={100}
+                  width={65}
+                  height={65}
                 />
               ) : null}
-              <p className="text-2xl text-gray-500 mt-1 text-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
-              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
-              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
-              <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+              <div>
+                <p className="text-2xl text-gray-500 mt-1 text-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
+                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
+                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+              </div>
+              <div className="self-end ml-12 flex flex-col">
+                <span className="text-left text-2xl text-black text-center font-bold">Invoice</span>
+                <span className="text-sm text-gray-500">No: {selectedInvoice?.invoiceNumber}</span>
+                <span className="text-sm text-gray-500">Date: {new Date(selectedInvoice?.date).toLocaleDateString('id-ID')}</span>
+                <span className="text-sm text-gray-500">Termin: {selectedInvoice?.order?.payTerm ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : '-'}</span>
+              </div>
+              <div className="self-center ml-auto flex flex-col">
+                <span className="text-sm text-gray-500">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.name : selectedInvoice?.order?.customer?.bussinessName}</span>
+                <span className="text-sm text-gray-500">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.address : selectedInvoice?.order?.customer?.address}</span>
+              </div>
             </div>
           </div>
+          <div className="">
 
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Billed To</p>
-              <h4 className="font-bold text-gray-800">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.name : selectedInvoice?.order.customer.bussinessName}</h4>
-              <h4 className="font-bold text-gray-800">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.address : selectedInvoice?.order.customer.address}</h4>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Invoice Info</p>
-              <p className="text-sm text-gray-800"><span className="font-bold">No: </span> {selectedInvoice?.invoiceNumber}</p>
-              <p className="text-sm text-gray-600"><span className="font-bold">Termin: </span>{selectedInvoice?.order?.payTerm ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : '-'}</p>
-              <p className="text-sm mt-1">
-                <span className={`px-2 py-1 text-xs font-bold rounded print:border print:border-black print:text-black ${Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0) === 0 ? 'bg-green-900 text-white' : 'bg-red-900 text-white'}`}>
-                  {Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0) === 0 ? 'PAID' : 'UNPAID'}
-                </span>
-              </p>
-            </div>
+            {selectedInvoice?.variousItem && selectedInvoice?.order?.cart?.length > 1 ? (
+              (() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const itemChunks = (selectedInvoice.order.cart as any[]).reduce((acc: any[][], curr: any, idx: number) => {
+                  const chunkIdx = Math.floor(idx / 5);
+                  if (!acc[chunkIdx]) acc[chunkIdx] = [];
+                  acc[chunkIdx].push(curr);
+                  return acc;
+                }, []);
+
+                return itemChunks.map((chunk, chunkIdx) => (
+                  <div key={chunkIdx} className={chunkIdx < itemChunks.length - 1 ? "page-break" : ""}>
+                    <table className="w-full text-left table-fixed">
+                      <thead className={chunkIdx > 0 ? "hidden print:table-header-group" : ""}>
+                        <tr className="border-b-2 border-gray-200">
+                          <th className="py-2 text-sm text-gray-600 uppercase">No</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="border-gray-200">
+                        {chunk.map((cartItem: any, idx: number) => {
+                          const index = chunkIdx * 5 + idx + 1;
+                          const matchedProduct = products.find(p => p._id === cartItem.productId);
+                          return (
+                            <tr key={idx}>
+                              <td className="py-[5px] text-sm text-gray-800">{index}</td>
+                              <td className="py-[5px] text-sm text-gray-800">{matchedProduct?.productName}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right">{Number(matchedProduct?.sellingPrice)?.toLocaleString('id-ID')}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right">{`${cartItem.qty} ${matchedProduct?.saleUnit}`}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(cartItem.qty * (matchedProduct?.sellingPrice || 0))?.toLocaleString('id-ID')}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ));
+              })()
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="py-2 text-sm text-gray-600 uppercase">No</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="border-gray-200">
+                  <tr key={"single"}>
+                    <td className="py-[5px] text-sm text-gray-800">1</td>
+                    <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.product?.productName}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.product?.sellingPrice)?.toLocaleString('id-ID')}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">{`${selectedInvoice?.order?.cart[0].qty} ${selectedInvoice?.product?.saleUnit}`}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.total - selectedInvoice?.order?.taxValue + countTotal(selectedInvoice)).toLocaleString('id-ID')}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
           </div>
-
-          <div className="mt-4">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="border-b border-gray-200">
-                {selectedInvoice?.variousItem && selectedInvoice?.order?.cart?.length > 1 ? (
-                  selectedInvoice.order.cart.map((cartItem: any, idx: number) => {
-                    const matchedProduct = products.find(p => p._id === cartItem.productId)
-                    return (
-                      <tr key={"various"}>
-                        <td className="py-4 text-gray-800">{matchedProduct?.productName}</td>
-                        <td className="py-4 text-gray-800 text-right">{cartItem.qty}</td>
-                        <td className="py-4 text-gray-800 text-right font-medium">{cartItem?.subTotal}</td>
-                      </tr>
-                    )
-                  })
+          <div className="flex justify-end mt-4 break-inside-avoid">
+            <div className="w-full flex flex-row">
+              <div className="w-1/2 flex flex-col justify-center">
+                {bankAccounts && bankAccounts.length > 0 && (
+                  <div className="">
+                    {bankAccounts.map((acc: any, idx: number) => (
+                      <div key={idx} className="flex items-center py-1">
+                        <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} ({acc.accountName}) </span>
+                      </div>
+                    ))}
+                  </div>
                 )
-                  :
-                  (
-                    <tr key={"single"}>
-                      <td className="py-4 text-gray-800">{selectedInvoice?.product?.productName}</td>
-                      <td className="py-4 text-gray-800 text-right">{selectedInvoice?.product?.sellingPrice}</td>
-                      <td className="py-4 text-gray-800 text-right">{selectedInvoice?.order?.cart[0].qty}</td>
-                      <td className="py-4 text-gray-800 text-right font-medium">{(selectedInvoice?.order?.total - selectedInvoice?.order?.taxValue) + countDiscount(selectedInvoice)}</td>
-                    </tr>
+                }
+              </div>
+              <div className="ml-auto w-1/2 flex flex-col justify-between py-2 border-b print:border-gray-200">
+                <div className="flex flex-row">
+                  <span className="text-gray-700 text-sm">Subtotal</span>
+                  {selectedInvoice?.order?.cart?.length === 1 ? (
+                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.total - selectedInvoice?.order?.taxValue + countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                  ) : (
+                    <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
                   )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex justify-end mt-4">
-            <div className="w-1/2">
-              <div className="flex justify-between py-2 border-b print:border-gray-200">
-                <span className="font-bold text-gray-700">Subtotal</span>
-                <span className="text-gray-800">{Number(selectedInvoice?.order?.total)?.toLocaleString('id-ID')}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b print:border-gray-200">
-                <span className="font-bold text-gray-700">Paid Amount</span>
-                <span className="text-gray-800">{Number(selectedInvoice?.payAmount)?.toLocaleString('id-ID')}</span>
-              </div>
-              <div className="flex justify-between py-2 text-lg">
-                <span className="font-bold text-gray-800">Remaining</span>
-                <span className="font-bold text-gray-800">
-                  {(Number(selectedInvoice?.order?.total || 0) - Number(selectedInvoice?.payAmount || 0)).toLocaleString('id-ID')}
-                </span>
+                </div>
+                <div className="flex flex-row">
+                  <span className="text-gray-700 text-sm">Discount</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(countDiscount(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                </div>
+                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0
+                  ? selectedInvoice.order.taxes.map((t: any, idx: number) => (
+                    <div key={idx} className="flex flex-row">
+                      <span className="text-gray-700 text-sm">{t.taxName}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{`${Number(selectedInvoice?.order?.taxValue)?.toLocaleString('id-ID')} (${whatTax(t.taxName)})`}</span>
+                    </div>
+                  ))
+                  : (
+                    <></>
+                  )
+                }
+                <div className="flex flex-row font-bold">
+                  <span className="text-gray-700 text-sm">Total</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.total)?.toLocaleString('id-ID')}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -376,8 +573,8 @@ export default function Invoices() {
             </button>
             <button type="button" onClick={() => invoiceModalRef.current?.close()} className="btn">Close</button>
           </div>
-        </div>
-      </dialog>
+        </div >
+      </dialog >
     </>
   )
 }

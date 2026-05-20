@@ -3,6 +3,7 @@
 import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
+import { useRouter } from 'next/navigation'
 
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState } from 'react'
@@ -76,11 +77,10 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     })
   }
 
-  function openMakeOrder(qNumber: string, s: any) {
-    setTotal(s.cart.reduce((a: number, b: any) => a + b.subTotal, 0))
-    setSelectedQNumber(qNumber)
-    makeOrderForm.reset()
-    orderRef.current?.showModal()
+  const router = useRouter()
+
+  function openMakeOrder(qNumber: string) {
+    router.push(`/sales/order?qNumber=${qNumber}`)
   }
 
   const getCustomersFn = useFetch<Customer[], string>({
@@ -98,6 +98,13 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     method: 'GET'
   })
 
+  const getTaxesFn = useFetch<any[], any>({
+    url: `/api/web/tax?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
 
 
   function editSubmit(data: any) {
@@ -278,7 +285,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
                                     <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
                                   </svg>
                                 </button>
-                                <button onClick={() => openMakeOrder(s.quotationNumber, s)}>
+                                <button onClick={() => openMakeOrder(s.quotationNumber)}>
                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                   </svg>
@@ -425,10 +432,10 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   )
 }
 
-function Edit({ customers, product, getAvailableList, availableList, x, pop }: { x: X, customers: Customer[], product: Product[], getAvailableList: () => void, availableList: any[], pop: () => void }) {
+function Edit({ customers, product, getAvailableList, availableList, x, pop, taxes }: { x: X, customers: Customer[], product: Product[], getAvailableList: (id: string) => void, availableList: any[], pop: () => void, taxes: any[] }) {
   const masterAccountId = useAuth((state) => state.masterAccountId)
 
-  const [cart, setCart] = useState<QCart[]>([])
+  const [cart, setCart] = useState<any[]>([])
   const [customer, setCustomer] = useState<string>(x.customerId)
   const [discount, setDiscount] = useState<string>(x.discountType === 'percent' ? `${x.discountValue}%` : `${x.discountValue}`)
 
@@ -442,15 +449,67 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
     }
   })
 
+  function tax(total: number, cart: { subTotal: number, taxes: { taxName: string, taxValue: number }[] }[], discountType: string, discountValue: number) {
+
+    const ppns = cart.map(c => {
+      let taxableAmount = 0;
+      if (cart.length < 2) {
+        if (discountValue > 0) {
+          if (discountType === "fixed") {
+            taxableAmount = c.subTotal - discountValue
+          }
+          else {
+            taxableAmount = c.subTotal - (c.subTotal * (discountValue / 100))
+          }
+        }
+        else {
+          taxableAmount = c.subTotal
+        }
+      }
+      else {
+        if (discountValue > 0) {
+          if (discountType === "fixed") {
+            const proportion = c.subTotal / total
+            const proportionValue = discountValue * proportion
+            taxableAmount = c.subTotal - proportionValue
+          }
+          else {
+            const discountAtItem = c.subTotal * (discountValue / 100)
+            taxableAmount = c.subTotal - discountAtItem
+          }
+        }
+        else {
+          taxableAmount = c.subTotal
+        }
+      }
+
+      const itemTaxTotal = (c.taxes || []).reduce((acc, t) => acc + (taxableAmount * (t.taxValue / 100)), 0)
+      return itemTaxTotal
+    })
+
+    return Math.round(ppns.reduce((a, b) => a + b, 0))
+  }
+
   function addToCart(data: any) {
     const [productId, productName, sellingPrice, discountType, discountValue] = data.product.split('/')
 
     const product = { productId, productName }
-    const tax = data.tax === 'yes' ? true : false
-    const subTotal = discountType === "percent" ? (parseInt(sellingPrice) * data.qty) * (parseInt(discountValue) / 100) : (parseInt(sellingPrice) * data.qty) - (parseInt(discountValue) * data.qty)
+
+    let selectedTaxes: { taxName: string, taxValue: number }[] = []
+    if (data.ppn) {
+      const taxValues = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
+      selectedTaxes = taxValues
+        .filter((p: string) => p !== 'no')
+        .map((p: string) => {
+          const [n, v] = p.split('|')
+          return { taxName: n, taxValue: parseFloat(v) }
+        });
+    }
+
+    const subTotal = parseInt(sellingPrice) * data.qty
     const [filter] = cart.filter(c => c.product.productId === productId)
 
-    const item = { product: { ...product, qty: data.qty }, tax, subTotal }
+    const item = { product: { ...product, qty: data.qty }, taxes: selectedTaxes, subTotal }
 
     if (filter) {
       const newCart = cart.filter(c => c.product.productId != productId)
@@ -482,16 +541,20 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
       return {
         productId: c.product.productId,
         qty: c.product.qty,
-        tax: c.tax,
-        subTotal: c.subTotal
+        taxes: c.taxes,
+        subTotal: c.subTotal,
       }
     })
+
+    const total = cart.reduce((a, b) => a + b.subTotal, 0)
+    const taxValue = tax(total, _cart, discountType, discountValue)
 
     const params = {
       _id: x._id,
       customerId,
       discountType,
       discountValue,
+      taxValue,
       cart: _cart,
       id,
     }
@@ -502,10 +565,9 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
     })
   }
 
-  function parse(c: { product: { productId: string, productName: string, qty: number }, subTotal: number, tax: boolean }) {
-    const [p] = product.filter(p => p._id === c.product.productId)
-
-    return `${p.productName}@${c.product.qty} ${c.tax ? '(with tax)' : ''}`
+  function parse(c: any) {
+    const taxNames = (c.taxes || []).map((t: any) => t.taxName).join(', ')
+    return `${c.product.productName || c.productName || 'product'}@${c.product.qty || c.qty} ${taxNames ? `(${taxNames})` : ''}`
   }
 
   function removeFromCart(productId: string) {
@@ -518,9 +580,10 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
         x.cart.map(c => ({
           product: {
             productId: c.productId,
-            qty: c.qty
+            qty: c.qty,
+            productName: c.productName
           },
-          tax: c.tax,
+          taxes: c.taxes || [],
           subTotal: c.subTotal
         }))
       );
@@ -567,13 +630,13 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
                 </select>
               </div>
               <div className="flex flex-row items-center gap-3">
-                <label className="w-[85px]">Location</label>
-                <select {...editQuotationForm.register('locationId')} className="select w-full">
-                  <option>Available Location:</option>
+                <label className="w-[85px]">Warehouse</label>
+                <select {...editQuotationForm.register('warehouseId')} className="select w-full">
+                  <option>Available Warehouse:</option>
                   {
                     availableList?.map((l) => {
                       return (
-                        <option key={l._id}>{l.locationName} ({l.remain})</option>
+                        <option key={l._id.warehouseId} value={l._id.warehouseId}>{l.locationName} ({l.remain})</option>
                       )
                     })
                   }
@@ -585,13 +648,15 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select {...editQuotationForm.register('tax')} className="select w-full">
-                  <option>
-                    yes
+                <select multiple {...editQuotationForm.register('ppn')} className="select w-full h-24">
+                  <option value="no">
+                    no tax
                   </option>
-                  <option>
-                    no
-                  </option>
+                  {
+                    taxes?.map((t: any) => {
+                      return <option key={t._id} value={`${t.name}|${t.value}`}>{t.name} ({t.value}%)</option>
+                    })
+                  }
                 </select>
               </div>
               <div className="flex flex-row gap-2 mt-6">
@@ -615,7 +680,7 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
                   cart.map(c => {
                     return (
                       <li key={c.product.productId} className="flex justify-between items-center bg-slate-100 p-2 rounded-md">
-                        <span>{parse(c)}</span>
+                        <span>{getCartDisplayText(c)}</span>
                         <button type="button" onClick={() => removeFromCart(c.product.productId)} className="bg-red-900 border-none p-2 rounded-md text-white hover:bg-red-800">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -636,57 +701,51 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop }: {
   )
 }
 
-function Stock({ customers, pop, product, getAvailableList, availableList }: { customers: Customer[], pop: () => void, product: Product[], getAvailableList: (id: string) => void, availableList: any[] }) {
+function Stock({ customers, pop, product, getAvailableList, availableList, taxes }: { customers: Customer[], pop: () => void, product: Product[], getAvailableList: (id: string) => void, availableList: any[], taxes: any[] }) {
   const masterAccountId = useAuth((state) => state.masterAccountId)
 
-  const [cart, setCart] = useState<QCart[]>([])
-  const [customer, setCustomer] = useState<Customer[]>([])
+  const [cart, setCart] = useState<any[]>([])
+  const [customer, setCustomer] = useState<string>('')
   const [discount, setDiscount] = useState<string>('')
 
   const newQuotationForm = useForm()
 
-  function tax(total: number, cart: { subTotal: number, tax: boolean }[], discountType: string, discountValue: number) {
+  function tax(total: number, cart: { subTotal: number, taxes: { taxName: string, taxValue: number }[] }[], discountType: string, discountValue: number) {
 
     const ppns = cart.map(c => {
+      let taxableAmount = 0;
       if (cart.length < 2) {
-        if (c.tax) {
-          if (discountValue > 0) {
-            if (discountType === "fixed") {
-              return (c.subTotal - discountValue) * 0.11
-            }
-            else {
-              return (c.subTotal - (c.subTotal * (discountValue / 100))) * 0.11
-            }
+        if (discountValue > 0) {
+          if (discountType === "fixed") {
+            taxableAmount = c.subTotal - discountValue
           }
           else {
-            return c.subTotal * 0.11
+            taxableAmount = c.subTotal - (c.subTotal * (discountValue / 100))
           }
         }
         else {
-          return 0
+          taxableAmount = c.subTotal
         }
       }
       else {
-        if (c.tax) {
-          if (discountValue > 0) {
-            if (discountType === "fixed") {
-              const proportion = c.subTotal / total
-              const proportionValue = discountValue * proportion
-              return (c.subTotal - proportionValue) * 0.11
-            }
-            else {
-              const discount = c.subTotal * (discountValue / 100)
-              return (c.subTotal - discount) * 0.11
-            }
+        if (discountValue > 0) {
+          if (discountType === "fixed") {
+            const proportion = c.subTotal / total
+            const proportionValue = discountValue * proportion
+            taxableAmount = c.subTotal - proportionValue
           }
           else {
-            return c.subTotal * 0.11
+            const discountAtItem = c.subTotal * (discountValue / 100)
+            taxableAmount = c.subTotal - discountAtItem
           }
         }
         else {
-          return 0
+          taxableAmount = c.subTotal
         }
       }
+
+      const itemTaxTotal = (c.taxes || []).reduce((acc, t) => acc + (taxableAmount * (t.taxValue / 100)), 0)
+      return itemTaxTotal
     })
 
     return Math.round(ppns.reduce((a, b) => a + b, 0))
@@ -704,11 +763,26 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
     const [productId, productName, sellingPrice, discountType, discountValue] = data.product.split('/')
 
     const product = { productId, productName }
-    const tax = data.tax === 'yes' ? true : false
-    const subTotal = discountType === "percent" ? (parseInt(sellingPrice) * data.qty) * (parseInt(discountValue) / 100) : (parseInt(sellingPrice) * data.qty) - (parseInt(discountValue) * data.qty)
+
+    let selectedTaxes: { taxName: string, taxValue: number }[] = []
+
+    if (data.ppn) {
+      const taxValues = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
+      selectedTaxes = taxValues.filter((p: string) => p !== 'no').map((p: string) => {
+        const [n, v] = p.split('|')
+        return { taxName: n, taxValue: parseFloat(v) }
+      });
+    }
+
+    const subTotal = parseInt(sellingPrice) * data.qty
     const [filter] = cart.filter(c => c.product.productId === productId)
 
-    const item = { product: { ...product, qty: data.qty }, tax, subTotal }
+    const item = {
+      product: { ...product, qty: data.qty },
+      taxes: selectedTaxes,
+      warehouseId: data.warehouseId,
+      subTotal,
+    }
 
     if (filter) {
       const newCart = cart.filter(c => c.product.productId != productId)
@@ -734,27 +808,22 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
     const id = masterAccountId
     const customerId = customer
     const discountType = discount.includes("%") ? 'percent' : 'fixed'
-    const discountValue = discount.includes("%") ? parseInt(discount) : parseInt(discount)
+    const discountValue = parseInt(discount) || 0
+
 
     const _cart = cart.map((c) => {
       return {
         productId: c.product.productId,
         qty: c.product.qty,
-        tax: c.tax,
-        subTotal: c.subTotal
+        taxes: c.taxes,
+        subTotal: c.subTotal,
+        warehouseId: c.warehouseId
       }
     })
 
     const total = cart.reduce((a, b) => a + b.subTotal, 0)
 
-    const _c = _cart.map((c) => {
-      return {
-        subTotal: c.subTotal,
-        tax: c.tax as boolean
-      }
-    })
-
-    const taxValue = tax(total, _c, discountType, discountValue)
+    const taxValue = tax(total, _cart, discountType, discountValue)
 
     const params = {
       productType: 'good',
@@ -773,6 +842,11 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
 
   function removeFromCart(productId: string) {
     setCart(cart.filter(c => c.product.productId !== productId))
+  }
+
+  function getCartDisplayText(c: any) {
+    const taxNames = (c.taxes || []).map((t: any) => t.taxName).join(', ')
+    return `${c.product.productName}@${c.product.qty} ${taxNames ? `(${taxNames})` : ''}`
   }
 
   return (
@@ -815,13 +889,13 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
                 </select>
               </div>
               <div className="flex flex-row items-center gap-3">
-                <label className="w-[85px]">Location</label>
-                <select {...newQuotationForm.register('locationId')} className="select w-full">
-                  <option>Available Location:</option>
+                <label className="w-[85px]">Warehouse</label>
+                <select {...newQuotationForm.register('warehouseId')} className="select w-full">
+                  <option>Available Warehouse:</option>
                   {
                     availableList?.map((l) => {
                       return (
-                        <option key={l._id}>{l.locationName} ({l.remain})</option>
+                        <option value={l._id.warehouseId} key={l._id.warehouseId}>{l.locationName} ({l.remain})</option>
                       )
                     })
                   }
@@ -833,13 +907,15 @@ function Stock({ customers, pop, product, getAvailableList, availableList }: { c
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select {...newQuotationForm.register('tax')} className="select w-full">
-                  <option>
-                    yes
+                <select multiple {...newQuotationForm.register('ppn')} className="select w-full h-24">
+                  <option value="no">
+                    no tax
                   </option>
-                  <option>
-                    no
-                  </option>
+                  {
+                    taxes?.map((t: any) => {
+                      return <option key={t._id} value={`${t.name}|${t.value}`}>{t.name} ({t.value}%)</option>
+                    })
+                  }
                 </select>
               </div>
               <div className="flex flex-row gap-2 mt-6">
@@ -909,6 +985,14 @@ export default function Quotation() {
     method: 'GET'
   })
 
+  const getTaxesFn = useFetch<any[], any>({
+    url: `/api/web/tax?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
   function toggle() {
     setOnQMode(!onQMode)
   }
@@ -921,14 +1005,16 @@ export default function Quotation() {
   useEffect(() => {
     if (hasHydrated) {
       const url2 = `/api/web/products?id=${masterAccountId}&type=good`
-      const url3 = `/api/web/stock?id=${masterAccountId}`
+      const url3 = `/api/web/stock?id=${masterAccountId}&locationId=${useAuth.getState().locationId}`
       const url4 = `/api/web/customers?id=${masterAccountId}`
+      const url5 = `/api/web/tax?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
       getProductsFn.fn(url2, body, _ => { })
       getStockFn.fn(url3, body, _ => { })
       getCustomersFn.fn(url4, body, _ => { })
+      getTaxesFn.fn(url5, body, _ => { })
     }
   }, [masterAccountId])
 
@@ -952,6 +1038,7 @@ export default function Quotation() {
           customers={getCustomersFn.result as Customer[]}
           pop={() => setOnEditMode(false)}
           x={x as X}
+          taxes={getTaxesFn.result || []}
         />
       )
     }
@@ -970,6 +1057,7 @@ export default function Quotation() {
         product={getProductsFn.result as Product[]}
         customers={getCustomersFn.result as Customer[]}
         pop={toggle}
+        taxes={getTaxesFn.result || []}
       />
     )
   }

@@ -47,6 +47,11 @@ const invoiceSchema = new mongoose.Schema({
       date: { type: Date, required: true }
     }],
     default: []
+  },
+  status: {
+    type: String,
+    enum: ['active', 'draft'],
+    default: 'draft'
   }
 });
 

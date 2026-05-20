@@ -30,6 +30,11 @@ export default function Receivable() {
 
   const router = useRouter()
 
+  const bankAccountFn = useFetch<any[], any>({
+    url: `/api/web/bank-accounts?id=${masterAccountId}`,
+    method: 'GET'
+  })
+
   const putFn = useFetch<any, any>({
     url: '/api/web/roles',
     method: 'PUT'
@@ -72,9 +77,9 @@ export default function Receivable() {
       date: payDate
     }
 
-    putFn.fn('/api/web/receivable', JSON.stringify(params), () => {
+    putFn.fn('/api/web/receivable/product', JSON.stringify(params), () => {
       payRef.current?.close()
-      getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
+      getFn.fn(`/api/web/receivable/product?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
         setInvoices(result)
       })
     })
@@ -83,14 +88,14 @@ export default function Receivable() {
   async function revertPayment(history: { date: string, method: string, amount: number }) {
     if (!confirm("Are you sure you want to void this payment? This will deduct the amount from the total paid.")) return;
 
-    putFn.fn('/api/web/receivable', JSON.stringify({
+    putFn.fn('/api/web/receivable/product', JSON.stringify({
       id: selectedInvoice._id,
       action: 'revert',
       historyDate: history.date,
       historyAmount: history.amount
     }), () => {
       historyRef.current?.close()
-      getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
+      getFn.fn(`/api/web/receivable/product?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
         setInvoices(result)
       })
     })
@@ -100,9 +105,12 @@ export default function Receivable() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/receivable?id=${masterAccountId}&type=product`
+      const url = `/api/web/receivable/product?id=${masterAccountId}&type=product`
+      const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
 
       const body = JSON.stringify({})
+
+      bankAccountFn.fn(bankUrl, "{}", (result) => { })
 
       getFn.fn(url, body, (result) => {
         console.log(result)
@@ -180,7 +188,7 @@ export default function Receivable() {
                                 <td>{p.invoiceNumber}</td>
                                 <td>{p.order.salesOrderNumber}</td>
                                 <td>{p.variousItem ? 'various item' : p.product?.productName}</td>
-                                <td>{p.order.customerName ? p.order.customerName : p.order.customer?.bussinessName}</td>
+                                <td>{p.order.customCustomer ? p.order.customCustomer.name : p.order.customer?.bussinessName}</td>
                                 <td>{p.value}</td>
                                 <td>{p.payAmount}</td>
                                 <td>{p.value - p.payAmount}</td>
@@ -265,10 +273,11 @@ export default function Receivable() {
               <label className="label">Payment Method</label>
               <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="select select-bordered w-full">
                 <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="Debit Card">Debit Card</option>
-                <option value="Other">Other</option>
+                {
+                  bankAccountFn.result?.map((bank) => (
+                    <option key={bank._id} value={`transfer to ${bank.bank}`}>transfer to {bank.bank} ({bank.accountName})</option>
+                  ))
+                }
               </select>
             </div>
             <div className="flex gap-2 justify-end mt-4">

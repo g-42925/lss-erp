@@ -4,16 +4,19 @@ import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Link from "next/link";
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState, useMemo } from 'react'
-
+import { HugeiconsIcon } from '@hugeicons/react'
+import { AddInvoiceIcon } from '@hugeicons/core-free-icons'
 export default function Order() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const [searchResult, setSearchResult] = useState<any[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterPickupDate, setFilterPickupDate] = useState("")
+  const [filterOrderNumber, setFilterOrderNumber] = useState("")
   const modalRef = useRef<HTMLDialogElement>(null)
   const cartRef = useRef<HTMLDialogElement>(null)
   const customRef = useRef<HTMLDialogElement>(null)
@@ -26,12 +29,23 @@ export default function Order() {
   const [payTerm, setPayTerm] = useState<string>(new Date().toISOString().split('T')[0])
   const [payAmt, setPayAmt] = useState<number>(0)
   const [paymentMethod, setPaymentMethod] = useState<string>('cash')
+  const [pickupDate, setPickupDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const [contract, setContract] = useState<File | null>(null)
+  const [attachmentFileName, setAttachmentFileName] = useState<string>("")
+  const [contractFileName, setContractFileName] = useState<string>("")
+  const [orders, setOrders] = useState<any[]>([])
 
-  const newOrderForm = useForm({
+  const newOrderForm = useForm<any>({
     defaultValues: {
-      payTerm: payTerm
+      payTerm: payTerm,
+      pickupDate: pickupDate,
+      debt: 'no',
     }
   })
+
+  const watchDebt = newOrderForm.watch('debt')
+
 
   const orderTaxesSummary = useMemo(() => {
     const summary: Record<string, number> = {};
@@ -55,32 +69,39 @@ export default function Order() {
 
     const totalSubtotal = subtotals.reduce((a, b) => a + b, 0)
 
-    cart.forEach((c) => {
-       if(!c.taxes || c.taxes.length === 0) return;
-       
-       let taxableAmount = 0;
-       
-       if (cart.length === 1) {
-         if (discount.includes("%")) {
-           taxableAmount = totalSubtotal - (totalSubtotal * (parseInt(discount) / 100));
-         } else {
-           taxableAmount = totalSubtotal - parseInt(discount);
-         }
-       } else {
-         if (discount.includes("%")) {
-           taxableAmount = (c.price - c.discountValue) - ((c.price - c.discountValue) * (parseInt(discount) / 100));
-         } else {
-           const proportion = (c.price - c.discountValue) / totalSubtotal;
-           const proportionValue = parseInt(discount) * proportion;
-           taxableAmount = (c.price - c.discountValue) - proportionValue;
-         }
-       }
+    cart.forEach((c, idx) => {
+      if (!c.taxes || c.taxes.length === 0) return;
 
-       c.taxes.forEach((t: any) => {
-          const taxAmt = taxableAmount * (t.taxValue / 100);
-          if(!summary[t.taxName]) summary[t.taxName] = 0;
-          summary[t.taxName] += taxAmt;
-       });
+      let taxableAmount = 0;
+      const cSubtotal = subtotals[idx];
+
+      if (cart.length === 1) {
+        if (discount.includes("%")) {
+          taxableAmount = totalSubtotal - (totalSubtotal * (parseInt(discount) / 100));
+        }
+        else {
+          taxableAmount = totalSubtotal - parseInt(discount);
+        }
+      }
+      else {
+        if (discount.includes("%")) {
+          taxableAmount = cSubtotal - (cSubtotal * (parseInt(discount) / 100));
+        }
+        else {
+          let proportion = 0;
+          if (totalSubtotal !== 0) {
+            proportion = cSubtotal / totalSubtotal;
+          }
+          const proportionValue = parseInt(discount) * proportion;
+          taxableAmount = cSubtotal - proportionValue;
+        }
+      }
+
+      c.taxes.forEach((t: any) => {
+        const taxAmt = taxableAmount * (t.taxValue / 100);
+        if (!summary[t.taxName]) summary[t.taxName] = 0;
+        summary[t.taxName] += taxAmt;
+      });
     });
 
     return Object.keys(summary).map(name => ({ taxName: name, taxValue: Math.round(summary[name]) }));
@@ -106,6 +127,14 @@ export default function Order() {
     , [total, _total])
 
 
+  const getCustomersFn = useFetch<any, any>({
+    url: `/api/web/customers?id=${masterAccountId}`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
 
   const addOrderFn = useFetch<any, any>({
     url: '/api/web/order',
@@ -129,7 +158,6 @@ export default function Order() {
       alert(m)
     }
   })
-
   const getOrdersFn = useFetch<any, any>({
     url: `/api/web/orders?id=xxx`,
     method: 'GET',
@@ -145,7 +173,6 @@ export default function Order() {
       alert(m)
     }
   })
-
   const getDSaleStockFn = useFetch<any, any>({
     url: `/api/web/csale`,
     method: 'GET',
@@ -153,7 +180,6 @@ export default function Order() {
       alert(m)
     }
   })
-
   const getTaxesFn = useFetch<any[], any>({
     url: `/api/web/tax?id=xxx`,
     method: 'GET',
@@ -162,9 +188,32 @@ export default function Order() {
     }
   })
 
-  async function addToCart(data: any) {
-    console.log(data)
+  const activateInvoiceFn = useFetch<any, any>({
+    url: '/api/web/invoice/product',
+    method: 'PUT',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+  const bankAccountFn = useFetch<any, any>({
+    url: `/api/web/bank-accounts?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+  function activateInvoice(son: string) {
+    const params = {
+      salesOrderNumber: son,
+      status: 'active'
+    }
 
+    activateInvoiceFn.fn(``, JSON.stringify(params), (r) => {
+      alert("Invoice activated successfully")
+    })
+  }
+
+  async function addToCart(data: any) {
     let taxes: { taxName: string, taxValue: number }[] = []
     if (data.ppn) {
       const selectedTaxes = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
@@ -187,12 +236,9 @@ export default function Order() {
       discountValue: parseInt(discountValue),
       taxes: taxes,
       debt: data.debt,
-      locationId: data.locationId
+      warehouseId: data.warehouseId
     }
 
-    console.log(
-      item
-    )
 
     if (data.qty > parseInt(limit)) {
       alert('stock not enough')
@@ -207,15 +253,14 @@ export default function Order() {
           return c.product.includes(`${_id}/${name}`)
         })
 
-        cart[index] = {
+        const newCart = [...cart]
+        newCart[index] = {
           ...item
         }
-        setCart([
-          ...cart
-        ])
+        setCart(newCart)
       }
       else {
-        await setCart(
+        setCart(
           [
             item,
             ...cart
@@ -223,6 +268,8 @@ export default function Order() {
         )
       }
     }
+
+
   }
 
   function submit(data: any) {
@@ -251,17 +298,18 @@ export default function Order() {
   async function attachmentSubmit(e: any) {
     const file = e.target.files[0]
     setAttachment(file)
-    setAttachmentFileName(file)
+    setAttachmentFileName(file.name)
   }
 
   async function contractSubmit(e: any) {
     const file = e.target.files[0]
     setContract(file)
-    setContractFileName(file)
+    setContractFileName(file.name)
   }
 
   async function onProdChg(e: any) {
-    const url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}`
+    const locationId = useAuth.getState().locationId;
+    const url = `/api/web/csale?&prod=${e.target.value.split('/')[0]}&locationId=${locationId}`
 
     getDSaleStockFn.fn(url, JSON.stringify({}), result => { })
   }
@@ -347,17 +395,68 @@ export default function Order() {
     const _payAmt = debt === 'yes' ? payAmt : payAmount
     const discountValue = parseInt(discount)
 
-    const _cart = cart.map(c => {
+    console.log(cart[0])
+
+    const subtotals = cart.map((c) => {
+      if (c.discountType === 'percent') {
+        const price = parseInt(c.product.split('/')[3])
+        const qty = parseInt(c.qty)
+        const _discount = parseInt(c.discountValue)
+        return (price * qty) - ((_discount / 100) * (price * qty))
+      }
+
+      if (c.discountType === 'fixed') {
+        const qty = parseInt(c.qty)
+        const price = parseInt(c.product.split('/')[3])
+        const _discount = parseInt(c.discountValue) * qty
+        return (price * qty) - _discount
+      }
+      return 0;
+    })
+    const totalSubtotal = subtotals.reduce((a, b) => a + b, 0)
+
+    const _cart = cart.map((c, idx) => {
       const productId = c.product.split("/")[0]
       const qty = c.qty
       const subTotal = qty * c.price
+
+      let taxableAmount = 0;
+      const cSubtotal = subtotals[idx];
+
+      if (cart.length === 1) {
+        if (discount.includes("%")) {
+          taxableAmount = totalSubtotal - (totalSubtotal * (parseInt(discount) / 100));
+        }
+        else {
+          taxableAmount = totalSubtotal - parseInt(discount);
+        }
+      }
+      else {
+        if (discount.includes("%")) {
+          taxableAmount = cSubtotal - (cSubtotal * (parseInt(discount) / 100));
+        }
+        else {
+          let proportion = 0;
+          if (totalSubtotal !== 0) {
+            proportion = cSubtotal / totalSubtotal;
+          }
+          const proportionValue = parseInt(discount) * proportion;
+          taxableAmount = cSubtotal - proportionValue;
+        }
+      }
+
+      const exactTaxes = (c.taxes || []).map((t: any) => ({
+        taxName: t.taxName,
+        taxValue: t.taxValue,
+        taxAmount: Math.round(taxableAmount * (t.taxValue / 100))
+      }))
 
       return {
         productId,
         qty,
         subTotal,
-        taxes: c.taxes,
-        loc: c.locationId
+        taxes: exactTaxes,
+        warehouseId: c.warehouseId
       }
     })
 
@@ -376,11 +475,11 @@ export default function Order() {
       total: payAmount, // use payAmount: it picks _total (which tracks cart/discount) when tax === 0
       debt,
       payTerm,
+      pickupDate,
       payAmount: _payAmt,
       paymentMethod,
       customCustomer
     })
-
 
     directSellFn.fn('', params, async r => {
       const saleDate = r.saleDate
@@ -408,6 +507,7 @@ export default function Order() {
         discountValue,
         taxValue,
         payTerm,
+        pickupDate,
         customCustomer
       }
 
@@ -425,6 +525,72 @@ export default function Order() {
     })
   }
 
+  const filteredOrders = useMemo(() => {
+    if (!getOrdersFn.result) return [];
+
+    return getOrdersFn.result.filter((order: any) => {
+      const matchesSearch = searchTerm === "" ||
+        (order.salesOrderNumber?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.customCustomer?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.customer?.bussinessName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (order.product?.productName?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      const matchesOrderNumber = filterOrderNumber === "" ||
+        order.salesOrderNumber?.toLowerCase().includes(filterOrderNumber.toLowerCase());
+
+      const matchesPickupDate = filterPickupDate === "" ||
+        (order.pickupDate && new Date(order.pickupDate).toISOString().split('T')[0] === filterPickupDate);
+
+      return matchesSearch && matchesOrderNumber && matchesPickupDate;
+    });
+  }, [getOrdersFn.result, searchTerm, filterOrderNumber, filterPickupDate]);
+
+  function onCustomerChg(e: any) {
+    setCustomerName(e.target.value)
+    const customer = getCustomersFn.result?.find((customer: any) => customer.bussinessName === e.target.value)
+    if (customer) setCustomerAddress(customer.address)
+  }
+
+  const searchParams = useSearchParams()
+  const qNumber = searchParams.get("qNumber")
+
+  useEffect(() => {
+    if (hasHydrated && qNumber) {
+      const url = `/api/web/quotations?qNumber=${qNumber}&type=good`
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.result && data.result.length > 0) {
+            const q = data.result[0]
+            setDirectSellMode(true)
+            setCustomerName(q.customer?.bussinessName || "")
+            setCustomerAddress(q.customer?.address || "")
+            setDiscount(q.discountType === "percent" ? `${q.discountValue}%` : `${q.discountValue}`)
+
+            const prefilledCart = q.cart.map((item: any) => {
+              // We need to find the product object for this cart item
+              // But for the Direct Sale form, it expects a string like "id/name/limit/price/discountType/discountValue"
+              // We'll try to find it in getProductsFn.result
+              const p = getProductsFn.result?.find((prod: any) => prod._id === item.productId)
+              if (p) {
+                return {
+                  product: `${p._id}/${p.productName}/${p.remain}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`,
+                  qty: item.qty,
+                  price: item.subTotal,
+                  discountType: q.discountType,
+                  discountValue: q.discountValue,
+                  taxes: item.taxes || [],
+                  warehouseId: item.warehouseId
+                }
+              }
+              return null
+            }).filter((i: any) => i !== null)
+
+            setCart(prefilledCart)
+          }
+        })
+    }
+  }, [hasHydrated, qNumber, getProductsFn.result])
 
   useEffect(() => {
     if (hasHydrated) {
@@ -432,11 +598,15 @@ export default function Order() {
       const url = `/api/web/products?id=${masterAccountId}&type=good`
       const url2 = `/api/web/location?id=${masterAccountId}`
       const url3 = `/api/web/tax?id=${masterAccountId}`
+      const url5 = `/api/web/bank-accounts?id=${masterAccountId}`
+      const url6 = `/api/web/customers?id=${masterAccountId}`
 
       getProductsFn.fn(url, JSON.stringify({}), _ => { })
       getLocationsFn.fn(url2, JSON.stringify({}), _ => { })
       getOrdersFn.fn(url4, JSON.stringify({}), (_) => { })
       getTaxesFn.fn(url3, JSON.stringify({}), (_) => { })
+      bankAccountFn.fn(url5, JSON.stringify({}), (_) => { })
+      getCustomersFn.fn(url6, JSON.stringify({}), (_) => { })
     }
   }, [masterAccountId])
 
@@ -452,15 +622,23 @@ export default function Order() {
                 <input
                   placeholder="quantity"
                   type="text"
+                  value={customerName}
                   className="input flex-1"
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  list="customers"
+                  onChange={(e) => onCustomerChg(e)}
                 />
+                <datalist id="customers">
+                  {getCustomersFn.result?.map((customer: any) => (
+                    <option key={customer._id} value={customer.bussinessName} />
+                  ))}
+                </datalist>
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Address</label>
                 <input
                   placeholder="address"
                   type="text"
+                  value={customerAddress}
                   className="input flex-1"
                   onChange={(e) => setCustomerAddress(e.target.value)}
                 />
@@ -468,6 +646,7 @@ export default function Order() {
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Discount</label>
                 <input
+                  value={discount}
                   placeholder="discount value" {...newOrderForm.register("discount", { onChange: (e) => setDiscount(e.target.value === '' ? '0' : e.target.value) })}
                   type="text" className="input flex-1"
                 />
@@ -487,13 +666,21 @@ export default function Order() {
                 <label className="w-[85px]">Payment Method</label>
                 <select {...newOrderForm.register('paymentMethod', { onChange: (e) => setPaymentMethod(e.target.value) })} className="select w-full">
                   <option>Cash</option>
-                  <option>Bank</option>
+                  {bankAccountFn.result?.map((bankAccount: any) => (
+                    <option value={`transfer to ${bankAccount.bank}`} key={bankAccount._id}>transfer to {bankAccount.bank} ({bankAccount.accountName})</option>
+                  ))}
                 </select>
               </div>
-              <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
+              <div className={`flex flex-row items-center gap-3 ${watchDebt === 'yes' ? '' : 'hidden'}`}>
                 <label className="w-[70px]">Pay term</label>
                 <label className="input flex-1">
                   <input {...newOrderForm.register('payTerm', { onChange: (e) => setPayTerm(e.target.value) })} type="date" placeholder="pay term" />
+                </label>
+              </div>
+              <div className={`flex flex-row items-center gap-3`}>
+                <label className="w-[70px]">Pickup date</label>
+                <label className="input flex-1">
+                  <input {...newOrderForm.register('pickupDate', { onChange: (e) => setPickupDate(e.target.value) })} type="date" placeholder="pickup date" />
                 </label>
               </div>
               <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
@@ -516,9 +703,9 @@ export default function Order() {
                 </select>
               </div>
               <div className="flex flex-row items-center gap-3">
-                <label className="w-[85px]">Location</label>
-                <select {...newOrderForm.register('locationId')} className="select w-full">
-                  <option>Available Location:</option>
+                <label className="w-[85px]">Warehouse</label>
+                <select {...newOrderForm.register('warehouseId')} className="select w-full">
+                  <option>Available Warehouse:</option>
                   {
                     getDSaleStockFn?.result?.map((l) => {
                       return (
@@ -617,7 +804,22 @@ export default function Order() {
                 </select>
                 Entries
               </div>
-              <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+              <div className="ml-auto flex flex-row gap-2">
+                <input
+                  type="date"
+                  placeholder="Filter by Pickup Date"
+                  className="border-1 border-black rounded-md p-3"
+                  value={filterPickupDate}
+                  onChange={(e) => setFilterPickupDate(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Filter Order Number"
+                  className="border-1 border-black rounded-md p-3"
+                  value={filterOrderNumber}
+                  onChange={(e) => setFilterOrderNumber(e.target.value)}
+                />
+              </div>
             </div>
             {
               getOrdersFn.loading
@@ -644,48 +846,32 @@ export default function Order() {
                           <th>Discount</th>
                           <th>Tax</th>
                           <th>Pay Term</th>
+                          <th>Pickup date</th>
+                          <th>...</th>
                         </tr>
                       </thead>
                       <tbody>
                         {
-                          searchResult.length < 1
-                            ?
-                            getOrdersFn?.result?.map((x, index) => {
-                              return (
-                                <tr key={index}>
-                                  <td>{new Date(x.saleDate).toLocaleString("id-ID")}</td>
-                                  <td>{'xxx'}</td>
-                                  <td>{x.variousItem ? 'various item' : x.product.productName}</td>
-                                  <td>{x.customCustomer ? x.customCustomer.name : x.customer.bussinessName}</td>
-                                  <td>{x.total}</td>
-                                  <td>{x.discountType === "percent" ? x.total * (x.discountValue / 100) : x.discountValue}</td>
-                                  <td>{x.taxValue}</td>
-                                  <td>{x.payTerm ? new Date(x.payTerm).toLocaleString("id-ID") : '-'}</td>
-                                </tr>
-                              )
-                            })
-                            :
-                            searchResult.map((role, index) => {
-                              return (
-                                <tr key={index}>
-                                  <td>{role.name}</td>
-                                  <td className="flex flex-row gap-3">
-                                    <button className="btn" onClick={() => edit(role._id)}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                      </svg>
-                                      Edit
-                                    </button>
-                                    <button className="btn" onClick={() => del(role._id)}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                      </svg>
-                                      Delete
-                                    </button>
-                                  </td>
-                                </tr>
-                              )
-                            })
+                          filteredOrders.map((x: any, index: number) => {
+                            return (
+                              <tr key={index}>
+                                <td>{new Date(x.saleDate).toLocaleString("id-ID")}</td>
+                                <td>{x.salesOrderNumber}</td>
+                                <td>{x.variousItem ? 'various item' : (x.product?.productName || '-')}</td>
+                                <td>{x.customCustomer ? x.customCustomer.name : (x.customer?.bussinessName || '-')}</td>
+                                <td>{x.total}</td>
+                                <td>{x.discountType === "percent" ? x.total * (x.discountValue / 100) : x.discountValue}</td>
+                                <td>{x.taxValue}</td>
+                                <td>{x.payTerm ? new Date(x.payTerm).toLocaleString("id-ID") : '-'}</td>
+                                <td>{x.pickupDate ? new Date(x.pickupDate).toLocaleString("id-ID") : '-'}</td>
+                                <td>
+                                  <button onClick={() => activateInvoice(x.salesOrderNumber)}>
+                                    {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon icon={AddInvoiceIcon} />}
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })
                         }
                       </tbody>
                     </table>

@@ -46,6 +46,11 @@ export default function Receivable() {
     method: 'GET'
   })
 
+  const getAllProduct = useFetch<any[], any>({
+    url: `/api/web/products?id=xxx`,
+    method: 'GET'
+  })
+
   const deleteFn = useFetch<any[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
@@ -63,9 +68,9 @@ export default function Receivable() {
     e.preventDefault()
     if (!selectedInvoice) return
 
-    putFn.fn('/api/web/receivable', JSON.stringify({ id: selectedInvoice._id, payAmount: Number(payAmount), method: paymentMethod }), () => {
+    putFn.fn('/api/web/receivable/svc', JSON.stringify({ id: selectedInvoice._id, payAmount: Number(payAmount), method: paymentMethod }), () => {
       payRef.current?.close()
-      getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=service`, JSON.stringify({}), (result) => {
+      getFn.fn(`/api/web/receivable/svc?id=${masterAccountId}&type=service`, JSON.stringify({}), (result) => {
         setInvoices(result)
       })
     })
@@ -91,12 +96,16 @@ export default function Receivable() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/receivable?id=${masterAccountId}&type=service`
-
+      const url = `/api/web/receivable/svc?id=${masterAccountId}&type=service`
+      const urlProduct = `/api/web/products?id=${masterAccountId}&type=service`
       const body = JSON.stringify({})
 
       getFn.fn(url, body, (result) => {
         setInvoices(result)
+      })
+
+      getAllProduct.fn(urlProduct, body, (result) => {
+        setProducts(result)
       })
     }
   }, [masterAccountId])
@@ -169,8 +178,8 @@ export default function Receivable() {
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.invoiceNumber}</td>
                                 <td>{p.order.salesOrderNumber}</td>
-                                <td>{p.product?.productName}</td>
-                                <td>{p.order.customerName ? p.order.customerName : p.order.customer.bussinessName}</td>
+                                <td>{getAllProduct?.result?.filter((pr) => pr._id === p.order.productId)[0]?.productName}</td>
+                                <td>{p.order.customCustomer ? p.order.customCustomer.name : p.order.customer?.bussinessName}</td>
                                 <td>{p.value}</td>
                                 <td>{p.payAmount}</td>
                                 <td>{p.value - p.payAmount}</td>

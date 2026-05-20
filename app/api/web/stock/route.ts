@@ -3,34 +3,35 @@ import { connectToDatabase } from "@/lib/mongodb";
 
 import Batche from '@/models/Batche'
 import Companie from '@/models/Companie'
-import Locations from '@/models/Location'
+import Companie from '@/models/Companie'
 
-export async function GET(request:NextRequest){
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
   const cmd = url.searchParams.get("cmd");
 
-  try{
+  try {
     await connectToDatabase();
     const company = await Companie.findOne({
-      masterAccountId:id
+      masterAccountId: id
     })
-    const r = await Locations.aggregate([
+    const locId = url.searchParams.get("locationId");
+    const Warehouse = mongoose.models.Warehouse || mongoose.model('Warehouse');
+
+    const r = await Warehouse.aggregate([
       {
-        $match: {
-          locationOf: company._id
-        }
+        $match: locId ? { locationId: new mongoose.Types.ObjectId(locId) } : {}
       },
       {
-        $lookup:{
-          from:'batches',
-          localField:'_id',
-          foreignField:'locationId',
-          as:'batches',
-          pipeline:[
+        $lookup: {
+          from: 'batches',
+          localField: '_id',
+          foreignField: 'warehouseId',
+          as: 'batches',
+          pipeline: [
             {
-              $match:{
-                $expr:{
+              $match: {
+                $expr: {
                   $and: [
                     { $eq: ["$status", "ACTIVE"] }
                   ]
@@ -40,45 +41,49 @@ export async function GET(request:NextRequest){
           ]
         }
       },
-      { 
-        $unwind: "$batches" 
+      {
+        $unwind: "$batches"
       },
       {
-        $lookup:{
-          from:'products',
-          localField:"batches.productId",
-          foreignField:"_id",
-          as:"products"
+        $lookup: {
+          from: 'products',
+          localField: "batches.productId",
+          foreignField: "_id",
+          as: "products"
         }
       },
-      { 
-        $unwind: "$products" 
+      {
+        $unwind: "$products"
       },
       {
         $group: {
           _id: {
-            locationId: "$_id",
+            warehouseId: "$_id",
             productId: "$products._id"
           },
           locationName: { $first: "$name" },
           product: { $first: "$products" },
           batches: { $push: "$batches" },
           accumulative: { $sum: "$batches.accumulative" },
-          out: { $sum : "$batches.outQty" }
+          out: { $sum: "$batches.outQty" },
+          reserved: { $sum: "$batches.reserved" },
         }
       },
       {
         $addFields: {
           remain: {
-            $subtract: ["$accumulative", "$out"]
+            $subtract: [
+              "$accumulative",
+              { $add: ["$out", "$reserved"] }
+            ]
           }
         }
       },
       {
         $project: {
           batches: 0,
-          accumulative:0,
-          out:0
+          accumulative: 0,
+          out: 0
         }
       }
     ])
@@ -87,83 +92,85 @@ export async function GET(request:NextRequest){
 
     return NextResponse.json(
       {
-        noResult:false,
-        message:"",
-        result:r,
-        error:false
-      }
-    )    
-  }                        
-  catch(e:any){
-    return NextResponse.json(
-      {
-        noResult:true,
-        message:e.message,
-        result:null,
-        error:true
+        noResult: false,
+        message: "",
+        result: r,
+        error: false
       }
     )
-  } 
+  }
+  catch (e: any) {
+    return NextResponse.json(
+      {
+        noResult: true,
+        message: e.message,
+        result: null,
+        error: true
+      }
+    )
+  }
 }
 
-export async function POST(request:NextRequest){
-  try{
+export async function POST(request: NextRequest) {
+  try {
     await connectToDatabase();
 
     const params = await request.json()
 
     const isExist = await Batche.find({
-      productId:params.productId,
-      locationId:params.locationId,
-      isOpening:true
+      productId: params.productId,
+      locationId: params.locationId,
+      isOpening: true
     })
 
-    if(isExist.length > 0){
+    if (isExist.length > 0) {
       return NextResponse.json(
         {
-          noResult:true,
-          message:"Product already exist",
-          result:null,
-          error:false
+          noResult: true,
+          message: "Product already exist",
+          result: null,
+          error: false
         }
       )
     }
-    else{
+    else {
       const batchNumber = `B-${String(Date.now()).slice(-5)}`
 
       const newBatch = await Batche.create({
         ...params,
         batchNumber,
-        qty:1,
+        qty: 1,
+        reserved: 0,
+
       })
-      
+
       const [batch] = await Batche.aggregate([
         {
-          $match:{
-            batchNumber:batchNumber
+          $match: {
+            batchNumber: batchNumber
           }
         },
         {
-          $lookup:{
-            from:'products',
-            localField:'productId',
-            foreignField:'_id',
-            as:'product'
+          $lookup: {
+            from: 'products',
+            localField: 'productId',
+            foreignField: '_id',
+            as: 'product'
           }
         },
         {
-          $unwind:'$product'
+          $unwind: '$product'
         },
         {
-          $lookup:{
-            from:'locations',
-            localField:'locationId',
-            foreignField:'_id',
-            as:'location'
+          $lookup: {
+            from: 'locations',
+            localField: 'locationId',
+            foreignField: '_id',
+            as: 'location'
           }
         },
         {
-          $unwind:'$location'
+          $unwind: '$location'
         },
         {
           $addFields: {
@@ -174,30 +181,30 @@ export async function POST(request:NextRequest){
 
       const result = {
         ...newBatch._doc,
-        product:batch.product,
-        locationName:batch.location.name,
-        remain:params.accumulative
+        product: batch.product,
+        locationName: batch.location.name,
+        remain: params.accumulative
       }
 
       return NextResponse.json(
         {
-          noResult:false,
-          message:"",
-          result:result,
-          error:false
+          noResult: false,
+          message: "",
+          result: result,
+          error: false
         }
       )
     }
 
   }
-  catch(e:any){
+  catch (e: any) {
     return NextResponse.json(
-			{
-				noResult:true,
-				message:e.message,
-				result:null,
-				error:true
-			}
-		)
+      {
+        noResult: true,
+        message: e.message,
+        result: null,
+        error: true
+      }
+    )
   }
 }

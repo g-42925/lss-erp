@@ -7,7 +7,7 @@ import Location from '@/models/Location'
 import Order from "@/models/Order"
 import Companie from '@/models/Companie'
 import Product from '@/models/Product'
-import Allocation from '@/models/Allocation'
+import Reservation from '@/models/Reservation'
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -17,23 +17,24 @@ export async function GET(request: NextRequest) {
 		const prod = url.searchParams.get("prod")
 		const pr = await Product.findById(prod)
 
-		const result = await Location.aggregate([
+		const locId = url.searchParams.get("locationId")
+		const Warehouse = mongoose.models.Warehouse || mongoose.model('Warehouse');
+
+		const result = await Warehouse.aggregate([
 			{
-				$match: {
-					locationOf: pr.productOf
-				}
+				$match: locId ? { locationId: new mongoose.Types.ObjectId(locId) } : {}
 			},
 			{
 				$lookup: {
 					as: "batches",
 					from: "batches",
-					let: { locationId: "$_id" },
+					let: { warehouseId: "$_id" },
 					pipeline: [
 						{
 							$match: {
 								$expr: {
 									$and: [
-										{ $eq: ["$locationId", "$$locationId"] },
+										{ $eq: ["$warehouseId", "$$warehouseId"] },
 										{ $eq: ["$productId", pr._id] }
 									]
 								}
@@ -47,7 +48,12 @@ export async function GET(request: NextRequest) {
 					available: {
 						$subtract: [
 							{ $sum: "$batches.accumulative" },
-							{ $sum: "$batches.outQty" }
+							{
+								$add: [
+									{ $sum: "$batches.outQty" },
+									{ $sum: "$batches.reserved" }
+								]
+							}
 						]
 					}
 				}
@@ -79,16 +85,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
 
+	const salesOrderNumber = `SO-${String(Date.now()).slice(-5)}`
+
 	function formatNumber(x: number) {
 		return String(x).padStart(4, '0');
 	}
 
 	try {
 		await connectToDatabase()
+		const now = new Date()
 		const params = await request.json()
 		const company = await Companie.findOne({
 			masterAccountId: params.id
 		})
+
+		const pickup = new Date(params.pickupDate)
+
 
 		await Promise.all(
 			params.cart.map(async c => {
@@ -191,8 +203,11 @@ export async function POST(request: NextRequest) {
 
 				const stock = await Batches.find({
 					productId: c.productId,
-					locationId: location
+					warehouseId: c.warehouseId
 				})
+
+				console.log({ stock })
+				console.log({ location })
 
 				for (const n of stock) {
 
@@ -200,19 +215,49 @@ export async function POST(request: NextRequest) {
 
 					if ((n.accumulative - n.outQty) >= quantity) {
 
-						await Batches.findByIdAndUpdate(
-							n._id,
-							{ $inc: { outQty: quantity } }
-						)
+						// jika pickup date lebih dari hari ini
+						if (!(pickup.toLocaleDateString() === now.toLocaleDateString())) {
+							await Reservation.create({
+								batchId: n._id,
+								salesOrderNumber: salesOrderNumber,
+								qty: quantity,
+								createdAt: new Date(),
+							})
+
+							await Batches.findByIdAndUpdate(
+								n._id,
+								{ $inc: { reserved: quantity } }
+							)
+						}
+						else {
+							await Batches.findByIdAndUpdate(
+								n._id,
+								{ $inc: { outQty: quantity } }
+							)
+						}
 
 						quantity = 0
 					}
 					else {
+						if (!(pickup.toLocaleDateString() === now.toLocaleDateString())) {
+							await Reservation.create({
+								batchId: n._id,
+								salesOrderNumber: salesOrderNumber,
+								qty: n.accumulative - n.outQty,
+								createdAt: new Date(),
+							})
 
-						await Batches.findByIdAndUpdate(
-							n._id,
-							{ $inc: { outQty: n.accumulative - n.outQty } }
-						)
+							await Batches.findByIdAndUpdate(
+								n._id,
+								{ $inc: { reserved: n.accumulative - n.outQty } }
+							)
+						}
+						else {
+							await Batches.findByIdAndUpdate(
+								n._id,
+								{ $inc: { outQty: n.accumulative - n.outQty } }
+							)
+						}
 
 						quantity -= (n.accumulative - n.outQty)
 					}
@@ -235,7 +280,7 @@ export async function POST(request: NextRequest) {
 
 		const result = await Order.create({
 			companyId: company._id,
-			salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+			salesOrderNumber: salesOrderNumber,
 			cart: params.cart, // product id, qty, price
 			customCustomer: params.customCustomer,
 			productType: 'good',
@@ -246,25 +291,28 @@ export async function POST(request: NextRequest) {
 			taxes: params.taxes,
 			saleDate: new Date(),
 			payTerm: new Date(params.payTerm),
+			pickupDate: new Date(params.pickupDate),
 			total: params.total
 		})
 
 		const paid = params.debt === 'yes' ? false : true
 
-		const now = new Date();
 		const shortYear = String(now.getFullYear()).slice(-2);
 		const month = String(now.getMonth() + 1).padStart(2, '0');
 		const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
 
+		const status = pickup.toLocaleDateString() === now.toLocaleDateString() ? 'active' : 'draft'
+
 		await Invoice.create({
+			status: status,
 			companyId: company._id,
 			invoiceNumber: invoiceNumber,
 			invoiceType: 'product',
 			salesOrderId: result._id,
 			salesOrderNumber: result.salesOrderNumber,
 			payAmount: params.payAmount,
+			date: new Date(params.pickupDate),
 			paid: paid,
-			date: new Date(),
 			paymentHistory: [
 				{
 					amount: params.payAmount,

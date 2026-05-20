@@ -30,6 +30,11 @@ export default function Debt() {
   const payForm = useForm()
   const router = useRouter()
 
+  const bankAccountFn = useFetch<any[], any>({
+    url: `/api/web/bank-accounts?id=${masterAccountId}`,
+    method: 'GET'
+  })
+
   const putFn = useFetch<any, any>({
     url: '/api/web/purchases',
     method: 'PUT'
@@ -70,42 +75,45 @@ export default function Debt() {
   }
 
   async function paySubmit(data: any) {
-     const newPayAmt = parseInt(data.payAmount)
-     if (newPayAmt <= 0) return alert("Amount must be greater than 0")
-     const payload = JSON.stringify({
-       _id: data._id,
-       type: "payment",
-       newPayAmt: newPayAmt,
-       payAmount: parseInt(data.currPayAmt) + newPayAmt,
-       status: '___approved',
-       reference: null,
-       paymentMethod: data.paymentMethod
-     })
-     
-     await putFn.fn('', payload, (result) => {
-       const target = debts.find((d) => d._id === result._id)
-       if(target) target.payAmount = result.payAmount
-       payRef.current?.close()
-       SetDebts([...debts])
-     })
+    const newPayAmt = parseInt(data.payAmount)
+    if (newPayAmt <= 0) return alert("Amount must be greater than 0")
+    const payload = JSON.stringify({
+      _id: data._id,
+      type: "payment",
+      newPayAmt: newPayAmt,
+      payAmount: parseInt(data.currPayAmt) + newPayAmt,
+      status: '___approved',
+      reference: null,
+      paymentMethod: data.paymentMethod
+    })
+
+    await putFn.fn('', payload, (result) => {
+      const target = debts.find((d) => d._id === result._id)
+      if (target) target.payAmount = result.payAmount
+      payRef.current?.close()
+      SetDebts([...debts])
+    })
   }
 
   async function viewLogs(debtId: string) {
-     setLogsLoading(true)
-     setLogs([])
-     logsRef.current?.showModal()
-     getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debtId}`, "{}", (res) => {
-        setLogs(res)
-        setLogsLoading(false)
-     })
+    setLogsLoading(true)
+    setLogs([])
+    logsRef.current?.showModal()
+    getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debtId}`, "{}", (res) => {
+      setLogs(res)
+      setLogsLoading(false)
+    })
   }
 
 
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/debt?id=${masterAccountId}&type=product`
+      const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
 
       const body = JSON.stringify({})
+
+      bankAccountFn.fn(bankUrl, "{}", (result) => { })
 
       getFn.fn(url, body, (result) => {
         SetDebts(result)
@@ -249,9 +257,11 @@ export default function Debt() {
                 <legend className="fieldset-legend">Payment Method</legend>
                 <select className="select w-full" {...payForm.register("paymentMethod")}>
                   <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="E-Wallet">E-Wallet</option>
+                  {
+                    bankAccountFn.result?.map((bank) => (
+                      <option key={bank._id} value={`transfer from ${bank.bank}`}>transfer from {bank.bank} ({bank.accountName})</option>
+                    ))
+                  }
                 </select>
               </fieldset>
               {putFn.noResult || putFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}

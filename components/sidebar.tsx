@@ -2,11 +2,27 @@
 
 import Link from "next/link";
 import useAuth from "@/store/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { usePermission } from "@/hooks/usePermission";
 
-export default function Sidebar({ children }: { children: any }) {
+const SidebarItem = ({ href, children }: { href: string, children: React.ReactNode }) => {
+  const { canView } = usePermission()
+  const pathname = usePathname()
+
+  // if (!canView(href)) return null;
+  return (
+    <li>
+      <Link href={href} className={pathname === href ? "active" : ""}>
+        {children}
+      </Link>
+    </li>
+  )
+}
+
+export default function Sidebar({ children }: { children: React.ReactNode }) {
   const companyName = useAuth((state) => state.name)
   const logout = useAuth((state) => state.logout)
+  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const router = useRouter()
 
   function _logout() {
@@ -29,137 +45,120 @@ export default function Sidebar({ children }: { children: any }) {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
               </svg>
-
             </button>
           </li>
-          <li>
-            <details open>
-              <summary>User Management</summary>
-              <ul>
-                <li>
-                  <Link href="/users">Users</Link>
-                </li>
-                <li>
-                  <Link href="/roles">Roles</Link>
-                </li>
-              </ul>
-            </details>
-          </li>
+
+          {/* User Management — superadmin only */}
+          {isSuperAdmin && (
+            <li>
+              <details open>
+                <summary>User Management</summary>
+                <ul>
+                  <SidebarItem href="/users">Users</SidebarItem>
+                  <SidebarItem href="/roles">Roles</SidebarItem>
+                  <SidebarItem href="/products/location">Location</SidebarItem>
+                </ul>
+              </details>
+            </li>
+          )}
+
+          {/* Contacts */}
           <li>
             <details open>
               <summary>Contacts</summary>
               <ul>
-                <li>
-                  <Link href="/suppliers">Suppliers</Link>
-                </li>
-                <li>
-                  <Link href="/customers">Customers</Link>
-                </li>
-                <li>
-                  <Link href="/vendor">Vendor</Link>
-                </li>
+                <SidebarItem href="/suppliers">Suppliers</SidebarItem>
+                <SidebarItem href="/customers">Customers</SidebarItem>
+                <SidebarItem href="/vendor">Vendor</SidebarItem>
               </ul>
             </details>
           </li>
+
+          {/* Product */}
           <li>
             <details open>
               <summary>Product</summary>
               <ul>
-                <li>
-                  <Link href="/products/add/good">New</Link>
-                </li>
-                <li>
-                  <Link href="/products/category">Category</Link>
-                </li>
-                <li>
-                  <Link href="/products/unit">Unit</Link>
-                </li>
-                <li>
-                  <Link href="/products/location">Location</Link>
-                </li>
-                <li>
-                  <Link href="/products/stock">Stock</Link>
-                </li>
-                <li>
-                  <Link href="/products/measure">Measure</Link>
-                </li>
+                <SidebarItem href="/products/add/good">New</SidebarItem>
+                <SidebarItem href="/products/category">Category</SidebarItem>
+                <SidebarItem href="/products/unit">Unit</SidebarItem>
+                <SidebarItem href="/products/stock">Stock</SidebarItem>
+                <SidebarItem href="/products/measure">Measure</SidebarItem>
               </ul>
             </details>
           </li>
+
+          {/* Warehouse */}
           <li>
             <details>
               <summary>Warehouse</summary>
               <ul>
-                <li>
-                  <Link href="/warehouse/receiving">Receiving</Link>
-                </li>
-                <li>
-                  <Link href="/warehouse/delivery">Delivery</Link>
-                </li>
-                <li>
-                  <Link href="/warehouse/refund">Refund</Link>
-                </li>
+                <SidebarItem href="/warehouse/new">New</SidebarItem>
+                <SidebarItem href="/warehouse/receiving">Receiving</SidebarItem>
+                <SidebarItem href="/warehouse/delivery">Delivery</SidebarItem>
+                <SidebarItem href="/warehouse/refund">Refund</SidebarItem>
               </ul>
             </details>
           </li>
+
+          {/* Inventory */}
           <li>
             <details>
               <summary>Inventory</summary>
               <ul>
-                <li>
-                  <Link href="/inventory/items">Items</Link>
-                </li>
-                <li>
-                  <Link href="/inventory/usage">Usage Logs</Link>
-                </li>
+                <SidebarItem href="/inventory/items">Items</SidebarItem>
+                <SidebarItem href="/inventory/usage">Usage Logs</SidebarItem>
               </ul>
-
             </details>
           </li>
+
+          {/* Purchases */}
           <li>
             <details>
               <summary>Purchases</summary>
               <ul>
-                <li>
-                  <Link href="/purchases/requisition">Requisition</Link>
-                </li>
+                <SidebarItem href="/purchases/requisition">Requisition</SidebarItem>
               </ul>
             </details>
           </li>
+
+          {/* Sales */}
           <li>
             <details>
               <summary>Sales</summary>
               <ul>
-                <li>
-                  <Link href="/sales/quotations">Quotation</Link>
-                </li>
-                <li>
-                  <Link href="/sales/order">Order</Link>
-                </li>
-                <li>
-                  <Link href="/sales/invoices">Invoice</Link>
-                </li>
-                <li>
-                  <Link href="/sales/taxes">Taxes</Link>
-                </li>
+                <SidebarItem href="/sales/quotations">Quotation</SidebarItem>
+                <SidebarItem href="/sales/order">Order</SidebarItem>
+                <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
+                <SidebarItem href="/sales/taxes">Taxes</SidebarItem>
               </ul>
             </details>
           </li>
+
+          {/* Finance */}
           <li>
             <details>
               <summary>Finance</summary>
               <ul>
+                <SidebarItem href="/finance/purchases">Purchases Approval</SidebarItem>
+                <SidebarItem href="/finance/inv-logs">Inventory Approval</SidebarItem>
+                <SidebarItem href="/finance/debt">Debts</SidebarItem>
+                <SidebarItem href="/finance/receivable">Receivable</SidebarItem>
+                <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>
                 <li>
-                  <Link href="/finance/purchases">Purchases Approval</Link>
-                </li>
-                <li>
-                  <Link href="/finance/inv-logs">Inventory Approval</Link>
-                </li>
-                <li>
-                  <Link href="/finance/debt">Debts</Link>
-                </li>
-                <li>
-                  <Link href="/finance/receivable">Receivable</Link>
+                  <details>
+                    <summary>Accounting</summary>
+                    <ul>
+                      <li>
+                        <details>
+                          <summary>COA</summary>
+                          <ul>
+                            <SidebarItem href="/finance/accounting/coa/assets">Assets</SidebarItem>
+                          </ul>
+                        </details>
+                      </li>
+                    </ul>
+                  </details>
                 </li>
               </ul>
             </details>

@@ -136,6 +136,7 @@ export default function Taxes() {
       _id: filter._id,
       name: filter.name,
       value: filter.value,
+      isPPh: filter.isPPh || false,
     })
 
     editRef.current?.showModal()
@@ -190,6 +191,7 @@ export default function Taxes() {
                       <tr>
                         <th>Name</th>
                         <th>Value (%)</th>
+                        <th>Type</th>
                         <th>...</th>
                       </tr>
                     </thead>
@@ -202,6 +204,7 @@ export default function Taxes() {
                               <tr key={index}>
                                 <td>{u.name}</td>
                                 <td>{u.value}</td>
+                                <td>{u.isPPh ? <span className="badge badge-primary text-white">PPh</span> : <span className="badge badge-ghost text-black">Non-PPh</span>}</td>
                                 <td className="flex flex-row gap-3">
                                   <button className="btn" onClick={() => edit(u._id)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -220,6 +223,7 @@ export default function Taxes() {
                               <tr key={index}>
                                 <td>{u.name}</td>
                                 <td>{u.value}</td>
+                                <td>{u.isPPh ? <span className="badge badge-primary text-white">PPh</span> : <span className="badge badge-ghost text-black">Non-PPh</span>}</td>
                                 <td className="flex flex-row gap-3">
                                   <button className="btn" onClick={() => edit(u._id)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -246,6 +250,14 @@ export default function Taxes() {
             <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col gap-3">
               <input {...editTaxForm.register("name")} type="text" placeholder="tax name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...editTaxForm.register("value", { valueAsNumber: true })} type="number" step="0.01" placeholder="tax value in % (e.g. 11)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              <div className="flex items-center gap-2 mb-3">
+                <input {...editTaxForm.register("isPPh")} type="checkbox" id="edit-isPPh" className="checkbox checkbox-primary" />
+                <label htmlFor="edit-isPPh">Is this PPh?</label>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <input {...editTaxForm.register("isLiability")} type="checkbox" id="edit-isLiability" className="checkbox checkbox-primary" />
+                <label htmlFor="edit-isLiability">Is this Liability?</label>
+              </div>
               {putFn.noResult || putFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <div className="modal-action">
                 <form method="dialog">
@@ -268,6 +280,14 @@ export default function Taxes() {
             <form onSubmit={newTaxForm.handleSubmit(submit)} className="h-96 relative flex flex-col gap-3">
               <input {...newTaxForm.register("name")} type="text" placeholder="tax name (e.g. PPN 11%)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newTaxForm.register("value", { valueAsNumber: true })} type="number" step="0.01" placeholder="tax value in % (e.g. 11)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              <div className="flex items-center gap-2 mb-3">
+                <input {...newTaxForm.register("isPPh")} type="checkbox" id="isPPh" className="checkbox checkbox-primary" />
+                <label htmlFor="isPPh">Is this PPh?</label>
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <input {...newTaxForm.register("isLiability")} type="checkbox" id="isLiability" className="checkbox checkbox-primary" />
+                <label htmlFor="isLiability">Is this Liability?</label>
+              </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <div className="modal-action">
                 <form method="dialog">

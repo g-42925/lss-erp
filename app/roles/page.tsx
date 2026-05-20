@@ -7,6 +7,25 @@ import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
+interface RoleData {
+  _id: string;
+  name: string;
+  pages: Array<{
+    link: string;
+    permissions: string[];
+  }>;
+}
+
+interface Feature {
+  _id: string;
+  name: string;
+  link: string;
+}
+
+interface FeatureGroup {
+  _id: string;
+  features: Feature[];
+}
 
 function Roles() {
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -16,26 +35,20 @@ function Roles() {
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
 
-  const [roles, setRoles] = useState<any[]>([])
-  const [role, setRole] = useState<string>('')
-  const [newRoleName, setNewRoleName] = useState<string>('')
-  const [searchResult, setSearchResult] = useState<any[]>([])
-  const [query, setQuery] = useState<string>('')
+  const [roles, setRoles] = useState<RoleData[]>([])
+  const [searchResult, setSearchResult] = useState<RoleData[]>([])
+  const [selectedPages, setSelectedPages] = useState<Record<string, string[]>>({})
 
-  const [selectedPage, setSelectedPage] = useState<string>('')
-
-  const [selected, setSelected] = useState<any>({})
-
-  const newRoleForm = useForm()
-  const editRoleForm = useForm()
+  const newRoleForm = useForm<{ name: string }>()
+  const editRoleForm = useForm<{ _id: string, name: string }>()
   const router = useRouter()
 
-  const putFn = useFetch<any, any>({
+  const putFn = useFetch<RoleData, any>({
     url: '/api/web/roles',
     method: 'PUT'
   })
 
-  const addFn = useFetch<any, any>({
+  const addFn = useFetch<RoleData, any>({
     url: '/api/web/roles',
     method: 'POST',
     onError: (m) => {
@@ -43,17 +56,17 @@ function Roles() {
     }
   })
 
-  const getFn = useFetch<any[], any>({
+  const getFn = useFetch<RoleData[], any>({
     url: `/api/web/roles?id=xxx`,
     method: 'GET'
   })
 
-  const getFeaturesFn = useFetch<any[], any>({
+  const getFeaturesFn = useFetch<FeatureGroup[], any>({
     url: `/api/web/features`,
     method: 'GET'
   })
 
-  const deleteFn = useFetch<any[], any>({
+  const deleteFn = useFetch<string, any>({
     url: `/api/web/roles?id=xxx`,
     method: 'DELETE',
     onError: (m) => {
@@ -61,316 +74,271 @@ function Roles() {
     }
   })
 
-  async function submit(data: any) {
+  const submit = async (data: { name: string }) => {
+    const pagesArray = Object.entries(selectedPages)
+      .filter(([_, perms]) => perms.length > 0)
+      .map(([link, perms]) => ({ link, permissions: perms }))
+
     const body = JSON.stringify({
-      ...data,
+      name: data.name,
+      pages: pagesArray,
       id: masterAccountId,
     })
 
     await addFn.fn('', body, (role) => {
       modalRef.current?.close()
-
-      setRoles(
-        [
-          ...roles,
-          role,
-        ]
-      )
-
+      setRoles([...roles, { ...role, pages: pagesArray }])
+      setSelectedPages({})
+      newRoleForm.reset()
     })
   }
 
-  async function search(v: string) {
+  const search = (v: string) => {
     if (v.length > 0) {
-      const result = roles.filter((r) => {
-        return r.name.includes(v)
-      })
-
-      if (result.length > 0) {
-        setSearchResult(
-          [
-            ...result
-          ]
-        )
-      }
-      else {
-        setSearchResult(
-          []
-        )
-      }
-    }
-    else {
-      setSearchResult(
-        []
-      )
+      const result = roles.filter((r) => r.name.toLowerCase().includes(v.toLowerCase()))
+      setSearchResult(result)
+    } else {
+      setSearchResult([])
     }
   }
 
-  async function editSubmit(data: any) {
-    const page = data.page.join('/')
+  const editSubmit = async (data: { _id: string, name: string }) => {
+    const pagesArray = Object.entries(selectedPages)
+      .filter(([_, perms]) => perms.length > 0)
+      .map(([link, perms]) => ({ link, permissions: perms }))
+
     const body = JSON.stringify({
-      ...data,
-      page: page
+      _id: data._id,
+      name: data.name,
+      pages: pagesArray
     })
 
     await putFn.fn('', body, (result) => {
-      const [target] = roles.filter((r) => r._id == result._id)
-
-      Object.keys(target).forEach(key => {
-        target[key] = result[key]
-      })
-
+      setRoles(roles.map(r => r._id === result._id ? { ...r, ...result } : r))
       setSearchResult([])
-
       editRef.current?.close()
+      setSelectedPages({})
     })
   }
 
-  async function del(_id: string) {
+  const del = async (_id: string) => {
+    if (!confirm("Are you sure you want to delete this role?")) return
     const url = `/api/web/roles?id=${_id}`
     const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
-      setRoles(
-        roles.filter((r) => r._id != result)
-      )
+      setRoles(roles.filter((r) => r._id != result))
     })
   }
 
-  async function edit(_id: string) {
-    const [filter] = roles.filter((r) => r._id == _id)
+  const handleEdit = (_id: string) => {
+    const filter = roles.find((r) => r._id == _id)
+    if (!filter) return
 
     editRoleForm.reset({
       _id: filter._id,
       name: filter.name,
-      permission: filter.permission,
-      page: filter.page.split('/')
     })
 
-    setNewRoleName(filter.name)
-
+    const initialPages: Record<string, string[]> = {}
+    filter.pages?.forEach((p) => {
+      initialPages[p.link] = p.permissions
+    })
+    setSelectedPages(initialPages)
     editRef.current?.showModal()
   }
+
+  const togglePermission = (link: string, permission: string) => {
+    setSelectedPages(prev => {
+      const current = prev[link] || []
+      const updated = current.includes(permission)
+        ? current.filter(p => p !== permission)
+        : [...current, permission]
+
+      return { ...prev, [link]: updated }
+    })
+  }
+
+  const PermissionToggle = ({ link, permission, label }: { link: string, permission: string, label: string }) => (
+    <label className="flex items-center gap-1 text-xs cursor-pointer hover:bg-gray-100 p-1 rounded">
+      <input
+        type="checkbox"
+        className="checkbox checkbox-xs"
+        checked={selectedPages[link]?.includes(permission) || false}
+        onChange={() => togglePermission(link, permission)}
+      />
+      {label}
+    </label>
+  )
 
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/roles?id=${masterAccountId}`
       const featuresUrl = `/api/web/features`
-
       const body = JSON.stringify({})
 
-      getFeaturesFn.fn(featuresUrl, body, (result) => {
-        //setFeatures(result)
-      })
-
-      getFn.fn(url, body, (result) => {
-        setRoles(result)
-      })
-
+      getFeaturesFn.fn(featuresUrl, body, () => { })
+      getFn.fn(url, body, (result) => { setRoles(result) })
     }
-  }, [masterAccountId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHydrated, masterAccountId])
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
   if (!isSuperAdmin) router.push('/dashboard')
 
-
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl text-black">Roles <span className="text-sm leading-loose">Manage roles</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
-            <span className="self-center text-black">All roles</span>
-            <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+        <span className="text-2xl font-bold text-gray-800">Role Management <span className="text-sm font-normal text-gray-500 ml-2">Define granular tool access</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 rounded-lg shadow-lg flex flex-col p-6 gap-6">
+          <div className="flex flex-row items-center">
+            <h2 className="text-xl font-semibold text-gray-700">Existing Roles</h2>
+            <button onClick={() => {
+              setSelectedPages({})
+              newRoleForm.reset()
+              modalRef.current?.showModal()
+            }} className="btn btn-primary ml-auto shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Add
+              Create New Role
             </button>
           </div>
-          <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center text-black">
-              Show
-              <select className="select w-16 text-black">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
-            </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="text-black ml-auto border-1 border-black rounded-md p-3" />
+
+          <div className="flex flex-row gap-4">
+            <input onChange={(e) => search(e.target.value)} type="search" placeholder="Filter roles..." className="input input-bordered w-full max-w-xs text-black" />
           </div>
-          {
-            getFn.loading
-              ?
-              <div className="flex-1 flex flex-col justify-center items-center">
-                <span className="loading loading-spinner loading-xl"></span>
-              </div>
-              :
-              getFn.error || getFn.noResult
-                ?
-                <div>
-                  <p>{getFn.message}</p>
-                </div>
-                :
-                <div>
-                  <table className="table text-black">
-                    <thead>
-                      <tr>
-                        <th>Role</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {
-                        searchResult.length < 1
-                          ?
-                          roles.map((role, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn" onClick={() => del(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((role, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn" onClick={() => del(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                      }
-                    </tbody>
-                  </table>
-                </div>
-          }
+
+          <div className="overflow-x-auto">
+            {getFn.loading ? (
+              <div className="flex justify-center p-10"><span className="loading loading-spinner loading-lg text-primary"></span></div>
+            ) : (
+              <table className="table table-zebra w-full text-black">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th>Role Name</th>
+                    <th>Permissions Detailed</th>
+                    <th className="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(searchResult.length > 0 ? searchResult : roles).map((role, index) => (
+                    <tr key={index} className="hover">
+                      <td className="font-medium text-blue-900">{role.name}</td>
+                      <td>
+                        <div className="flex flex-wrap gap-1">
+                          {role.pages?.slice(0, 3).map((p, i) => (
+                            <span key={i} className="badge badge-ghost badge-sm text-[10px]">
+                              {p.link.split('/').pop()} ({p.permissions.join(',')})
+                            </span>
+                          ))}
+                          {role.pages?.length > 3 && <span className="text-xs text-gray-400">+{role.pages.length - 3} more</span>}
+                        </div>
+                      </td>
+                      <td className="text-right flex justify-end gap-2">
+                        <button className="btn btn-sm btn-outline btn-info" onClick={() => handleEdit(role._id)}>
+                          Edit
+                        </button>
+                        <button className="btn btn-sm btn-outline btn-error" onClick={() => del(role._id)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box">
-          <div className="flex flex-col gap-3">
-            <span className="text-2xl text-black ">Edit Role</span>
-            <form onSubmit={editRoleForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col gap-3">
-              <input {...editRoleForm.register('_id')} type="hidden" placeholder="current role _id " className="text-black w-full p-3 rounded-md border1 border-black" />
-              <input {...editRoleForm.register("name")} type="text" placeholder="current role name" className="text-black w-full p-3 rounded-md border-1 border-black" />
-              <select {...editRoleForm.register("permission")} className="text-black select w-full">
-                <option disabled>select permission</option>
-                <option value="r">Read only</option>
-                <option value="rw">Read and write</option>
-              </select>
-              <div className="flex flex-row gap-3">
-                <label className="label text-black">
-                  <input {...editRoleForm.register("page")} value="suppliers" type="checkbox" className="checkbox" /> Suppliers
-                </label>
-                <label className="label text-black">
-                  <input {...editRoleForm.register("page")} value="customers" type="checkbox" className="checkbox" /> Customers
-                </label>
-                <label className="label text-black">
-                  <input {...editRoleForm.register("page")} value="contacts" type="checkbox" className="checkbox" /> Contacts
-                </label>
-              </div>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <div className="modal-action">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                    Cancel
-                  </button>
-                </form>
-              </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
-                Edit
-              </button>
-            </form>
-          </div>
-        </div>
-      </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal text-black w-full">
-        <div className="modal-box w-1/2">
-          <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Role</span>
-            <form onSubmit={newRoleForm.handleSubmit(submit)} className="h-96 flex flex-col gap-3">
-              <div className="flex-1">
-                <input {...newRoleForm.register("name")} type="text" placeholder="new role name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-                <select {...newRoleForm.register("permission")} className="select w-full">
-                  <option disabled selected>select permission</option>
-                  <option value="r">Read only</option>
-                  <option value="rw">Read and write</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-3 flex-1">
-                {
-                  getFeaturesFn.noResult || getFeaturesFn.error
-                    ? <label className="label flex items-center gap-2 whitespace-nowrap" htmlFor="role">something went wrong</label>
-                    : getFeaturesFn?.result?.map((feature, index) => {
-                      return (
-                        <div key={index} className="flex flex-col gap-2">
-                          <span className="text-black">{feature._id}</span>
 
-                          <div className="flex flex-wrap gap-3">
-                            {feature.features.map((f, i) => (
-                              <label key={i} className="flex items-center gap-2 w-40">
-                                <input {...newRoleForm.register("page")} value={f.link} type="checkbox" className="checkbox" />
-                                {f.name}
-                              </label>
-                            ))}
+      {/* Edit Role Modal */}
+      <dialog ref={editRef} className="modal text-black">
+        <div className="modal-box w-11/24 max-w-5xl h-[80vh] flex flex-col">
+          <h3 className="font-bold text-lg mb-4">Edit Role Permissions</h3>
+          <form onSubmit={(e) => { e.preventDefault(); editRoleForm.handleSubmit(editSubmit)(e); }} className="flex-1 flex flex-col gap-4 overflow-hidden">
+            <input {...editRoleForm.register('_id')} type="hidden" />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold">Role Name</label>
+              <input {...editRoleForm.register("name")} type="text" className="input input-bordered w-full" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50">
+              <span className="text-sm font-semibold mb-3 block">Feature Access & Actions</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getFeaturesFn?.result?.map((group, gIdx) => (
+                  <div key={gIdx} className="card bg-white shadow-sm border p-3">
+                    <h4 className="font-bold text-blue-800 text-sm mb-2 border-b uppercase pb-1">{group._id}</h4>
+                    <div className="flex flex-col gap-3">
+                      {group.features.map((f, fIdx) => (
+                        <div key={fIdx} className="flex flex-col gap-1">
+                          <span className="text-xs font-medium text-gray-700">{f.name}</span>
+                          <div className="flex flex-wrap gap-2 ml-1">
+                            <PermissionToggle link={f.link} permission="view" label="View" />
+                            <PermissionToggle link={f.link} permission="create" label="Add" />
+                            <PermissionToggle link={f.link} permission="edit" label="Edit" />
+                            <PermissionToggle link={f.link} permission="delete" label="Del" />
                           </div>
                         </div>
-                      )
-                    })
-                }
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex flex-row justify-end gap-3">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md text-white bg-gray-400">
-                    Cancel
-                  </button>
-                </form>
-                <button type="submit" className="p-3 rounded-md text-white bg-blue-900">
-                  Add
-                </button>
+            </div>
+
+            <div className="modal-action mt-auto pt-4">
+              <button type="button" className="btn btn-ghost" onClick={() => editRef.current?.close()}>Cancel</button>
+              <button type="submit" className="btn btn-primary px-8">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
+
+      {/* Add Role Modal */}
+      <dialog ref={modalRef} className="modal text-black">
+        <div className="modal-box w-11/24 max-w-5xl h-[80vh] flex flex-col">
+          <h3 className="font-bold text-lg mb-4">Create New Role</h3>
+          <form onSubmit={(e) => { e.preventDefault(); newRoleForm.handleSubmit(submit)(e); }} className="flex-1 flex flex-col gap-4 overflow-hidden">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-semibold">Role Name</label>
+              <input {...newRoleForm.register("name")} type="text" placeholder="e.g. Sales Manager" className="input input-bordered w-full" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50">
+              <span className="text-sm font-semibold mb-3 block">Configure Permissions</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getFeaturesFn?.result?.map((group, gIdx) => (
+                  <div key={gIdx} className="card bg-white shadow-sm border p-3">
+                    <h4 className="font-bold text-blue-800 text-sm mb-2 border-b uppercase pb-1">{group._id}</h4>
+                    <div className="flex flex-col gap-3">
+                      {group.features.map((f, fIdx) => (
+                        <div key={fIdx} className="flex flex-col gap-1">
+                          <span className="text-xs font-medium text-gray-700">{f.name}</span>
+                          <div className="flex flex-wrap gap-2 ml-1">
+                            <PermissionToggle link={f.link} permission="view" label="View" />
+                            <PermissionToggle link={f.link} permission="create" label="Add" />
+                            <PermissionToggle link={f.link} permission="edit" label="Edit" />
+                            <PermissionToggle link={f.link} permission="delete" label="Del" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            </form>
-          </div>
+            </div>
+
+            <div className="modal-action mt-auto pt-4">
+              <button type="button" className="btn btn-ghost" onClick={() => modalRef.current?.close()}>Cancel</button>
+              <button type="submit" className="btn btn-primary px-8">Create Role</button>
+            </div>
+          </form>
         </div>
       </dialog>
     </>
   )
 }
 
-type Failed = {
-  message: string
-}
-
-export default withAuth(
-  Roles
-)
+export default withAuth(Roles)

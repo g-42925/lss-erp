@@ -3,7 +3,8 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 
-import Quotation from '@/models/Quotation'
+import ProductQuotation from '@/models/ProductQuotation'
+import ServiceQuotation from '@/models/ServiceQuotation'
 import Order from '@/models/Order'
 import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     const payTerm = formData.get("payTerm") as string
     const qNumber = formData.get("qNumber") as string
     const id = formData.get("id") as string
-    const paymentMethod = formData.get("paymentMethod") as string
+    const paymentMethod = formData.get("paymentMethod") as string || "Cash"
 
     const company = await Companie.findOne({
       masterAccountId: id
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
     const directOrder = formData.get("directOrder") as string
     if (directOrder === "true") {
       const productRaw = formData.get("productId") as string // "id/sellingPrice"
-      const [productId, defaultPrice] = productRaw ? productRaw.split("/") : ["", "0"]
+      const [, defaultPrice] = productRaw ? productRaw.split("/") : ["", "0"]
       const customerName = formData.get("customerName") as string
       const price = parseFloat(formData.get("price") as string) || parseFloat(defaultPrice) || 0
       const contractType = formData.get("contractType") as string
@@ -174,9 +175,15 @@ export async function POST(request: NextRequest) {
     }
     // ─────────────────────────────────────────────────────────────────────
 
-    const quotation = await Quotation.findOne({
+    let quotation = await ProductQuotation.findOne({
       quotationNumber: qNumber
     })
+
+    if (!quotation) {
+      quotation = await ServiceQuotation.findOne({
+        quotationNumber: qNumber
+      })
+    }
 
 
     if (!quotation) {
@@ -190,15 +197,29 @@ export async function POST(request: NextRequest) {
       )
     }
     else {
-      const { _id, __v, createdAt, expiredDate, ...rest } = quotation._doc
+      const { ...rest } = quotation._doc
 
-      const total = rest.cart.reduce((acc, item) => acc + item.subTotal, 0)
+      let total = 0
+      let cart = rest.cart || []
+
+      if (rest.productType === 'service' && !rest.cart) {
+        // Map ServiceQuotation (flattened) to Order structure (cart-based)
+        cart = [{
+          productId: rest.productId,
+          qty: rest.qty,
+          subTotal: rest.price,
+          taxes: rest.taxes || []
+        }]
+        total = rest.price
+      } else {
+        total = rest.cart.reduce((acc: number, item: any) => acc + item.subTotal, 0)
+      }
 
       const so = `SO-${String(Date.now()).slice(-5)}`
 
-
       const order = {
         ...rest,
+        cart: cart,
         salesOrderId: Date.now(),
         saleDate: new Date(),
         contract: contractUploadUrl,
@@ -207,7 +228,7 @@ export async function POST(request: NextRequest) {
         type: 'withQuotation',
         payTerm,
         total: total,
-        taxValue: rest.taxValue,
+        taxValue: rest.taxValue || 0,
       }
 
       const _order = await Order.create(order)
@@ -216,69 +237,94 @@ export async function POST(request: NextRequest) {
         companyId: company._id,
       })
 
-      const [_o] = await Order.aggregate(
-        [
-          {
-            $match: {
-              _id: new ObjectId(
-                _order._id
-              )
-            }
-          },
-          {
-            $lookup: {
-              from: "products",
-              localField: "productId",
-              foreignField: "_id",
-              as: "product"
-            }
-          },
-          {
-            $unwind: '$product'
-          },
-          {
-            $lookup: {
-              from: "customers",
-              localField: "customerId",
-              foreignField: "_id",
-              as: "customer"
-            }
-          },
-          {
-            $unwind: '$customer'
+      const [_o] = await Order.aggregate([
+        {
+          $match: { _id: new ObjectId(_order._id) }
+        },
+        {
+          $lookup: {
+            from: "products",
+            let: { productId: { $arrayElemAt: ["$cart.productId", 0] } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$_id", "$$productId"]
+                  }
+                }
+              }
+            ],
+            as: "p"
           }
-        ]
-      )
+        },
+        {
+          $addFields: {
+            product: {
+              $cond: [
+                { $gt: [{ $size: "$cart" }, 1] },
+                "various items",
+                { $arrayElemAt: ["$p", 0] }
+              ]
+            }
+          }
+        },
+        {
+          $addFields: {
+            variousItem: {
+              $cond: [
+                { $gt: [{ $size: "$cart" }, 1] },
+                true,
+                false
+              ]
+            }
+          }
+        },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "customerId",
+            foreignField: "_id",
+            as: "customer"
+          }
+        },
+        {
+          $unwind: {
+            path: '$customer',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $project: { 'p': 0 }
+        }
+      ])
 
       const paid = formData.get("debt") === 'yes' ? false : true
-      const payAmt = formData.get("payAmt")
-      const method = formData.get("method")
+      const payAmtString = formData.get("payAmt") as string
+      const payAmt = parseFloat(payAmtString) || 0
+      const method = formData.get("method") as string
 
       const now = new Date();
       const shortYear = String(now.getFullYear()).slice(-2);
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
 
-
-      if (rest.productType === "good") {
-        await Invoice.create({
-          companyId: company._id,
-          invoiceNumber: invoiceNumber,
-          invoiceType: 'product',
-          salesOrderId: _order._id,
-          salesOrderNumber: so,
-          payAmount: formData.get("payAmt"),
-          paid: paid,
-          date: new Date(),
-          paymentHistory: [
-            {
-              amount: payAmt,
-              method: method,
-              date: new Date()
-            }
-          ]
-        })
-      }
+      await Invoice.create({
+        companyId: company._id,
+        invoiceNumber: invoiceNumber,
+        invoiceType: rest.productType === "good" ? "product" : "service",
+        salesOrderId: _order._id,
+        salesOrderNumber: so,
+        payAmount: payAmt,
+        paid: paid,
+        date: new Date(),
+        paymentHistory: payAmt > 0 ? [
+          {
+            amount: payAmt,
+            method: paymentMethod || method || "Cash",
+            date: new Date()
+          }
+        ] : []
+      })
 
       return NextResponse.json(
         {

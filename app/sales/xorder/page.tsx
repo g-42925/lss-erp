@@ -2,16 +2,20 @@
 
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
-import Link from "next/link";
+import Link from "next/link"
+
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { useForm } from 'react-hook-form'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ContractsIcon } from '@hugeicons/core-free-icons'
+import { AddInvoiceIcon } from '@hugeicons/core-free-icons';
 
 export default function XOrder() {
-  const loggedIn = useAuth((state) => state.loggedIn)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const [searchTerm, setSearchTerm] = useState<string>("")
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
   const [quotations, setQuotations] = useState<any[]>([])
@@ -26,19 +30,72 @@ export default function XOrder() {
   // Direct mode state
   const [directContract, setDirectContract] = useState<File | null>(null)
   const [directAttachment, setDirectAttachment] = useState<File | null>(null)
+  const [selectedTaxes, setSelectedTaxes] = useState<any[]>([])
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
   const invoiceModalRef = useRef<HTMLDialogElement>(null)
-
+  const [payTerm, setPayTerm] = useState<string>(new Date().toISOString().split('T')[0])
+  const [debt, setDebt] = useState<string>('no')
   const [hidden, setHidden] = useState<boolean>(false)
 
+  const [qProduct, setQProduct] = useState<string>('')
 
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
   const newInvoiceForm = useForm()
-  const directOrderForm = useForm()
+  const directOrderForm = useForm<any>({
+    defaultValues: {
+      customerName: "",
+      address: "",
+      productId: "",
+      price: 0,
+      contractType: "Full",
+      frequency: "Month",
+      qty: 1,
+      range: 1,
+      debt: "no",
+      payTerm: payTerm,
+      dueDate: 0,
+      paymentMethod: "Cash",
+      payAmount: 0,
+    }
+  })
+
+  const watchContractType = directOrderForm.watch("contractType")
+  const watchFrequency = directOrderForm.watch("frequency")
+  const watchRange = directOrderForm.watch("range")
+  const watchDebt = directOrderForm.watch("debt")
+  const watchPrice = directOrderForm.watch("price")
+
+  const isOneTimeMultiMonth = watchContractType === "One Time" && watchFrequency === "Month" && Number(watchRange) > 1
+  const isOneTimeOnce = watchContractType === "One Time" && watchFrequency === "Once"
+  const isOneTimeOnceDebtNo = watchContractType === "One Time" && watchFrequency === "Once" && watchDebt === "no"
+  const isOneTimeMonthOneRangeDebt = watchContractType === "One Time" && watchFrequency === "Month" && Number(watchRange) === 1 && watchDebt === "no"
+
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isOneTimeOnce) {
+      directOrderForm.setValue("qty", 1)
+      directOrderForm.setValue("range", 1)
+    }
+  }, [isOneTimeOnce, directOrderForm])
+
+  useEffect(() => {
+    if (isOneTimeMonthOneRangeDebt || isOneTimeOnceDebtNo) {
+      directOrderForm.setValue("payAmount", watchPrice)
+    }
+  }, [isOneTimeMonthOneRangeDebt, isOneTimeOnceDebtNo, watchPrice, directOrderForm])
+
+  const bankAccounts = useFetch<any[], any>({
+    url: `/api/web/bank-accounts?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
 
   const addOrderFn = useFetch<any, any>({
     url: '/api/web/order',
@@ -49,7 +106,7 @@ export default function XOrder() {
   })
 
   const addDirectServiceOrderFn = useFetch<any, any>({
-    url: '/api/web/order',
+    url: '/api/web/service-csale',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -57,12 +114,31 @@ export default function XOrder() {
   })
 
   const addInvoiceFn = useFetch<any, any>({
-    url: '/api/web/invoice',
+    url: '/api/web/invoice/service',
     method: 'POST',
     onError: (m) => {
       alert(m)
     }
   })
+
+  const activateInvoiceFn = useFetch<any, any>({
+    url: '/api/web/invoice/svc',
+    method: 'PUT',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  function activateInvoice(son: string) {
+    const params = {
+      salesOrderNumber: son,
+      status: 'active'
+    }
+
+    activateInvoiceFn.fn(``, JSON.stringify(params), (r) => {
+      alert("Invoice activated successfully")
+    })
+  }
 
   const getOrdersFn = useFetch<any, any>({
     url: `/api/web/orders?id=xxx`,
@@ -88,18 +164,33 @@ export default function XOrder() {
     }
   })
 
+  const getServiceOrdersFn = useFetch<any[], any>({
+    url: `/api/web/service-csale?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getTaxesFn = useFetch<any[], any>({
+    url: `/api/web/tax?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
 
   function submitInvoice(data: any) {
-    const body = JSON.stringify({
-      ...data,
-      id: masterAccountId,
-      invoiceType: 'service'
-    })
+    const params = {
+      salesOrderNumber: data.salesOrderNumber,
+      status: 'active',
+      missing: parseInt(data.missing) || 0
+    }
 
-
-    addInvoiceFn.fn('', body, (i) => {
+    activateInvoiceFn.fn('', JSON.stringify(params), (r) => {
       invoiceModalRef.current?.close()
-      alert('Invoice created successfully')
+      window.location.href = '/sales/xorder'
     })
   }
 
@@ -132,46 +223,32 @@ export default function XOrder() {
   }
 
   function submitDirectOrder(data: any) {
+    const taxes: any[] = []
 
-    const now = Date.now()
+    selectedTaxes.forEach(tax => {
+      const value = data.price * (tax.value / 100)
 
-    const cart = [
-      {
-        productId: data.productId,
-        qty: data.qty,
-        subTotal: data.price,
-      }
-    ]
-
-
-
+      taxes.push({
+        taxName: tax.name,
+        taxValue: value
+      })
+    })
 
     const formData = new FormData()
 
+    formData.append("taxes", JSON.stringify(taxes))
+
     formData.append("id", masterAccountId)
-    formData.append("total", parseInt(data.price))
-    formData.append("salesOrderNumber", `SO-${String(now).slice(-5)}`)
-    formData.append("saleDate", now)
-    formData.append("productType", "service")
-    formData.append("type", "direct")
-    formData.append("cart", JSON.stringify(cart))
-    formData.append("directOrder", "true")
+
+    if (directContract) formData.append("contract", directContract as any)
 
     Object.keys(data).forEach((key) => {
       formData.append(key, data[key])
     })
 
 
-    if (directContract) formData.append("contract", directContract as any)
-    if (directAttachment) formData.append("attachment", directAttachment as any)
-
-
     addDirectServiceOrderFn.fn('', formData, (r) => {
-      setOrders([r, ...orders])
-      setDirectMode(false)
-      directOrderForm.reset()
-      setDirectContract(null)
-      setDirectAttachment(null)
+      window.location.href = '/sales/xorder'
     })
   }
 
@@ -189,26 +266,75 @@ export default function XOrder() {
     console.log(file)
   }
 
+  const searchParams = useSearchParams()
+  const qNumber = searchParams.get("qNumber")
+
+  useEffect(() => {
+    if (hasHydrated && qNumber) {
+      const url = `/api/web/quotations?qNumber=${qNumber}&type=service`
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.result && data.result.length > 0) {
+            const q = data.result[0]
+            setDirectMode(true)
+            const qTaxes = q.cart?.[0]?.taxes || []
+            const ppnSelection = qTaxes.map((t: any) => `${t.taxName}|${t.taxValue}`)
+
+            if (q.contractType === "One Time") setHidden(true)
+
+            setQProduct(q.productId)
+
+            directOrderForm.reset({
+              customerName: q.customer?.bussinessName || "",
+              address: q.customer?.address || "",
+              productId: q.productId,
+              price: q.price || 0,
+              contractType: q.contractType || "Full",
+              frequency: q.frequency || "Month",
+              qty: q.qty,
+              range: q.range || 1,
+              debt: "no",
+              payTerm: payTerm,
+              dueDate: 0,
+              paymentMethod: "Cash",
+              payAmount: 0,
+              ppn: ppnSelection.length > 0 ? ppnSelection : ["no"],
+            })
+          }
+        })
+    }
+  }, [hasHydrated, qNumber, directOrderForm])
+
   useEffect(() => {
     if (hasHydrated) {
       const url4 = `/api/web/order?id=${masterAccountId}&type=service`
       const urlCustomers = `/api/web/customers?id=${masterAccountId}`
       const urlProducts = `/api/web/products?id=${masterAccountId}&type=service`
+      const url3 = `/api/web/tax?id=${masterAccountId}`
+      const url5 = `/api/web/service-csale?id=${masterAccountId}`
+      const url6 = `/api/web/bank-accounts?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
       getOrdersFn.fn(url4, body, (result) => {
         setOrders(result)
-        console.log(result)
       })
 
       getCustomersFn.fn(urlCustomers, body, (result) => {
         setCustomers(result)
+        console.log(result)
       })
 
       getProductsFn.fn(urlProducts, body, (result) => {
         setProducts(result)
       })
+
+      getTaxesFn.fn(url3, body, (_) => { })
+
+      bankAccounts.fn(url6, body, (result) => { })
+
+      getServiceOrdersFn.fn(url5, body, (result) => { })
     }
   }, [masterAccountId])
 
@@ -222,12 +348,40 @@ export default function XOrder() {
     }
   }
 
+  function toggleTax(tax: any) {
+    if (selectedTaxes.some(t => (t._id || t.id) === (tax._id || tax.id))) {
+      setSelectedTaxes(selectedTaxes.filter(t => (t._id || t.id) !== (tax._id || tax.id)))
+    } else {
+      setSelectedTaxes([...selectedTaxes, tax])
+    }
+  }
+
+  const filteredOrders = useMemo(() => {
+    if (!getServiceOrdersFn.result) return [];
+
+    return getServiceOrdersFn.result.filter((order: any) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchSearch = searchTerm === "" ||
+        (order.salesOrderNumber?.toLowerCase().includes(searchLower)) ||
+        (order.customCustomer?.name?.toLowerCase().includes(searchLower)) ||
+        (order.customerId?.toLowerCase().includes(searchLower)) ||
+        (order.date?.toLowerCase().includes(searchLower)) ||
+        (new Date(order.date).toISOString().split('T')[0].includes(searchLower));
+
+      return matchSearch;
+    });
+  }, [getServiceOrdersFn.result, searchTerm]);
+
+  function onCustomerChange(e: any) {
+    const customer = customers.find((c: any) => c.bussinessName === e.target.value)
+    if (customer) directOrderForm.setValue("address", customer.address)
+  }
+
   // Direct Service Order Mode
   if (directMode) {
     return (
       <>
         <div className="h-full p-6 flex flex-col gap-3 text-black">
-          <span className="text-2xl">Services Order</span>
           <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative overflow-y-auto">
             <div className="flex flex-row items-center gap-3">
               <span className="text-lg font-bold">New Direct Service Order</span>
@@ -237,17 +391,44 @@ export default function XOrder() {
             <form onSubmit={directOrderForm.handleSubmit(submitDirectOrder)} className="flex flex-col gap-4 max-w-xl">
               {/* Customer */}
               <div className="flex flex-row items-center gap-3">
-                <label className="w-[110px] text-sm font-medium">Customer</label>
-                <input {...directOrderForm.register("customerName")} type="text" className="input flex-1" required />
+                <label className="w-[110px] text-sm font-medium">
+                  Customer
+                </label>
+                <input
+                  list="customers"
+                  {...directOrderForm.register("customerName", {
+                    onChange: (e) => {
+                      onCustomerChange(e)
+                    }
+                  })}
+                  type="text"
+                  className="input flex-1"
+                  required
+                />
+
+                <datalist id="customers">
+                  {getCustomersFn.result?.map((customer: any) => (
+                    <option
+                      key={customer._id}
+                      value={customer.bussinessName}
+                    />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[110px] text-sm font-medium">Address</label>
+                <input {...directOrderForm.register("address")} type="text" className="input flex-1" required />
+
               </div>
 
               {/* Product */}
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[110px] text-sm font-medium">Service Product</label>
-                <select {...directOrderForm.register("productId")} className="select flex-1" required>
+                <select defaultValue={qProduct} {...directOrderForm.register("productId")} className="select flex-1" required>
                   <option value="">Select Product</option>
                   {products.map((p) => (
-                    <option key={p._id} value={`${p._id}/${p.sellingPrice}`}>{p.productName}</option>
+                    <option key={p._id} value={`${p._id}`}>{p.productName}</option>
                   ))}
                 </select>
               </div>
@@ -266,7 +447,7 @@ export default function XOrder() {
 
               {/* Contract Type */}
               <div className="flex flex-row items-center gap-3">
-                <label className="w-[110px] text-sm font-medium">Contract Type</label>
+                <label className="w-[110px] text-sm font-medium">Service Type</label>
                 <select {...directOrderForm.register("contractType", { onChange: (e) => onContractChg(e.target.value) })} className="select flex-1">
                   <option value="Full">Full</option>
                   <option value="Trial">Trial</option>
@@ -278,77 +459,128 @@ export default function XOrder() {
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[110px] text-sm font-medium">Frequency</label>
                 <select {...directOrderForm.register("frequency")} className="select flex-1">
-                  <option value="Month">Month</option>
-                  <option value="Week">Week</option>
-                  <option value="Once">Once</option>
+                  <option disabled={watchContractType === "One Time"} value="Month">Month</option>
+                  <option disabled={watchContractType !== "One Time"} value="Once">Once</option>
                 </select>
               </div>
 
-              {/* Qty */}
-              {!hidden && (
-                <div className="flex flex-row items-center gap-3">
-                  <label className="w-[110px] text-sm font-medium">Qty</label>
-                  <input
-                    {...directOrderForm.register("qty")}
-                    type="number"
-                    placeholder="Quantity"
-                    className="input flex-1"
-                    required
-                  />
-                </div>
-              )}
-
-              {/* Range */}
-              {!hidden && (
-                <div className="flex flex-row items-center gap-3">
-                  <label className="w-[110px] text-sm font-medium">Range</label>
-                  <label className="input flex-1">
-                    <input {...directOrderForm.register("range")} type="number" placeholder="duration" />
-                    <span className="badge badge-neutral badge-xs">Month</span>
-                  </label>
-                </div>
-              )}
-
-              {/* Pay Term */}
               <div className="flex flex-row items-center gap-3">
-                <label className="w-[110px] text-sm font-medium">Pay Term</label>
+                <label className="w-[110px] text-sm font-medium">Qty</label>
+                <input
+                  {...directOrderForm.register("qty")}
+                  type="number"
+                  placeholder="Quantity"
+                  className="input flex-1"
+                  required
+                  readOnly={isOneTimeOnce}
+                />
+              </div>
+
+              <div className={`flex flex-row items-center gap-3 ${isOneTimeOnce ? 'hidden' : ''}`}>
+                <label className="w-[110px] text-sm font-medium">Range</label>
                 <label className="input flex-1">
-                  <input {...directOrderForm.register("payTerm")} type="number" placeholder="pay term" />
-                  <span className="badge badge-neutral badge-xs">Days</span>
+                  <input {...directOrderForm.register("range")} type="number" placeholder="duration" />
                 </label>
               </div>
 
-              {/* Contract Document */}
-              {!hidden && (
-                <div className="flex flex-row items-center gap-3">
-                  <label className="w-[110px] text-sm font-medium">Contract Doc</label>
-                  <input
-                    onChange={(e) => setDirectContract(e.target.files?.[0] ?? null)}
-                    type="file"
-                    className="file-input flex-1"
-                  />
-                </div>
-              )}
+              <div className={`flex flex-row items-center gap-3 ${(hidden && !isOneTimeMultiMonth) ? '' : 'hidden'}`}>
+                <label className="w-[110px] text-sm font-medium ">Debt</label>
+                <select {...directOrderForm.register('debt', { onChange: (e) => setDebt(e.target.value) })} className="select flex-1">
+                  <option>
+                    no
+                  </option>
+                  <option>
+                    yes
+                  </option>
+                </select>
+              </div>
 
-              {addDirectServiceOrderFn.error || addDirectServiceOrderFn.noResult ? (
-                <p className="text-red-700 text-sm">Something went wrong. Please try again.</p>
-              ) : null}
+              <div className={`flex flex-row items-center gap-3 ${(hidden && !isOneTimeMultiMonth) ? '' : 'hidden'}`}>
+                <label className="w-[110px] text-sm font-medium">Pay term</label>
+                <label className="input flex-1">
+                  <input {...directOrderForm.register('payTerm')} type="date" placeholder="pay term" />
+                </label>
+              </div>
 
+              <div className={`flex flex-row items-center gap-3 ${(!hidden || isOneTimeMultiMonth) ? '' : 'hidden'}`}>
+                <label className="w-[110px] text-sm font-medium">Due date</label>
+                <label className="input flex-1">
+                  <input {...directOrderForm.register("dueDate")} type="number" placeholder="due date" />
+                  <span className="badge badge-neutral badge-xs">Date</span>
+                </label>
+              </div>
+
+
+              <div className={`flex flex-row items-center gap-3 ${(hidden && !isOneTimeMultiMonth) ? '' : 'hidden'}`}>
+                <label className="w-[110px] text-sm font-medium">Payment Method</label>
+                <select {...directOrderForm.register('paymentMethod')} className="select flex-1">
+                  <option>
+                    Cash
+                  </option>
+                  {
+                    bankAccounts.result?.map((bank: any) => {
+                      return (
+                        <option value={`transfer to ${bank.bank}`} key={bank._id}>
+                          transfer to {bank.bank} ({bank.accountName})
+                        </option>
+                      )
+                    })
+                  }
+                </select>
+              </div>
+
+              <div className={`flex flex-row items-center gap-3 ${(hidden && !isOneTimeMultiMonth) && !isOneTimeOnceDebtNo && !isOneTimeMonthOneRangeDebt ? '' : 'hidden'}`}>
+                <label className="w-[110px] text-sm font-medium">Pay Amount</label>
+                <input defaultValue={0} placeholder="pay amount" {...directOrderForm.register("payAmount")} type={(isOneTimeOnceDebtNo || isOneTimeMonthOneRangeDebt) ? "hidden" : "text"} className="input flex-1" readOnly={isOneTimeMonthOneRangeDebt || isOneTimeOnceDebtNo} />
+              </div>
+
+
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[110px] text-sm font-medium">Contract Doc</label>
+                <input
+                  onChange={(e) => setDirectContract(e.target.files?.[0] ?? null)}
+                  type="file"
+                  className="file-input flex-1"
+                />
+              </div>
+
+              {
+                addDirectServiceOrderFn.error || addDirectServiceOrderFn.noResult ? (
+                  <p className="text-red-700 text-sm">Something went wrong. Please try again.</p>
+                )
+                  :
+                  <></>
+              }
+              <div className="flex flex-row items-center gap-3 flex-wrap">
+                <label className="w-[110px] text-sm font-medium">Tax</label>
+                {getTaxesFn.result?.map(tax => {
+                  const isSelected = selectedTaxes.some(t => (t._id || t.id) === (tax._id || tax.id));
+                  return (
+                    <button
+                      key={tax._id || tax.id}
+                      type="button"
+                      onClick={() => toggleTax(tax)}
+                      className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${isSelected
+                        ? 'bg-purple-100 border-purple-500 text-purple-700'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300'
+                        }`}
+                    >
+                      {tax.name} ({tax.value}%)
+                    </button>
+                  );
+                })}
+              </div>
               <div className="flex flex-row gap-3 mt-4">
-                <button
-                  type="submit"
-                  disabled={addDirectServiceOrderFn.loading}
-                  className="btn bg-blue-900 text-white flex-1"
-                >
-                  {addDirectServiceOrderFn.loading ? (
-                    <span className="loading loading-spinner loading-sm"></span>
-                  ) : "Submit Order"}
+                <button type="submit" disabled={addDirectServiceOrderFn.loading} className="btn bg-blue-900 text-white flex-1">
+                  {
+                    addDirectServiceOrderFn.loading ? (
+                      <span className="loading loading-spinner loading-sm"></span>
+                    )
+                      :
+                      "Submit Order"
+                  }
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setDirectMode(false); directOrderForm.reset() }}
-                  className="btn btn-outline flex-1"
-                >
+                <button type="button" onClick={() => { setDirectMode(false); directOrderForm.reset(); setSelectedTaxes([]) }} className="btn btn-outline flex-1">
                   Cancel
                 </button>
               </div>
@@ -391,7 +623,7 @@ export default function XOrder() {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getOrdersFn.loading
@@ -412,60 +644,79 @@ export default function XOrder() {
                       <tr>
                         <th>Order Number</th>
                         <th>Product</th>
+                        <th>Date</th>
+                        <th>Contract Type</th>
                         <th>Customer</th>
-                        <th>Type</th>
                         <th>Range</th>
+                        <th>Frequency</th>
                         <th>Price</th>
-                        <th>Pay Term</th>
-                        <th>Contract</th>
-                        <th>Attachment</th>
-                        <th>Action</th>
+                        <th>Billed</th>
+                        <th>...</th>
                       </tr>
                     </thead>
                     <tbody className="text-center">
                       {
                         searchResult.length < 1
                           ?
-                          orders.map((s, index) => {
+                          filteredOrders?.map((s: any, index: number) => {
                             return (
                               <tr key={index}>
                                 <td>{s.salesOrderNumber}</td>
-                                <td>{s.product?.productName ?? '-'}</td>
-                                <td>{s.customer?.bussinessName ?? s.customerName ?? '-'}</td>
+                                <td>{products.filter(p => p._id === s.productId)[0].productName}</td>
+                                <td>{s.date}</td>
                                 <td>{s.contractType}</td>
-                                <td>{s.range} Month</td>
-                                <td>{s.price ?? s.total}</td>
-                                <td>{s.payTerm} (Days)</td>
-                                {
-                                  s.contract
-                                    ?
-                                    <td>
-                                      <a href={s.contract} target="_blank" rel="noopener noreferrer">
-                                        ...
-                                      </a>
-                                    </td>
-                                    :
-                                    <td>
-                                      -
-                                    </td>
-                                }
-                                {
-                                  s.attachment
-                                    ?
-                                    <td>
-                                      <a href={s.attachment} target="_blank" rel="noopener noreferrer">
-                                        ...
-                                      </a>
-                                    </td>
-                                    :
-                                    <td>
-                                      -
-                                    </td>
-                                }
-                                <td>
-                                  <button onClick={() => makeInvoice(s.salesOrderNumber, s._id)} className="btn btn-sm btn-outline">
-                                    Invoice
-                                  </button>
+                                <td>{s.customCustomer ? s.customCustomer.name : s.customerId}</td>
+                                <td>{s.range}</td>
+                                <td>{s.frequency}</td>
+                                <td>{s.price}</td>
+                                <td>{s.billed}</td>
+                                <td className="flex flex-row gap-1 justify-center">
+                                  {
+                                    s.contract ?
+                                      <button>
+                                        <HugeiconsIcon
+                                          icon={ContractsIcon}
+                                          size={24}
+                                          color="currentColor"
+                                          strokeWidth={1.5}
+                                          onClick={() => alert('ok')}
+                                        />
+                                      </button>
+                                      :
+                                      <button disabled className="text-gray-900">
+                                        <HugeiconsIcon
+                                          icon={ContractsIcon}
+                                          size={24}
+                                          color="currentColor"
+                                          strokeWidth={1.5}
+                                        />
+                                      </button>
+                                  }
+
+                                  {
+                                    s.contractType === "One Time" && s.frequency === "Once" ?
+                                      (
+                                        <button disabled={activateInvoiceFn.loading} onClick={() => submitInvoice({ salesOrderNumber: s.salesOrderNumber, missing: 0 })} className="text-gray-900">
+                                          {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon
+                                            icon={AddInvoiceIcon}
+                                            size={24}
+                                            color="currentColor"
+                                            strokeWidth={1.5}
+                                          />}
+                                        </button>
+                                      )
+                                      :
+                                      (
+                                        <button disabled={activateInvoiceFn.loading} onClick={() => makeInvoice(s.salesOrderNumber, s._id)} className="text-gray-900">
+                                          {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon
+                                            icon={AddInvoiceIcon}
+                                            size={24}
+                                            color="currentColor"
+                                            strokeWidth={1.5}
+                                          />}
+                                        </button>
+                                      )
+                                  }
                                 </td>
                               </tr>
                             )
@@ -496,7 +747,7 @@ export default function XOrder() {
             </Link>
           </button>
         </div>
-      </div>
+      </div >
       <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newOrderForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make order (From Quotation)</h3>

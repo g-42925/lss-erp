@@ -310,7 +310,9 @@ export async function PUT(request: NextRequest) {
           ...rest,
           status: 'ACTIVE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
-          accumulative: config.ratio * rest.qty
+          accumulative: config.ratio * rest.qty,
+          reserved: 0,
+
         })
       }
       else {
@@ -335,7 +337,9 @@ export async function PUT(request: NextRequest) {
           ...rest,
           status: 'ACTIVE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
-          accumulative: rest.qty
+          accumulative: rest.qty,
+          reserved: 0,
+
         })
       }
 

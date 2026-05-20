@@ -1,13 +1,18 @@
 "use client"
 
+import CryptoJS from "crypto-js";
+
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import useFetch from "@/hooks/useFetch";
 import useAuth from "@/store/auth";
+import { useRouter } from "next/navigation";
 
 export default function Users() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
+  const router = useRouter()
 
   const [roles, setRoles] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -22,6 +27,11 @@ export default function Users() {
 
   const getUsersFn = useFetch<any[], any>({
     url: `/api/web/users?id=xxx`,
+    method: 'GET'
+  })
+
+  const getLocationFn = useFetch<any[], any>({
+    url: `/api/web/location?id=xxx`,
     method: 'GET'
   })
 
@@ -85,26 +95,33 @@ export default function Users() {
       name: user.name,
       username: user.username,
       email: user.email,
-      roleName: user.roleName
+      role: `${user.roleId}/${user.role}`,
+      password: user.password,
+      prevPassword: user.password
     })
 
     editRef.current?.showModal()
   }
 
   async function handleEdit(data: any) {
-    const body = JSON.stringify(data)
+    const [roleId, role] = data.role.split('/')
+    const body = JSON.stringify({
+      ...data,
+      roleId,
+      role
+    })
 
-    if (data.name.length < 1 || data.username.length < 1 || data.email.length < 1) {
+    if (data.name.length < 1 || data.email.length < 1) {
       alert('all field is required')
     }
     else {
       await editFn.fn('', body, (result) => {
         const [filtered] = users.filter((u) => u._id == result._id)
         filtered.name = result.name
-        filtered.username = result.username
         filtered.email = result.email
-        filtered.roleName = result.roleName
+        filtered.role = result.role
         filtered.roleId = result.roleId
+        filtered.locationId = result.locationId
 
         setSearchResult([])
 
@@ -129,38 +146,42 @@ export default function Users() {
   }
 
   async function submit(data: any) {
-    console.log(data)
-    // const [roleId, role] = data.role.split('/')
-    // alert(role)
+    const [roleId, role] = data.role.split('/')
 
-    // const body = JSON.stringify({
-    //   ...data,
-    //   roleId,
-    //   role,
-    //   isSuperAdmin: false,
-    //   masterAccountId
-    // })
+    const body = JSON.stringify({
+      ...data,
+      roleId,
+      role,
+      isSuperAdmin: false,
+      masterAccountId
+    })
 
-    // await addFn.fn('', body, (result) => {
-    //   modalRef.current?.close()
-    //   setUsers(
-    //     [
-    //       ...users,
-    //       result
-    //     ]
-    //   )
-    // })
+    console.log(JSON.parse(body))
 
+    await addFn.fn('', body, (result) => {
+      modalRef.current?.close()
+      setUsers(
+        [
+          ...users,
+          result
+        ]
+      )
+      newUserForm.reset()
+    })
   }
 
-  //if (!hasHydrated) return null
-  //if (!loggedIn) redirect('/login')
-  //if (!isSuperAdmin) redirect('/dashboard')
+  // Guard: superadmin-only redirect (must be in useEffect to preserve hooks order)
+  useEffect(() => {
+    if (hasHydrated && !isSuperAdmin) {
+      router.replace('/dashboard')
+    }
+  }, [hasHydrated, isSuperAdmin, router])
 
   useEffect(() => {
-    if (hasHydrated) {
+    if (hasHydrated && isSuperAdmin) {
       const url1 = `/api/web/roles?id=${masterAccountId}`
       const url2 = `/api/web/users?id=${masterAccountId}`
+      const url3 = `/api/web/location?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
@@ -171,8 +192,14 @@ export default function Users() {
       getRolesFn.fn(url1, body, (result) => {
         setRoles(result)
       })
+
+      getLocationFn.fn(url3, body, (result) => { })
     }
-  }, [hasHydrated])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHydrated, isSuperAdmin])
+
+  // Block render while not hydrated or not authorised
+  if (!hasHydrated || !isSuperAdmin) return null
 
   return (
     <>
@@ -243,7 +270,6 @@ export default function Users() {
                   <table className="table text-black">
                     <thead>
                       <tr>
-                        <th>Username</th>
                         <th>Name</th>
                         <th>Role</th>
                         <th>Email</th>
@@ -257,9 +283,8 @@ export default function Users() {
                           users.map((user, index) => {
                             return (
                               <tr key={index}>
-                                <td>{user.username}</td>
                                 <td>{user.name}</td>
-                                <td>{user.roleName}</td>
+                                <td>{user.role}</td>
                                 <td>{user.email}</td>
 
                                 <td className="flex flex-row gap-3">
@@ -285,7 +310,7 @@ export default function Users() {
                               <tr key={index}>
                                 <td>{user.username}</td>
                                 <td>{user.name}</td>
-                                <td>{user.roleName}</td>
+                                <td>{user.role}</td>
                                 <td>{user.email}</td>
 
                                 <td className="flex flex-row gap-3">
@@ -319,14 +344,25 @@ export default function Users() {
             <form onSubmit={editForm.handleSubmit(handleEdit)} className="h-72 relative">
               <input {...editForm.register("_id")} type="hidden" placeholder="_id" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...editForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <input {...editForm.register("username")} type="text" placeholder="username" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...editForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <select {...editForm.register("roleName")} className="select w-full">
+              <input {...editForm.register("password")} type="password" placeholder="password" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+              <input {...editForm.register("prevPassword")} type="hidden" placeholder="confirm password" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
+
+              <select {...editForm.register("role")} className="select w-full mb-3">
                 <option disabled>Pick a role</option>
                 {
                   roles.map((r) => {
                     return (
                       <option key={r._id} value={`${r._id}/${r.name}`}>{r.name}</option>
+                    )
+                  })
+                }
+              </select>
+              <select {...editForm.register("locationId")} className="select w-full mb-3">
+                {
+                  getLocationFn?.result?.map((l) => {
+                    return (
+                      <option key={l._id} value={l._id}>{l.name}</option>
                     )
                   })
                 }
@@ -353,7 +389,6 @@ export default function Users() {
             <span className="text-2xl">Add User</span>
             <form onSubmit={newUserForm.handleSubmit(submit)} className="h-90 relative">
               <input {...newUserForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <input {...newUserForm.register("username")} type="text" placeholder="username" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newUserForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newUserForm.register("password")} type="text" placeholder="password" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <select {...newUserForm.register("role")} className="select w-full mb-3">
@@ -361,6 +396,15 @@ export default function Users() {
                   roles.map((r) => {
                     return (
                       <option key={r._id} value={`${r._id}/${r.name}`}>{r.name}</option>
+                    )
+                  })
+                }
+              </select>
+              <select {...newUserForm.register("locationId")} className="select w-full mb-3">
+                {
+                  getLocationFn?.result?.map((l) => {
+                    return (
+                      <option key={l._id} value={l._id}>{l.name}</option>
                     )
                   })
                 }

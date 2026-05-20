@@ -24,11 +24,22 @@ function Requisition() {
   const [products, setProducts] = useState<any[]>([])
   const [disabled, setDisabled] = useState<boolean>(false)
 
+  const bankAccount = useFetch<any[], any>({
+    url: `/api/web/bank-accounts?id=xxx `,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
   const editForm = useForm()
   const orderForm = useForm()
   const newPrForm = useForm()
   const editPrForm = useForm()
   const router = useRouter()
+
+  const watchPayAmount = orderForm.watch("payAmount")
+
 
   const status = editPrForm.watch('status');
 
@@ -162,27 +173,33 @@ function Requisition() {
   }
 
   async function orderSubmit(data: any) {
-    const pOrdered = JSON.stringify({
-      ...data,
-      status: '_approved',
-      purchaseType: 'product'
-    })
-
-    if (parseInt(data.finalPrice) > parseInt(data.estimatedPrice)) {
-      alert("Final price cannot be higher than estimated price")
-    }
-    else if (parseInt(data.payAmount) > parseInt(data.finalPrice)) {
-      alert("Pay amount cannot be higher than final price")
+    if (watchPayAmount == "") {
+      alert("Please enter pay amount")
+      orderForm.setValue("payAmount", 0)
     }
     else {
-      await editFn.fn('', pOrdered, (result) => {
-        const [target] = pr.filter((r) => r._id == result._id)
-        target.status = "ordered"
-        target.supplier = result.spl
-        target.finalPrice = result.finalPrice
-        target.payAmount = result.payAmount
-        orderRef.current?.close()
+      const pOrdered = JSON.stringify({
+        ...data,
+        status: '_approved',
+        purchaseType: 'product'
       })
+
+      if (parseInt(data.finalPrice) > parseInt(data.estimatedPrice)) {
+        alert("Final price cannot be higher than estimated price")
+      }
+      else if (parseInt(data.payAmount) > parseInt(data.finalPrice)) {
+        alert("Pay amount cannot be higher than final price")
+      }
+      else {
+        await editFn.fn('', pOrdered, (result) => {
+          const [target] = pr.filter((r) => r._id == result._id)
+          target.status = "ordered"
+          target.supplier = result.spl
+          target.finalPrice = result.finalPrice
+          target.payAmount = result.payAmount
+          orderRef.current?.close()
+        })
+      }
     }
   }
 
@@ -253,11 +270,13 @@ function Requisition() {
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=product`
+      const url1 = `/api/web/bank-accounts?id=${masterAccountId}`
       const url2 = `/api/web/products?id=${masterAccountId}&type=good`
       const url3 = `/api/web/suppliers?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
+      bankAccount.fn(url1, body, (result) => { })
       getProductsFn.fn(url2, body, (result) => {
         setProducts(result)
       })
@@ -499,7 +518,7 @@ function Requisition() {
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>
-                <input className="input w-full" {...orderForm.register("payAmount")} type="text" />
+                <input defaultValue={0} className="input w-full" {...orderForm.register("payAmount")} type="text" />
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>
@@ -515,11 +534,19 @@ function Requisition() {
                   }
                 </select>
               </fieldset>
-              <fieldset className="fieldset">
+              <fieldset className={`fieldset ${watchPayAmount > 0 ? '' : 'hidden'}`}>
                 <legend className="fieldset-legend">Payment Method</legend>
                 <select {...orderForm.register("paymentMethod")} className="select w-full">
                   <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
+                  {
+                    bankAccount.result?.map((b) => {
+                      return (
+                        <option value={`transfer from ${b.bank}`} key={b._id}>
+                          transfer from {b.bank} ({b.accountName})
+                        </option>
+                      )
+                    })
+                  }
                 </select>
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}

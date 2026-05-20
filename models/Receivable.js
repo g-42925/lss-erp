@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
 const DebtSchema = new mongoose.Schema({
-  salesOrderId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  customerId: {type:mongoose.Schema.Types.ObjectId, required:false},
-  amount: {type:Number, required:true},
-  date: {type:Date,default:Date.now},
+  salesOrderId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  amount: { type: Number, required: true },
+  date: { type: Date, default: Date.now },
 });
 
 

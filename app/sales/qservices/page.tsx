@@ -3,7 +3,8 @@
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Sidebar from '@/components/sidebar'
-import Link from "next/link";
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { NumericFormat } from 'react-number-format';
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState } from 'react'
@@ -27,6 +28,9 @@ export default function Quotation() {
   const makeOrderForm = useForm()
 
   const [selectedQNumber, setSelectedQNumber] = useState('')
+
+  const watchContractType = newQuotationForm.watch('contractType')
+
 
 
   const addQuotationFn = useFetch<any, any>({
@@ -65,10 +69,27 @@ export default function Quotation() {
     method: 'GET'
   })
 
+  const getTaxesFn = useFetch<any[], any>({
+    url: `/api/web/tax?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const router = useRouter()
+
+  function tax(total: number, cart: { subTotal: number, taxes: { taxName: string, taxValue: number }[] }[]) {
+    const ppns = cart.map(c => {
+      const itemTaxTotal = (c.taxes || []).reduce((acc, t) => acc + (c.subTotal * (t.taxValue / 100)), 0)
+      return itemTaxTotal
+    })
+
+    return Math.round(ppns.reduce((a, b) => a + b, 0))
+  }
+
   function openMakeOrder(qNumber: string) {
-    setSelectedQNumber(qNumber)
-    makeOrderForm.reset()
-    orderRef.current?.showModal()
+    router.push(`/sales/xorder?qNumber=${qNumber}`)
   }
 
   function makeOrderSubmit(data: any) {
@@ -78,6 +99,8 @@ export default function Quotation() {
     formData.append("qNumber", selectedQNumber)
     formData.append("id", masterAccountId)
     formData.append("payTerm", data.payTerm || "")
+    formData.append("paymentMethod", data.paymentMethod || "Cash")
+    formData.append("method", data.paymentMethod || "Cash")
     if (data.contract && data.contract[0]) {
       formData.append("contract", data.contract[0])
     }
@@ -113,23 +136,39 @@ export default function Quotation() {
   function editSubmit(data: any) {
     console.log(data)
 
+    let selectedTaxes: { taxName: string, taxValue: number }[] = []
+    if (data.ppn) {
+      const taxValues = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
+      selectedTaxes = taxValues
+        .filter((p: string) => p !== 'no')
+        .map((p: string) => {
+          const [n, v] = p.split('|')
+          return { taxName: n, taxValue: parseFloat(v) }
+        });
+    }
+
+    const cart = [{
+      productId: data.productId,
+      qty: data.qty,
+      subTotal: data.price,
+      taxes: selectedTaxes
+    }]
+
+    const taxValue = tax(data.price, cart)
+
     const q = JSON.stringify(
       {
         ...data,
         id: masterAccountId,
-        cart: [{
-          productId: data.productId,
-          qty: data.qty,
-          subTotal: data.price,
-          tax: false
-        }]
+        taxValue,
+        cart
       }
     )
 
     editQuotationsFn.fn('', q, (result) => {
       const [target] = quotations.filter((q) => q._id === data._id)
       target.product = result.product
-      target.productId = result.prductId
+      target.productId = result.productId
       target.customer = result.customer
       target.customerId = result.customerId
       target.qty = result.qty
@@ -144,18 +183,34 @@ export default function Quotation() {
   }
 
   function submit(data: any) {
+    let selectedTaxes: { taxName: string, taxValue: number }[] = []
+    if (data.ppn) {
+      const taxValues = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
+      selectedTaxes = taxValues
+        .filter((p: string) => p !== 'no')
+        .map((p: string) => {
+          const [n, v] = p.split('|')
+          return { taxName: n, taxValue: parseFloat(v) }
+        });
+    }
+
+    const cart = [{
+      productId: data.productId,
+      qty: data.qty,
+      subTotal: data.price,
+      taxes: selectedTaxes
+    }]
+
+    const taxValue = tax(data.price, cart)
+
     const params = JSON.stringify(
       {
         ...data,
         id: masterAccountId,
         productType: 'service',
         price: data.price,
-        cart: [{
-          productId: data.productId,
-          qty: data.qty,
-          subTotal: data.price,
-          tax: false
-        }]
+        taxValue,
+        cart
       }
     )
 
@@ -183,6 +238,7 @@ export default function Quotation() {
       const url = `/api/web/quotations?id=${masterAccountId}&type=service`
       const url2 = `/api/web/products?id=${masterAccountId}&type=service`
       const url3 = `/api/web/customers?id=${masterAccountId}`
+      const url4 = `/api/web/tax?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
@@ -197,6 +253,8 @@ export default function Quotation() {
       getProductsFn.fn(url2, body, (result) => {
         setProducts(result)
       })
+
+      getTaxesFn.fn(url4, body, (result) => { })
     }
   }, [masterAccountId])
 
@@ -240,7 +298,7 @@ export default function Quotation() {
                 </div>
                 :
                 <div>
-                  <table className="table">
+                  <table className="table text-center">
                     <thead>
                       <tr>
                         <th>Quotation Number</th>
@@ -265,9 +323,9 @@ export default function Quotation() {
                                 <td>{s.product.productName}</td>
                                 <td>{s.customer.bussinessName}</td>
                                 <td>{s.contractType}</td>
-                                <td>{s.range}</td>
+                                <td>{s.range ?? '-'}</td>
                                 <td>{s.frequency ?? 0}</td>
-                                <td>{s.cart[0].qty}</td>
+                                <td>{s.qty}</td>
                                 <td>{s.price}</td>
                                 <td className="flex flex-row gap-2">
                                   <button onClick={() => edit(s._id)}>
@@ -375,6 +433,17 @@ export default function Quotation() {
             <label className="w-[70px]">Price</label>
             <input {...editQuotationForm.register("price")} type="text" className="input flex-1" />
           </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Tax</label>
+            <select multiple {...editQuotationForm.register('ppn')} className="select flex-1 h-24">
+              <option value="no">no tax</option>
+              {
+                getTaxesFn.result?.map((t: any) => {
+                  return <option key={t._id} value={`${t.name}|${t.value}`}>{t.name} ({t.value}%)</option>
+                })
+              }
+            </select>
+          </div>
           {addQuotationFn.noResult || addQuotationFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
           <div className="flex flex-row gap-3 modal-action">
             <button className="btn bg-red-900 text-white">Submit	</button>
@@ -408,12 +477,12 @@ export default function Quotation() {
           <div className="flex flex-row items-center gap-2">
             <label className="w-[70px]">Type</label>
             <select  {...newQuotationForm.register("contractType")} className="select flex-1">
-              <option>...</option>
+              <option>One Time</option>
               <option>Full</option>
               <option>Trial</option>
             </select>
           </div>
-          <div className="flex flex-row items-center gap-3">
+          <div className={`flex flex-row items-center gap-3 ${watchContractType === 'One Time' ? 'hidden' : ''}`}>
             <label className="w-[70px]">Range</label>
             <label className="input flex-1">
               <input {...newQuotationForm.register('range')} type="text" placeholder="range" />
@@ -423,14 +492,19 @@ export default function Quotation() {
           <div className="flex flex-row items-center gap-2">
             <label className="w-[80px]">Frequency</label>
             <select {...newQuotationForm.register("frequency")} className="select flex-1">
-              <option>...</option>
-              <option>Week</option>
-              <option>Month</option>
+              <option>Once</option>
+              <option disabled={watchContractType === 'One Time'}>Month</option>
             </select>
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Quantity</label>
-            <input {...newQuotationForm.register("qty")} type="text" className="input flex-1" />
+            {
+              watchContractType === 'One Time' ? (
+                <input value={1} {...newQuotationForm.register("qty")} type="text" className="input flex-1" />
+              ) : (
+                <input {...newQuotationForm.register("qty")} type="text" className="input flex-1" />
+              )
+            }
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Price</label>
@@ -466,6 +540,13 @@ export default function Quotation() {
           <div className={`flex flex-row items-center gap-3 ${makeOrderForm.watch("debt") === "yes" ? "" : "hidden"}`}>
             <label className="w-[100px]">Pay Amount</label>
             <input {...makeOrderForm.register("payAmt")} type="text" className="input flex-1 border-gray-300 border" placeholder="e.g. 10000" />
+          </div>
+          <div className={`flex flex-row items-center gap-3`}>
+            <label className="w-[100px]">Payment Method</label>
+            <select {...makeOrderForm.register("paymentMethod")} className="select flex-1 border-gray-300 border">
+              <option value="Cash">Cash</option>
+              <option value="Bank">Bank</option>
+            </select>
           </div>
           {makeOrderFn.loading && <span className="loading loading-spinner"></span>}
           {makeOrderFn.noResult || makeOrderFn.error ? <label className="input-validator text-red-900" htmlFor="role">{makeOrderFn.message}</label> : null}

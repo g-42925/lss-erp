@@ -1,11 +1,22 @@
 import { create } from 'zustand'
 import { persist, devtools } from 'zustand/middleware'
 
+interface AuthData {
+  email: string;
+  loggedIn: boolean;
+  name: string;
+  roleId: string;
+  masterAccountId: string;
+  pages: Record<string, string[]>;
+  isSuperAdmin: boolean;
+  locationId: string;
+}
+
 const useAuth = create<Auth>()(
   devtools(
     persist(
       (set) => ({
-        login: (r: any) => {
+        login: (r: AuthData) => {
           set(() => ({
             ...r
           }))
@@ -17,26 +28,26 @@ const useAuth = create<Auth>()(
           name: '',
           roleId: '',
           masterAccountId: '',
-          permission: '',
-          pages: [],
+          locationId: '',
+          pages: {},
           isSuperAdmin: false,
           _hasHydrated: false,
         })),
 
         email: '',
         loggedIn: false,
+        locationId: '',
         name: '',
         roleId: '',
         masterAccountId: '',
-        permission: '',
-        pages: [],
+        pages: {},
         isSuperAdmin: false,
         _hasHydrated: false,
       }),
       {
         name: 'auth-storage',
-        onRehydrateStorage: () => (state: any) => {
-          state._hasHydrated = true
+        onRehydrateStorage: () => (state) => {
+          if (state) state._hasHydrated = true
         },
       }
     )
@@ -44,18 +55,10 @@ const useAuth = create<Auth>()(
 )
 
 
-type Auth = {
-  email: string,
-  loggedIn: boolean,
-  name: string,
-  roleId: string,
-  masterAccountId: string,
-  _hasHydrated: boolean,
-  permission: string,
-  pages: string[],
-  isSuperAdmin: boolean,
-  login: (r: any) => void,
-  logout: () => void,
+type Auth = AuthData & {
+  _hasHydrated: boolean;
+  login: (r: AuthData) => void;
+  logout: () => void;
 }
 
 export default useAuth;

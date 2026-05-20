@@ -8,7 +8,8 @@ import CryptoJS from "crypto-js";
 
 // export const GET = withPermissionCheck(async (request:NextRequest) => {})
 
-export const POST = withPermissionCheck(async (request: NextRequest) => {
+
+export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     const params = await request.json()
@@ -40,41 +41,7 @@ export const POST = withPermissionCheck(async (request: NextRequest) => {
       }
     )
   }
-})
-
-// export async function POST(request: NextRequest) {
-//   try {
-//     await connectToDatabase()
-//     const params = await request.json()
-//     const pwd = params.password
-//     const _pwd = CryptoJS.MD5(pwd).toString()
-
-//     const result = await User.create({
-//       ...params,
-//       password: _pwd,
-//     })
-
-//     return NextResponse.json(
-//       {
-//         noResult: false,
-//         message: "",
-//         result: result,
-//         error: false
-//       }
-//     )
-
-//   }
-//   catch (e: any) {
-//     return NextResponse.json(
-//       {
-//         noResult: true,
-//         message: e.message,
-//         result: null,
-//         error: true
-//       }
-//     )
-//   }
-// }
+}
 
 export async function DELETE(request: NextRequest) {
   const url = new URL(request.url);
@@ -142,16 +109,24 @@ export async function PUT(req: Request) {
   const body = await req.json();
   const { _id, ...rest } = body
 
+  if (rest.password == rest.prevPassword) {
+    delete rest.prevPassword
+  }
+  else {
+    rest.password = CryptoJS.MD5(rest.password).toString()
+    delete rest.prevPassword
+  }
+
   try {
     await connectToDatabase()
-    await User.findByIdAndUpdate(
+    const result = await User.findByIdAndUpdate(
       _id, rest
     )
     return NextResponse.json(
       {
         noResult: false,
         message: "",
-        result: body,
+        result: result,
         error: false
       }
     );

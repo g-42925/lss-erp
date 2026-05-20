@@ -2,7 +2,6 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import Assignment from '@/models/Assignment'
-import Role from '@/models/Role'
 import User from '@/models/User'
 import CryptoJS from "crypto-js";
 
@@ -12,9 +11,7 @@ export async function POST(request: NextRequest) {
     const params = await request.json()
     const password = params.password
     const pwd = CryptoJS.MD5(password)
-    const _pages: string[] = []
-
-    let permission = ''
+    const _pages: Record<string, string[]> = {}
 
     const r = await User.findOne({
       email: params.email,
@@ -23,22 +20,15 @@ export async function POST(request: NextRequest) {
 
     if (r) {
       if (!r.isSuperAdmin) {
-        const role = await Role.findOne({ _id: r.roleId })
-        permission = role.permission
-
         const pages = await Assignment.find({
           roleId: r.roleId
         })
 
-        pages.map((page) => {
-          _pages.push(page.link)
+        pages.forEach((page) => {
+          _pages[page.link] = page.permissions || ['view']
         })
       }
     }
-
-
-
-
 
     if (!r) {
       return NextResponse.json({
@@ -53,9 +43,8 @@ export async function POST(request: NextRequest) {
       noResult: false,
       message: "",
       result: {
-        ...r,
+        ...r._doc,
         pages: _pages,
-        permission,
       }
     });
 

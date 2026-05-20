@@ -12,8 +12,9 @@ export default function Receiving() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const locationId = useAuth((state) => state.locationId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const [locations, setLocations] = useState<any[]>([])
+  const [warehouses, setWarehouses] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [purchases, setPurchases] = useState<any[]>([])
   const [disabled, setDisabled] = useState<boolean>(false)
@@ -25,8 +26,8 @@ export default function Receiving() {
 
   const router = useRouter()
 
-  const fetchLocationsFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+  const fetchWarehousesFn = useFetch<any[], any>({
+    url: `/api/web/warehouse?id=xxx`,
     method: 'GET'
   })
 
@@ -114,7 +115,8 @@ export default function Receiving() {
       status: filter.status,
       receivedQty: filter.receivedQty,
       max: filter.quantity - filter.receivedQty,
-      purchaseOrderNumber: filter.purchaseOrderNumber
+      purchaseOrderNumber: filter.purchaseOrderNumber,
+      locationId: locationId
     })
 
     if (filter.status != 'ordered') {
@@ -128,12 +130,12 @@ export default function Receiving() {
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/purchases?id=${masterAccountId}&type=product`
-      const url2 = `/api/web/location?id=${masterAccountId}`
+      const url3 = `/api/web/warehouse?id=${masterAccountId}&lId=${locationId}`
 
       const body = JSON.stringify({})
 
-      fetchLocationsFn.fn(url2, body, (result) => {
-        setLocations(result)
+      fetchWarehousesFn.fn(url3, body, (result) => {
+        setWarehouses(result)
       })
 
       getFn.fn(url, JSON.stringify({}), (result) => {
@@ -141,7 +143,7 @@ export default function Receiving() {
         setPurchases(result)
       })
     }
-  }, [masterAccountId])
+  }, [masterAccountId, locationId])
 
   return (
     <>
@@ -277,18 +279,19 @@ export default function Receiving() {
                 <input value={Date.now()} className="input w-full" {...editPrForm.register("batchNumber")} type="text" readOnly />
               </div>
               <div className="flex flex-row items-center gap-2">
-                <label className="w-[60px]">Location</label>
-                <select  {...editPrForm.register("locationId")} className="select flex-1">
-                  <option>
-                    Select Location
+                <label className="w-[100px]">Warehouse</label>
+                <select {...editPrForm.register("warehouseId", { required: true })} className="select flex-1">
+                  <option value="">
+                    Select Warehouse
                   </option>
                   {
-                    locations.map((location) => {
-                      return <option value={location._id} key={location._id}>{location.name}</option>
+                    warehouses.map((warehouse) => {
+                      return <option value={warehouse._id} key={warehouse._id}>{warehouse.name}</option>
                     })
                   }
                 </select>
               </div>
+              <input type="hidden" {...editPrForm.register("locationId")} />
               <div className="modal-action">
                 {
                   /*

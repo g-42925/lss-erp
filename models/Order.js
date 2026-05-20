@@ -1,36 +1,38 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
-  total: { type: Number, required: true },
-  salesOrderId: { type: Number },
   salesOrderNumber: { type: String, required: true },
   discountType: { type: String, enum: ['percent', 'fixed', 'none'] },
+  companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
+  productType: { type: String, enum: ['good', 'service'] },
+  total: { type: Number, required: true },
+  saleDate: { type: Date, required: true },
+  quotationNumber: { type: String },
+  type: { type: String },
   discountValue: { type: Number },
   taxValue: { type: Number },
+  contract: { type: String },
+  attachment: { type: String },
+  payTerm: { type: mongoose.Schema.Types.Mixed },
+  pickupDate: { type: Date },
+  salesOrderId: { type: Number },
+  contractType: { type: String },
+  range: { type: Number },
+  frequency: { type: String },
   taxes: [
     {
       taxName: { type: String },
       taxValue: { type: Number }
     }
   ],
-  companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
-  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   customCustomer: {
-    name: { type: String, required: true },
-    address: { type: String, required: true },
+    name: { type: String, required: false },
+    address: { type: String, required: false },
   },
-  contract: { type: String },
-  attachment: { type: String },
-  payTerm: { type: Date },
-  quotationNumber: { type: String },
-  saleDate: { type: Date, required: true },
-  productType: { type: String, enum: ['good', 'service'] },
-  contractType: { type: String, enum: ['Full', 'Trial', 'One Time'] },
-  frequency: { type: String, enum: ['Week', 'Month', 'Once'] },
-  type: { type: String },
-  range: { type: Number },
   cart: [
     {
+      warehouseId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Warehouse' },
       productId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Product' },
       qty: { type: Number, required: true },
       subTotal: { type: Number, required: true },

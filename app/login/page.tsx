@@ -37,21 +37,16 @@ export default function Login() {
 		})
 
 		await loginFn.fn('', body, (result) => {
-			const permission = result._doc.isSuperAdmin ? 'rw' : result.permission
-
-			document.cookie = `permission=${permission}`
-
 			login(
 				{
-					email: result._doc._email,
+					email: result.email,
 					loggedIn: true,
-					name: result._doc.name,
-					masterAccountId: result._doc.masterAccountId,
-					_id: result._doc._id,
-					permission: result.permission,
+					name: result.name,
+					masterAccountId: result.masterAccountId,
 					pages: result.pages,
 					roleId: result.roleId,
-					isSuperAdmin: result._doc.isSuperAdmin
+					isSuperAdmin: result.isSuperAdmin,
+					locationId:result.locationId
 				}
 			)
 

@@ -1,17 +1,18 @@
 import mongoose from 'mongoose';
-import { type } from 'os';
 
 const batcheSchema = new mongoose.Schema({
-  productId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  qty: {type:Number, required:true},
-  accumulative:{type:Number,required:true},
-  outQty: {type:Number, required:true},
-  expiryDate: {type:Date, required:false},
-  batchNumber: {type:String, required:true},
-  locationId: {type:mongoose.Schema.Types.ObjectId, required:true},
-  purchaseOrderNumber: {type:String,required:false},
-  status: {type:String, required:true,enum: ['ACTIVE', 'DEPLETED', 'EXPIRED', 'INACTIVE']},
-  isOpening: {type:Boolean,required:false},
+  warehouseId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  productId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  reserved: { type: Number, required: true, default: 0 },
+  qty: { type: Number, required: true },
+  accumulative: { type: Number, required: true },
+  outQty: { type: Number, required: true },
+  expiryDate: { type: Date, required: false },
+  batchNumber: { type: String, required: true },
+  locationId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  purchaseOrderNumber: { type: String, required: false },
+  status: { type: String, required: true, enum: ['ACTIVE', 'DEPLETED', 'EXPIRED', 'INACTIVE'] },
+  isOpening: { type: Boolean, required: false },
   createdAt: { type: Date, default: Date.now },
   supplierId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -24,13 +25,14 @@ const batcheSchema = new mongoose.Schema({
 });
 
 batcheSchema.index(
-  { productId: 1, 
-    locationId: 1 
+  {
+    productId: 1,
+    locationId: 1
   },
   {
     unique: true,
-    partialFilterExpression: { 
-      isOpening: true 
+    partialFilterExpression: {
+      isOpening: true
     }
   }
 );

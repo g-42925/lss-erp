@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
 
-
     const result = await Invoice.create({
       ...params,
       companyId: company._id,
@@ -117,7 +116,8 @@ export async function GET(request: NextRequest) {
       {
         $match: {
           companyId: cmp._id,
-          invoiceType: type
+          invoiceType: type,
+          status: 'active'
         }
       },
       {
@@ -196,6 +196,38 @@ export async function GET(request: NextRequest) {
       noResult: false,
       message: "",
       result: invoices,
+      error: false
+    })
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
+    })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const params = await request.json()
+  const so = params.salesOrderNumber
+
+  try {
+    await connectToDatabase()
+
+    const result = await Invoice.updateOne(
+      {
+        salesOrderNumber: so
+      },
+      {
+        $set: params
+      }
+    )
+    return NextResponse.json({
+      noResult: false,
+      message: "",
+      result: result,
       error: false
     })
   }
