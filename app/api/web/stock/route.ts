@@ -3,7 +3,6 @@ import { connectToDatabase } from "@/lib/mongodb";
 
 import Batche from '@/models/Batche'
 import Companie from '@/models/Companie'
-import Companie from '@/models/Companie'
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
