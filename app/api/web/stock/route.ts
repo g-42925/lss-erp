@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import mongoose from "mongoose";
 
 import Batche from '@/models/Batche'
-import Companie from '@/models/Companie'
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const id = url.searchParams.get("id");
-  const cmd = url.searchParams.get("cmd");
 
   try {
     await connectToDatabase();
-    const company = await Companie.findOne({
-      masterAccountId: id
-    })
     const locId = url.searchParams.get("locationId");
     const Warehouse = mongoose.models.Warehouse || mongoose.model('Warehouse');
 

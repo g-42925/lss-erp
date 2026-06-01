@@ -14,29 +14,25 @@ LSS ERP is an Enterprise Resource Planning system built with Next.js (App Router
 - **Finance Module**: Accounting and report management.
 
 ## Project History
+
 - **Invoice Pagination**: Implemented forced page breaks after every 5 items for consistent A4 printing.
 - **Finance Assets**: Added asset sections (Cash, Bank, Inventory) to the COA report.
 - **Quotation Separation**: Split Product and Service quotations into separate models.
 - **Warehouse Management**: Added sub-warehouses under geographical locations.
 
-## Current Task: Granular Role-Based Access Implementation (COMPLETED)
+## Current Task: Super Admin Location Selection (COMPLETED)
 
 ### Description
-Implemented a granular role-based access system that determines access per feature and action (View, Create, Edit, Delete).
+
+Implemented a mandatory location selection step for super admin accounts that triggers after login but before accessing the main application.
 
 ### Implementation Results
-1. **Model Enhancement**: 
-   - `Assignment.js` now includes `permissions` array.
-   - `Role.js` global permission removed for per-feature granularity.
-2. **API & Store**:
-   - `login/route.ts` aggregates all assignments into a `pages` map.
-   - `auth` store updated with new type-safe `pages` object.
-3. **UI & Enforcement**:
-   - `roles/page.tsx` overhauled with a premium interface for managing CRUD permissions.
-   - `withAuth.tsx` now enforces route-level protection.
-   - `sidebar.tsx` dynamically filters content.
-   - `usePermission.ts` hook provides DX for action-level enforcement.
+
+1. **Zustand State**: Added `setLocationId` action to `auth.ts` to persist the selected location.
+2. **Login Redirect**: Modified `login/page.tsx` to redirect super admins to `/select-location` instead of `/dashboard`.
+3. **Location Selection UI**: Created `/select-location/page.tsx`, a dedicated page that loads available locations based on the super admin's master account ID, allowing them to choose a location context before proceeding to the dashboard.
 
 ## Open Questions
+
 - Should we use a bitmask or a simple array of strings for permissions? *Array of strings is more readable and flexible for custom actions like 'approve'.*
-- How to handle SuperAdmin? *SuperAdmin should bypass all checks and see everything.*
+- How to handle SuperAdmin? *SuperAdmin bypasses standard roles but must explicitly select a location context upfront.*

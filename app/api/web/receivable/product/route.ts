@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         $match: {
           companyId: cmp._id,
           invoiceType: type,
+          closed: { $ne: true },
         }
       },
       {

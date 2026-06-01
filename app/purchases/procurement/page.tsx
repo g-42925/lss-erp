@@ -1,0 +1,581 @@
+"use client"
+
+import Link from "next/link";
+import useAuth from "@/store/auth"
+import useFetch from "@/hooks/useFetch";
+import withAuth from "@/hofs/withAuth";
+
+import { useForm } from "react-hook-form"
+import { useRef, useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
+
+function Procurement() {
+  const masterAccountId = useAuth((state) => state.masterAccountId)
+  const hasHydrated = useAuth((s) => s._hasHydrated)
+  const modalRef = useRef<HTMLDialogElement>(null)
+  const orderRef = useRef<HTMLDialogElement>(null)
+  const editRef = useRef<HTMLDialogElement>(null)
+  const _editRef = useRef<HTMLDialogElement>(null)
+
+  const [roles, setRoles] = useState<any[]>([])
+  const [searchResult, setSearchResult] = useState<any[]>([])
+  const [pr, setPr] = useState<any[]>([])
+  // procurement does not need a supplier
+  const [items, setItems] = useState<any[]>([])
+  const [disabled, setDisabled] = useState<boolean>(false)
+
+  const bankAccount = useFetch<any[], any>({
+    url: `/api/web/bank-accounts?id=xxx `,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const editForm = useForm()
+  const orderForm = useForm()
+  const newPrForm = useForm()
+  const editPrForm = useForm()
+  const router = useRouter()
+
+  const watchPayAmount = orderForm.watch("payAmount")
+
+
+  const status = editPrForm.watch('status');
+
+  const putFn = useFetch<any, any>({
+    url: '/api/web/purchases',
+    method: 'PUT'
+  })
+
+  const addFn = useFetch<any, any>({
+    url: '/api/web/purchases',
+    method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const editFn = useFetch<any, any>({
+    url: `/api/web/purchases`,
+    method: 'PUT',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getFn = useFetch<any[], any>({
+    url: `/api/web/purchases?id=xxx`,
+    method: 'GET'
+  })
+
+  const getItemsFn = useFetch<any[], any>({
+    url: `/api/web/inv-items?id=xxx`,
+    method: 'GET'
+  })
+
+
+
+  const deleteFn = useFetch<any[], any>({
+    url: `/api/web/roles?id=xxx`,
+    method: 'DELETE',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  async function submit(data: any) {
+    const body = JSON.stringify({
+      ...data,
+      status: 'requested',
+      id: masterAccountId,
+      date: new Date(),
+      purchaseType: 'procurement',
+    })
+
+    addFn.fn('', body, (r) => {
+      setPr(
+        [
+          ...pr,
+          r
+        ]
+      )
+      modalRef.current?.close()
+    })
+  }
+
+  async function search(v: string) {
+    if (v.length > 0) {
+      const result = roles.filter((r) => {
+        return r.name.includes(v)
+      })
+
+      if (result.length > 0) {
+        setSearchResult(
+          [
+            ...result
+          ]
+        )
+      }
+      else {
+        setSearchResult(
+          []
+        )
+      }
+    }
+    else {
+      setSearchResult(
+        []
+      )
+    }
+  }
+
+  async function _editSubmit(data: any) {
+    const [target] = pr.filter((r) => r._id === data._id)
+    const [product] = items.filter((p) => p._id === data.productId)
+
+    const edited = JSON.stringify({
+      ...data,
+      status: 'requested'
+    })
+
+    await editFn.fn('', edited, (result) => {
+      target.product = product
+      target.quantity = result.quantity
+      target.estimatedPrice = result.estimatedPrice
+      _editRef.current?.close()
+    })
+  }
+
+  async function editSubmit(data: any) {
+    const pOrdered = JSON.stringify({
+      ...data,
+      status: '__approved',
+      purchaseType: 'procurement',
+    })
+
+    if (data.editable) {
+      await editFn.fn('', pOrdered, (result) => {
+        const [target] = pr.filter((r) => r._id == result._id)
+        target.finalPrice = result.finalPrice
+        target.payAmount = result.payAmount
+        target.supplier = result.spl
+        target.quantity = result.quantity
+        editRef.current?.close()
+      })
+    }
+    else {
+      alert('this data is not editable anymore')
+    }
+  }
+
+  async function orderSubmit(data: any) {
+    if (watchPayAmount == "") {
+      alert("Please enter pay amount")
+      orderForm.setValue("payAmount", 0)
+    }
+    else {
+      const pOrdered = JSON.stringify({
+        ...data,
+        status: '_approved',
+        purchaseType: 'procurement'
+      })
+
+      if (parseInt(data.finalPrice) > parseInt(data.estimatedPrice)) {
+        alert("Final price cannot be higher than estimated price")
+      }
+      else if (parseInt(data.payAmount) > parseInt(data.finalPrice)) {
+        alert("Pay amount cannot be higher than final price")
+      }
+      else {
+        await editFn.fn('', pOrdered, (result) => {
+          const [target] = pr.filter((r) => r._id == result._id)
+          target.status = "ordered"
+          target.supplier = result.spl
+          target.finalPrice = result.finalPrice
+          target.payAmount = result.payAmount
+          orderRef.current?.close()
+        })
+      }
+    }
+  }
+
+  async function del(_id: string) {
+    const url = `/api/web/roles?id=${_id}`
+    const body = JSON.stringify({})
+
+    await deleteFn.fn(url, body, (result) => {
+      setRoles(
+        roles.filter((r) => r._id != result)
+      )
+    })
+  }
+
+  async function _edit(_id: string) {
+    const [filter] = pr.filter((p) => p._id == _id)
+
+    editForm.reset({
+      _id: filter._id,
+      quantity: filter.quantity,
+      estimatedPrice: filter.estimatedPrice,
+      productId: filter.product._id
+    })
+
+    _editRef.current?.showModal()
+  }
+
+  async function edit(_id: string) {
+    const [filter] = pr.filter((p) => p._id == _id)
+
+    editPrForm.reset({
+      _id: filter._id,
+      quantity: filter.quantity,
+      estimatedPrice: filter.estimatedPrice,
+      product: filter.product.name,
+      finalPrice: filter.finalPrice,
+      currPayAmt: filter.payAmount,
+      payAmount: filter.payAmount,
+      supplierId: filter.supplierId,
+      editable: filter.editable
+    })
+
+    editRef.current?.showModal()
+  }
+
+  async function order(_id: string) {
+    const [filter] = pr.filter((p) => p._id == _id)
+
+    orderForm.reset({
+      _id: filter._id,
+      quantity: filter.quantity,
+      estimatedPrice: filter.estimatedPrice,
+      product: filter.product.name,
+      productId: filter.product._id
+    })
+
+    if (filter.status === 'approved') {
+      setDisabled(false)
+    }
+
+    if (filter.status === 'requested' || filter.status === 'ordered' || filter.status === 'rejected') {
+      setDisabled(true)
+    }
+
+    orderRef.current?.showModal()
+  }
+
+  useEffect(() => {
+    if (hasHydrated) {
+      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=procurement`
+      const url1 = `/api/web/bank-accounts?id=${masterAccountId}`
+      const url2 = `/api/web/inv-items?id=${masterAccountId}`
+
+      const body = JSON.stringify({})
+
+      bankAccount.fn(url1, body, (result) => { })
+      getItemsFn.fn(url2, body, (result) => {
+        setItems(result)
+      })
+
+      getFn.fn(url, body, (result) => {
+        setPr(result)
+      })
+    }
+  }, [masterAccountId])
+
+
+  return (
+    <>
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
+        <span className="text-2xl text-black">Procurement Requisition</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+          <div className="flex flex-row">
+            <span className="self-center">Manage purchase status</span>
+            <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Add
+            </button>
+          </div>
+          <div className="flex flex-row">
+            <div className="flex flex-row gap-2 items-center">
+              Show
+              <select className="select w-16">
+                <option>20</option>
+                <option>30</option>
+                <option>40</option>
+              </select>
+              Entries
+            </div>
+            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+          </div>
+          {
+            getFn.loading
+              ?
+              <div className="flex-1 flex flex-col justify-center items-center">
+                <span className="loading loading-spinner loading-xl"></span>
+              </div>
+              :
+              getFn.error || getFn.noResult
+                ?
+                <div>
+                  <p>{getFn.message}</p>
+                </div>
+                :
+                <div>
+                  <table className="table text-center">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Purchase Order Number</th>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Final Price</th>
+                        <th>Pay Amount</th>
+                        <th>Status</th>
+                        <th>...</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {
+                        searchResult.length < 1
+                          ?
+                          pr.map((p, index) => {
+                            return (
+                              <tr key={index}>
+                                <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                                <td>{p.purchaseOrderNumber}</td>
+                                <td>{p.product.name}</td>
+                                <td>{p.quantity} ({p.product.unit})</td>
+                                {
+                                  p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
+                                }
+                                {
+                                  p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
+                                }
+                                <td>{p.status}</td>
+                                {
+                                  p.status === "ordered" || p.status === "completed"
+                                    ?
+                                    <td>
+                                      <button className="cursor text-red-900" onClick={() => edit(p._id)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                          <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
+                                          <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+                                        </svg>
+                                      </button>
+                                    </td>
+                                    :
+                                    p.status === "approved"
+                                      ?
+                                      <td>
+                                        <button onClick={() => order(p._id)}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                          </svg>
+                                        </button>
+                                      </td>
+                                      :
+                                      <td>
+                                        <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                            <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
+                                            <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+                                          </svg>
+                                        </button>
+                                      </td>
+                                }
+                              </tr>
+                            )
+                          })
+                          :
+                          searchResult.map((role, index) => {
+                            return (
+                              <tr key={index}>
+                                <td>{role.name}</td>
+                                <td className="flex flex-row gap-3">
+                                  <button className="btn" onClick={() => edit(role._id)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                    </svg>
+                                    Edit
+                                  </button>
+                                  <button className="btn" onClick={() => del(role._id)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                      <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                    Delete
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                      }
+                    </tbody>
+                  </table>
+                </div>
+          }
+        </div>
+      </div>
+      <dialog id="my_modal_0" ref={_editRef} className="modal text-black">
+        <div className="modal-box">
+          <div className="flex flex-col gap-3">
+            <span className="text-2xl">Edit Procurement Requisition</span>
+            <form onSubmit={editForm.handleSubmit(_editSubmit)} className="h-92 relative flex flex-col gap-3">
+              <div className="flex flex-col gap-3">
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Select item</legend>
+                  <select {...editForm.register("productId")} className="input w-full">
+                    {
+                      items.map((p) => {
+                        return (
+                          <option key={p._id} value={p._id}>{p.name} ({p.unit})</option>
+                        )
+                      })
+                    }
+                  </select>
+                </fieldset>
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Estimated price</legend>
+                  <input {...editForm.register("estimatedPrice")} className="input w-full" />
+                </fieldset>
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Quantity</legend>
+                  <input {...editForm.register("quantity")} className="input w-full" />
+                </fieldset>
+              </div>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+                Add
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+      <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
+        <div className="modal-box">
+          <div className="flex flex-col gap-3">
+            <span className="text-2xl">Add Procurement Requisition</span>
+            <form onSubmit={newPrForm.handleSubmit(submit)} className="h-92 relative flex flex-col gap-3">
+              <div className="flex flex-col gap-3">
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Select item</legend>
+                  <select {...newPrForm.register("productId")} className="input w-full">
+                    {
+                      items.map((p) => {
+                        return (
+                          <option key={p._id} value={p._id}>{p.name} ({p.unit})</option>
+                        )
+                      })
+                    }
+                  </select>
+                </fieldset>
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Estimated price</legend>
+                  <input {...newPrForm.register("estimatedPrice")} className="input w-full" />
+                </fieldset>
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Quantity</legend>
+                  <input {...newPrForm.register("quantity")} className="input w-full" />
+                </fieldset>
+              </div>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+                Add
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+      <dialog id="my_modal_2" ref={orderRef} className="modal text-black">
+        <div className="modal-box">
+          <div className="flex flex-col ">
+            <span className="text-2xl">Make purchase order</span>
+            <form onSubmit={orderForm.handleSubmit(orderSubmit)} className="h-146 relative flex flex-col">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Item</legend>
+                <input className="input w-full" {...orderForm.register("product")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Quantity</legend>
+                <input className="input w-full" {...orderForm.register("quantity")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Final price</legend>
+                <input className="input w-full" {...orderForm.register("finalPrice")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Pay amount</legend>
+                <input defaultValue={0} className="input w-full" {...orderForm.register("payAmount")} type="text" />
+              </fieldset>
+
+              <fieldset className={`fieldset ${watchPayAmount > 0 ? '' : 'hidden'}`}>
+                <legend className="fieldset-legend">Payment Method</legend>
+                <select {...orderForm.register("paymentMethod")} className="select w-full">
+                  <option value="Cash">Cash</option>
+                  {
+                    bankAccount.result?.map((b) => {
+                      return (
+                        <option value={`transfer from ${b.bank}`} key={b._id}>
+                          transfer from {b.bank} ({b.accountName})
+                        </option>
+                      )
+                    })
+                  }
+                </select>
+              </fieldset>
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+              <button disabled={disabled} type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+                Make
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+      <dialog id="my_modal_3" ref={editRef} className="modal text-black">
+        <div className="modal-box">
+          <div className="flex flex-col ">
+            <span className="text-2xl">Edit purchase order</span>
+            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Item</legend>
+                <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Quantity</legend>
+                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Final Price</legend>
+                <input className="input w-full" {...editPrForm.register("finalPrice")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Pay Amount</legend>
+                <input className="input w-full" {...editPrForm.register("payAmount")} type="text" />
+              </fieldset>
+
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+                Edit
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+      <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
+        <Link href="/xpurchases">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+          </svg>
+        </Link>
+      </button>
+    </>
+  )
+}
+
+export default withAuth(Procurement)
+
+type Failed = {
+  message: string
+}

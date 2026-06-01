@@ -46,14 +46,15 @@ export default function Login() {
 					pages: result.pages,
 					roleId: result.roleId,
 					isSuperAdmin: result.isSuperAdmin,
-					locationId:result.locationId
+					locationId: result.locationId
 				}
 			)
 
-
-			router.push(
-				'/dashboard'
-			)
+			if (result.isSuperAdmin) {
+				window.location.href = '/select-location'
+			} else {
+				window.location.href = '/dashboard'
+			}
 		})
 	}
 

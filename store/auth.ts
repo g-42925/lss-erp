@@ -34,6 +34,8 @@ const useAuth = create<Auth>()(
           _hasHydrated: false,
         })),
 
+        setLocationId: (locationId: string) => set(() => ({ locationId })),
+
         email: '',
         loggedIn: false,
         locationId: '',
@@ -59,6 +61,7 @@ type Auth = AuthData & {
   _hasHydrated: boolean;
   login: (r: AuthData) => void;
   logout: () => void;
+  setLocationId: (locationId: string) => void;
 }
 
 export default useAuth;

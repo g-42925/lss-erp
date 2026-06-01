@@ -98,6 +98,7 @@ export default function Quotation() {
     formData.append("payAmt", data.payAmt)
     formData.append("qNumber", selectedQNumber)
     formData.append("id", masterAccountId)
+    if (data.invoiceDate) formData.append("invoiceDate", data.invoiceDate)
     formData.append("payTerm", data.payTerm || "")
     formData.append("paymentMethod", data.paymentMethod || "Cash")
     formData.append("method", data.paymentMethod || "Cash")
@@ -519,6 +520,10 @@ export default function Quotation() {
       <dialog ref={orderRef} id="make_order_modal" className="modal h-full text-black">
         <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-72 w-[500px] modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make Order for {selectedQNumber}</h3>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[100px]">Invoice Date</label>
+            <input {...makeOrderForm.register("invoiceDate", { required: true })} type="date" className="input flex-1 border-gray-300 border" />
+          </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[100px]">Pay Term</label>
             <label className="input flex-1">

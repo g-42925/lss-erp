@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
         salesOrderNumber: so,
         payAmount: payAmt,
         paid: paid,
-        date: new Date(),
+        date: formData.get("invoiceDate") ? new Date(formData.get("invoiceDate") as string) : new Date(),
         paymentHistory: payAmt > 0 ? [
           {
             amount: payAmt,

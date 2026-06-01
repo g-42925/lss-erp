@@ -185,7 +185,9 @@ export default function XOrder() {
     const params = {
       salesOrderNumber: data.salesOrderNumber,
       status: 'active',
-      missing: parseInt(data.missing) || 0
+      missing: parseInt(data.missing) || 0,
+      date: data.date,
+      payAmount: parseFloat(data.payAmount) || 0
     }
 
     activateInvoiceFn.fn('', JSON.stringify(params), (r) => {
@@ -529,9 +531,14 @@ export default function XOrder() {
                 </select>
               </div>
 
-              <div className={`flex flex-row items-center gap-3 ${(hidden && !isOneTimeMultiMonth) && !isOneTimeOnceDebtNo && !isOneTimeMonthOneRangeDebt ? '' : 'hidden'}`}>
+              <div className={`flex flex-row items-center gap-3 ${hidden ? '' : 'hidden'}`}>
                 <label className="w-[110px] text-sm font-medium">Pay Amount</label>
-                <input defaultValue={0} placeholder="pay amount" {...directOrderForm.register("payAmount")} type={(isOneTimeOnceDebtNo || isOneTimeMonthOneRangeDebt) ? "hidden" : "text"} className="input flex-1" readOnly={isOneTimeMonthOneRangeDebt || isOneTimeOnceDebtNo} />
+                <input
+                  placeholder="pay amount"
+                  {...directOrderForm.register("payAmount")}
+                  type="number"
+                  className="input flex-1"
+                />
               </div>
 
 
@@ -778,8 +785,12 @@ export default function XOrder() {
         </form>
       </dialog>
       <dialog ref={invoiceModalRef} className="modal h-full text-black">
-        <form onSubmit={newInvoiceForm.handleSubmit(submitInvoice)} className="h-72 modal-box flex flex-col gap-3">
+        <form onSubmit={newInvoiceForm.handleSubmit(submitInvoice)} className="h-86 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Date</label>
+            <input {...newInvoiceForm.register("date", { required: true })} type="date" className="input flex-1" />
+          </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Sales Order Number</label>
             <input {...newInvoiceForm.register("salesOrderNumber")} type="text" className="input flex-1" />
@@ -788,11 +799,14 @@ export default function XOrder() {
             <label className="w-[70px]">Sales Order Id</label>
             <input {...newInvoiceForm.register("salesOrderId")} type="text" className="input flex-1" />
           </div>
-          <div className="flex flex-row items-center gap-3 hidden">
+          <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Pay Amount</label>
-            <label className="input flex-1">
-              <input {...newInvoiceForm.register('payAmount')} type="text" />
-            </label>
+            <input
+              {...newInvoiceForm.register('payAmount')}
+              type="number"
+              placeholder="0 (leave empty for full payment later)"
+              className="input flex-1"
+            />
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Missing</label>

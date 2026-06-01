@@ -46,6 +46,14 @@ export default function Invoices() {
     }
   })
 
+  const closeInvoiceFn = useFetch<any, any>({
+    url: '/api/web/invoice/product',
+    method: 'PUT',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
   const getBankAccountsFn = useFetch<any, any>({
     url: `/api/web/bank-accounts?oduid=xxx`,
     method: 'GET'
@@ -95,6 +103,24 @@ export default function Invoices() {
       modalRef.current?.close()
     })
   }, [masterAccountId, invoices, addInvoiceFn])
+
+  function closeInvoice(invoice: any) {
+    if (!confirm('Mark this invoice as fully paid?')) return
+    const params = {
+      salesOrderNumber: invoice.salesOrderNumber,
+      paid: true,
+      payAmount: invoice.order.total
+    }
+    closeInvoiceFn.fn('', JSON.stringify(params), () => {
+      getInvoicesFn.reset(
+        getInvoicesFn.result?.map((inv: any) =>
+          inv.salesOrderNumber === invoice.salesOrderNumber
+            ? { ...inv, paid: true, payAmount: invoice.order.total }
+            : inv
+        )
+      )
+    })
+  }
 
   async function attachmentSubmit(e: any) {
     const file = e.target.files[0]
@@ -336,13 +362,33 @@ export default function Invoices() {
                                 <td>{s.variousItem ? s.product : s.product.productName}</td>
                                 <td>{s.order.total}</td>
                                 <td>{s.payAmount}</td>
-                                <td>{s.paid ? 'yes' : 'no'}</td>
                                 <td>
-                                  <button onClick={() => openInvoice(s)}>
+                                  <span className={`badge badge-sm ${s.paid ? 'badge-success' : 'badge-warning'}`}>
+                                    {s.paid ? 'paid' : 'unpaid'}
+                                  </span>
+                                </td>
+                                <td className="flex flex-row gap-1 justify-center items-center">
+                                  <button onClick={() => openInvoice(s)} title="View Invoice">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                       <path fillRule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 0 0 3 3h.27l-.155 1.705A1.875 1.875 0 0 0 7.232 22.5h9.536a1.875 1.875 0 0 0 1.867-2.045l-.155-1.705h.27a3 3 0 0 0 3-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0 0 18 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM16.5 6.205v-2.83A.375.375 0 0 0 16.125 3h-8.25a.375.375 0 0 0-.375.375v2.83a49.353 49.353 0 0 1 9 0Zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 0 1-.374.409H7.232a.375.375 0 0 1-.374-.409l.526-5.784a.373.373 0 0 1 .333-.337 41.741 41.741 0 0 1 8.566 0Zm.967-3.97a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H18a.75.75 0 0 1-.75-.75V10.5ZM15 9.75a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V10.5a.75.75 0 0 0-.75-.75H15Z" clipRule="evenodd" />
                                     </svg>
                                   </button>
+                                  {!s.paid && (
+                                    <button
+                                      onClick={() => closeInvoice(s)}
+                                      disabled={closeInvoiceFn.loading}
+                                      title="Close Invoice (Mark as Paid)"
+                                      className="text-green-700 hover:text-green-900"
+                                    >
+                                      {closeInvoiceFn.loading ? (
+                                        <span className="loading loading-spinner loading-xs"></span>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                          <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             )
@@ -393,6 +439,10 @@ export default function Invoices() {
       <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
         <form onSubmit={newInvoiceForm.handleSubmit((data) => submit(data))} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[100px]">Date</label>
+            <input {...newInvoiceForm.register("date", { required: true })} type="date" className="input flex-1" />
+          </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Sales Order Number</label>
             <input {...newInvoiceForm.register("salesOrderNumber")} type="text" className="input flex-1" />

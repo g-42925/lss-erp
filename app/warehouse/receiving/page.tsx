@@ -72,7 +72,18 @@ export default function Receiving() {
 
 
   async function editSubmit(data: any) {
-    const { max, product, estimatedPrice, supplier, finalPrice, ...rest } = data
+    const { max, product, estimatedPrice, supplier, finalPrice, locationId, ...rest } = data
+    const qty = parseInt(data.receivedQty)
+
+    if (!qty || qty <= 0) {
+      alert("Please enter a valid quantity")
+      return
+    }
+
+    if (qty > max) {
+      alert(`Quantity cannot exceed remaining: ${max}`)
+      return
+    }
 
     const additional = {
       isOpening: false,
@@ -80,22 +91,24 @@ export default function Receiving() {
       outQty: 0,
     }
 
-    const batch = JSON.stringify(
-      {
-        ...rest,
-        ...additional,
-        qty: data.receivedQty
-      }
-    )
+    const batch = JSON.stringify({
+      ...rest,
+      ...additional,
+      qty,
+      ...(locationId ? { locationId } : {})
+    })
 
-    if (parseInt(data.receivedQty) > max) {
-      alert("Quantity cannot be higher than maximum remained")
-    }
-    else {
-      await editFn.fn('', batch, (result) => {
-        router.push('/products/stock')
-      })
-    }
+    await editFn.fn('', batch, () => {
+      // Update the local row's receivedQty so the table reflects the new total
+      setPurchases(prev =>
+        prev.map(p =>
+          p._id === data._id
+            ? { ...p, receivedQty: (p.receivedQty || 0) + qty }
+            : p
+        )
+      )
+      editRef.current?.close()
+    })
   }
 
   async function edit(_id: string) {
@@ -107,14 +120,16 @@ export default function Receiving() {
       true
     )
 
+    const remaining = filter.quantity - (filter.receivedQty || 0)
+
     editPrForm.reset({
       ...filter,
       productId: filter.product._id,
       product: filter.product.productName,
-      supplier: filter.supplier.bussinessName,
+      supplier: filter.supplier?.bussinessName ?? '-',
       status: filter.status,
-      receivedQty: filter.receivedQty,
-      max: filter.quantity - filter.receivedQty,
+      receivedQty: '',
+      max: remaining,
       purchaseOrderNumber: filter.purchaseOrderNumber,
       locationId: locationId
     })
@@ -248,64 +263,76 @@ export default function Receiving() {
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box">
-          <div className="flex flex-col ">
-            <span className="text-2xl">Receive</span>
-            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col gap-3">
-              <div className="flex flex-row items-center gap-2">
-                <label>Product</label>
+          <div className="flex flex-col gap-4">
+            <span className="text-2xl font-semibold">Receive Items</span>
+            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="flex flex-col gap-3">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Product</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
-              </div>
-              <div className="flex flex-row items-center gap-2">
-                <label>Quantity</label>
-                <input className="input w-full" {...editPrForm.register("receivedQty")} type="text" />
-              </div>
-              <div className="flex flex-row items-center gap-2 hidden">
-                <label>Quantity</label>
-                <input className="input w-full" {...editPrForm.register("limiter")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Supplier</legend>
+                <input className="input w-full" {...editPrForm.register("supplier")} type="text" readOnly />
+              </fieldset>
+              <div className="flex flex-row gap-3">
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Remaining (max)</legend>
+                  <input className="input w-full bg-gray-100" {...editPrForm.register("max")} type="text" readOnly />
+                </fieldset>
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Qty to Receive</legend>
+                  <input
+                    className="input w-full"
+                    {...editPrForm.register("receivedQty", { required: true, min: 1 })}
+                    type="number"
+                    min={1}
+                    placeholder="e.g. 5"
+                  />
+                </fieldset>
               </div>
               {
                 !expiredFieldHide
                   ?
-                  <div className="flex flex-frow items-center gap-2">
-                    <label>Expiry date</label>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Expiry date</legend>
                     <input className="input w-full" {...editPrForm.register("expiryDate")} type="date" />
-                  </div>
+                  </fieldset>
                   :
                   <></>
               }
-
-              <div className="flex flex-frow items-center">
-                <label>Batch number</label>
-                <input value={Date.now()} className="input w-full" {...editPrForm.register("batchNumber")} type="text" readOnly />
-              </div>
-              <div className="flex flex-row items-center gap-2">
-                <label className="w-[100px]">Warehouse</label>
-                <select {...editPrForm.register("warehouseId", { required: true })} className="select flex-1">
-                  <option value="">
-                    Select Warehouse
-                  </option>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Batch number</legend>
+                <input className="input w-full bg-gray-100" {...editPrForm.register("batchNumber")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Warehouse</legend>
+                <select {...editPrForm.register("warehouseId", { required: true })} className="select w-full">
+                  <option value="">Select Warehouse</option>
                   {
-                    warehouses.map((warehouse) => {
-                      return <option value={warehouse._id} key={warehouse._id}>{warehouse.name}</option>
-                    })
+                    warehouses.map((warehouse) => (
+                      <option value={warehouse._id} key={warehouse._id}>{warehouse.name}</option>
+                    ))
                   }
                 </select>
-              </div>
+              </fieldset>
               <input type="hidden" {...editPrForm.register("locationId")} />
-              <div className="modal-action">
-                {
-                  /*
-                    <form method="dialog">
-                      <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                        Cancel
-                      </button>		
-                    </form>
-                  */
-                }
+              {editFn.error ? <p className="text-red-600 text-sm">{editFn.message}</p> : <></>}
+              <div className="flex flex-row gap-2 justify-end mt-2">
+                <button
+                  type="button"
+                  className="p-3 rounded-md text-gray-700 bg-gray-200"
+                  onClick={() => editRef.current?.close()}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editFn.loading}
+                  className="p-3 rounded-md text-white bg-blue-900 disabled:opacity-60"
+                >
+                  {editFn.loading ? 'Saving…' : 'Confirm Receive'}
+                </button>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
-                Save
-              </button>
             </form>
           </div>
         </div>

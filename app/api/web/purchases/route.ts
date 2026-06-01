@@ -9,6 +9,8 @@ import Companie from '@/models/Companie'
 import Supplier from "@/models/Supplier";
 import Vendor from "@/models/Vendor";
 import Log from '@/models/Log'
+import Warehouse from '@/models/Warehouse'
+import Location from '@/models/Location'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -48,6 +50,25 @@ export async function PUT(request: NextRequest) {
             first._id, {
             amount: rest.payAmount
           }
+          )
+        }
+
+        if (rest.purchaseType === 'procurement') {
+          // procurement does not involve a supplier
+          await Purchase.findByIdAndUpdate(
+            _id, {
+            finalPrice: rest.finalPrice,
+            payAmount: rest.payAmount,
+            quantity: rest.quantity
+          }
+          )
+          return NextResponse.json(
+            {
+              noResult: false,
+              message: "",
+              result: body,
+              error: false
+            }
           )
         }
 
@@ -121,7 +142,7 @@ export async function PUT(request: NextRequest) {
 
         const amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
 
-        if (rest.purchaseType === 'product') {
+        if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement') {
 
           await Log.create({
             purchaseId: _id,
@@ -198,13 +219,30 @@ export async function PUT(request: NextRequest) {
           paymentMethod: rest.paymentMethod
         })
 
+        if (rest.purchaseType === 'procurement') {
+          // procurement does not involve a supplier
+          await Purchase.findByIdAndUpdate(_id, {
+            ...rest,
+            status: 'ordered',
+          })
+
+          return NextResponse.json(
+            {
+              noResult: false,
+              message: "",
+              result: body,
+              error: false
+            }
+          )
+        }
+
         if (rest.purchaseType === 'product') {
           let splMeasurementConfig = {}
           const spl = await Supplier.findById(rest.supplierId)
 
           const product = await Product.findById(rest.productId)
 
-          if (product.toObject().purchaseUnit != product.toObject().warehouseUnit) {
+          if (product && product.toObject().purchaseUnit != product.toObject().warehouseUnit) {
             const config = await Measurement.findOne({
               productId: rest.productId,
               supplierId: spl._id,
@@ -284,6 +322,16 @@ export async function PUT(request: NextRequest) {
     if (rest.status === "ordered") {
       const purchase = await Purchase.findById(_id)
 
+      if (purchase.purchaseType === 'procurement') {
+          // For procurement, we don't update Product stock values or create Batches the same way.
+          return NextResponse.json({
+            noResult: false,
+            message: "",
+            result: {},
+            error: false
+          })
+      }
+
       if (purchase.toObject().hasOwnProperty('measurementId')) {
         const config = await Measurement.findById(purchase.measurementId)
 
@@ -306,17 +354,26 @@ export async function PUT(request: NextRequest) {
           )
         }
 
+        const warehouse = await Warehouse.findById(rest.warehouseId)
+
+        let resolvedLocationId = warehouse?.locationId || rest.locationId;
+        if (!resolvedLocationId) {
+          const defaultLoc = await Location.findOne();
+          resolvedLocationId = defaultLoc?._id;
+        }
+
         await Batche.create({
           ...rest,
           status: 'ACTIVE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
           accumulative: config.ratio * rest.qty,
           reserved: 0,
-
+          locationId: resolvedLocationId
         })
       }
       else {
         const product = await Product.findById(purchase.productId)
+        const warehouse = await Warehouse.findById(rest.warehouseId)
 
         if (product.toObject().hasOwnProperty('prevUnitCost')) {
           await Product.findByIdAndUpdate(
@@ -333,13 +390,19 @@ export async function PUT(request: NextRequest) {
           )
         }
 
+        let resolvedLocationId = warehouse?.locationId || rest.locationId;
+        if (!resolvedLocationId) {
+          const defaultLoc = await Location.findOne();
+          resolvedLocationId = defaultLoc?._id;
+        }
+
         await Batche.create({
           ...rest,
           status: 'ACTIVE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
           accumulative: rest.qty,
           reserved: 0,
-
+          locationId: resolvedLocationId
         })
       }
 
@@ -403,7 +466,7 @@ export async function POST(request: NextRequest) {
         },
         {
           $lookup: {
-            from: 'products',
+            from: params.purchaseType === 'procurement' ? 'invitems' : 'products',
             localField: 'productId',
             foreignField: '_id',
             as: 'product'
@@ -418,7 +481,7 @@ export async function POST(request: NextRequest) {
 
     const r = {
       ...requested,
-      ...(params.purchaseType === 'product' && { product: agg?.product })
+      ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: agg?.product })
     }
 
     return NextResponse.json(
@@ -464,7 +527,7 @@ export async function GET(request: NextRequest) {
         },
         {
           $lookup: {
-            from: 'products',
+            from: type === 'procurement' ? 'invitems' : 'products',
             localField: 'productId',
             foreignField: '_id',
             as: 'product'

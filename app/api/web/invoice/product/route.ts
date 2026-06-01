@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       ...params,
       companyId: company._id,
       salesOrderId: order._id,
-      date: new Date(),
+      date: params.date ? new Date(params.date) : new Date(),
       invoiceNumber: invoiceNumber,
       paid: false,
       payAmount: 0,

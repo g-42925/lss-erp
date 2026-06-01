@@ -118,6 +118,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <summary>Purchases</summary>
               <ul>
                 <SidebarItem href="/purchases/requisition">Requisition</SidebarItem>
+                <SidebarItem href="/purchases/procurement">Procurement</SidebarItem>
               </ul>
             </details>
           </li>
@@ -141,6 +142,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <summary>Finance</summary>
               <ul>
                 <SidebarItem href="/finance/purchases">Purchases Approval</SidebarItem>
+                <SidebarItem href="/finance/procurement">Procurement Approval</SidebarItem>
                 <SidebarItem href="/finance/inv-logs">Inventory Approval</SidebarItem>
                 <SidebarItem href="/finance/debt">Debts</SidebarItem>
                 <SidebarItem href="/finance/receivable">Receivable</SidebarItem>

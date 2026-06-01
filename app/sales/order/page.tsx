@@ -392,7 +392,7 @@ export default function Order() {
 
   function done() {
     const discountType = discount.includes("%") ? 'percent' : 'fixed'
-    const _payAmt = debt === 'yes' ? payAmt : payAmount
+    const _payAmt = payAmt > 0 ? payAmt : payAmount
     const discountValue = parseInt(discount)
 
     console.log(cart[0])
@@ -683,9 +683,14 @@ export default function Order() {
                   <input {...newOrderForm.register('pickupDate', { onChange: (e) => setPickupDate(e.target.value) })} type="date" placeholder="pickup date" />
                 </label>
               </div>
-              <div className={`flex flex-row items-center gap-3 ${debt === 'yes' ? '' : 'hidden'}`}>
+              <div className={`flex flex-row items-center gap-3`}>
                 <label className="w-[70px]">Pay Amount</label>
-                <input defaultValue={0} placeholder="quantity" {...newOrderForm.register("payAmount", { onChange: (e) => setPayAmt(parseInt(e.target.value)) })} type="text" className="input flex-1" />
+                <input
+                  placeholder={`${payAmount} (default: full total)`}
+                  {...newOrderForm.register("payAmount", { onChange: (e) => setPayAmt(parseInt(e.target.value) || 0) })}
+                  type="number"
+                  className="input flex-1"
+                />
               </div>
             </form>
             <form className="flex-1 flex flex-col gap-3 p-6" onSubmit={newOrderForm.handleSubmit(addToCart)}>

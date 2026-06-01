@@ -129,6 +129,17 @@ export async function PUT(request: NextRequest) {
       if (params.missing !== undefined) {
         existingInvoice.missing = params.missing
       }
+      if (params.payAmount !== undefined && params.payAmount > 0) {
+        existingInvoice.payAmount = params.payAmount
+        existingInvoice.paymentHistory = [
+          ...(existingInvoice.paymentHistory || []),
+          {
+            amount: params.payAmount,
+            method: 'Cash',
+            date: new Date()
+          }
+        ]
+      }
       await existingInvoice.save()
       return NextResponse.json({
         noResult: false,
@@ -162,14 +173,21 @@ export async function PUT(request: NextRequest) {
       const newInvoice = await Invoice.create({
         companyId: company._id,
         salesOrderId: so._id,
-        date: new Date(),
+        date: params.date ? new Date(params.date) : new Date(),
         invoiceNumber: invoiceNumber,
         salesOrderNumber: so.salesOrderNumber,
         paid: false,
-        payAmount: 0,
+        payAmount: params.payAmount ?? 0,
         status: params.status,
         missing: params.missing,
-        invoiceType: 'service'
+        invoiceType: 'service',
+        paymentHistory: params.payAmount > 0 ? [
+          {
+            amount: params.payAmount,
+            method: 'Cash',
+            date: new Date()
+          }
+        ] : []
       })
 
       return NextResponse.json({
