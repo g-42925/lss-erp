@@ -11,6 +11,7 @@ import Vendor from "@/models/Vendor";
 import Log from '@/models/Log'
 import Warehouse from '@/models/Warehouse'
 import Location from '@/models/Location'
+import InvItem from '@/models/InvItem'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -324,6 +325,12 @@ export async function PUT(request: NextRequest) {
 
       if (purchase.purchaseType === 'procurement') {
           // For procurement, we don't update Product stock values or create Batches the same way.
+          await Purchase.findByIdAndUpdate(_id, {
+            $inc: { receivedQty: parseInt(rest.qty) }
+          });
+          await InvItem.findByIdAndUpdate(purchase.productId, {
+            $inc: { currentStock: parseInt(rest.qty) }
+          });
           return NextResponse.json({
             noResult: false,
             message: "",
@@ -583,7 +590,13 @@ export async function GET(request: NextRequest) {
         },
         {
           $addFields: {
-            receivedQty: { $sum: "$batches.qty" }
+            receivedQty: {
+              $cond: {
+                if: { $eq: ["$purchaseType", "procurement"] },
+                then: { $ifNull: ["$receivedQty", 0] },
+                else: { $sum: "$batches.qty" }
+              }
+            }
           }
         },
         {

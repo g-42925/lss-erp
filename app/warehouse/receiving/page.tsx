@@ -19,6 +19,7 @@ export default function Receiving() {
   const [purchases, setPurchases] = useState<any[]>([])
   const [disabled, setDisabled] = useState<boolean>(false)
   const [expiredFieldHide, setExpiredFieldHide] = useState<boolean>(false)
+  const [purchaseType, setPurchaseType] = useState<string>("product")
 
   const editRef = useRef<HTMLDialogElement>(null)
 
@@ -114,18 +115,18 @@ export default function Receiving() {
   async function edit(_id: string) {
     const [filter] = purchases.filter((p) => p._id == _id)
 
-    console.log({ filter })
-
-    if (!filter.product.haveExpiredDate) setExpiredFieldHide(
-      true
-    )
+    if (purchaseType === 'product' && filter.product && !filter.product.haveExpiredDate) {
+      setExpiredFieldHide(true)
+    } else {
+      setExpiredFieldHide(false)
+    }
 
     const remaining = filter.quantity - (filter.receivedQty || 0)
 
     editPrForm.reset({
       ...filter,
-      productId: filter.product._id,
-      product: filter.product.productName,
+      productId: filter.product?._id,
+      product: filter.product?.productName || filter.product?.name || '',
       supplier: filter.supplier?.bussinessName ?? '-',
       status: filter.status,
       receivedQty: '',
@@ -144,7 +145,7 @@ export default function Receiving() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/purchases?id=${masterAccountId}&type=product`
+      const url = `/api/web/purchases?id=${masterAccountId}&type=${purchaseType}`
       const url3 = `/api/web/warehouse?id=${masterAccountId}&lId=${locationId}`
 
       const body = JSON.stringify({})
@@ -158,14 +159,18 @@ export default function Receiving() {
         setPurchases(result)
       })
     }
-  }, [masterAccountId, locationId])
+  }, [masterAccountId, locationId, purchaseType])
 
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Receiving</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+          <div className="flex flex-row flex-wrap gap-4 items-center">
+            <div className="tabs tabs-boxed bg-gray-100">
+              <a className={`tab ${purchaseType === 'product' ? 'tab-active bg-blue-900 text-white' : ''}`} onClick={() => setPurchaseType('product')}>Products</a>
+              <a className={`tab ${purchaseType === 'procurement' ? 'tab-active bg-blue-900 text-white' : ''}`} onClick={() => setPurchaseType('procurement')}>Procurement</a>
+            </div>
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -214,8 +219,8 @@ export default function Receiving() {
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
-                                <td>{p.product.productName}</td>
-                                <td>{p.quantity} ({p.product.purchaseUnit})</td>
+                                <td>{p.product?.productName || p.product?.name || '-'}</td>
+                                <td>{p.quantity} ({p.product?.purchaseUnit || p.product?.unit || '-'})</td>
                                 <td>
                                   <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }}>
                                     {p.receivedQty}
@@ -237,8 +242,8 @@ export default function Receiving() {
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
-                                <td>{p.product.productName}</td>
-                                <td>{p.quantity} ({p.product.purchaseUnit})</td>
+                                <td>{p.product?.productName || p.product?.name || '-'}</td>
+                                <td>{p.quantity} ({p.product?.purchaseUnit || p.product?.unit || '-'})</td>
                                 <td>
                                   <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }}>
                                     {p.receivedQty}
@@ -291,7 +296,7 @@ export default function Receiving() {
                 </fieldset>
               </div>
               {
-                !expiredFieldHide
+                (purchaseType === 'product' && !expiredFieldHide)
                   ?
                   <fieldset className="fieldset">
                     <legend className="fieldset-legend">Expiry date</legend>
@@ -300,21 +305,25 @@ export default function Receiving() {
                   :
                   <></>
               }
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Batch number</legend>
-                <input className="input w-full bg-gray-100" {...editPrForm.register("batchNumber")} type="text" readOnly />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Warehouse</legend>
-                <select {...editPrForm.register("warehouseId", { required: true })} className="select w-full">
-                  <option value="">Select Warehouse</option>
-                  {
-                    warehouses.map((warehouse) => (
-                      <option value={warehouse._id} key={warehouse._id}>{warehouse.name}</option>
-                    ))
-                  }
-                </select>
-              </fieldset>
+              {purchaseType === 'product' && (
+                <>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Batch number</legend>
+                    <input className="input w-full bg-gray-100" {...editPrForm.register("batchNumber")} type="text" readOnly />
+                  </fieldset>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Warehouse</legend>
+                    <select {...editPrForm.register("warehouseId", { required: true })} className="select w-full">
+                      <option value="">Select Warehouse</option>
+                      {
+                        warehouses.map((warehouse) => (
+                          <option value={warehouse._id} key={warehouse._id}>{warehouse.name}</option>
+                        ))
+                      }
+                    </select>
+                  </fieldset>
+                </>
+              )}
               <input type="hidden" {...editPrForm.register("locationId")} />
               {editFn.error ? <p className="text-red-600 text-sm">{editFn.message}</p> : <></>}
               <div className="flex flex-row gap-2 justify-end mt-2">

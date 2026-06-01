@@ -13,6 +13,7 @@ const PurchaseSchema = new mongoose.Schema({
   estimatedPrice: { type: Number, required: true },
   date: { type: Date, Default: Date.now },
   finalPrice: { type: Number, required: false },
+  receivedQty: { type: Number, default: 0 },
   payAmount: { type: Number, Default: false },
   editable: { type: Boolean, required: true },
   unitCost: { type: Number, required: false },
