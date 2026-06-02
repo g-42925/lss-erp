@@ -130,6 +130,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/sales/quotations">Quotation</SidebarItem>
                 <SidebarItem href="/sales/order">Order</SidebarItem>
+                <SidebarItem href="/sales/refund">Refund Log</SidebarItem>
                 <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
                 <SidebarItem href="/sales/taxes">Taxes</SidebarItem>
               </ul>

@@ -19,20 +19,22 @@ LSS ERP is an Enterprise Resource Planning system built with Next.js (App Router
 - **Finance Assets**: Added asset sections (Cash, Bank, Inventory) to the COA report.
 - **Quotation Separation**: Split Product and Service quotations into separate models.
 - **Warehouse Management**: Added sub-warehouses under geographical locations.
+- **Superadmin Location Selection**: Implemented mandatory location assignment during super admin login.
 
-## Current Task: Super Admin Location Selection (COMPLETED)
+## Current Task: Product Refund & Restock (COMPLETED)
 
 ### Description
 
-Implemented a mandatory location selection step for super admin accounts that triggers after login but before accessing the main application.
+Implemented a mechanism to refund products directly from a sales order cart, log the refund into a new `RefundLog` collection, and allow users to store the refunded items back into the designated warehouse inventory.
 
 ### Implementation Results
 
-1. **Zustand State**: Added `setLocationId` action to `auth.ts` to persist the selected location.
-2. **Login Redirect**: Modified `login/page.tsx` to redirect super admins to `/select-location` instead of `/dashboard`.
-3. **Location Selection UI**: Created `/select-location/page.tsx`, a dedicated page that loads available locations based on the super admin's master account ID, allowing them to choose a location context before proceeding to the dashboard.
+1. **RefundLog Model**: Created `models/RefundLog.js` to securely track refund history independent of original purchase logs.
+2. **Backend API**: Added `/api/web/refund` with `POST` (create refund log) and `PUT` (restock to warehouse by creating a restocking batch).
+3. **Sales Order View**: Upgraded `/app/sales/order/page.tsx` with a dynamic Cart viewer per order, allowing partial or full quantity refunds against specific products.
+4. **Refund Log UI**: Created a new page `/sales/refund/page.tsx` to list active and processed refunds, providing an actionable "Store Back" feature for returned products.
+5. **Navigation**: Linked the "Refund Log" page into the system sidebar under Sales.
 
 ## Open Questions
 
-- Should we use a bitmask or a simple array of strings for permissions? *Array of strings is more readable and flexible for custom actions like 'approve'.*
-- How to handle SuperAdmin? *SuperAdmin bypasses standard roles but must explicitly select a location context upfront.*
+- Should a refund action automatically deduct the associated original Invoice value or Order balance, or should it remain strictly as a logging and restock mechanism? (*Currently operates as logging/restock mechanism as requested by user*).

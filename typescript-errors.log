@@ -1,0 +1,119 @@
+.next/dev/types/validator.ts(521,39): error TS2306: File '/home/muhammad/lss-erp/app/warehouse/refund/page.tsx' is not a module.
+.next/dev/types/validator.ts(774,31): error TS2344: Type 'typeof import("/home/muhammad/lss-erp/app/api/web/measure/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/web/measure">'.
+  Types of property 'GET' are incompatible.
+    Type '(request: NextResponse<unknown>) => Promise<NextResponse<{ noResult: boolean; message: string; result: any[]; error: boolean; }> | NextResponse<{ noResult: boolean; message: any; result: null; error: boolean; }>>' is not assignable to type '(request: NextRequest, context: { params: Promise<{}>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters 'request' and 'request' are incompatible.
+        Type 'NextRequest' is missing the following properties from type 'NextResponse<unknown>': [INTERNALS], ok, redirected, status, and 2 more.
+app/api/web/csale/route.ts(78,13): error TS18046: 'e' is of type 'unknown'.
+app/api/web/csale/route.ts(106,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+app/api/web/csale/route.ts(335,13): error TS18046: 'e' is of type 'unknown'.
+app/api/web/invoice/product/route.ts(44,30): error TS2339: Property '_doc' does not exist on type 'any[]'.
+app/api/web/invoice/product/route.ts(98,16): error TS18046: 'e' is of type 'unknown'.
+app/api/web/invoice/product/route.ts(205,16): error TS18046: 'e' is of type 'unknown'.
+app/api/web/invoice/product/route.ts(237,16): error TS18046: 'e' is of type 'unknown'.
+app/api/web/invoice/svc/route.ts(78,16): error TS18046: 'e' is of type 'unknown'.
+app/api/web/order/route.ts(242,46): error TS2339: Property '_id' does not exist on type 'any[]'.
+app/api/web/order/route.ts(315,30): error TS2339: Property '_id' does not exist on type 'any[]'.
+app/api/web/purchases/route.ts(465,30): error TS2339: Property '_doc' does not exist on type 'any[]'.
+app/api/web/service-csale/route.ts(65,73): error TS18047: 'obj.range' is possibly 'null'.
+app/api/web/service-csale/route.ts(65,73): error TS2365: Operator '>' cannot be applied to types 'FormDataEntryValue' and 'number'.
+app/api/web/service-csale/route.ts(66,14): error TS2790: The operand of a 'delete' operator must be optional.
+app/api/web/service-csale/route.ts(70,14): error TS2790: The operand of a 'delete' operator must be optional.
+app/api/web/service-csale/route.ts(71,14): error TS2790: The operand of a 'delete' operator must be optional.
+app/api/web/service-csale/route.ts(72,14): error TS2790: The operand of a 'delete' operator must be optional.
+app/api/web/service-csale/route.ts(73,14): error TS2790: The operand of a 'delete' operator must be optional.
+app/api/web/service-csale/route.ts(77,14): error TS2790: The operand of a 'delete' operator must be optional.
+app/api/web/service-csale/route.ts(143,75): error TS18047: 'obj.range' is possibly 'null'.
+app/api/web/service-csale/route.ts(143,75): error TS2365: Operator '<' cannot be applied to types 'FormDataEntryValue' and 'number'.
+app/api/web/service-csale/route.ts(189,16): error TS18046: 'e' is of type 'unknown'.
+app/api/web/service-csale/route.ts(217,16): error TS18046: 'e' is of type 'unknown'.
+app/api/web/stock/route.ts(177,21): error TS2339: Property '_doc' does not exist on type 'any[]'.
+app/batches/page.tsx(194,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/customers/page.tsx(17,47): error TS2339: Property 'roleDetail' does not exist on type 'Auth'.
+app/customers/page.tsx(176,50): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/finance/debt/page.tsx(152,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/finance/procurement/page.tsx(181,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/finance/purchases/page.tsx(182,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/finance/receivable/page.tsx(150,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/finance/xpurchases/page.tsx(176,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/finance/xpurchases/page.tsx(249,154): error TS2322: Type '{ children: Element; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/inventory/usage/page.tsx(114,37): error TS2339: Property 'used_at' does not exist on type 'InvUsage'.
+app/products/add/good/page.tsx(242,132): error TS2322: Type '{ children: Element[]; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/products/add/good/page.tsx(250,132): error TS2322: Type '{ children: Element; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/products/add/service/page.tsx(172,132): error TS2322: Type '{ children: Element[]; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/products/add/service/page.tsx(180,132): error TS2322: Type '{ children: Element; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/products/allocation/page.tsx(210,60): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/products/allocation/page.tsx(241,43): error TS7006: Parameter 'a' implicitly has an 'any' type.
+app/products/allocation/page.tsx(311,36): error TS7006: Parameter 'b' implicitly has an 'any' type.
+app/products/category/page.tsx(171,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/products/list/page.tsx(72,7): error TS2552: Cannot find name 'setRoles'. Did you mean 'setRole'?
+app/products/list/page.tsx(74,14): error TS2552: Cannot find name 'roles'. Did you mean 'role'?
+app/products/list/page.tsx(116,24): error TS2552: Cannot find name 'roles'. Did you mean 'role'?
+app/products/list/page.tsx(116,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/products/list/page.tsx(133,7): error TS2552: Cannot find name 'setRoles'. Did you mean 'setRole'?
+app/products/list/page.tsx(134,9): error TS2552: Cannot find name 'roles'. Did you mean 'role'?
+app/products/list/page.tsx(134,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/products/list/page.tsx(140,22): error TS2552: Cannot find name 'roles'. Did you mean 'role'?
+app/products/list/page.tsx(140,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+app/products/list/page.tsx(195,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/products/location/page.tsx(184,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/products/measure/page.tsx(159,7): error TS18047: 'editRef.current' is possibly 'null'.
+app/products/measure/page.tsx(184,5): error TS18047: 'editRef.current' is possibly 'null'.
+app/products/measure/page.tsx(231,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/products/unit/page.tsx(186,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/products/xedit/page.tsx(204,132): error TS2322: Type '{ children: Element; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/purchases/procurement/page.tsx(311,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/purchases/requisition/page.tsx(318,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/sales/order/page.tsx(397,46): error TS18048: 'a' is possibly 'undefined'.
+app/sales/order/page.tsx(397,50): error TS18048: 'b' is possibly 'undefined'.
+app/sales/order/page.tsx(400,14): error TS18048: 'a' is possibly 'undefined'.
+app/sales/order/page.tsx(400,18): error TS18048: 'b' is possibly 'undefined'.
+app/sales/order/page.tsx(404,14): error TS18048: '_discount' is possibly 'undefined'.
+app/sales/order/page.tsx(404,27): error TS18048: 'total' is possibly 'undefined'.
+app/sales/order/page.tsx(407,14): error TS18048: '_discount' is possibly 'undefined'.
+app/sales/order/page.tsx(737,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+app/sales/order/page.tsx(750,51): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/sales/order/page.tsx(987,33): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<string>'.
+app/sales/order/page.tsx(988,21): error TS2304: Cannot find name 'getTax'.
+app/sales/order/page.tsx(991,33): error TS2345: Argument of type 'number' is not assignable to parameter of type 'SetStateAction<string>'.
+app/sales/order/page.tsx(992,21): error TS2304: Cannot find name 'getTax'.
+app/sales/order/page.tsx(1014,47): error TS7006: Parameter 'p' implicitly has an 'any' type.
+app/sales/order/page.tsx(1027,49): error TS7006: Parameter 'l' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(144,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(149,40): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(149,45): error TS7006: Parameter 'current' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(175,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(180,40): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(180,45): error TS7006: Parameter 'current' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(355,55): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(355,58): error TS7006: Parameter 'index' implicitly has an 'any' type.
+app/sales/p-invoice/page.tsx(565,166): error TS2532: Object is possibly 'undefined'.
+app/sales/p-invoice/page.tsx(589,144): error TS2532: Object is possibly 'undefined'.
+app/sales/qservices/page.tsx(365,74): error TS2304: Cannot find name 'del'.
+app/sales/quotations/page.tsx(212,38): error TS2367: This comparison appears to be unintentional because the types 'boolean' and 'string' have no overlap.
+app/sales/quotations/page.tsx(589,28): error TS2339: Property 'productName' does not exist on type '{ productId: string; qty: number; subTotal: number; tax: boolean; }'.
+app/sales/quotations/page.tsx(591,20): error TS2551: Property 'taxes' does not exist on type '{ productId: string; qty: number; subTotal: number; tax: boolean; }'. Did you mean 'tax'?
+app/sales/quotations/page.tsx(688,32): error TS2304: Cannot find name 'getCartDisplayText'.
+app/sales/svc-invoice/page.tsx(239,55): error TS7006: Parameter 's' implicitly has an 'any' type.
+app/sales/svc-invoice/page.tsx(239,58): error TS7006: Parameter 'index' implicitly has an 'any' type.
+app/suppliers/page.tsx(10,26): error TS2307: Cannot find module 'next/dist/serverapi-utils' or its corresponding type declarations.
+app/suppliers/page.tsx(18,47): error TS2339: Property 'roleDetail' does not exist on type 'Auth'.
+app/suppliers/page.tsx(180,50): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/users/page.tsx(254,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/vendor/page.tsx(17,47): error TS2339: Property 'roleDetail' does not exist on type 'Auth'.
+app/vendor/page.tsx(173,50): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/warehouse/receiving/page.tsx(185,54): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/warehouse/rlog/page.tsx(62,36): error TS2304: Cannot find name 'search'.
+app/warehouse/rlog/page.tsx(62,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/xpurchases/page.tsx(312,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+app/xpurchases/page.tsx(377,156): error TS2322: Type '{ children: Element; xmlns: string; fill: string; viewBox: string; "stroke-width": string; stroke: string; class: string; }' is not assignable to type 'SVGProps<SVGSVGElement>'.
+  Property 'class' does not exist on type 'SVGProps<SVGSVGElement>'. Did you mean 'className'?
+app/xreceivable/page.tsx(108,9): error TS2304: Cannot find name 'setProducts'.
+app/xreceivable/page.tsx(141,52): error TS2339: Property 'value' does not exist on type 'EventTarget'.
+prisma-test.ts(1,10): error TS2305: Module '"@prisma/client"' has no exported member 'PrismaClient'.

@@ -20,6 +20,8 @@ export default function Order() {
   const modalRef = useRef<HTMLDialogElement>(null)
   const cartRef = useRef<HTMLDialogElement>(null)
   const customRef = useRef<HTMLDialogElement>(null)
+  const orderCartModalRef = useRef<HTMLDialogElement>(null)
+  const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [cart, setCart] = useState<any[]>([])
   const [discount, setDiscount] = useState<string>("0")
   const [directSellMode, setDirectSellMode] = useState<boolean>(false)
@@ -143,6 +145,39 @@ export default function Order() {
       alert(m)
     }
   })
+
+  const refundFn = useFetch<any, any>({
+    url: '/api/web/refund',
+    method: 'POST',
+    onError: (m) => alert(m)
+  })
+
+  function openOrderCartModal(order: any) {
+    setSelectedOrder(order)
+    orderCartModalRef.current?.showModal()
+  }
+
+  function handleRefund(orderId: string, item: any) {
+    const qtyToRefund = prompt(`How many units would you like to refund? (Max: ${item.qty})`, "1");
+    if(!qtyToRefund) return;
+    const qty = parseInt(qtyToRefund);
+    if(isNaN(qty) || qty <= 0 || qty > item.qty) {
+        alert("Invalid quantity.");
+        return;
+    }
+    const params = {
+      orderId: orderId,
+      productId: item.productId,
+      warehouseId: item.warehouseId,
+      qty: qty,
+      refundAmount: Math.round((item.subTotal / item.qty) * qty)
+    }
+
+    refundFn.fn('', JSON.stringify(params), (res) => {
+        alert("Refund successful! A refund log has been created.");
+        orderCartModalRef.current?.close();
+    })
+  }
 
   const directSellFn = useFetch<any, any>({
     url: '/api/web/csale',
@@ -870,9 +905,16 @@ export default function Order() {
                                 <td>{x.payTerm ? new Date(x.payTerm).toLocaleString("id-ID") : '-'}</td>
                                 <td>{x.pickupDate ? new Date(x.pickupDate).toLocaleString("id-ID") : '-'}</td>
                                 <td>
-                                  <button onClick={() => activateInvoice(x.salesOrderNumber)}>
-                                    {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon icon={AddInvoiceIcon} />}
-                                  </button>
+                                  <div className="flex flex-row gap-2 justify-center">
+                                    <button title="View Cart / Refund" onClick={() => openOrderCartModal(x)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+                                      </svg>
+                                    </button>
+                                    <button onClick={() => activateInvoice(x.salesOrderNumber)} title="Activate Invoice">
+                                      {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon icon={AddInvoiceIcon} />}
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             )
@@ -1011,6 +1053,50 @@ export default function Order() {
               <button type="button" onClick={() => cartToggle("toCart")} className="btn bg-red-900 text-white">Cart</button>
             </div>
           </form>
+        </dialog>
+
+        <dialog ref={orderCartModalRef} className="modal text-black">
+          <div className="modal-box w-11/12 max-w-5xl flex flex-col gap-3">
+            <h3 className="text-lg font-bold">Order Cart: {selectedOrder?.salesOrderNumber}</h3>
+            <div className="overflow-x-auto">
+              <table className="table table-zebra w-full text-center">
+                <thead>
+                  <tr>
+                    <th>Product Name</th>
+                    <th>Warehouse</th>
+                    <th>Qty</th>
+                    <th>Subtotal</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder?.cart?.map((item: any, idx: number) => {
+                    const prodName = getProductsFn.result?.find((p: any) => p._id === item.productId)?.productName || 'Unknown';
+                    const locName = getDSaleStockFn.result?.find((l: any) => l._id === item.warehouseId)?.name || 'Unknown';
+                    return (
+                      <tr key={idx}>
+                        <td>{prodName}</td>
+                        <td>{locName}</td>
+                        <td>{item.qty}</td>
+                        <td>{item.subTotal}</td>
+                        <td>
+                          <button 
+                            className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
+                            onClick={() => handleRefund(selectedOrder._id, item)}
+                          >
+                            {refundFn.loading ? 'Refunding...' : 'Refund Log'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-action">
+              <button type="button" className="btn" onClick={() => orderCartModalRef.current?.close()}>Close</button>
+            </div>
+          </div>
         </dialog>
 
       </>
