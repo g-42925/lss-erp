@@ -81,13 +81,18 @@ export default function Measure() {
       id: masterAccountId,
     })
 
-    console.log(JSON.parse(body))
-
-
     await addFn.fn('', body, (r) => {
       const supplier = getSuppliersFn.result?.find((s) => s._id == data.supplierId)
       const product = getFn.result?.find((s) => s._id == data.productId)
-      const newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
+      const newMeasurement = {
+        supplier,
+        product,
+        unit: r.unit,
+        ratio: r.ratio,
+        conversionRatioX: r.conversionRatioX,
+        conversionRatioY: r.conversionRatioY,
+        _id: r._id
+      }
       setMeasurement([newMeasurement, ...measurements])
       modalRef.current?.close()
     })
@@ -142,19 +147,27 @@ export default function Measure() {
   }
 
   async function editSubmit(data: any) {
-    const param = JSON.stringify(data)
 
-    await editFn.fn('', param, r => {
+    await editFn.fn('', JSON.stringify(data), r => {
       const supplier = getSuppliersFn.result?.find((s) => s._id == r.supplierId)
       const product = getFn.result?.find((s) => s._id == r.productId)
-      const newMeasurement = { supplier, product, unit: r.unit, ratio: r.ratio }
+      const newMeasurement = {
+        supplier,
+        product,
+        unit: r.unit,
+        ratio: r.ratio,
+        conversionRatioX: r.conversionRatioX,
+        conversionRatioY: r.conversionRatioY,
+        _id: r._id
+      }
 
       const [target] = measurements.filter((m) => m._id == r._id)
 
       target.ratio = newMeasurement.ratio
       target.supplier = newMeasurement.supplier
       target.product = newMeasurement.product
-      target.unit = newMeasurement.unit
+      target.conversionRatioX = newMeasurement.conversionRatioX
+      target.conversionRatioY = newMeasurement.conversionRatioY
 
       editRef.current.close()
 
@@ -176,7 +189,8 @@ export default function Measure() {
     editForm.reset({
       supplierId: m.supplier._id,
       productId: m.product._id,
-      unit: m.unit,
+      conversionRatioX: m.conversionRatioX,
+      conversionRatioY: m.conversionRatioY,
       ratio: m.ratio,
       _id: m._id
     })
@@ -228,7 +242,7 @@ export default function Measure() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -249,7 +263,8 @@ export default function Measure() {
                       <tr>
                         <th>Supplier</th>
                         <th>Product</th>
-                        <th>Unit</th>
+                        <th>From</th>
+                        <th>To</th>
                         <th>Ratio</th>
                         <th>...</th>
                       </tr>
@@ -263,7 +278,8 @@ export default function Measure() {
                               <tr key={index}>
                                 <td>{m.supplier.bussinessName}</td>
                                 <td>{m.product.productName}</td>
-                                <td>{m.unit}</td>
+                                <td>{m.conversionRatioX}</td>
+                                <td>{m.conversionRatioY}</td>
                                 <td>{m.ratio}</td>
                                 <td>
                                   <button onClick={() => edit(m)}>
@@ -303,10 +319,10 @@ export default function Measure() {
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box ">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Measurement</span>
-            <form onSubmit={editForm.handleSubmit(editSubmit)} className="h-99 relative flex flex-col">
+            <form onSubmit={editForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>
                 <select {...editForm.register("supplierId")} className="select w-full">
@@ -334,8 +350,21 @@ export default function Measure() {
                 </select>
               </fieldset>
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Unit</legend>
-                <select {...editForm.register("unit")} className="select w-full">
+                <legend className="fieldset-legend">From</legend>
+                <select {...editForm.register("conversionRatioX")} className="select w-full">
+                  <option value={''}>Select unit:</option>
+                  {
+                    getUnitFn?.result?.map((p, index) => {
+                      return (
+                        <option key={index} value={p.name}>{p.name}</option>
+                      )
+                    })
+                  }
+                </select>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">To</legend>
+                <select {...editForm.register("conversionRatioY")} className="select w-full">
                   <option value={''}>Select unit:</option>
                   {
                     getUnitFn?.result?.map((p, index) => {
@@ -359,7 +388,7 @@ export default function Measure() {
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box h-140">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Measurement</span>
             <form onSubmit={newMeasureForm.handleSubmit(submit)} className="h-99 relative flex flex-col">
@@ -390,8 +419,21 @@ export default function Measure() {
                 </select>
               </fieldset>
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Unit</legend>
-                <select {...newMeasureForm.register("unit")} className="select w-full">
+                <legend className="fieldset-legend">From</legend>
+                <select {...newMeasureForm.register("conversionRatioX")} className="select w-full">
+                  <option value={''}>Select unit:</option>
+                  {
+                    getUnitFn?.result?.map((p, index) => {
+                      return (
+                        <option key={index} value={p.name}>{p.name}</option>
+                      )
+                    })
+                  }
+                </select>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">To</legend>
+                <select {...newMeasureForm.register("conversionRatioY")} className="select w-full">
                   <option value={''}>Select unit:</option>
                   {
                     getUnitFn?.result?.map((p, index) => {
@@ -407,7 +449,7 @@ export default function Measure() {
                 <input {...newMeasureForm.register("ratio")} type="text" className="input w-full" />
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="p-3 rounded-md mt-4 text-white bg-blue-900">
                 Add
               </button>
             </form>

@@ -66,13 +66,13 @@ export default function List() {
       page: pages
     })
 
-    await addFn.fn('', body, (role) => {
+    await addFn.fn('', body, (newRole) => {
       modalRef.current?.close()
 
-      setRoles(
+      setProducts(
         [
-          ...roles,
-          role,
+          ...products,
+          newRole,
         ]
       )
 
@@ -113,7 +113,7 @@ export default function List() {
     })
 
     await putFn.fn('', body, (result) => {
-      const [target] = roles.filter((r) => r._id == result._id)
+      const [target] = products.filter((r: any) => r._id == result._id)
 
       Object.keys(target).forEach(key => {
         target[key] = result[key]
@@ -130,14 +130,14 @@ export default function List() {
     const body = JSON.stringify({})
 
     await deleteFn.fn(url, body, (result) => {
-      setRoles(
-        roles.filter((r) => r._id != result)
+      setProducts(
+        products.filter((r: any) => r._id != result)
       )
     })
   }
 
   async function edit(_id: string) {
-    const [filter] = roles.filter((r) => r._id == _id)
+    const [filter] = products.filter((r: any) => r._id == _id)
 
     editRoleForm.reset({
       _id: filter._id,
@@ -192,7 +192,7 @@ export default function List() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -314,7 +314,6 @@ export default function List() {
             <form onSubmit={newRoleForm.handleSubmit(submit)} className="h-96 relative flex flex-col gap-3">
               <input {...newRoleForm.register("name")} type="text" placeholder="new role name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <select {...newRoleForm.register("permission")} className="select w-full">
-                <option disabled selected>select permission</option>
                 <option value="readonly">Read only</option>
                 <option value="addonly">Add only</option>
                 <option value="addandedit">Add and edit</option>

@@ -179,7 +179,7 @@ export default function Purchases() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -218,7 +218,7 @@ export default function Purchases() {
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.product.productName}</td>
-                                <td>{p.quantity} ({p.product.purchaseUnit})</td>
+                                <td>{p.quantity} ({p.product.conversionRatioX})</td>
                                 <td>{p.estimatedPrice}</td>
                                 <td>
                                   {
@@ -238,7 +238,7 @@ export default function Purchases() {
                                       "-"
                                   }
                                 </td>
-                                <td>{p.receivedQty} ({p.product.purchaseUnit})</td>
+                                <td>{p.receivedQty} ({p.product.conversionRatioX})</td>
                                 <td>{p.status}</td>
                                 <td className="flex flex-row gap-3">
                                   {

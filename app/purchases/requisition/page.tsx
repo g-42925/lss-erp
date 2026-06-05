@@ -315,7 +315,7 @@ function Requisition() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -354,8 +354,8 @@ function Requisition() {
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
-                                <td>{p.product.productName}</td>
-                                <td>{p.quantity} ({p.product.purchaseUnit})</td>
+                                <td>{p?.product?.productName}</td>
+                                <td>{p.quantity} ({p?.product?.conversionRatioX})</td>
                                 {
                                   p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
                                 }
@@ -364,7 +364,7 @@ function Requisition() {
                                 }
                                 <td>{p.status}</td>
                                 {
-                                  p.status === "ordered" || p.status === "completed" ? <td>{p.supplier.bussinessName}</td> : <td>-</td>
+                                  p.status === "ordered" || p.status === "completed" ? <td>{p?.supplier?.bussinessName}</td> : <td>-</td>
                                 }
                                 {
                                   p.status === "ordered" || p.status === "completed"
@@ -441,7 +441,7 @@ function Requisition() {
                     {
                       products.map((p) => {
                         return (
-                          <option key={p._id} value={p._id}>{p.productName} ({p.purchaseUnit})</option>
+                          <option key={p._id} value={p._id}>{p.productName} ({p.conversionRatioX})</option>
                         )
                       })
                     }
@@ -476,7 +476,7 @@ function Requisition() {
                     {
                       products.map((p) => {
                         return (
-                          <option key={p._id} value={p._id}>{p.productName} ({p.purchaseUnit})</option>
+                          <option key={p._id} value={p._id}>{p.productName} ({p.conversionRatioX})</option>
                         )
                       })
                     }
@@ -516,9 +516,9 @@ function Requisition() {
                 <legend className="fieldset-legend">Final price</legend>
                 <input className="input w-full" {...orderForm.register("finalPrice")} type="text" />
               </fieldset>
-              <fieldset className="fieldset">
+              <fieldset className="fieldset hidden">
                 <legend className="fieldset-legend">Pay amount</legend>
-                <input defaultValue={0} className="input w-full" {...orderForm.register("payAmount")} type="text" />
+                <input readOnly defaultValue={0} className="input w-full" {...orderForm.register("payAmount")} type="text" />
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>

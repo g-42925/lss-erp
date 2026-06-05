@@ -182,7 +182,7 @@ export default function Receiving() {
             </div>
             <div className="ml-auto flex flex-row gap-3">
               <input defaultValue={new Date().toISOString().split("T")[0]} onChange={() => alert('ok')} type="date" className="border-1 border-black rounded-md p-3" />
-              <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="border-1 border-black rounded-md p-3" />
+              <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="border-1 border-black rounded-md p-3" />
             </div>
           </div>
           {
@@ -220,10 +220,10 @@ export default function Receiving() {
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
                                 <td>{p.product?.productName || p.product?.name || '-'}</td>
-                                <td>{p.quantity} ({p.product?.purchaseUnit || p.product?.unit || '-'})</td>
+                                <td>{p.quantity} ({p.product.conversionRatioX})</td>
                                 <td>
                                   <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }}>
-                                    {p.receivedQty}
+                                    {p.receivedQty} ({p.product.conversionRatioX})
                                   </Link>
                                 </td>
                                 <td>

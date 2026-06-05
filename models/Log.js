@@ -15,7 +15,8 @@ const logSchema = new mongoose.Schema({
   },
   amount: {
     type: Number,
-    required: true
+    required: false,
+    default: 0
   },
   initial: {
     type: Boolean,

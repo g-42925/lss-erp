@@ -160,8 +160,8 @@ export default function XPurchases() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Purchases</span>
+      <div className="h-full p-6 flex flex-col gap-3 text-black">
+        <span className="text-2xl text-black">Purchases</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
             <div className="flex flex-row gap-2 items-center">
@@ -173,7 +173,7 @@ export default function XPurchases() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -246,7 +246,7 @@ export default function XPurchases() {
                                     p.status === "ordered"
                                       ?
                                       <button onClick={() => _edit(p._id)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                         </svg>
                                       </button>
@@ -287,7 +287,7 @@ export default function XPurchases() {
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal">
-        <div className="modal-box">
+        <div className="modal-box text-black">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>
             <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col">

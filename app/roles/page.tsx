@@ -207,7 +207,7 @@ function Roles() {
           </div>
 
           <div className="flex flex-row gap-4">
-            <input onChange={(e) => search(e.target.value)} type="search" placeholder="Filter roles..." className="input input-bordered w-full max-w-xs text-black" />
+            <input onChange={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Filter roles..." className="input input-bordered w-full max-w-xs text-black" />
           </div>
 
           <div className="overflow-x-auto">

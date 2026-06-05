@@ -82,8 +82,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <SidebarItem href="/products/add/good">New</SidebarItem>
                 <SidebarItem href="/products/category">Category</SidebarItem>
                 <SidebarItem href="/products/unit">Unit</SidebarItem>
-                <SidebarItem href="/products/stock">Stock</SidebarItem>
                 <SidebarItem href="/products/measure">Measure</SidebarItem>
+                <SidebarItem href="/inventory/exit">Exit</SidebarItem>
               </ul>
             </details>
           </li>
@@ -93,9 +93,9 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             <details>
               <summary>Warehouse</summary>
               <ul>
+                <SidebarItem href="/warehouse/delivery">Delivery</SidebarItem>
                 <SidebarItem href="/warehouse/new">New</SidebarItem>
                 <SidebarItem href="/warehouse/receiving">Receiving</SidebarItem>
-                <SidebarItem href="/warehouse/delivery">Delivery</SidebarItem>
                 <SidebarItem href="/warehouse/refund">Refund</SidebarItem>
               </ul>
             </details>
@@ -136,6 +136,18 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               </ul>
             </details>
           </li>
+
+          <li>
+            <details>
+              <summary>Report</summary>
+              <ul>
+                <SidebarItem href="/inventory/stock-report">Stock Report</SidebarItem>
+                <SidebarItem href="/work-orders">Work Orders</SidebarItem>
+              </ul>
+            </details>
+          </li>
+
+          {/* Work Orders */}
 
           {/* Finance */}
           <li>

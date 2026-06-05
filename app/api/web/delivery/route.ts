@@ -6,6 +6,8 @@ import Companie from '@/models/Companie'
 import Batches from '@/models/Batche'
 import Deliverie from '@/models/Deliverie'
 import Product from "@/models/Product";
+import Reservation from "@/models/Reservation";
+import OutboundLog from "@/models/OutboundLog";
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,21 +21,38 @@ export async function POST(request: NextRequest) {
 
     // Process each item in the delivery
     for (const item of params.items) {
-      // 1. Update Batch outQty
-      await Batches.updateOne(
-        {
-          batchNumber: item.batchNumber
-        },
-        {
-          $inc: {
-            outQty: item.qty
-          }
-        }
-      )
-
-      // 2. Update Product stockValue
       const batch = await Batches.findOne({ batchNumber: item.batchNumber })
       const product = await Product.findOne({ _id: batch.productId })
+
+      const reservation = await Reservation.findOne({
+        salesOrderNumber: params.salesOrderNumber,
+        batchId: batch._id
+      });
+      
+      if (reservation) {
+        // 1. Update Batch outQty and decrease reserved
+        await Batches.updateOne(
+          { _id: batch._id },
+          {
+            $inc: {
+              reserved: -parseFloat(item.qty),
+              outQty: parseFloat(item.qty)
+            }
+          }
+        )
+      } else {
+        // 1. Update Batch outQty only
+        await Batches.updateOne(
+          { _id: batch._id },
+          {
+            $inc: {
+              outQty: parseFloat(item.qty)
+            }
+          }
+        )
+      }
+
+      // 2. Update Product stockValue
 
       const [_product] = await Product.aggregate([
         {
@@ -135,6 +154,13 @@ export async function POST(request: NextRequest) {
           { stockValue: modified }
         )
       }
+
+      await OutboundLog.create({
+        warehouseId: batch.warehouseId || item.locationId,
+        productId: product._id,
+        quantity: parseFloat(item.qty),
+        date: new Date()
+      });
     }
 
     const delivered = await Deliverie.create({
@@ -192,6 +218,11 @@ export async function GET(request: NextRequest) {
       // Get all previous deliveries for this order to calculate remaining quantities
       const existingDeliveries = await Deliverie.find({ salesOrderNumber: so })
 
+      // Get all reservations for this order
+      const reservations = await Reservation.find({ salesOrderNumber: so });
+      const reservedBatchIds = reservations.map(r => r.batchId);
+      const reservedBatches = await Batches.find({ _id: { $in: reservedBatchIds } });
+
       const results = await Promise.all(order.cart.map(async (item: any) => {
         const productId = item.productId._id || item.productId
 
@@ -205,12 +236,20 @@ export async function GET(request: NextRequest) {
           })
         })
 
+        // Check if there are reservations for this product
+        const productReservedBatches = reservedBatches.filter(b => b.productId.toString() === productId.toString());
+        const productReservedBatchIds = productReservedBatches.map(b => b._id);
+        const isReservedForProduct = productReservedBatchIds.length > 0;
+
+        let batchMatchQuery: any = { productId: productId };
+        if (isReservedForProduct) {
+          batchMatchQuery._id = { $in: productReservedBatchIds };
+        }
+
         // Fetch available batches for this product
         const batches = await Batches.aggregate([
           {
-            $match: {
-              productId: productId
-            }
+            $match: batchMatchQuery
           },
           {
             $lookup: {

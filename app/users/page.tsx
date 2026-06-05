@@ -251,7 +251,7 @@ export default function Users() {
                 Print
               </div>
             </div>
-            <input onKeyUp={(e) => search(e.target.value)} type="search" placeholder="Search" className="text-black ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="text-black ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getUsersFn.loading

@@ -207,7 +207,7 @@ export default function Allocation() {
 							</select>
 							Entries
 						</div>
-						<input type="search" onKeyUp={(e) => search(e.target.value)} placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+						<input type="search" onKeyUp={(e) => search((e.target as HTMLInputElement).value)} placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
 					</div>
 					{
 						logFn.loading

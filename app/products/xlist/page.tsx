@@ -118,7 +118,7 @@ export default function XList() {
               </select>
               Entries
             </div>
-            <input onChange={(e) => { setQuery(e.target.value); search(e.target.value); }} value={query} type="search" placeholder="Search Services" className="ml-auto border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input onChange={(e) => { setQuery((e.target as HTMLInputElement).value); search((e.target as HTMLInputElement).value); }} value={query} type="search" placeholder="Search Services" className="ml-auto border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           {
             getFn.loading

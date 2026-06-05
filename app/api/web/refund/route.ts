@@ -6,22 +6,36 @@ import Order from '@/models/Order';
 import Batches from '@/models/Batche';
 import Product from '@/models/Product';
 import Warehouse from '@/models/Warehouse';
+import Companie from '@/models/Companie';
+import InboundLog from '@/models/InboundLog';
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
-    
+
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: true, message: "Company ID is required", noResult: true, result: null });
+    }
+
+    const company = await Companie.findOne({ masterAccountId: id });
+    if (!company) {
+      return NextResponse.json({ error: true, message: "Company not found", noResult: true, result: null });
+    }
+
     // Default to populate if needed
-    const refunds = await RefundLog.find()
+    const refunds = await RefundLog.find({ companyId: company._id })
       .populate('salesOrderId')
       .populate('productId')
       .populate('warehouseId')
       .sort({ createdAt: -1 });
 
     return NextResponse.json({
-      noResult: refunds.length === 0,
-      message: "success",
+      noResult: false,
+      message: "",
       result: refunds,
       error: false
     });
@@ -39,7 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const params = await request.json();
-    
+
     // We expect companyId, orderId, productId, warehouseId, qty, refundAmount
     const order = await Order.findById(params.orderId);
     if (!order) {
@@ -90,9 +104,9 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const params = await request.json();
-    
+
     if (!params.id) {
-       return NextResponse.json({ error: true, message: "RefundLog ID is required" });
+      return NextResponse.json({ error: true, message: "RefundLog ID is required" });
     }
 
     const refund = await RefundLog.findById(params.id);
@@ -126,6 +140,10 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    if (!refund.warehouseId) {
+      return NextResponse.json({ error: true, message: "No warehouse associated with this refund. Please adjust stock manually." });
+    }
+
     const warehouse = await Warehouse.findById(refund.warehouseId);
 
     // Build batch data — only include locationId if it is actually present
@@ -142,6 +160,7 @@ export async function PUT(request: NextRequest) {
       note: `Refund store-back from Order: ${refund.salesOrderNumber} (${qtyToStore} of ${refund.qty})`
     };
 
+
     // Only attach locationId when the warehouse provides one
     const locationId = warehouse?.locationId ?? null;
     if (locationId) {
@@ -150,6 +169,14 @@ export async function PUT(request: NextRequest) {
 
     // Store back into warehouse (create a new batch)
     await Batches.create(batchData);
+
+    await InboundLog.create({
+      warehouseId: refund.warehouseId,
+      productId: refund.productId,
+      quantity: qtyToStore,
+      date: new Date(),
+    })
+
 
     // Update the refund log
     const newStored = alreadyStored + qtyToStore;
@@ -171,7 +198,8 @@ export async function PUT(request: NextRequest) {
       result: refund,
       error: false
     });
-  } catch (e: any) {
+  }
+  catch (e: any) {
     return NextResponse.json({
       noResult: true,
       message: e.message,

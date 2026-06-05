@@ -155,8 +155,8 @@ export default function Add() {
             </div>
             <div className="flex flex-row gap-3">
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Purchase unit</legend>
-                <select {...productForm.register("purchaseUnit")} className="select w-full">
+                <legend className="fieldset-legend">From</legend>
+                <select {...productForm.register("conversionRatioX")} className="select w-full">
                   {
                     units.map((c) => {
                       return (
@@ -167,20 +167,8 @@ export default function Add() {
                 </select>
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Warehouse unit</legend>
-                <select {...productForm.register("warehouseUnit")} className="select w-full">
-                  {
-                    units.map((c) => {
-                      return (
-                        <option key={c._id}>{c.name}</option>
-                      )
-                    })
-                  }
-                </select>
-              </fieldset>
-              <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Sale unit</legend>
-                <select {...productForm.register("saleUnit")} className="select w-full">
+                <legend className="fieldset-legend">To</legend>
+                <select {...productForm.register("conversionRatioY")} className="select w-full">
                   {
                     units.map((c) => {
                       return (
@@ -239,7 +227,7 @@ export default function Add() {
               </button>
               <button disabled={addProductsFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
                 <Link href="/products/list">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                   </svg>
@@ -247,7 +235,7 @@ export default function Add() {
               </button>
               <button disabled={addProductsFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
                 <Link href="/products/add/service">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                   </svg>
                 </Link>

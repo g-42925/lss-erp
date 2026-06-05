@@ -12,6 +12,7 @@ import Log from '@/models/Log'
 import Warehouse from '@/models/Warehouse'
 import Location from '@/models/Location'
 import InvItem from '@/models/InvItem'
+import InboundLog from '@/models/InboundLog'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -243,7 +244,7 @@ export async function PUT(request: NextRequest) {
 
           const product = await Product.findById(rest.productId)
 
-          if (product && product.toObject().purchaseUnit != product.toObject().warehouseUnit) {
+          if (product && product.toObject().conversionRatioX != product.toObject().conversionRatioY) {
             const config = await Measurement.findOne({
               productId: rest.productId,
               supplierId: spl._id,
@@ -265,24 +266,46 @@ export async function PUT(request: NextRequest) {
                 }
               )
             }
+
+            await Purchase.findByIdAndUpdate(_id, {
+              ...rest,
+              status: 'ordered',
+              ...splMeasurementConfig
+            })
+
+            const result = { ...body, spl }
+
+            return NextResponse.json(
+              {
+                noResult: false,
+                message: "",
+                result: result,
+                error: false
+              }
+            )
+          }
+          else {
+            await Purchase.findByIdAndUpdate(_id, {
+              ...rest,
+              status: 'ordered',
+              ...splMeasurementConfig
+            })
+
+            const result = { ...body }
+
+            return NextResponse.json(
+              {
+                noResult: false,
+                message: "",
+                result: result,
+                error: false
+              }
+            )
           }
 
-          await Purchase.findByIdAndUpdate(_id, {
-            ...rest,
-            status: 'ordered',
-            ...splMeasurementConfig
-          })
 
-          const result = { ...body, spl }
 
-          return NextResponse.json(
-            {
-              noResult: false,
-              message: "",
-              result: result,
-              error: false
-            }
-          )
+
         }
         else {
           const vnd = await Vendor.findById(rest.vendorId)
@@ -324,19 +347,19 @@ export async function PUT(request: NextRequest) {
       const purchase = await Purchase.findById(_id)
 
       if (purchase.purchaseType === 'procurement') {
-          // For procurement, we don't update Product stock values or create Batches the same way.
-          await Purchase.findByIdAndUpdate(_id, {
-            $inc: { receivedQty: parseInt(rest.qty) }
-          });
-          await InvItem.findByIdAndUpdate(purchase.productId, {
-            $inc: { currentStock: parseInt(rest.qty) }
-          });
-          return NextResponse.json({
-            noResult: false,
-            message: "",
-            result: {},
-            error: false
-          })
+        // For procurement, we don't update Product stock values or create Batches the same way.
+        await Purchase.findByIdAndUpdate(_id, {
+          $inc: { receivedQty: parseInt(rest.qty) }
+        });
+        await InvItem.findByIdAndUpdate(purchase.productId, {
+          $inc: { currentStock: parseInt(rest.qty) }
+        });
+        return NextResponse.json({
+          noResult: false,
+          message: "",
+          result: {},
+          error: false
+        })
       }
 
       if (purchase.toObject().hasOwnProperty('measurementId')) {
@@ -377,6 +400,16 @@ export async function PUT(request: NextRequest) {
           reserved: 0,
           locationId: resolvedLocationId
         })
+
+        console.log(rest)
+
+        await InboundLog.create({
+          warehouseId: rest.warehouseId,
+          productId: purchase.productId,
+          date: new Date(),
+          quantity: config.ratio * rest.qty,
+        })
+
       }
       else {
         const product = await Product.findById(purchase.productId)
@@ -411,6 +444,17 @@ export async function PUT(request: NextRequest) {
           reserved: 0,
           locationId: resolvedLocationId
         })
+
+        console.log(rest)
+
+        await InboundLog.create({
+          warehouseId: rest.warehouseId,
+          productId: purchase.productId,
+          date: new Date(),
+          quantity: rest.qty,
+        })
+
+        console.log(rest)
       }
 
       return NextResponse.json({

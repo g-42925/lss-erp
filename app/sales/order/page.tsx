@@ -532,8 +532,10 @@ export default function Order() {
       const payTerm = r.payTerm
 
       const result = {
+        _id: r._id,
         saleDate,
         salesOrderNumber,
+        cart: r.cart,
         product,
         variousItem,
         quantity,
@@ -1070,26 +1072,68 @@ export default function Order() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedOrder?.cart?.map((item: any, idx: number) => {
-                    const prodName = getProductsFn.result?.find((p: any) => p._id === item.productId)?.productName || 'Unknown';
-                    const locName = getDSaleStockFn.result?.find((l: any) => l._id === item.warehouseId)?.name || 'Unknown';
-                    return (
-                      <tr key={idx}>
-                        <td>{prodName}</td>
-                        <td>{locName}</td>
-                        <td>{item.qty}</td>
-                        <td>{item.subTotal}</td>
-                        <td>
-                          <button 
-                            className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
-                            onClick={() => handleRefund(selectedOrder._id, item)}
-                          >
-                            {refundFn.loading ? 'Refunding...' : 'Refund Log'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {selectedOrder?.cart && selectedOrder.cart.length > 0
+                    ? selectedOrder.cart.map((item: any, idx: number) => {
+                        const prodId = item.productId?._id || item.productId
+                        const whId = item.warehouseId?._id || item.warehouseId
+                        const prodName =
+                          item.productId?.productName ||
+                          getProductsFn.result?.find((p: any) => p._id?.toString() === prodId?.toString())?.productName ||
+                          'Unknown'
+                        const locName =
+                          getDSaleStockFn.result?.find((l: any) => l._id?.toString() === whId?.toString())?.name ||
+                          'Unknown'
+                        const refundItem = {
+                          productId: prodId,
+                          warehouseId: whId,
+                          qty: item.qty,
+                          subTotal: item.subTotal
+                        }
+                        return (
+                          <tr key={idx}>
+                            <td>{prodName}</td>
+                            <td>{locName}</td>
+                            <td>{item.qty}</td>
+                            <td>{item.subTotal}</td>
+                            <td>
+                              <button
+                                className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
+                                onClick={() => handleRefund(selectedOrder._id, refundItem)}
+                              >
+                                {refundFn.loading ? 'Refunding...' : 'Refund Log'}
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    : selectedOrder?.product && typeof selectedOrder.product === 'object'
+                      ? (
+                          <tr>
+                            <td>{selectedOrder.product.productName || 'Unknown'}</td>
+                            <td>-</td>
+                            <td>{selectedOrder.quantity ?? '-'}</td>
+                            <td>{selectedOrder.total ?? '-'}</td>
+                            <td>
+                              <button
+                                className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
+                                onClick={() => handleRefund(selectedOrder._id, {
+                                  productId: selectedOrder.product._id,
+                                  warehouseId: null,
+                                  qty: selectedOrder.quantity,
+                                  subTotal: selectedOrder.total
+                                })}
+                              >
+                                {refundFn.loading ? 'Refunding...' : 'Refund Log'}
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      : (
+                          <tr>
+                            <td colSpan={5} className="text-center text-gray-500 py-4">No cart data available for this order.</td>
+                          </tr>
+                        )
+                  }
                 </tbody>
               </table>
             </div>

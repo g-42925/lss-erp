@@ -10,20 +10,22 @@ export async function GET(request: NextRequest) {
     await connectToDatabase()
 
     if (!purchaseId) {
-       return NextResponse.json({
-         noResult: true,
-         message: "purchaseId is required",
-         result: null,
-         error: true
-       })
+      return NextResponse.json({
+        noResult: true,
+        message: "purchaseId is required",
+        result: null,
+        error: true
+      })
     }
 
-    const logs = await Log.find({ purchaseId }).sort({ date: 1 });
+    const logs = await Log.find({ purchaseId })
+
+    const filteredLogs = logs.filter((l) => l.amount !== 0)
 
     return NextResponse.json({
       noResult: logs.length === 0,
       message: "",
-      result: logs,
+      result: filteredLogs,
       error: false
     })
   }

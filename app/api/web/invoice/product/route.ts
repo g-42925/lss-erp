@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
 import Order from '@/models/Order'
+import Reservation from '@/models/Reservation'
 
 export async function POST(request: NextRequest) {
 
@@ -224,6 +225,7 @@ export async function PUT(request: NextRequest) {
         $set: params
       }
     )
+
     return NextResponse.json({
       noResult: false,
       message: "",

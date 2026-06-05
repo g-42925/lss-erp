@@ -110,8 +110,8 @@ export default function Add() {
           description: r.description,
           applicableTax: r.applicableTax,
           sellingPriceTaxType: r.sellingPriceTaxType,
-          warehouseUnit: r.warehouseUnit,
-          saleUnit: r.saleUnit,
+          conversionRatioX: r.conversionRatioX,
+          conversionRatioY: r.conversionRatioY,
           sellingPrice: r.sellingPrice,
           image: r.image,
           discountType: r.discountType,
@@ -185,8 +185,8 @@ export default function Add() {
             </div>
             <div className="flex flex-row gap-3">
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Purchase unit</legend>
-                <select {...productForm.register("purchaseUnit")} className="select w-full">
+                <legend className="fieldset-legend">From</legend>
+                <select {...productForm.register("conversionRatioX")} className="select w-full">
                   {
                     units.map((c) => {
                       return (
@@ -197,8 +197,8 @@ export default function Add() {
                 </select>
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Warehouse unit</legend>
-                <select {...productForm.register("warehouseUnit")} className="select w-full">
+                <legend className="fieldset-legend">To</legend>
+                <select {...productForm.register("conversionRatioY")} className="select w-full">
                   {
                     units.map((c) => {
                       return (

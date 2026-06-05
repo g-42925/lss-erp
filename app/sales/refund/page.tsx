@@ -30,7 +30,7 @@ export default function RefundLog() {
   const [storeQty, setStoreQty] = useState<number>(0)
 
   const getRefundsFn = useFetch<RefundEntry[], unknown>({
-    url: `/api/web/refund`,
+    url: `/api/web/refund?id=xxx`,
     method: 'GET',
     onError: (m) => alert(m)
   })
@@ -42,8 +42,9 @@ export default function RefundLog() {
   })
 
   useEffect(() => {
-    if (hasHydrated) {
-      getRefundsFn.fn('', JSON.stringify({}), (res) => {
+    if (hasHydrated && masterAccountId) {
+      const url = `/api/web/refund?id=${masterAccountId}`
+      getRefundsFn.fn(url, JSON.stringify({}), (res) => {
         setRefunds(res)
       })
     }
@@ -151,13 +152,15 @@ export default function RefundLog() {
                       <td>{x.storedBackAt ? new Date(x.storedBackAt).toLocaleString("id-ID") : '-'}</td>
                       <td>
                         {x.status !== 'stored_back' && (
-                          <button
-                            className="btn btn-sm btn-primary text-white"
-                            onClick={() => openModal(x)}
-                            disabled={putRefundFn.loading}
-                          >
-                            Store Back
-                          </button>
+                          <div className="tooltip tooltip-left" data-tip={x.warehouseId ? "" : "No warehouse associated. Cannot store back."}>
+                            <button
+                              className="btn btn-sm btn-primary text-white"
+                              onClick={() => openModal(x)}
+                              disabled={putRefundFn.loading || !x.warehouseId}
+                            >
+                              Store Back
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
