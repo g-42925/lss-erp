@@ -31,6 +31,11 @@ const invoiceSchema = new mongoose.Schema({
     required: false,
     min: 0
   },
+  refundCredit: {
+    type: Number,
+    required: false,
+    default: 0
+  },
   paid: {
     type: Boolean,
     default: false,

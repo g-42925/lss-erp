@@ -39,7 +39,8 @@ const orderSchema = new mongoose.Schema({
       taxes: [
         {
           taxName: { type: String },
-          taxValue: { type: Number }
+          taxValue: { type: Number },
+          taxAmount: { type: Number }  // total tax money for all units of this cart item
         }
       ]
     }

@@ -8,6 +8,7 @@ import Product from '@/models/Product';
 import Warehouse from '@/models/Warehouse';
 import Companie from '@/models/Companie';
 import InboundLog from '@/models/InboundLog';
+import Invoice from '@/models/Invoice';
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -82,6 +83,12 @@ export async function POST(request: NextRequest) {
       status: 'refunded',
       createdAt: new Date(),
     });
+
+    // Update the invoice to decrease the outstanding balance (increase the refund credit)
+    await Invoice.findOneAndUpdate(
+      { salesOrderId: order._id },
+      { $inc: { refundCredit: params.refundAmount } }
+    );
 
     return NextResponse.json({
       noResult: false,

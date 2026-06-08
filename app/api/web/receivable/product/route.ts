@@ -92,78 +92,83 @@ export async function GET(request: NextRequest) {
       {
         $addFields: {
           value: {
-            $cond: {
-              if: { $eq: ["$order.productType", "good"] },
-              then: '$order.total',
-              else: {
+            $subtract: [
+              {
                 $cond: {
-                  if: { $eq: ["$order.frequency", "Week"] },
-                  then: {
-                    $subtract: [
-                      {
-                        $multiply: [
-                          {
-                            $getField: {
-                              field: "qty",
-                              input: { $arrayElemAt: ["$order.cart", 0] }
-                            }
-                          },
-                          {
-                            $getField: {
-                              field: "subTotal",
-                              input: { $arrayElemAt: ["$order.cart", 0] }
-                            }
-                          },
-                          4
-                        ]
-                      },
-                      {
-                        $multiply: [
-                          {
-                            $getField: {
-                              field: "subTotal",
-                              input: { $arrayElemAt: ["$order.cart", 0] }
-                            }
-                          },
-                          "$missing"
-                        ]
-                      }
-                    ]
-                  },
+                  if: { $eq: ["$order.productType", "good"] },
+                  then: '$order.total',
                   else: {
-                    $subtract: [
-                      {
-                        $multiply: [
+                    $cond: {
+                      if: { $eq: ["$order.frequency", "Week"] },
+                      then: {
+                        $subtract: [
                           {
-                            $getField: {
-                              field: "qty",
-                              input: { $arrayElemAt: ["$order.cart", 0] }
-                            }
+                            $multiply: [
+                              {
+                                $getField: {
+                                  field: "qty",
+                                  input: { $arrayElemAt: ["$order.cart", 0] }
+                                }
+                              },
+                              {
+                                $getField: {
+                                  field: "subTotal",
+                                  input: { $arrayElemAt: ["$order.cart", 0] }
+                                }
+                              },
+                              4
+                            ]
                           },
                           {
-                            $getField: {
-                              field: "subTotal",
-                              input: { $arrayElemAt: ["$order.cart", 0] }
-                            }
+                            $multiply: [
+                              {
+                                $getField: {
+                                  field: "subTotal",
+                                  input: { $arrayElemAt: ["$order.cart", 0] }
+                                }
+                              },
+                              "$missing"
+                            ]
                           }
                         ]
                       },
-                      {
-                        $multiply: [
+                      else: {
+                        $subtract: [
                           {
-                            $getField: {
-                              field: "subTotal",
-                              input: { $arrayElemAt: ["$order.cart", 0] }
-                            }
+                            $multiply: [
+                              {
+                                $getField: {
+                                  field: "qty",
+                                  input: { $arrayElemAt: ["$order.cart", 0] }
+                                }
+                              },
+                              {
+                                $getField: {
+                                  field: "subTotal",
+                                  input: { $arrayElemAt: ["$order.cart", 0] }
+                                }
+                              }
+                            ]
                           },
-                          "$missing"
+                          {
+                            $multiply: [
+                              {
+                                $getField: {
+                                  field: "subTotal",
+                                  input: { $arrayElemAt: ["$order.cart", 0] }
+                                }
+                              },
+                              "$missing"
+                            ]
+                          }
                         ]
                       }
-                    ]
+                    }
                   }
                 }
-              }
-            }
+              },
+              { $ifNull: ['$refundCredit', 0] }
+            ]
           }
         }
       },

@@ -8,6 +8,7 @@ import Order from "@/models/Order"
 import Companie from '@/models/Companie'
 import Product from '@/models/Product'
 import Reservation from '@/models/Reservation'
+import Warehouse from '@/models/Warehouse'
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -18,7 +19,6 @@ export async function GET(request: NextRequest) {
 		const pr = await Product.findById(prod)
 
 		const locId = url.searchParams.get("locationId")
-		const Warehouse = mongoose.models.Warehouse || mongoose.model('Warehouse');
 
 		const result = await Warehouse.aggregate([
 			{

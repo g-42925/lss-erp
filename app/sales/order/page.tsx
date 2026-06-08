@@ -66,7 +66,10 @@ export default function Order() {
         const _discount = parseInt(c.discountValue) * qty
         return (price * qty) - _discount
       }
-      return 0;
+      // 'none' or any unrecognized type: full price, no discount
+      const price = parseInt(c.product.split('/')[3])
+      const qty = parseInt(c.qty)
+      return price * qty
     })
 
     const totalSubtotal = subtotals.reduce((a, b) => a + b, 0)
@@ -159,23 +162,51 @@ export default function Order() {
 
   function handleRefund(orderId: string, item: any) {
     const qtyToRefund = prompt(`How many units would you like to refund? (Max: ${item.qty})`, "1");
-    if(!qtyToRefund) return;
+    if (!qtyToRefund) return;
     const qty = parseInt(qtyToRefund);
-    if(isNaN(qty) || qty <= 0 || qty > item.qty) {
-        alert("Invalid quantity.");
-        return;
+    if (isNaN(qty) || qty <= 0 || qty > item.qty) {
+      alert("Invalid quantity.");
+      return;
     }
+
+    // Per-unit base subtotal (after per-item discount, stored in item.subTotal)
+    const perUnitSubtotal = item.subTotal / item.qty;
+
+    // Order-level discount per unit
+    let perUnitOrderDiscount = 0;
+    const orderDiscountType = selectedOrder?.discountType;
+    const orderDiscountValue = selectedOrder?.discountValue || 0;
+    if (orderDiscountType === 'percent' && orderDiscountValue > 0) {
+      // Proportional percent discount applies uniformly per unit
+      perUnitOrderDiscount = perUnitSubtotal * (orderDiscountValue / 100);
+    } else if (orderDiscountType === 'fixed' && orderDiscountValue > 0) {
+      // Fixed discount distributed proportionally across all cart items
+      const allItemsSubtotal = (selectedOrder?.cart || []).reduce((s: number, c: any) => s + (c.subTotal || 0), 0);
+      const proportion = allItemsSubtotal > 0 ? item.subTotal / allItemsSubtotal : 0;
+      perUnitOrderDiscount = (orderDiscountValue * proportion) / item.qty;
+    }
+
+    // Per-unit tax (sum of stored taxAmount for all taxes on this item, divided by qty)
+    const totalTaxOnItem = (item.taxes || []).reduce((s: number, t: any) => s + (t.taxAmount || 0), 0);
+    const perUnitTax = totalTaxOnItem / item.qty;
+
+    // Taxable base per unit after order-level discount
+    const perUnitTaxable = perUnitSubtotal - perUnitOrderDiscount;
+
+    // Refund amount = (taxable base + tax) × returned qty
+    const refundAmount = Math.round((perUnitTaxable + perUnitTax) * qty);
+
     const params = {
       orderId: orderId,
       productId: item.productId,
       warehouseId: item.warehouseId,
       qty: qty,
-      refundAmount: Math.round((item.subTotal / item.qty) * qty)
+      refundAmount: refundAmount
     }
 
-    refundFn.fn('', JSON.stringify(params), (res) => {
-        alert("Refund successful! A refund log has been created.");
-        orderCartModalRef.current?.close();
+    refundFn.fn('', JSON.stringify(params), () => {
+      alert(`Refund berhasil! Kredit refund: ${refundAmount.toLocaleString('id-ID')}. Log refund telah dibuat.`);
+      orderCartModalRef.current?.close();
     })
   }
 
@@ -376,6 +407,8 @@ export default function Order() {
         const discount = parseInt(c.discountValue)
         return discount * qty
       }
+
+      return 0
     })
 
     const subtotals = cart.map((c) => {
@@ -392,13 +425,16 @@ export default function Order() {
         const _discount = parseInt(c.discountValue) * qty
         return (price * qty) - _discount
       }
+
+      // 'none' or any unrecognized type: full price, no discount
+      const price = parseInt(c.product.split('/')[3])
+      const qty = parseInt(c.qty)
+      return price * qty
     })
 
     const total = subtotals.reduce((a, b) => a + b, 0)
 
-    const _discount = discount.reduce((a, b) => {
-      return a + b
-    }, 0)
+    const _discount = discount.reduce((a, b) => a + b, 0)
 
     if (d.includes("%")) {
       return _discount + (total * (parseInt(d) / 100))
@@ -430,8 +466,6 @@ export default function Order() {
     const _payAmt = payAmt > 0 ? payAmt : payAmount
     const discountValue = parseInt(discount)
 
-    console.log(cart[0])
-
     const subtotals = cart.map((c) => {
       if (c.discountType === 'percent') {
         const price = parseInt(c.product.split('/')[3])
@@ -446,9 +480,14 @@ export default function Order() {
         const _discount = parseInt(c.discountValue) * qty
         return (price * qty) - _discount
       }
-      return 0;
+      // 'none' or any unrecognized type: full price, no discount
+      const price = parseInt(c.product.split('/')[3])
+      const qty = parseInt(c.qty)
+      return price * qty
     })
+
     const totalSubtotal = subtotals.reduce((a, b) => a + b, 0)
+
 
     const _cart = cart.map((c, idx) => {
       const productId = c.product.split("/")[0]
@@ -489,7 +528,7 @@ export default function Order() {
       return {
         productId,
         qty,
-        subTotal,
+        subTotal: cSubtotal, // per-item subtotal after per-item discount (not the grand total)
         taxes: exactTaxes,
         warehouseId: c.warehouseId
       }
@@ -650,7 +689,7 @@ export default function Order() {
   return directSellMode ? (
     <>
       <div className="h-full p-6 flex flex-col gap- text-black">
-        <span className="text-2xl">Product Order</span>
+        <span className="text-2xl">Product Orderx</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
@@ -986,12 +1025,10 @@ export default function Order() {
               <input
                 onChange={(e) => {
                   if (e.target.value === '') {
-                    setDiscount(0)
-                    getTax(cart)
+                    setDiscount('0')
                   }
                   else {
-                    setDiscount(parseInt(e.target.value))
-                    getTax(cart)
+                    setDiscount(e.target.value)
                   }
                 }}
                 type="text"
@@ -1074,65 +1111,67 @@ export default function Order() {
                 <tbody>
                   {selectedOrder?.cart && selectedOrder.cart.length > 0
                     ? selectedOrder.cart.map((item: any, idx: number) => {
-                        const prodId = item.productId?._id || item.productId
-                        const whId = item.warehouseId?._id || item.warehouseId
-                        const prodName =
-                          item.productId?.productName ||
-                          getProductsFn.result?.find((p: any) => p._id?.toString() === prodId?.toString())?.productName ||
-                          'Unknown'
-                        const locName =
-                          getDSaleStockFn.result?.find((l: any) => l._id?.toString() === whId?.toString())?.name ||
-                          'Unknown'
-                        const refundItem = {
-                          productId: prodId,
-                          warehouseId: whId,
-                          qty: item.qty,
-                          subTotal: item.subTotal
-                        }
-                        return (
-                          <tr key={idx}>
-                            <td>{prodName}</td>
-                            <td>{locName}</td>
-                            <td>{item.qty}</td>
-                            <td>{item.subTotal}</td>
-                            <td>
-                              <button
-                                className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
-                                onClick={() => handleRefund(selectedOrder._id, refundItem)}
-                              >
-                                {refundFn.loading ? 'Refunding...' : 'Refund Log'}
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })
+                      const prodId = item.productId?._id || item.productId
+                      const whId = item.warehouseId?._id || item.warehouseId
+                      const prodName =
+                        item.productId?.productName ||
+                        getProductsFn.result?.find((p: any) => p._id?.toString() === prodId?.toString())?.productName ||
+                        'Unknown'
+                      const locName =
+                        getDSaleStockFn.result?.find((l: any) => l._id?.toString() === whId?.toString())?.name ||
+                        'Unknown'
+                      const refundItem = {
+                        productId: prodId,
+                        warehouseId: whId,
+                        qty: item.qty,
+                        subTotal: item.subTotal,
+                        taxes: item.taxes || []
+                      }
+                      return (
+                        <tr key={idx}>
+                          <td>{prodName}</td>
+                          <td>{locName}</td>
+                          <td>{item.qty}</td>
+                          <td>{item.subTotal}</td>
+                          <td>
+                            <button
+                              className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
+                              onClick={() => handleRefund(selectedOrder._id, refundItem)}
+                            >
+                              {refundFn.loading ? 'Refunding...' : 'Refund Log'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                     : selectedOrder?.product && typeof selectedOrder.product === 'object'
                       ? (
-                          <tr>
-                            <td>{selectedOrder.product.productName || 'Unknown'}</td>
-                            <td>-</td>
-                            <td>{selectedOrder.quantity ?? '-'}</td>
-                            <td>{selectedOrder.total ?? '-'}</td>
-                            <td>
-                              <button
-                                className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
-                                onClick={() => handleRefund(selectedOrder._id, {
-                                  productId: selectedOrder.product._id,
-                                  warehouseId: null,
-                                  qty: selectedOrder.quantity,
-                                  subTotal: selectedOrder.total
-                                })}
-                              >
-                                {refundFn.loading ? 'Refunding...' : 'Refund Log'}
-                              </button>
-                            </td>
-                          </tr>
-                        )
+                        <tr>
+                          <td>{selectedOrder.product.productName || 'Unknown'}</td>
+                          <td>-</td>
+                          <td>{selectedOrder.quantity ?? '-'}</td>
+                          <td>{selectedOrder.total ?? '-'}</td>
+                          <td>
+                            <button
+                              className="bg-red-800 text-white px-3 py-1 rounded-md text-sm"
+                              onClick={() => handleRefund(selectedOrder._id, {
+                                productId: selectedOrder.product._id,
+                                warehouseId: null,
+                                qty: selectedOrder.quantity,
+                                subTotal: selectedOrder.total,
+                                taxes: []
+                              })}
+                            >
+                              {refundFn.loading ? 'Refunding...' : 'Refund Log'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
                       : (
-                          <tr>
-                            <td colSpan={5} className="text-center text-gray-500 py-4">No cart data available for this order.</td>
-                          </tr>
-                        )
+                        <tr>
+                          <td colSpan={5} className="text-center text-gray-500 py-4">No cart data available for this order.</td>
+                        </tr>
+                      )
                   }
                 </tbody>
               </table>
