@@ -3,10 +3,13 @@
 import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
+
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
+
 
 
 export default function XPurchases() {
@@ -24,6 +27,7 @@ export default function XPurchases() {
   const router = useRouter()
 
   const type = editPrForm.watch("type")
+  const currentStatus = editPrForm.watch("currentStatus")
 
 
   const getFn = useFetch<any[], any>({
@@ -134,7 +138,8 @@ export default function XPurchases() {
       _id: filter._id,
       estimatedPrice: filter.estimatedPrice,
       description: filter.description,
-      status: filter.status
+      status: filter.status,
+      currentStatus: filter.status
     })
 
     editRef.current?.showModal()
@@ -235,9 +240,12 @@ export default function XPurchases() {
                                     p.status != "ordered"
                                       ?
                                       <button onClick={() => edit(p._id)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                        </svg>
+                                        <HugeiconsIcon
+                                          icon={Edit03Icon}
+                                          size={24}
+                                          color="currentColor"
+                                          strokeWidth={1.5}
+                                        />
                                       </button>
                                       :
                                       <></>
@@ -245,10 +253,13 @@ export default function XPurchases() {
                                   {
                                     p.status === "ordered"
                                       ?
-                                      <button onClick={() => _edit(p._id)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                        </svg>
+                                      <button>
+                                        <HugeiconsIcon
+                                          icon={Edit03Icon}
+                                          size={24}
+                                          color="currentColor"
+                                          strokeWidth={1.5}
+                                        />
                                       </button>
                                       :
                                       <></>
@@ -299,12 +310,13 @@ export default function XPurchases() {
                 <legend className="fieldset-legend">Estimated price</legend>
                 <input className="input w-full" {...editPrForm.register("estimatedPrice")} type="text" readOnly />
               </fieldset>
+              <input type="hidden" {...editPrForm.register("currentStatus")} />
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Status</legend>
                 <select className="input w-full" {...editPrForm.register("status")}>
-                  <option value="requested">Pending</option>
+                  <option value="requested" disabled={currentStatus === "ordered"}>Pending</option>
                   <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="rejected" disabled={currentStatus === "ordered"}>Rejected</option>
                 </select>
               </fieldset>
               <div className="modal-action">

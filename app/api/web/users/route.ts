@@ -74,13 +74,10 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
 
-  console.log({ id })
-
   try {
     await connectToDatabase()
     const users = await User.find({
       masterAccountId: id,
-      isSuperAdmin: false
     })
 
     return NextResponse.json(

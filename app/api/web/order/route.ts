@@ -2,12 +2,15 @@ import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import mongoose from "mongoose";
 
 import ProductQuotation from '@/models/ProductQuotation'
 import ServiceQuotation from '@/models/ServiceQuotation'
 import Order from '@/models/Order'
 import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
+import Batche from '@/models/Batche'
+import Reservation from '@/models/Reservation'
 
 
 export async function POST(request: NextRequest) {
@@ -26,6 +29,7 @@ export async function POST(request: NextRequest) {
     const qNumber = formData.get("qNumber") as string
     const id = formData.get("id") as string
     const paymentMethod = formData.get("paymentMethod") as string || "Cash"
+    const pickupDateStr = formData.get("pickupDate") as string | null
 
     const company = await Companie.findOne({
       masterAccountId: id
@@ -175,6 +179,109 @@ export async function POST(request: NextRequest) {
     }
     // ─────────────────────────────────────────────────────────────────────
 
+    // ─── Helper: create reservations if pickupDate is in the future ───────
+    async function createReservationsIfNeeded(
+      cartItems: Array<{ productId: ObjectId | string; warehouseId?: ObjectId | string; qty: number }>,
+      salesOrderNumber: string,
+      orderId: ObjectId | string,
+      pickupDate: Date | null
+    ) {
+      if (!pickupDate) return
+      const now = new Date()
+      // Strip time from both for a pure date comparison
+      const pickupDay = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate())
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      if (pickupDay <= today) return // pickup today or earlier → no reservation needed
+
+      for (const item of cartItems) {
+        const productObjId = new mongoose.Types.ObjectId(item.productId.toString())
+        const warehouseObjId = item.warehouseId
+          ? new mongoose.Types.ObjectId(item.warehouseId.toString())
+          : null
+
+        // Find batches FIFO to allocate reserved qty
+        const batchQuery: Record<string, unknown> = {
+          productId: productObjId,
+          status: 'ACTIVE',
+        }
+        if (warehouseObjId) batchQuery.warehouseId = warehouseObjId
+
+        const batches = await Batche.find(batchQuery).sort({ createdAt: 1 })
+
+        let remainingToReserve = item.qty
+        for (const batch of batches) {
+          if (remainingToReserve <= 0) break
+          const freeQty = batch.accumulative - batch.outQty - (batch.reserved || 0)
+          if (freeQty <= 0) continue
+          const toReserve = Math.min(freeQty, remainingToReserve)
+
+          await Batche.findByIdAndUpdate(batch._id, { $inc: { reserved: toReserve } })
+
+          await Reservation.create({
+            batchId: batch._id,
+            salesOrderNumber,
+            salesOrderId: orderId,
+            productId: productObjId,
+            warehouseId: warehouseObjId,
+            qty: toReserve,
+            pickupDate,
+            status: 'ACTIVE',
+          })
+
+          remainingToReserve -= toReserve
+        }
+      }
+    }
+
+    // ─── Helper: langsung potong stock untuk order biasa (pickup hari ini / tidak ada pickup date) ─
+    async function deductStockImmediately(
+      cartItems: Array<{ productId: ObjectId | string; warehouseId?: ObjectId | string; qty: number }>,
+      salesOrderNumber: string,
+      orderId: ObjectId | string,
+    ) {
+      for (const item of cartItems) {
+        const productObjId = new mongoose.Types.ObjectId(item.productId.toString())
+        const warehouseObjId = item.warehouseId
+          ? new mongoose.Types.ObjectId(item.warehouseId.toString())
+          : null
+
+        // Ambil batch FIFO (oldest first) yang masih aktif dan masih ada stok
+        const batchQuery: Record<string, unknown> = {
+          productId: productObjId,
+          status: 'ACTIVE',
+        }
+        if (warehouseObjId) batchQuery.warehouseId = warehouseObjId
+
+        const batches = await Batche.find(batchQuery).sort({ createdAt: 1 })
+
+        let remainingToDeduct = item.qty
+        for (const batch of batches) {
+          if (remainingToDeduct <= 0) break
+          // Stok bebas = accumulative - outQty - reserved
+          const freeQty = batch.accumulative - batch.outQty - (batch.reserved || 0)
+          if (freeQty <= 0) continue
+          const toDeduct = Math.min(freeQty, remainingToDeduct)
+
+          // Langsung potong outQty
+          await Batche.findByIdAndUpdate(batch._id, { $inc: { outQty: toDeduct } })
+
+          // Buat marker IMMEDIATE agar delivery tidak double-deduct
+          await Reservation.create({
+            batchId: batch._id,
+            salesOrderNumber,
+            salesOrderId: orderId,
+            productId: productObjId,
+            warehouseId: warehouseObjId,
+            qty: toDeduct,
+            pickupDate: null,
+            status: 'IMMEDIATE',
+          })
+
+          remainingToDeduct -= toDeduct
+        }
+      }
+    }
+
     let quotation = await ProductQuotation.findOne({
       quotationNumber: qNumber
     })
@@ -232,6 +339,34 @@ export async function POST(request: NextRequest) {
       }
 
       const _order = await Order.create(order)
+
+      // ─── Stock management berdasarkan tipe order ────────────────────
+      if (rest.productType === 'good') {
+        const cartForStock = (rest.cart || []).map((c: any) => ({
+          productId: c.productId,
+          warehouseId: c.warehouseId,
+          qty: c.qty,
+        }))
+
+        if (pickupDateStr) {
+          const pickupDate = new Date(pickupDateStr)
+          const now = new Date()
+          const pickupDay = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate())
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+          if (pickupDay > today) {
+            // Order reserved: pickup di masa depan → tandai reserved qty di batch
+            await createReservationsIfNeeded(cartForStock, so, _order._id, pickupDate)
+          } else {
+            // Pickup hari ini → langsung potong stock
+            await deductStockImmediately(cartForStock, so, _order._id)
+          }
+        } else {
+          // Tidak ada pickupDate → order biasa, langsung potong stock
+          await deductStockImmediately(cartForStock, so, _order._id)
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────
 
       const orders = await Order.find({
         companyId: company._id,
@@ -385,6 +520,31 @@ export async function GET(request: NextRequest) {
           }
         },
         {
+          $lookup: {
+            from: 'deliveries',
+            let: {
+              orderNumber: "$salesOrderNumber",
+              productId: "$p._id"
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$salesOrderNumber", "$$orderNumber"]
+                  }
+                },
+              }
+            ],
+            as: "delivered"
+          }
+        },
+        {
+          $unwind: {
+            path: "$delivered",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
           $addFields: {
             product: {
               $cond: [
@@ -421,6 +581,48 @@ export async function GET(request: NextRequest) {
           }
         },
         {
+          $lookup: {
+            from: "users",
+            localField: "createdBy",
+            foreignField: "_id",
+            as: "u"
+          }
+        },
+        {
+          $unwind: {
+            path: '$u',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "lastEditedBy",
+            foreignField: "_id",
+            as: "editor"
+          }
+        },
+        {
+          $unwind: {
+            path: '$editor',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "lastApprovedBy",
+            foreignField: "_id",
+            as: "approver"
+          }
+        },
+        {
+          $unwind: {
+            path: '$approver',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
           $project: {
             'p': 0
           }
@@ -445,5 +647,160 @@ export async function GET(request: NextRequest) {
         error: true
       }
     )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { _id, items, approvalCode, editingUserId, discountType, discountValue, taxes } = body;
+
+    if (!approvalCode) {
+      throw new Error("Approval code is required");
+    }
+
+    const User = (await import("@/models/User")).default;
+    const approver = await User.findOne({ approvalCode });
+    if (!approver) {
+      throw new Error("Invalid approval code");
+    }
+
+    if (!_id || !items) {
+      throw new Error("Order ID and items are required");
+    }
+
+    const order = await Order.findById(_id);
+    if (!order) throw new Error("Order not found");
+    if (order.productType !== "good") throw new Error("Editing only enabled for physical goods orders");
+
+    const Deliverie = (await import("@/models/Deliverie")).default;
+    const existingDeliveries = await Deliverie.find({ salesOrderNumber: order.salesOrderNumber });
+    
+    // Map existing shipped qty by product Id
+    const deliveredMap: Record<string, number> = {};
+    existingDeliveries.forEach(d => {
+      d.items.forEach((di: any) => {
+        const pId = di.productId.toString();
+        deliveredMap[pId] = (deliveredMap[pId] || 0) + parseFloat(di.qty);
+      });
+    });
+
+    // Use new discount values from payload, fall back to existing
+    const newDiscountType: string = discountType ?? order.discountType ?? "none";
+    const newDiscountValue: number = discountValue ?? order.discountValue ?? 0;
+
+    // Build a map of per-item tax defs from the items payload
+    // Each item may carry its own `taxes: [{taxName, taxValue}]`
+    const itemTaxDefsMap: Record<string, { taxName: string; taxValue: number }[]> = {};
+    items.forEach((i: any) => {
+      const pId = i.productId?.toString();
+      itemTaxDefsMap[pId] = Array.isArray(i.taxes) ? i.taxes : [];
+    });
+
+    const newCart: any[] = order.cart.map((c: any) => c.toObject ? c.toObject() : { ...c });
+    for (const c of newCart) {
+      const pId = c.productId.toString();
+      const updatedItem = items.find((i: any) => i.productId === pId);
+      
+      if (updatedItem) {
+        const newQty = parseInt(updatedItem.qty);
+        if (isNaN(newQty) || newQty <= 0) throw new Error(`Invalid quantity for product`);
+        
+        const delivered = deliveredMap[pId] || 0;
+        if (newQty < delivered) {
+           throw new Error(`Cannot reduce quantity below delivered amount (${delivered}) for a targeted product.`);
+        }
+        
+        const unitPrice = c.subTotal / c.qty;
+        c.qty = newQty;
+        c.subTotal = unitPrice * newQty;
+      }
+    }
+
+    // Recalculate with new discount + per-item taxes
+    const overallSubtotal = newCart.reduce((sum: number, c: any) => sum + c.subTotal, 0);
+    let totalTaxAmount = 0;
+    
+    newCart.forEach((c: any) => {
+      const pId = c.productId.toString();
+      const itemTaxDefs = itemTaxDefsMap[pId] || [];
+
+      let taxableAmount = 0;
+      if (newCart.length === 1) {
+        if (newDiscountType === "percent") {
+          taxableAmount = overallSubtotal - (overallSubtotal * (newDiscountValue / 100));
+        } else if (newDiscountType === "fixed") {
+          taxableAmount = overallSubtotal - newDiscountValue;
+        } else {
+          taxableAmount = overallSubtotal;
+        }
+      } else {
+        if (newDiscountType === "percent") {
+          taxableAmount = c.subTotal - (c.subTotal * (newDiscountValue / 100));
+        } else if (newDiscountType === "fixed") {
+          const proportion = overallSubtotal !== 0 ? c.subTotal / overallSubtotal : 0;
+          taxableAmount = c.subTotal - (newDiscountValue * proportion);
+        } else {
+          taxableAmount = c.subTotal;
+        }
+      }
+
+      // Apply THIS item's own tax definitions
+      c.taxes = itemTaxDefs.map((t: any) => ({
+        taxName: t.taxName,
+        taxValue: t.taxValue,
+        taxAmount: Math.round(taxableAmount * (t.taxValue / 100))
+      }));
+      c.taxes.forEach((t: any) => { totalTaxAmount += t.taxAmount; });
+    });
+
+    let overallDiscount = 0;
+    if (newDiscountType === "percent") {
+      overallDiscount = overallSubtotal * (newDiscountValue / 100);
+    } else if (newDiscountType === "fixed") {
+      overallDiscount = newDiscountValue;
+    }
+
+    const newTotal = overallSubtotal - overallDiscount + totalTaxAmount;
+
+    // Build order-level taxes summary (aggregated across all cart items)
+    const orderTaxesSummary: Record<string, { total: number; value: number }> = {};
+    newCart.forEach((c: any) => {
+      c.taxes.forEach((t: any) => {
+        if (!orderTaxesSummary[t.taxName]) orderTaxesSummary[t.taxName] = { total: 0, value: t.taxValue };
+        orderTaxesSummary[t.taxName].total += t.taxAmount;
+      });
+    });
+    const orderTaxesArray = Object.keys(orderTaxesSummary).map(name => ({
+      taxName: name,
+      taxValue: orderTaxesSummary[name].value
+    }));
+
+    const updatedOrder = await Order.findByIdAndUpdate(_id, {
+      cart: newCart,
+      total: newTotal,
+      taxValue: totalTaxAmount,
+      discountType: newDiscountType,
+      discountValue: newDiscountValue,
+      taxes: orderTaxesArray,
+      lastEditedBy: editingUserId,
+      lastApprovedBy: approver._id,
+      editedAt: new Date()
+    }, { new: true });
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Order items updated successfully",
+      result: updatedOrder,
+      error: false
+    });
+  } catch (e: any) {
+    return NextResponse.json({
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
+    });
   }
 }

@@ -2,6 +2,19 @@ import mongoose from 'mongoose';
 import { type } from 'os';
 
 const deliverySchema = new mongoose.Schema({
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  editedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+  },
+  editedAt: {
+    type: Date,
+  },
   companyId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true

@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
+import Companie from '@/models/Companie'
 import Assignment from '@/models/Assignment'
 import User from '@/models/User'
 import CryptoJS from "crypto-js";
@@ -16,6 +17,10 @@ export async function POST(request: NextRequest) {
     const r = await User.findOne({
       email: params.email,
       password: pwd.toString()
+    })
+
+    const company = await Companie.findOne({
+      masterAccountId: r.masterAccountId
     })
 
     if (r) {
@@ -45,6 +50,7 @@ export async function POST(request: NextRequest) {
       result: {
         ...r._doc,
         pages: _pages,
+        company: company
       }
     });
 

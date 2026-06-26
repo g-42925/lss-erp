@@ -35,10 +35,14 @@ const refundLogSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['refunded', 'stored_back'],
+    enum: ['refunded', 'stored_back', 'resolved'],
     default: 'refunded'
   },
   storedBackQty: {
+    type: Number,
+    default: 0
+  },
+  exitedQty: {
     type: Number,
     default: 0
   },
@@ -52,7 +56,25 @@ const refundLogSchema = new mongoose.Schema({
   },
   unitCost: {
     type: Number
+  },
+  createdByUserId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  createdByName: {
+    type: String
+  },
+  approvedByUserId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  approvedByName: {
+    type: String
   }
 });
 
-export default mongoose.models.RefundLog || mongoose.model('RefundLog', refundLogSchema);
+// Delete the cached model to ensure Next.js HMR uses the updated schema with 'resolved' status
+if (mongoose.models.RefundLog) {
+  delete mongoose.models.RefundLog;
+}
+export default mongoose.model('RefundLog', refundLogSchema);

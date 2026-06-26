@@ -21,6 +21,25 @@ const batcheSchema = new mongoose.Schema({
   note: {
     type: String,
     required: false
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  lastEditedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  lastApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  editedAt: {
+    type: Date,
+    required: false
   }
 });
 

@@ -3,13 +3,15 @@
 import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
 
 
 export default function Procurement() {
+  const user = useAuth((state) => state.userId)
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -25,6 +27,7 @@ export default function Procurement() {
   const router = useRouter()
 
   const type = editPrForm.watch("type")
+  const currentStatus = editPrForm.watch("currentStatus")
 
   const getFn = useFetch<any[], any>({
     url: `/api/web/purchases?id=xxx`,
@@ -76,7 +79,8 @@ export default function Procurement() {
       ...data,
       status: '___approved',
       purchaseType: 'procurement',
-      newPayAmt: amount
+      newPayAmt: amount,
+      userId: user,
     })
 
     if (parseInt(data.payAmount) > data.finalPrice || data.payAmount < data.currPayAmt) {
@@ -128,6 +132,7 @@ export default function Procurement() {
       currPayAmt: filter.payAmount,
       payAmount: filter.payAmount,
       type: 'payment',
+      payDate: new Date().toISOString().split('T')[0],
     })
 
     _editRef.current?.showModal()
@@ -140,7 +145,8 @@ export default function Procurement() {
       quantity: filter.quantity,
       estimatedPrice: filter.estimatedPrice,
       product: filter.product.name,
-      status: filter.status
+      status: filter.status,
+      currentStatus: filter.status
     })
 
     editRef.current?.showModal()
@@ -234,9 +240,12 @@ export default function Procurement() {
                                     p.status != "ordered"
                                       ?
                                       <button onClick={() => edit(p._id)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                        </svg>
+                                        <HugeiconsIcon
+                                          icon={Edit03Icon}
+                                          size={24}
+                                          color="currentColor"
+                                          strokeWidth={1.5}
+                                        />
                                       </button>
                                       :
                                       <></>
@@ -302,12 +311,13 @@ export default function Procurement() {
                 <legend className="fieldset-legend">Estimated price</legend>
                 <input className="input w-full" {...editPrForm.register("estimatedPrice")} type="text" readOnly />
               </fieldset>
+              <input type="hidden" {...editPrForm.register("currentStatus")} />
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Status</legend>
                 <select className="input w-full" {...editPrForm.register("status")}>
-                  <option value="requested">Pending</option>
+                  <option value="requested" disabled={currentStatus === "ordered"}>Pending</option>
                   <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="rejected" disabled={currentStatus === "ordered"}>Rejected</option>
                 </select>
               </fieldset>
               <div className="modal-action">
@@ -340,6 +350,10 @@ export default function Procurement() {
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Quantity</legend>
                 <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tanggal Pembayaran</legend>
+                <input className="input w-full" {...editPrForm.register("payDate")} type="date" required />
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>

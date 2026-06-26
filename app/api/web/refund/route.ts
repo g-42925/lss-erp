@@ -8,7 +8,10 @@ import Product from '@/models/Product';
 import Warehouse from '@/models/Warehouse';
 import Companie from '@/models/Companie';
 import InboundLog from '@/models/InboundLog';
+import ExitLog from '@/models/ExitLog';
+import OutboundLog from '@/models/OutboundLog';
 import Invoice from '@/models/Invoice';
+import User from '@/models/User';
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -40,10 +43,10 @@ export async function GET(request: NextRequest) {
       result: refunds,
       error: false
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: (e as Error).message,
       result: null,
       error: true
     });
@@ -54,6 +57,15 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const params = await request.json();
+
+    if (!params.approvalCode) {
+      return NextResponse.json({ error: true, message: "Kode approval diperlukan untuk melakukan refund" });
+    }
+
+    const approver = await User.findOne({ approvalCode: params.approvalCode });
+    if (!approver) {
+      return NextResponse.json({ error: true, message: "Kode approval tidak valid" });
+    }
 
     // We expect companyId, orderId, productId, warehouseId, qty, refundAmount
     const order = await Order.findById(params.orderId);
@@ -68,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Get unit cost to store in refund for future restock 
     // Wait, let's find the batch unit cost if needed, but for now we can approximate like Product stockValue calculation
-    const qtyTotal = (product.remain || 0) + (product.allocated || 0); // we don't have this exactly here without aggregation
+    // const qtyTotal = (product.remain || 0) + (product.allocated || 0); // we don't have this exactly here without aggregation
     // If we want exact, maybe just pass unitCost from the front end or handle it gracefully.
     // For now we will just allow it to proceed.
 
@@ -82,6 +94,10 @@ export async function POST(request: NextRequest) {
       refundAmount: params.refundAmount,
       status: 'refunded',
       createdAt: new Date(),
+      createdByUserId: params.creatorId ? new mongoose.Types.ObjectId(params.creatorId) : undefined,
+      createdByName: params.creatorName || undefined,
+      approvedByUserId: approver._id,
+      approvedByName: approver.name,
     });
 
     // Update the invoice to decrease the outstanding balance (increase the refund credit)
@@ -121,30 +137,84 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: true, message: "Refund record not found" });
     }
 
-    if (refund.status === 'stored_back') {
-      return NextResponse.json({ error: true, message: "Already fully stored back" });
+    if (refund.status === 'stored_back' || refund.status === 'resolved') {
+      return NextResponse.json({ error: true, message: "Already fully processed" });
     }
 
-    // Determine how many have already been stored back
+    // Determine how many have already been processed
     const alreadyStored = refund.storedBackQty || 0;
-    const remaining = refund.qty - alreadyStored;
+    const alreadyExited = refund.exitedQty || 0;
+    const remaining = refund.qty - alreadyStored - alreadyExited;
 
     if (remaining <= 0) {
-      return NextResponse.json({ error: true, message: "No remaining quantity to store back" });
+      return NextResponse.json({ error: true, message: "No remaining quantity to process" });
     }
 
-    // Qty to store back this time
-    const qtyToStore = params.qty ? Number(params.qty) : remaining;
+    // Qty to process this time
+    const qtyToProcess = params.qty ? Number(params.qty) : remaining;
 
-    if (isNaN(qtyToStore) || qtyToStore <= 0) {
+    if (isNaN(qtyToProcess) || qtyToProcess <= 0) {
       return NextResponse.json({ error: true, message: "Invalid quantity" });
     }
 
-    if (qtyToStore > remaining) {
+    if (qtyToProcess > remaining) {
       return NextResponse.json({
         error: true,
-        message: `Cannot store back ${qtyToStore}. Only ${remaining} remaining.`
+        message: `Cannot process ${qtyToProcess}. Only ${remaining} remaining.`
       });
+    }
+
+    if (params.action === 'exit') {
+        if (!params.reason) {
+            return NextResponse.json({ error: true, message: "Reason is required for exit" });
+        }
+        
+        if (!params.approvalCode) {
+            return NextResponse.json({ error: true, message: "Kode approval diperlukan untuk exit" });
+        }
+
+        const approver = await User.findOne({ approvalCode: params.approvalCode });
+        if (!approver) {
+            return NextResponse.json({ error: true, message: "Kode approval tidak valid" });
+        }
+
+        await ExitLog.create({
+            companyId: refund.companyId,
+            warehouseId: refund.warehouseId,
+            productId: refund.productId,
+            qty: qtyToProcess,
+            reason: params.reason,
+            note: params.note || `Refund exit from Order: ${refund.salesOrderNumber}`,
+            createdByUserId: params.userId ? new mongoose.Types.ObjectId(params.userId) : undefined,
+            createdByName: params.userName || undefined,
+            approvedByUserId: approver._id,
+            approvedByName: approver.name,
+        });
+
+        await OutboundLog.create({
+            warehouseId: refund.warehouseId,
+            productId: refund.productId,
+            quantity: qtyToProcess,
+            date: new Date()
+        });
+
+        const newExited = alreadyExited + qtyToProcess;
+        refund.exitedQty = newExited;
+        
+        if (alreadyStored + newExited >= refund.qty) {
+            refund.status = 'resolved';
+        }
+
+        await refund.save();
+
+        return NextResponse.json({
+            noResult: false,
+            message: alreadyStored + newExited >= refund.qty
+                ? "Fully processed"
+                : `Exited ${qtyToProcess} unit(s). ${refund.qty - alreadyStored - newExited} remaining.`,
+            result: refund,
+            error: false
+        });
     }
 
     if (!refund.warehouseId) {
@@ -154,17 +224,17 @@ export async function PUT(request: NextRequest) {
     const warehouse = await Warehouse.findById(refund.warehouseId);
 
     // Build batch data — only include locationId if it is actually present
-    const batchData: Record<string, any> = {
+    const batchData: Record<string, unknown> = {
       warehouseId: refund.warehouseId,
       productId: refund.productId,
-      qty: qtyToStore,
-      accumulative: qtyToStore,
+      qty: qtyToProcess,
+      accumulative: qtyToProcess,
       outQty: 0,
       reserved: 0,
       batchNumber: `RFND-${String(Date.now()).slice(-5)}`,
       status: 'ACTIVE',
       createdAt: new Date(),
-      note: `Refund store-back from Order: ${refund.salesOrderNumber} (${qtyToStore} of ${refund.qty})`
+      note: `Refund store-back from Order: ${refund.salesOrderNumber} (${qtyToProcess} of ${refund.qty})`
     };
 
 
@@ -180,36 +250,35 @@ export async function PUT(request: NextRequest) {
     await InboundLog.create({
       warehouseId: refund.warehouseId,
       productId: refund.productId,
-      quantity: qtyToStore,
+      quantity: qtyToProcess,
       date: new Date(),
     })
 
 
     // Update the refund log
-    const newStored = alreadyStored + qtyToStore;
+    const newStored = alreadyStored + qtyToProcess;
     refund.storedBackQty = newStored;
     refund.storedBackAt = new Date();
     // Only mark fully done when all qty is stored back
-    if (newStored >= refund.qty) {
-      refund.status = 'stored_back';
+    if (newStored + alreadyExited >= refund.qty) {
+      refund.status = 'resolved';
     }
-    // Otherwise keep status as 'refunded' — partial progress shown via storedBackQty
 
     await refund.save();
 
     return NextResponse.json({
       noResult: false,
-      message: newStored >= refund.qty
+      message: newStored + alreadyExited >= refund.qty
         ? "Fully stored back to warehouse"
-        : `Stored back ${qtyToStore} unit(s). ${refund.qty - newStored} remaining.`,
+        : `Stored back ${qtyToProcess} unit(s). ${refund.qty - newStored - alreadyExited} remaining.`,
       result: refund,
       error: false
     });
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: (e as Error).message,
       result: null,
       error: true
     });

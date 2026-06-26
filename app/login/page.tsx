@@ -46,7 +46,9 @@ export default function Login() {
 					pages: result.pages,
 					roleId: result.roleId,
 					isSuperAdmin: result.isSuperAdmin,
-					locationId: result.locationId
+					locationId: result.locationId,
+					userId: result._id,
+					companyId: result.company._id
 				}
 			)
 

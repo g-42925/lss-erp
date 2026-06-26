@@ -1,10 +1,8 @@
 "use client"
 
 import Link from "next/link";
-import Image from "next/image"
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
@@ -14,19 +12,27 @@ export default function Debt() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const userId = useAuth((state) => state.userId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+
   const modalRef = useRef<HTMLDialogElement>(null)
-  const editRef = useRef<HTMLDialogElement>(null)
   const payRef = useRef<HTMLDialogElement>(null)
   const logsRef = useRef<HTMLDialogElement>(null)
+  const editLogRef = useRef<HTMLDialogElement>(null)
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [debts, SetDebts] = useState<any[]>([])
-  const [searchResult, setSearchResult] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [editingLog, setEditingLog] = useState<any>(null)
+  const [editApprovalCode, setEditApprovalCode] = useState("")
+  const [editAmount, setEditAmount] = useState<number>(0)
+  const [editDate, setEditDate] = useState("")
+  const [editPaymentMethod, setEditPaymentMethod] = useState("")
+  const [editSubmitting, setEditSubmitting] = useState(false)
 
-  const newRoleForm = useForm()
-  const editRoleForm = useForm()
   const payForm = useForm()
   const router = useRouter()
 
@@ -40,22 +46,10 @@ export default function Debt() {
     method: 'PUT'
   })
 
-  const addFn = useFetch<any, any>({
-    url: '/api/web/roles',
-    method: 'POST',
-    onError: (m) => {
-      alert(m)
-    }
-  })
-
   const getFn = useFetch<any[], any>({
     url: `/api/web/products?id=xxx`,
     method: 'GET'
   })
-
-  async function search(v: string) {
-
-  }
 
   const getLogsFn = useFetch<any[], any>({
     url: `/api/web/log/purchase`,
@@ -63,13 +57,15 @@ export default function Debt() {
   })
 
   async function openPay(debt: any) {
+    const todayStr = new Date().toISOString().split('T')[0]
     payForm.reset({
       _id: debt._id,
       productName: debt.product.productName,
       currPayAmt: debt.payAmount,
       finalPrice: debt.finalPrice,
       payAmount: 0,
-      paymentMethod: "Cash"
+      paymentMethod: "Cash",
+      payDate: todayStr,
     })
     payRef.current?.showModal()
   }
@@ -84,7 +80,9 @@ export default function Debt() {
       payAmount: parseInt(data.currPayAmt) + newPayAmt,
       status: '___approved',
       reference: null,
-      paymentMethod: data.paymentMethod
+      paymentMethod: data.paymentMethod,
+      date: data.payDate ? new Date(data.payDate).toISOString() : new Date().toISOString(),
+      userId: userId,
     })
 
     await putFn.fn('', payload, (result) => {
@@ -95,27 +93,65 @@ export default function Debt() {
     })
   }
 
-  async function viewLogs(debtId: string) {
-    setLogsLoading(true)
+  async function viewLogs(debt: any) {
+    //setLogsLoading(true)
     setLogs([])
     logsRef.current?.showModal()
-    getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debtId}`, "{}", (res) => {
+    getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debt._id}`, "{}", (res) => {
       setLogs(res)
-      setLogsLoading(false)
+      //setLogsLoading(false)
     })
   }
 
+  function openEditLog(log: any) {
+    setEditingLog(log)
+    setEditAmount(Math.abs(log.amount))
+    setEditDate(log.date ? new Date(log.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
+    setEditPaymentMethod(log.paymentMethod || "Cash")
+    setEditApprovalCode("")
+    editLogRef.current?.showModal()
+  }
+
+  async function submitEditLog() {
+    if (!editingLog) return
+    if (!editApprovalCode) return alert("Kode approval wajib diisi")
+    if (editAmount <= 0) return alert("Amount harus lebih dari 0")
+
+    setEditSubmitting(true)
+    try {
+      const res = await fetch('/api/web/log/purchase', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logId: editingLog._id,
+          approvalCode: editApprovalCode,
+          userId,
+          newAmount: editAmount,
+          newDate: editDate,
+          newPaymentMethod: editPaymentMethod,
+        }),
+      })
+      const json = await res.json()
+      if (json.error) {
+        alert(json.message)
+      } else {
+        // Update the log in state
+        setLogs(prev => prev.map(l => l._id === editingLog._id ? json.result : l))
+        editLogRef.current?.close()
+      }
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setEditSubmitting(false)
+    }
+  }
 
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/debt?id=${masterAccountId}&type=product`
       const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
-
-      const body = JSON.stringify({})
-
-      bankAccountFn.fn(bankUrl, "{}", (result) => { })
-
-      getFn.fn(url, body, (result) => {
+      bankAccountFn.fn(bankUrl, "{}", () => { })
+      getFn.fn(url, "{}", (result) => {
         SetDebts(result)
       })
     }
@@ -139,18 +175,7 @@ export default function Debt() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
-            </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
-          </div>
+
           {
             getFn.loading
               ?
@@ -179,50 +204,26 @@ export default function Debt() {
                     </thead>
                     <tbody>
                       {
-                        searchResult.length < 1
-                          ?
-                          debts.map((p, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                <td>{p.product.productName}</td>
-                                <td>{p.supplier.bussinessName}</td>
-                                <td>{p.finalPrice}</td>
-                                <td>{p.payAmount}</td>
-                                <td>{p.finalPrice - p.payAmount}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn btn-sm btn-primary" onClick={() => openPay(p)}>
-                                    Pay
-                                  </button>
-                                  <button className="btn btn-sm btn-secondary" onClick={() => viewLogs(p._id)}>
-                                    Logs
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((role, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
+                        debts.map((p, index) => {
+                          return (
+                            <tr key={index}>
+                              <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                              <td>{p.product.productName}</td>
+                              <td>{p.supplier?.bussinessName || p.vendor?.vendorName || '-'}</td>
+                              <td>{p.finalPrice?.toLocaleString('id-ID')}</td>
+                              <td>{p.payAmount?.toLocaleString('id-ID')}</td>
+                              <td>{(p.finalPrice - p.payAmount)?.toLocaleString('id-ID')}</td>
+                              <td className="flex flex-row gap-3">
+                                <button className="btn btn-sm btn-primary" onClick={() => openPay(p)}>
+                                  Pay
+                                </button>
+                                <button className="btn btn-sm btn-secondary" onClick={() => viewLogs(p)}>
+                                  Logs
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })
                       }
                     </tbody>
                   </table>
@@ -237,6 +238,7 @@ export default function Debt() {
           </button>
         </div>
 
+        {/* ─── Pay Modal ─── */}
         <dialog id="pay_modal" ref={payRef} className="modal text-black">
           <div className="modal-box">
             <h3 className="font-bold text-lg">Add Payment</h3>
@@ -247,7 +249,11 @@ export default function Debt() {
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Remaining Debt</legend>
-                <input className="input w-full" value={parseInt(payForm.watch("finalPrice") || 0) - parseInt(payForm.watch("currPayAmt") || 0)} type="text" readOnly />
+                <input className="input w-full" value={(parseInt(payForm.watch("finalPrice") || 0) - parseInt(payForm.watch("currPayAmt") || 0)).toLocaleString('id-ID')} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tanggal Pembayaran</legend>
+                <input className="input w-full" {...payForm.register("payDate")} type="date" required />
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay Amount</legend>
@@ -273,8 +279,9 @@ export default function Debt() {
           </div>
         </dialog>
 
+        {/* ─── Logs Modal ─── */}
         <dialog id="logs_modal" ref={logsRef} className="modal text-black">
-          <div className="modal-box">
+          <div className="modal-box max-w-4xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Payment Logs</h3>
               <button className="btn btn-sm btn-circle" onClick={() => logsRef.current?.close()}>✕</button>
@@ -284,24 +291,37 @@ export default function Debt() {
             ) : logs.length === 0 ? (
               <p>No payment logs found.</p>
             ) : (
-              <table className="table">
+              <table className="table text-sm">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Number</th>
+                    <th>Tanggal</th>
+                    <th>No.</th>
                     <th>Amount</th>
-                    <th>Method</th>
-                    <th>Init</th>
+                    <th>Metode</th>
+                    <th>Diinput Oleh</th>
+                    <th>Diedit Pada</th>
+                    <th>Diedit Oleh</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {logs.map((L, i) => (
                     <tr key={i}>
-                      <td>{new Date(L.date).toLocaleString('id-ID')}</td>
+                      <td>{new Date(L.date).toLocaleDateString('id-ID')}</td>
                       <td>{L.paymentNumber}</td>
-                      <td>{L.amount}</td>
+                      <td>{Math.abs(L.amount).toLocaleString('id-ID')}</td>
                       <td>{L.paymentMethod || '-'}</td>
-                      <td>{L.initial ? 'Yes' : 'No'}</td>
+                      <td>{L.createdBy?.name || '-'}</td>
+                      <td>{L.editedAt ? new Date(L.editedAt).toLocaleString('id-ID') : '-'}</td>
+                      <td>{L.editedBy?.name || '-'}</td>
+                      <td>
+                        <button
+                          className="btn btn-xs btn-warning"
+                          onClick={() => openEditLog(L)}
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -310,11 +330,101 @@ export default function Debt() {
           </div>
         </dialog>
 
+        {/* ─── Edit Log Modal (requires approval code) ─── */}
+        <dialog id="edit_log_modal" ref={editLogRef} className="modal text-black">
+          <div className="modal-box">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Edit Payment Log</h3>
+              <button className="btn btn-sm btn-circle" onClick={() => editLogRef.current?.close()}>✕</button>
+            </div>
+            {editingLog && (
+              <div className="flex flex-col gap-3">
+                <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 text-sm text-yellow-800">
+                  ⚠️ Perubahan ini memerlukan kode approval dari supervisor.
+                </div>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">No. Pembayaran</legend>
+                  <input className="input w-full bg-gray-100" value={editingLog.paymentNumber} type="text" readOnly />
+                </fieldset>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tanggal Pembayaran</legend>
+                  <input
+                    className="input w-full"
+                    type="date"
+                    value={editDate}
+                    onChange={e => setEditDate(e.target.value)}
+                    required
+                  />
+                </fieldset>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Amount</legend>
+                  <input
+                    className="input w-full"
+                    type="number"
+                    value={editAmount}
+                    onChange={e => setEditAmount(Number(e.target.value))}
+                    required
+                  />
+                </fieldset>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Metode Pembayaran</legend>
+                  <select
+                    className="select w-full"
+                    value={editPaymentMethod}
+                    onChange={e => setEditPaymentMethod(e.target.value)}
+                  >
+                    <option value="Cash">Cash</option>
+                    {
+                      bankAccountFn.result?.map((bank: any) => (
+                        <option key={bank._id} value={`transfer from ${bank.bank}`}>
+                          transfer from {bank.bank} ({bank.accountName})
+                        </option>
+                      ))
+                    }
+                  </select>
+                </fieldset>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Kode Approval Supervisor</legend>
+                  <input
+                    className="input w-full"
+                    type="password"
+                    placeholder="Masukkan kode approval"
+                    value={editApprovalCode}
+                    onChange={e => setEditApprovalCode(e.target.value)}
+                    required
+                  />
+                </fieldset>
+
+                {editingLog.editedAt && (
+                  <div className="text-xs text-gray-500 border-t pt-2 mt-1 space-y-1">
+                    <p>Terakhir diedit: {new Date(editingLog.editedAt).toLocaleString('id-ID')}</p>
+                    {editingLog.editedBy?.name && <p>Diedit oleh: {editingLog.editedBy.name}</p>}
+                    {editingLog.editApprovedBy?.name && <p>Disetujui oleh: {editingLog.editApprovedBy.name}</p>}
+                  </div>
+                )}
+
+                <div className="modal-action">
+                  <button type="button" className="btn" onClick={() => editLogRef.current?.close()}>Batal</button>
+                  <button
+                    type="button"
+                    className="btn btn-warning"
+                    disabled={editSubmitting}
+                    onClick={submitEditLog}
+                  >
+                    {editSubmitting ? <span className="loading loading-spinner loading-sm"></span> : 'Simpan Perubahan'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </dialog>
+
       </div>
     </>
   )
-}
-
-type Failed = {
-  message: string
 }

@@ -14,11 +14,13 @@ export default function XDebt() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const userId = useAuth((state) => state.userId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
   const payRef = useRef<HTMLDialogElement>(null)
   const logsRef = useRef<HTMLDialogElement>(null)
+  const editLogRef = useRef<HTMLDialogElement>(null)
 
   const [debts, SetDebts] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -28,6 +30,7 @@ export default function XDebt() {
   const newRoleForm = useForm()
   const editRoleForm = useForm()
   const payForm = useForm()
+  const editLogForm = useForm()
   const router = useRouter()
 
   const putFn = useFetch<any, any>({
@@ -66,14 +69,23 @@ export default function XDebt() {
     method: 'GET'
   })
 
+  const putLogFn = useFetch<any, any>({
+    url: '/api/web/log/purchase',
+    method: 'PUT',
+    onError: (m) => alert(m)
+  })
+
   async function openPay(debt: any) {
+    const tzOffsetMs = new Date().getTimezoneOffset() * 60000;
+    const localISOTime = new Date(Date.now() - tzOffsetMs).toISOString().slice(0, 16);
     payForm.reset({
       _id: debt._id,
       description: debt.description,
       currPayAmt: debt.payAmount,
       finalPrice: debt.finalPrice,
       payAmount: 0,
-      paymentMethod: "Cash"
+      paymentMethod: "Cash",
+      date: localISOTime
     })
     payRef.current?.showModal()
   }
@@ -88,7 +100,9 @@ export default function XDebt() {
        payAmount: parseInt(data.currPayAmt) + newPayAmt,
        status: '___approved',
        reference: null,
-       paymentMethod: data.paymentMethod
+       paymentMethod: data.paymentMethod,
+       date: new Date(data.date),
+       userId: userId
      })
      
      await putFn.fn('', payload, (result) => {
@@ -97,6 +111,32 @@ export default function XDebt() {
        payRef.current?.close()
        SetDebts([...debts])
      })
+  }
+
+  function openEditLog(log: any) {
+    const tzOffsetMs = new Date(log.date).getTimezoneOffset() * 60000;
+    const localISOTime = new Date(new Date(log.date).getTime() - tzOffsetMs).toISOString().slice(0, 16);
+    editLogForm.reset({
+      logId: log._id,
+      newDate: localISOTime,
+      newAmount: log.amount,
+      newPaymentMethod: log.paymentMethod || "Cash",
+      approvalCode: ""
+    })
+    editLogRef.current?.showModal()
+  }
+
+  async function editLogSubmit(data: any) {
+    const payload = JSON.stringify({
+      ...data,
+      userId: userId
+    })
+    await putLogFn.fn('', payload, (result) => {
+      const uList = logs.map(l => l._id === result._id ? result : l)
+      setLogs([...uList])
+      editLogRef.current?.close()
+      getFn.fn(`/api/web/debt?id=${masterAccountId}&type=payment`, "{}", (res) => { SetDebts(res) })
+    })
   }
 
   async function viewLogs(debtId: string) {
@@ -251,6 +291,10 @@ export default function XDebt() {
                 <input className="input w-full" value={parseInt(payForm.watch("finalPrice") || 0) - parseInt(payForm.watch("currPayAmt") || 0)} type="text" readOnly />
               </fieldset>
               <fieldset className="fieldset">
+                <legend className="fieldset-legend">Date</legend>
+                <input className="input w-full" {...payForm.register("date")} type="datetime-local" required />
+              </fieldset>
+              <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay Amount</legend>
                 <input className="input w-full" {...payForm.register("payAmount")} type="number" required />
               </fieldset>
@@ -288,9 +332,12 @@ export default function XDebt() {
                   <tr>
                     <th>Date</th>
                     <th>Number</th>
+                    <th>Input By</th>
                     <th>Amount</th>
                     <th>Method</th>
                     <th>Init</th>
+                    <th>Edit Info</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -298,14 +345,61 @@ export default function XDebt() {
                     <tr key={i}>
                       <td>{new Date(L.date).toLocaleString('id-ID')}</td>
                       <td>{L.paymentNumber}</td>
+                      <td>{L.createdBy?.name || '-'}</td>
                       <td>{L.amount}</td>
                       <td>{L.paymentMethod || '-'}</td>
                       <td>{L.initial ? 'Yes' : 'No'}</td>
+                      <td className="text-xs text-left max-w-[200px]">
+                         {L.editedAt && (
+                           <>
+                             <div>Edited At: {new Date(L.editedAt).toLocaleString('id-ID')}</div>
+                             <div>By: {L.editedBy?.name || '-'}</div>
+                             <div>Appr: {L.editApprovedBy?.name || '-'}</div>
+                           </>
+                         )}
+                      </td>
+                      <td className="flex flex-row gap-2 h-full items-center">
+                        <button className="btn btn-sm btn-outline text-blue-600" onClick={() => openEditLog(L)}>Edit</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
+          </div>
+        </dialog>
+
+        <dialog id="edit_log_modal" ref={editLogRef} className="modal text-black">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Edit Payment Log</h3>
+            <form onSubmit={editLogForm.handleSubmit(editLogSubmit)} className="flex flex-col gap-3 mt-4">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Date</legend>
+                <input className="input w-full" {...editLogForm.register("newDate")} type="datetime-local" required />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Amount</legend>
+                <input className="input w-full" {...editLogForm.register("newAmount")} type="number" required />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Payment Method</legend>
+                <select className="select w-full" {...editLogForm.register("newPaymentMethod")}>
+                  <option value="Cash">Cash</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="E-Wallet">E-Wallet</option>
+                </select>
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Approval Code</legend>
+                <input className="input w-full" {...editLogForm.register("approvalCode")} type="password" required />
+              </fieldset>
+              {putLogFn.noResult || putLogFn.error ? <label className="input-validator text-red-900">{putLogFn.message || 'something went wrong'}</label> : <></>}
+              <div className="modal-action">
+                <button type="button" className="btn" onClick={() => editLogRef.current?.close()}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={putLogFn.loading}>Save Edit</button>
+              </div>
+            </form>
           </div>
         </dialog>
       </div>

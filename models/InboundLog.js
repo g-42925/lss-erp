@@ -19,6 +19,32 @@ const inboundLogSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  // Source tracking
+  sourceType: {
+    type: String,
+    enum: ['PURCHASE', 'STORE_BACK', 'OTHER'],
+    default: 'OTHER'
+  },
+  sourceId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false   // references ExitLog._id when sourceType = STORE_BACK
+  },
+  approvedByName: {
+    type: String,
+    required: false
+  },
+  note: {
+    type: String,
+    required: false
+  }
 });
 
-export default mongoose.models.InboundLog || mongoose.model('InboundLog', inboundLogSchema)
+if (mongoose.models.InboundLog) {
+  delete mongoose.models.InboundLog;
+}
+export default mongoose.model('InboundLog', inboundLogSchema);

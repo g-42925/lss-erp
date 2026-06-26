@@ -20,6 +20,7 @@ export default function Receiving() {
   const [disabled, setDisabled] = useState<boolean>(false)
   const [expiredFieldHide, setExpiredFieldHide] = useState<boolean>(false)
   const [purchaseType, setPurchaseType] = useState<string>("product")
+  const userId = useAuth((state) => state.userId)
 
   const editRef = useRef<HTMLDialogElement>(null)
 
@@ -96,6 +97,7 @@ export default function Receiving() {
       ...rest,
       ...additional,
       qty,
+      userId,
       ...(locationId ? { locationId } : {})
     })
 
@@ -214,7 +216,7 @@ export default function Receiving() {
                       {
                         searchResult.length < 1
                           ?
-                          purchases.map((p, index) => {
+                          purchases.filter((p) => p.status !== 'void').map((p, index) => {
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
@@ -227,7 +229,7 @@ export default function Receiving() {
                                   </Link>
                                 </td>
                                 <td>
-                                  <button onClick={() => edit(p._id)}>
+                                  <button disabled={p.status != 'ordered'} onClick={() => edit(p._id)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                       <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
                                     </svg>
@@ -237,7 +239,7 @@ export default function Receiving() {
                             )
                           })
                           :
-                          searchResult.map((p, index) => {
+                          searchResult.filter((p) => p.status !== 'void').map((p, index) => {
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
@@ -327,18 +329,10 @@ export default function Receiving() {
               <input type="hidden" {...editPrForm.register("locationId")} />
               {editFn.error ? <p className="text-red-600 text-sm">{editFn.message}</p> : <></>}
               <div className="flex flex-row gap-2 justify-end mt-2">
-                <button
-                  type="button"
-                  className="p-3 rounded-md text-gray-700 bg-gray-200"
-                  onClick={() => editRef.current?.close()}
-                >
-                  Cancel
+                <button type="button" className="p-3 rounded-md text-gray-700 bg-gray-200" onClick={() => editRef.current?.close()}>
+                  {editFn.loading ? 'Canceling…' : 'Cancel'}
                 </button>
-                <button
-                  type="submit"
-                  disabled={editFn.loading}
-                  className="p-3 rounded-md text-white bg-blue-900 disabled:opacity-60"
-                >
+                <button type="submit" disabled={editFn.loading} className="p-3 rounded-md text-white bg-blue-900 disabled:opacity-60">
                   {editFn.loading ? 'Saving…' : 'Confirm Receive'}
                 </button>
               </div>

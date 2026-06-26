@@ -8,8 +8,11 @@ import withAuth from "@/hofs/withAuth";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
 
 function Procurement() {
+  const user = useAuth((state) => state.userId)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
@@ -91,6 +94,7 @@ function Procurement() {
       id: masterAccountId,
       date: new Date(),
       purchaseType: 'procurement',
+      createdBy: user
     })
 
     addFn.fn('', body, (r) => {
@@ -264,6 +268,33 @@ function Procurement() {
     orderRef.current?.showModal()
   }
 
+  function makeVoid(purchaseObj: any) {
+    const approvalCode = prompt("Enter approval code")
+
+    if (!approvalCode) {
+      if (approvalCode === "") alert("Please enter approval code")
+      return;
+    }
+    else {
+      const payload = JSON.stringify({
+        _id: purchaseObj._id,
+        status: 'void',
+        approvalCode: approvalCode,
+        voidedBy: user,
+        voidedAt: new Date()
+      })
+
+      editFn.fn('', payload, (result) => {
+        if (result === null) return;
+        const target = pr.find((r) => r._id === purchaseObj._id)
+        if (target) {
+          target.status = "void"
+          setPr([...pr])
+        }
+      })
+    }
+  }
+
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=procurement`
@@ -356,35 +387,47 @@ function Procurement() {
                                 }
                                 <td>{p.status}</td>
                                 {
-                                  p.status === "ordered" || p.status === "completed"
+                                  p.status === "ordered"
                                     ?
                                     <td>
-                                      <button className="cursor text-red-900" onClick={() => edit(p._id)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                          <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-                                          <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
+                                      <button className="cursor" onClick={() => makeVoid(p)}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6 text-red-500">
+                                          <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clipRule="evenodd" />
                                         </svg>
                                       </button>
                                     </td>
                                     :
-                                    p.status === "approved"
+                                    p.status === "completed"
                                       ?
                                       <td>
-                                        <button onClick={() => order(p._id)}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                          </svg>
-                                        </button>
-                                      </td>
-                                      :
-                                      <td>
-                                        <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
+                                        <button className="cursor text-red-900" onClick={() => edit(p._id)}>
                                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                             <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
                                             <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
                                           </svg>
                                         </button>
                                       </td>
+                                      :
+                                      p.status === "approved"
+                                        ?
+                                        <td>
+                                          <button onClick={() => order(p._id)}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                            </svg>
+                                          </button>
+                                        </td>
+                                        :
+                                        <td>
+                                          <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
+                                            <HugeiconsIcon
+                                              icon={Edit03Icon}
+                                              size={24}
+                                              color="currentColor"
+                                              strokeWidth={1.5}
+                                            />
+                                          </button>
+                                        </td>
                                 }
                               </tr>
                             )

@@ -13,21 +13,29 @@ interface RefundEntry {
   warehouseId?: { name: string; locationId?: { name: string } }
   qty: number
   storedBackQty?: number
+  exitedQty?: number
   refundAmount: number
-  status: 'refunded' | 'stored_back'
+  status: 'refunded' | 'stored_back' | 'resolved'
   storedBackAt?: string
 }
 
 export default function RefundLog() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const userId = useAuth((s) => s.id)
+  const userName = useAuth((s) => s.name)
+
 
   const [refunds, setRefunds] = useState<RefundEntry[]>([])
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedRefund, setSelectedRefund] = useState<RefundEntry | null>(null)
-  const [storeQty, setStoreQty] = useState<number>(0)
+  const [processQty, setProcessQty] = useState<number>(0)
+  const [actionMode, setActionMode] = useState<'store_back' | 'exit'>('store_back')
+  const [exitReason, setExitReason] = useState<string>('EXPIRED')
+  const [exitNote, setExitNote] = useState<string>('')
+  const [approvalCode, setApprovalCode] = useState<string>('')
 
   const getRefundsFn = useFetch<RefundEntry[], unknown>({
     url: `/api/web/refund?id=xxx`,
@@ -51,49 +59,84 @@ export default function RefundLog() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, masterAccountId])
 
-  function openModal(refund: RefundEntry) {
-    const remaining = refund.qty - (refund.storedBackQty || 0)
+  function openModalForStore(refund: RefundEntry) {
+    const remaining = refund.qty - (refund.storedBackQty || 0) - (refund.exitedQty || 0)
     setSelectedRefund(refund)
-    setStoreQty(remaining)   // default to full remaining
+    setProcessQty(remaining)
+    setActionMode('store_back')
+    setModalOpen(true)
+  }
+
+  function openModalForExit(refund: RefundEntry) {
+    const remaining = refund.qty - (refund.storedBackQty || 0) - (refund.exitedQty || 0)
+    setSelectedRefund(refund)
+    setProcessQty(remaining)
+    setActionMode('exit')
+    setExitReason('EXPIRED')
+    setExitNote('')
+    setApprovalCode('')
     setModalOpen(true)
   }
 
   function closeModal() {
     setModalOpen(false)
     setSelectedRefund(null)
-    setStoreQty(0)
+    setProcessQty(0)
   }
 
-  function handleStoreBack() {
+  function handleProcess() {
     if (!selectedRefund) return
-    const remaining = selectedRefund.qty - (selectedRefund.storedBackQty || 0)
+    const remaining = selectedRefund.qty - (selectedRefund.storedBackQty || 0) - (selectedRefund.exitedQty || 0)
 
-    if (storeQty <= 0 || storeQty > remaining) {
+    if (processQty <= 0 || processQty > remaining) {
       alert(`Please enter a quantity between 1 and ${remaining}`)
       return
     }
 
-    putRefundFn.fn('', JSON.stringify({ id: selectedRefund._id, qty: storeQty }), (res) => {
-      alert(res ? `Success: ${res.qty - (res.storedBackQty || 0)} remaining` : "Stored back successfully")
+    if (actionMode === 'exit' && !approvalCode) {
+      alert("Kode approval harus diisi")
+      return
+    }
+
+    const body: Record<string, unknown> = {
+      id: selectedRefund._id,
+      qty: processQty,
+      action: actionMode
+    }
+    if (actionMode === 'exit') {
+      body.reason = exitReason
+      body.note = exitNote
+      body.approvalCode = approvalCode
+      body.userId = userId
+      body.userName = userName
+    }
+
+    putRefundFn.fn('', JSON.stringify(body), (res) => {
+      alert(res ? `Success: ${res.qty - (res.storedBackQty || 0) - (res.exitedQty || 0)} remaining` : "Processed successfully")
       setRefunds(prev =>
-        prev.map(r => r._id === selectedRefund._id
-          ? {
+        prev.map(r => {
+          if (r._id === selectedRefund._id) {
+            const newStored = (r.storedBackQty || 0) + (actionMode === 'store_back' ? processQty : 0)
+            const newExited = (r.exitedQty || 0) + (actionMode === 'exit' ? processQty : 0)
+            return {
               ...r,
-              storedBackQty: (r.storedBackQty || 0) + storeQty,
-              status: (r.storedBackQty || 0) + storeQty >= r.qty ? 'stored_back' : 'refunded',
-              storedBackAt: new Date().toISOString()
+              storedBackQty: newStored,
+              exitedQty: newExited,
+              status: newStored + newExited >= r.qty ? 'resolved' : 'refunded',
+              storedBackAt: actionMode === 'store_back' ? new Date().toISOString() : r.storedBackAt
             }
-          : r
-        )
+          }
+          return r
+        })
       )
       closeModal()
     })
   }
 
   function statusBadge(entry: RefundEntry) {
-    if (entry.status === 'stored_back') return <span className="badge badge-success text-white">Stored Back</span>
-    const storedBack = entry.storedBackQty || 0
-    if (storedBack > 0) return <span className="badge badge-info text-white">Partial ({storedBack}/{entry.qty})</span>
+    if (entry.status === 'stored_back' || entry.status === 'resolved') return <span className="badge badge-success text-white">Resolved</span>
+    const processed = (entry.storedBackQty || 0) + (entry.exitedQty || 0)
+    if (processed > 0) return <span className="badge badge-info text-white">Partial ({processed}/{entry.qty})</span>
     return <span className="badge badge-warning">Refunded</span>
   }
 
@@ -123,6 +166,7 @@ export default function RefundLog() {
                   <th>Warehouse</th>
                   <th>Refunded Qty</th>
                   <th>Stored Back</th>
+                  <th>Exited</th>
                   <th>Remaining</th>
                   <th>Refund Amount</th>
                   <th>Status</th>
@@ -133,7 +177,8 @@ export default function RefundLog() {
               <tbody>
                 {refunds.map((x, index) => {
                   const storedBack = x.storedBackQty || 0
-                  const remaining = x.qty - storedBack
+                  const exited = x.exitedQty || 0
+                  const remaining = x.qty - storedBack - exited
                   return (
                     <tr key={index}>
                       <td>{new Date(x.createdAt).toLocaleString("id-ID")}</td>
@@ -142,6 +187,7 @@ export default function RefundLog() {
                       <td>{x.warehouseId?.name || x.warehouseId?.locationId?.name || '-'}</td>
                       <td>{x.qty}</td>
                       <td>{storedBack}</td>
+                      <td>{exited}</td>
                       <td>
                         <span className={remaining > 0 ? 'font-semibold text-orange-600' : 'text-gray-400'}>
                           {remaining}
@@ -151,14 +197,23 @@ export default function RefundLog() {
                       <td>{statusBadge(x)}</td>
                       <td>{x.storedBackAt ? new Date(x.storedBackAt).toLocaleString("id-ID") : '-'}</td>
                       <td>
-                        {x.status !== 'stored_back' && (
-                          <div className="tooltip tooltip-left" data-tip={x.warehouseId ? "" : "No warehouse associated. Cannot store back."}>
+                        {x.status !== 'stored_back' && x.status !== 'resolved' && (
+                          <div className="flex gap-2 justify-center">
+                            <div className="tooltip tooltip-left" data-tip={x.warehouseId ? "" : "No warehouse associated. Cannot store back."}>
+                              <button
+                                className="btn btn-sm btn-primary text-white"
+                                onClick={() => openModalForStore(x)}
+                                disabled={putRefundFn.loading || !x.warehouseId}
+                              >
+                                Store Back
+                              </button>
+                            </div>
                             <button
-                              className="btn btn-sm btn-primary text-white"
-                              onClick={() => openModal(x)}
+                              className="btn btn-sm btn-warning text-white"
+                              onClick={() => openModalForExit(x)}
                               disabled={putRefundFn.loading || !x.warehouseId}
                             >
-                              Store Back
+                              Exit
                             </button>
                           </div>
                         )}
@@ -172,43 +227,83 @@ export default function RefundLog() {
         )}
       </div>
 
-      {/* Store Back Modal */}
+      {/* Processing Modal */}
       {modalOpen && selectedRefund && (() => {
-        const remaining = selectedRefund.qty - (selectedRefund.storedBackQty || 0)
+        const remaining = selectedRefund.qty - (selectedRefund.storedBackQty || 0) - (selectedRefund.exitedQty || 0)
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm flex flex-col gap-5">
-              <h2 className="text-xl font-bold text-blue-900">Store Back to Warehouse</h2>
+              <h2 className="text-xl font-bold text-blue-900">
+                {actionMode === 'store_back' ? 'Store Back to Warehouse' : 'Exit Item from Refund'}
+              </h2>
 
               <div className="text-sm text-gray-600 flex flex-col gap-1">
                 <p><span className="font-medium">Product:</span> {selectedRefund.productId?.productName || '-'}</p>
                 <p><span className="font-medium">Order:</span> {selectedRefund.salesOrderNumber}</p>
                 <p><span className="font-medium">Total Refunded:</span> {selectedRefund.qty}</p>
-                <p><span className="font-medium">Already Stored:</span> {selectedRefund.storedBackQty || 0}</p>
+                <p><span className="font-medium">Processed (Stored + Exited):</span> {(selectedRefund.storedBackQty || 0) + (selectedRefund.exitedQty || 0)}</p>
                 <p className="text-orange-600 font-semibold">Remaining: {remaining}</p>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">Quantity to Store Back</label>
+                <label className="text-sm font-medium text-gray-700">Quantity to {actionMode === 'store_back' ? 'Store Back' : 'Exit'}</label>
                 <input
                   type="number"
                   className="input input-bordered w-full"
                   min={1}
                   max={remaining}
-                  value={storeQty}
-                  onChange={e => setStoreQty(Number(e.target.value))}
+                  value={processQty}
+                  onChange={e => setProcessQty(Number(e.target.value))}
                 />
                 <p className="text-xs text-gray-400">Max: {remaining}</p>
               </div>
 
-              <div className="flex gap-3 justify-end">
+              {actionMode === 'exit' && (
+                <>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Reason</label>
+                    <select
+                      className="select select-bordered w-full"
+                      value={exitReason}
+                      onChange={e => setExitReason(e.target.value)}
+                    >
+                      <option value="EXPIRED">Expired</option>
+                      <option value="BROKEN">Broken</option>
+                      <option value="LOST">Lost</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">Note</label>
+                    <input
+                      type="text"
+                      className="input input-bordered w-full"
+                      value={exitNote}
+                      onChange={e => setExitNote(e.target.value)}
+                      placeholder="Optional note..."
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 border-t pt-2 mt-2">
+                    <label className="text-sm font-medium text-gray-700 text-red-600">Approval Code (Required)</label>
+                    <input
+                      type="password"
+                      className="input input-bordered w-full border-red-300 focus:border-red-500"
+                      value={approvalCode}
+                      onChange={e => setApprovalCode(e.target.value)}
+                      placeholder="Enter Admin/Manager Code"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-3 justify-end mt-2">
                 <button className="btn btn-ghost" onClick={closeModal} disabled={putRefundFn.loading}>
                   Cancel
                 </button>
                 <button
-                  className="btn btn-primary text-white"
-                  onClick={handleStoreBack}
-                  disabled={putRefundFn.loading || storeQty <= 0 || storeQty > remaining}
+                  className={actionMode === 'store_back' ? "btn btn-primary text-white" : "btn btn-warning text-white"}
+                  onClick={handleProcess}
+                  disabled={putRefundFn.loading || processQty <= 0 || processQty > remaining}
                 >
                   {putRefundFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Confirm'}
                 </button>

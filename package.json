@@ -13,6 +13,7 @@
     "@hugeicons/core-free-icons": "^4.1.2",
     "@hugeicons/react": "^1.1.6",
     "@prisma/client": "^7.1.0",
+    "@radix-ui/react-dialog": "^1.1.16",
     "@reduxjs/toolkit": "^2.11.0",
     "crypto-js": "^4.2.0",
     "formidable": "^3.5.4",
@@ -24,7 +25,9 @@
     "react-hook-form": "^7.69.0",
     "react-number-format": "^5.4.4",
     "react-redux": "^9.2.0",
+    "sweetalert2": "^11.26.25",
     "uuid": "^13.0.0",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

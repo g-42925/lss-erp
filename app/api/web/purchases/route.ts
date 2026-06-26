@@ -148,13 +148,14 @@ export async function PUT(request: NextRequest) {
 
           await Log.create({
             purchaseId: _id,
-            date: new Date(),
+            date: rest.date || new Date(),
             amount: amt,
             initial: false,
             paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
             type: rest.type,
             reference,
             paymentMethod: rest.paymentMethod,
+            createdBy: rest.userId
           })
 
           if (rest.type === "payment") {
@@ -177,13 +178,14 @@ export async function PUT(request: NextRequest) {
         else {
           await Log.create({
             purchaseId: _id,
-            date: new Date(),
+            date: rest.date || new Date(),
             amount: amt,
             initial: false,
             paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
             type: rest.type,
             reference,
-            paymentMethod: rest.paymentMethod
+            paymentMethod: rest.paymentMethod,
+            createdBy: rest.userId
           })
 
           if (rest.type === "payment") {
@@ -213,12 +215,13 @@ export async function PUT(request: NextRequest) {
 
         await Log.create({
           purchaseId: _id,
-          date: new Date(),
+          date: rest.date || new Date(),
           amount: rest.payAmount,
           initial: true,
           paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
           type: 'payment',
-          paymentMethod: rest.paymentMethod
+          paymentMethod: rest.paymentMethod,
+          createdBy: rest.userId
         })
 
         if (rest.purchaseType === 'procurement') {
@@ -498,6 +501,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    console.log({ p: params })
+
     const result = await Purchase.create({
       ...params,
       companyId: company._id,
@@ -506,7 +511,7 @@ export async function POST(request: NextRequest) {
       purchaseOrderNumber: `PO-${String(Date.now()).slice(-5)}`
     })
 
-    const requested = result._doc
+    const requested = (result as any)._doc
 
     const [agg] = await Purchase.aggregate(
       [
@@ -521,19 +526,36 @@ export async function POST(request: NextRequest) {
             localField: 'productId',
             foreignField: '_id',
             as: 'product'
-          },
-
+          }
         },
         {
-          $unwind: '$product'
+          $lookup: {
+            from: 'users',
+            localField: 'createdBy',
+            foreignField: '_id',
+            as: 'createdBy'
+          }
+        },
+        {
+          $unwind: '$createdBy'
+        },
+        {
+          $unwind: {
+            path: '$product',
+            preserveNullAndEmptyArrays: true
+          }
         },
       ]
     )
 
+    console.log({ agg })
+
     const r = {
       ...requested,
-      ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: agg?.product })
+      ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: agg?.product }),
+      createdBy: 'xxx'
     }
+
 
     return NextResponse.json(
       {
@@ -630,6 +652,45 @@ export async function GET(request: NextRequest) {
             localField: 'purchaseOrderNumber',
             foreignField: 'purchaseOrderNumber',
             as: 'batches'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'createdBy',
+            foreignField: '_id',
+            as: 'createdBy'
+          }
+        },
+        {
+          $unwind: '$createdBy'
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'approvedBy',
+            foreignField: '_id',
+            as: 'approvedBy'
+          }
+        },
+        {
+          $unwind: {
+            path: '$approvedBy',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'voidedBy',
+            foreignField: '_id',
+            as: 'voidedBy'
+          }
+        },
+        {
+          $unwind: {
+            path: '$voidedBy',
+            preserveNullAndEmptyArrays: true
           }
         },
         {

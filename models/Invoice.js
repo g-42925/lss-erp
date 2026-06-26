@@ -57,6 +57,24 @@ const invoiceSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'draft'],
     default: 'draft'
+  },
+  unavailableList: {
+    type: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: true
+        },
+        qty: {
+          type: Number,
+          required: true
+        }
+      }
+    ],
+  },
+  unavailable: {
+    type: Number,
+    min: 0
   }
 });
 

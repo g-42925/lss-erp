@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
 import Order from '@/models/Order'
+import Product from '@/models/Product'
 import Reservation from '@/models/Reservation'
 
 export async function POST(request: NextRequest) {

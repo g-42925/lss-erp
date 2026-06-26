@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import Batches from '@/models/Batche'
 import Invoice from '@/models/Invoice'
-import Location from '@/models/Location'
+
 import Order from "@/models/Order"
 import Companie from '@/models/Companie'
 import Product from '@/models/Product'
@@ -101,9 +101,6 @@ export async function POST(request: NextRequest) {
 
 		const pickup = new Date(params.pickupDate)
 
-
-		// Stock reduction is now exclusively handled by the partial movement (delivery) module
-
 		const orders = await Order.find({
 			companyId: company._id,
 		})
@@ -122,7 +119,8 @@ export async function POST(request: NextRequest) {
 			saleDate: new Date(),
 			payTerm: new Date(params.payTerm),
 			pickupDate: new Date(params.pickupDate),
-			total: params.total
+			total: params.total,
+			createdBy: params.userId
 		})
 
 		const paid = params.debt === 'yes' ? false : true
@@ -151,6 +149,91 @@ export async function POST(request: NextRequest) {
 				}
 			]
 		})
+
+		// ─── Kelola stock berdasarkan pickup date ────────────────────────
+		// Bandingkan tanggal saja (strip waktu) agar pickup "hari ini" = deduct langsung
+		const pickupDay = new Date(pickup.getFullYear(), pickup.getMonth(), pickup.getDate())
+		const today    = new Date(now.getFullYear(),    now.getMonth(),    now.getDate())
+
+		if (pickupDay > today) {
+			// Pickup di masa depan → reservasi (tahan stock, jangan potong outQty)
+			for (const item of params.cart) {
+				const productObjId = new mongoose.Types.ObjectId(item.productId)
+				const warehouseObjId = item.warehouseId
+					? new mongoose.Types.ObjectId(item.warehouseId)
+					: null
+
+				const batchQuery: Record<string, unknown> = {
+					productId: productObjId,
+					status: 'ACTIVE',
+				}
+				if (warehouseObjId) batchQuery.warehouseId = warehouseObjId
+
+				const batchList = await Batches.find(batchQuery).sort({ createdAt: 1 })
+
+				let remainingToReserve = Number(item.qty)
+				for (const batch of batchList) {
+					if (remainingToReserve <= 0) break
+					const freeQty = batch.accumulative - batch.outQty - (batch.reserved || 0)
+					if (freeQty <= 0) continue
+					const toReserve = Math.min(freeQty, remainingToReserve)
+
+					await Batches.findByIdAndUpdate(batch._id, { $inc: { reserved: toReserve } })
+					await Reservation.create({
+						batchId: batch._id,
+						salesOrderNumber: salesOrderNumber,
+						salesOrderId: result._id,
+						productId: productObjId,
+						warehouseId: warehouseObjId,
+						qty: toReserve,
+						pickupDate: pickup,
+						status: 'ACTIVE',
+					})
+					remainingToReserve -= toReserve
+				}
+			}
+		} else {
+			// Pickup hari ini atau sudah lewat → langsung potong stock (deduct outQty)
+			for (const item of params.cart) {
+				const productObjId = new mongoose.Types.ObjectId(item.productId)
+				const warehouseObjId = item.warehouseId
+					? new mongoose.Types.ObjectId(item.warehouseId)
+					: null
+
+				const batchQuery: Record<string, unknown> = {
+					productId: productObjId,
+					status: 'ACTIVE',
+				}
+				if (warehouseObjId) batchQuery.warehouseId = warehouseObjId
+
+				const batchList = await Batches.find(batchQuery).sort({ createdAt: 1 })
+
+				let remainingToDeduct = Number(item.qty)
+				for (const batch of batchList) {
+					if (remainingToDeduct <= 0) break
+					const freeQty = batch.accumulative - batch.outQty - (batch.reserved || 0)
+					if (freeQty <= 0) continue
+					const toDeduct = Math.min(freeQty, remainingToDeduct)
+
+					// Potong outQty langsung
+					await Batches.findByIdAndUpdate(batch._id, { $inc: { outQty: toDeduct } })
+
+					// Tandai sebagai IMMEDIATE agar delivery tidak double-deduct
+					await Reservation.create({
+						batchId: batch._id,
+						salesOrderNumber: salesOrderNumber,
+						salesOrderId: result._id,
+						productId: productObjId,
+						warehouseId: warehouseObjId,
+						qty: toDeduct,
+						pickupDate: null,
+						status: 'IMMEDIATE',
+					})
+					remainingToDeduct -= toDeduct
+				}
+			}
+		}
+		// ─────────────────────────────────────────────────────────────
 
 		return NextResponse.json({
 			noResult: false,

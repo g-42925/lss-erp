@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
+import User from '@/models/User'
 import Order from '@/models/Order'
 import Companie from '@/models/Companie'
 import Batches from '@/models/Batche'
@@ -28,9 +29,13 @@ export async function POST(request: NextRequest) {
         salesOrderNumber: params.salesOrderNumber,
         batchId: batch._id
       });
-      
-      if (reservation) {
-        // 1. Update Batch outQty and decrease reserved
+
+      if (reservation && reservation.status === 'IMMEDIATE') {
+        // Order biasa: stock sudah dipotong saat order dibuat, tidak perlu double-deduct
+        // Hanya tandai reservation sebagai FULFILLED
+        await Reservation.findByIdAndUpdate(reservation._id, { status: 'FULFILLED' })
+      } else if (reservation && reservation.status === 'ACTIVE') {
+        // Order reserved: kurangi reserved dan tambah outQty
         await Batches.updateOne(
           { _id: batch._id },
           {
@@ -40,8 +45,10 @@ export async function POST(request: NextRequest) {
             }
           }
         )
+        // Mark reservation as FULFILLED
+        await Reservation.findByIdAndUpdate(reservation._id, { status: 'FULFILLED' })
       } else {
-        // 1. Update Batch outQty only
+        // Legacy / tidak ada reservation: tambah outQty seperti biasa
         await Batches.updateOne(
           { _id: batch._id },
           {
@@ -163,17 +170,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const adjustment = (params.adjustment || []).map((item: any) => {
+      return {
+        deliveryNumber: deliveryNumber,
+        ...item
+      }
+    })
+
+
+    if (adjustment.length > 0) {
+      await Order.findOneAndUpdate(
+        {
+          salesOrderNumber: params.salesOrderNumber
+        },
+        {
+          $push: { adjustment: { $each: adjustment } }
+        }
+      )
+    }
+
+
     const delivered = await Deliverie.create({
       companyId: company._id,
       salesOrderNumber: params.salesOrderNumber,
       deliveryNumber: deliveryNumber,
       items: params.items,
-      date: new Date()
+      date: new Date(),
+      createdBy: params.createdBy
     })
 
-    // Return the created delivery with some joined info if possible
-    // For now, let's keep it simple and return the document
-    // We'll update the GET method to handle the complex aggregation for the list view
 
     return NextResponse.json({
       noResult: false,
@@ -202,6 +227,8 @@ export async function GET(request: NextRequest) {
     const so = url.searchParams.get("so")
     const filter = url.searchParams.get("f")
     const id = url.searchParams.get("id")
+    const fromParam = url.searchParams.get("from")
+    const toParam = url.searchParams.get("to")
 
     if (filter != 'all') {
       const order = await Order.findOne({
@@ -241,7 +268,7 @@ export async function GET(request: NextRequest) {
         const productReservedBatchIds = productReservedBatches.map(b => b._id);
         const isReservedForProduct = productReservedBatchIds.length > 0;
 
-        let batchMatchQuery: any = { productId: productId };
+        const batchMatchQuery: any = { productId: productId };
         if (isReservedForProduct) {
           batchMatchQuery._id = { $in: productReservedBatchIds };
         }
@@ -273,7 +300,8 @@ export async function GET(request: NextRequest) {
             $match: {
               remain: { $gt: 0 }
             }
-          }
+          },
+
         ])
 
         return {
@@ -296,7 +324,26 @@ export async function GET(request: NextRequest) {
       // Fetch all deliveries for the list view
       // We will unwind items to show each product in its own row, 
       // which is usually clearer for warehouse staff.
-      const deliveries = await Deliverie.aggregate([
+
+      // Build optional date match stage
+      const dateMatch: any = {}
+      if (fromParam) {
+        const fromDate = new Date(fromParam)
+        fromDate.setHours(0, 0, 0, 0)
+        dateMatch.$gte = fromDate
+      }
+      if (toParam) {
+        const toDate = new Date(toParam)
+        toDate.setHours(23, 59, 59, 999)
+        dateMatch.$lte = toDate
+      }
+
+      const pipeline: any[] = []
+      if (Object.keys(dateMatch).length > 0) {
+        pipeline.push({ $match: { date: dateMatch } })
+      }
+
+      const deliveries = await Deliverie.aggregate([...pipeline,
         {
           $unwind: '$items'
         },
@@ -348,21 +395,40 @@ export async function GET(request: NextRequest) {
           }
         },
         {
+          $lookup: {
+            from: 'users',
+            localField: 'createdBy',
+            foreignField: '_id',
+            as: 'creator'
+          }
+        },
+        {
+          $unwind: {
+            path: '$creator',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
           $project: {
+            _id: 1,
             date: 1,
             deliveryNumber: 1,
             salesOrderNumber: 1,
             qty: '$items.qty',
             batchNumber: '$items.batchNumber',
             location: {
+              _id: '$location._id',
               name: '$location.name'
             },
             product: {
+              _id: '$product._id',
               productName: '$product.productName'
             },
             customer: {
               bussinessName: '$customer.bussinessName'
-            }
+            },
+            orderAdjustment: '$order.adjustment',
+            createdBy: '$creator.name'
           }
         },
         {
@@ -394,6 +460,145 @@ export async function GET(request: NextRequest) {
   }
   catch (e: any) {
     console.error("Delivery GET Error:", e)
+    return NextResponse.json({
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
+    })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    await connectToDatabase()
+    const { _id, productId, batchNumber, newQty, adjustment, approvalCode } = await request.json()
+
+    const user = await User.findOne({ approvalCode: approvalCode })
+
+    if (!user) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Invalid approval code",
+        result: null,
+        error: true
+      })
+    }
+
+    if (!_id || !productId || !batchNumber || newQty === undefined) {
+      return NextResponse.json({
+        error: true,
+        message: 'Invalid payload'
+      })
+    }
+
+    const delivery = await Deliverie.findById(_id)
+
+    if (!delivery) throw new Error("Delivery not found")
+
+    const itemObj = delivery.items.find((i: any) => i.productId.toString() === productId && i.batchNumber === batchNumber)
+
+    if (!itemObj) throw new Error("Delivery item not found")
+
+    const diff = newQty - itemObj.qty
+
+    if (diff !== 0) {
+      const batch = await Batches.findOne({ batchNumber: batchNumber, productId: productId })
+      const product = await Product.findOne({ _id: productId })
+
+      if (batch) {
+        await Batches.updateOne(
+          { _id: batch._id },
+          { $inc: { outQty: diff } }
+        )
+      }
+
+      if (product) {
+        const [_product] = await Product.aggregate([
+          { $match: { _id: product._id } },
+          {
+            $lookup: {
+              from: "batches",
+              localField: "_id",
+              foreignField: "productId",
+              as: "batches",
+              pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$status", "ACTIVE"] }] } } }]
+            }
+          },
+          { $unwind: { path: "$batches", preserveNullAndEmptyArrays: true } },
+          {
+            $group: {
+              _id: "$_id",
+              doc: { $first: "$$ROOT" },
+              accumulative: { $sum: "$batches.accumulative" },
+              out: { $sum: "$batches.outQty" }
+            }
+          },
+          { $addFields: { remain: { $subtract: ["$accumulative", "$out"] } } },
+          {
+            $lookup: {
+              from: "allocations",
+              localField: "_id",
+              foreignField: "productId",
+              as: "allocations"
+            }
+          },
+          {
+            $addFields: {
+              allocated: { $sum: { $map: { input: "$allocations", as: "a", in: "$$a.qty" } } }
+            }
+          }
+        ])
+
+        const currentCost = Math.round((_product?.doc?.stockValue || 0) / (Math.max(1, (_product?.remain || 0) + (_product?.allocated || 0))))
+        const modifiedStockValue = Math.max(0, (product.stockValue || 0) - (currentCost * diff))
+
+        await Product.findByIdAndUpdate(product._id, { stockValue: modifiedStockValue })
+
+        await OutboundLog.create({
+          warehouseId: batch?.warehouseId || itemObj.locationId,
+          productId: product._id,
+          quantity: diff,
+          date: new Date()
+        });
+      }
+
+      itemObj.qty = newQty
+      await delivery.save()
+    }
+
+    if (adjustment !== undefined) {
+      const order = await Order.findOne({ salesOrderNumber: delivery.salesOrderNumber })
+      if (order) {
+        let foundAdj = false
+        for (const adj of order.adjustment) {
+          if (adj.productId.toString() === productId && adj.deliveryNumber === delivery.deliveryNumber) {
+            adj.qty = adjustment
+            foundAdj = true
+            break
+          }
+        }
+        if (!foundAdj) {
+          order.adjustment.push({
+            deliveryNumber: delivery.deliveryNumber,
+            productId: productId,
+            qty: adjustment
+          })
+        }
+        await order.save()
+      }
+    }
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Delivery updated successfully",
+      result: delivery,
+      error: false
+    })
+
+  }
+  catch (e: any) {
+    console.error("Delivery PUT Error:", e)
     return NextResponse.json({
       noResult: true,
       message: e.message,

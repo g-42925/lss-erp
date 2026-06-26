@@ -34,6 +34,25 @@ const logSchema = new mongoose.Schema({
   paymentMethod: {
     type: String,
     required: false
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  editedAt: {
+    type: Date,
+    required: false
+  },
+  editedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  editApprovedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
   }
 });
 

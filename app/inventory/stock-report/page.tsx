@@ -14,7 +14,9 @@ type StockRow = {
   firstStock: number
   inbound: number
   outbound: number
-  endStock: number
+  endStock: number,
+  conversionRatioY: number,
+  conversionRatioX: number,
 }
 
 type Warehouse = {
@@ -294,7 +296,7 @@ export default function StockReportPage() {
                           ? <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">{row.category}</span>
                           : <span className="text-xs text-slate-300">—</span>}
                       </td>
-                      <td className="px-5 py-3.5 text-slate-500">xxx</td>
+                      <td className="px-5 py-3.5 text-slate-500">{row.conversionRatioY}</td>
                       <td className="px-5 py-3.5 text-center">
                         <span className="font-semibold text-slate-700">{row.firstStock}</span>
                       </td>
@@ -374,7 +376,7 @@ export default function StockReportPage() {
                 <td className="py-1.5 px-2 font-mono text-gray-500">{row.itemCode}</td>
                 <td className="py-1.5 px-2 font-semibold">{row.name}</td>
                 <td className="py-1.5 px-2 text-gray-600">{row.category || "—"}</td>
-                <td className="py-1.5 px-2 text-gray-600">{row.unit || "-"}</td>
+                <td className="py-1.5 px-2 text-gray-600">{row.conversionRatioY}</td>
                 <td className="py-1.5 px-2 text-center">{row.firstStock.toLocaleString("id-ID")}</td>
                 <td className="py-1.5 px-2 text-center text-green-900 font-semibold">{row.inbound > 0 ? `+${row.inbound.toLocaleString("id-ID")}` : "0"}</td>
                 <td className="py-1.5 px-2 text-center text-red-900 font-semibold">{row.outbound > 0 ? `-${row.outbound.toLocaleString("id-ID")}` : "0"}</td>

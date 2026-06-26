@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Parse Dates — gunakan waktu lokal WIB (UTC+7)
     const startDate = new Date(startDateStr + 'T00:00:00+07:00');
-    const endDate   = new Date(endDateStr   + 'T23:59:59+07:00');
+    const endDate = new Date(endDateStr + 'T23:59:59+07:00');
 
     const warehouseObjId = new mongoose.Types.ObjectId(warehouseId);
 
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
         $group: {
           _id: '$productId',
           accumulative: { $sum: '$accumulative' },
-          outQty:       { $sum: '$outQty' },
+          outQty: { $sum: '$outQty' },
         }
       }
     ]);
@@ -80,13 +80,13 @@ export async function GET(request: NextRequest) {
 
     // Build maps
     type AggBatch = { _id: unknown; accumulative: number; outQty: number };
-    type AggLog   = { _id: unknown; total: number };
+    type AggLog = { _id: unknown; total: number };
 
-    const batchMap    = new Map((currentBatchAgg  as AggBatch[]).map(x => [String(x._id), (x.accumulative || 0) - (x.outQty || 0)]));
-    const inAfterMap  = new Map((inboundAfterEnd  as AggLog[]).map(x => [String(x._id), x.total || 0]));
+    const batchMap = new Map((currentBatchAgg as AggBatch[]).map(x => [String(x._id), (x.accumulative || 0) - (x.outQty || 0)]));
+    const inAfterMap = new Map((inboundAfterEnd as AggLog[]).map(x => [String(x._id), x.total || 0]));
     const outAfterMap = new Map((outboundAfterEnd as AggLog[]).map(x => [String(x._id), x.total || 0]));
-    const inRangeMap  = new Map((inboundInRange   as AggLog[]).map(x => [String(x._id), x.total || 0]));
-    const outRangeMap = new Map((outboundInRange  as AggLog[]).map(x => [String(x._id), x.total || 0]));
+    const inRangeMap = new Map((inboundInRange as AggLog[]).map(x => [String(x._id), x.total || 0]));
+    const outRangeMap = new Map((outboundInRange as AggLog[]).map(x => [String(x._id), x.total || 0]));
 
     const report = products.map((item) => {
       const id = String(item._id);
@@ -96,24 +96,42 @@ export async function GET(request: NextRequest) {
 
       // Roll-back dari sekarang ke endDate:
       // endStock = currentStock - (inbound setelah endDate) + (outbound setelah endDate)
-      const inAfter  = inAfterMap.get(id)  ?? 0;
+      const inAfter = inAfterMap.get(id) ?? 0;
       const outAfter = outAfterMap.get(id) ?? 0;
       const endStock = currentStock - inAfter + outAfter;
 
       // Inbound & Outbound dalam periode yang dipilih
-      const inbound  = inRangeMap.get(id)  ?? 0;
+      const inbound = inRangeMap.get(id) ?? 0;
       const outbound = outRangeMap.get(id) ?? 0;
 
       // firstStock = endStock - inbound + outbound
       // (karena: firstStock + inbound - outbound = endStock)
       const firstStock = endStock - inbound + outbound;
 
+      console.log(
+        {
+          _id: id,
+          itemCode: item.productId,
+          name: item.productName,
+          conversionRatioX: item.conversionRatioX,
+          conversionRatioY: item.conversionRatioY,
+          unit: item.warehouseUnit || item.saleUnit || '-',
+          category: item.category || '',
+          firstStock,
+          inbound,
+          outbound,
+          endStock,
+        }
+      )
+
       return {
-        _id:        id,
-        itemCode:   item.productId,
-        name:       item.productName,
-        unit:       item.warehouseUnit || item.saleUnit || '-',
-        category:   item.category || '',
+        _id: id,
+        itemCode: item.productId,
+        name: item.productName,
+        conversionRatioX: item.conversionRatioX,
+        conversionRatioY: item.conversionRatioY,
+        unit: item.warehouseUnit || item.saleUnit || '-',
+        category: item.category || '',
         firstStock,
         inbound,
         outbound,

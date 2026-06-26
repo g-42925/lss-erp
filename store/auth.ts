@@ -10,6 +10,8 @@ interface AuthData {
   pages: Record<string, string[]>;
   isSuperAdmin: boolean;
   locationId: string;
+  userId: string;
+  companyId: string;
 }
 
 const useAuth = create<Auth>()(
@@ -32,6 +34,8 @@ const useAuth = create<Auth>()(
           pages: {},
           isSuperAdmin: false,
           _hasHydrated: false,
+          userId: '',
+          companyId: '',
         })),
 
         setLocationId: (locationId: string) => set(() => ({ locationId })),
@@ -45,6 +49,8 @@ const useAuth = create<Auth>()(
         pages: {},
         isSuperAdmin: false,
         _hasHydrated: false,
+        userId: '',
+        companyId: '',
       }),
       {
         name: 'auth-storage',

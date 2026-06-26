@@ -203,6 +203,9 @@ export default function Invoices() {
     return `${value}%`
   }
 
+
+
+
   useEffect(() => {
     if (hasHydrated) {
       const url4 = `/api/web/invoice/product?id=${masterAccountId}&type=product`
@@ -535,7 +538,7 @@ export default function Invoices() {
                               <td className="py-[5px] text-sm text-gray-800">{index}</td>
                               <td className="py-[5px] text-sm text-gray-800">{matchedProduct?.productName}</td>
                               <td className="py-[5px] text-sm text-gray-800 text-right">{Number(matchedProduct?.sellingPrice)?.toLocaleString('id-ID')}</td>
-                              <td className="py-[5px] text-sm text-gray-800 text-right">{`${cartItem.qty} ${matchedProduct?.saleUnit}`}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right">{`${cartItem.qty} ${matchedProduct?.conversionRatioY}`}</td>
                               <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(cartItem.qty * (matchedProduct?.sellingPrice || 0))?.toLocaleString('id-ID')}</td>
                             </tr>
                           );
@@ -561,8 +564,8 @@ export default function Invoices() {
                     <td className="py-[5px] text-sm text-gray-800">1</td>
                     <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.product?.productName}</td>
                     <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.product?.sellingPrice)?.toLocaleString('id-ID')}</td>
-                    <td className="py-[5px] text-sm text-gray-800 text-right">{`${selectedInvoice?.order?.cart[0].qty} ${selectedInvoice?.product?.saleUnit}`}</td>
-                    <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.total - selectedInvoice?.order?.taxValue + countTotal(selectedInvoice)).toLocaleString('id-ID')}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">{`${selectedInvoice?.order?.cart[0].qty - selectedInvoice?.unavailableList[0]?.qty} ${selectedInvoice?.product?.conversionRatioY}`}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice - (selectedInvoice?.unavailableList[0]?.qty * selectedInvoice?.product?.sellingPrice)).toLocaleString('id-ID')}</td>
                   </tr>
                 </tbody>
               </table>
@@ -586,9 +589,9 @@ export default function Invoices() {
                 <div className="flex flex-row">
                   <span className="text-gray-700 text-sm">Subtotal</span>
                   {selectedInvoice?.order?.cart?.length === 1 ? (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.total - selectedInvoice?.order?.taxValue + countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice) - (selectedInvoice?.unavailableList[0].qty * selectedInvoice?.product?.sellingPrice)).toLocaleString('id-ID')}</span>
                   ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart.map((c) => c.subTotal).reduce((sum, current) => sum + current, 0)) - (999)).toLocaleString('id-ID')}</span>
                   )}
                 </div>
                 <div className="flex flex-row">
@@ -607,8 +610,12 @@ export default function Invoices() {
                   )
                 }
                 <div className="flex flex-row font-bold">
+                  <span className="text-gray-700 text-sm">Refund credit</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.refundCredit)?.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Total</span>
-                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.total)?.toLocaleString('id-ID')}</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.total - selectedInvoice?.unavailable)?.toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>

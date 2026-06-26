@@ -7,9 +7,14 @@ import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { Cancel02Icon } from '@hugeicons/core-free-icons';
+import { CoinsDollarIcon } from '@hugeicons/core-free-icons';
 
 
 export default function XPurchases() {
+  const user = useAuth((state) => state.userId)
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -94,16 +99,11 @@ export default function XPurchases() {
       id: masterAccountId,
       date: new Date(),
       purchaseType: 'payment',
+      createdBy: user
     })
 
     addFn.fn('', body, (r) => {
-      setPr(
-        [
-          ...pr,
-          r
-        ]
-      )
-      modalRef.current?.close()
+      window.location.href = '/xpurchases'
     })
   }
 
@@ -255,6 +255,33 @@ export default function XPurchases() {
     orderRef.current?.showModal()
   }
 
+  function makeVoid(purchaseObj: any) {
+    const approvalCode = prompt("Enter approval code")
+
+    if (!approvalCode) {
+      if (approvalCode === "") alert("Please enter approval code")
+      return;
+    }
+    else {
+      const payload = JSON.stringify({
+        _id: purchaseObj._id,
+        status: 'void',
+        approvalCode: approvalCode,
+        voidedBy: user,
+        voidedAt: new Date()
+      })
+
+      editFn.fn('', payload, (result) => {
+        if (result === null) return;
+        const target = pr.find((r) => r._id === purchaseObj._id)
+        if (target) {
+          target.status = "void"
+          setPr([...pr])
+        }
+      })
+    }
+  }
+
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=payment`
@@ -329,6 +356,7 @@ export default function XPurchases() {
                     <thead>
                       <tr>
                         <th>Date</th>
+                        <th>Created By</th>
                         <th>Description</th>
                         <th>Estimated price</th>
                         <th>Final Price</th>
@@ -346,6 +374,7 @@ export default function XPurchases() {
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                                <td>{p.createdBy.name}</td>
                                 <td>{p.description}</td>
                                 <td>{p.estimatedPrice}</td>
                                 {
@@ -359,35 +388,82 @@ export default function XPurchases() {
                                   p.status === "ordered" || p.status === "completed" ? <td>{p.vendor.name}</td> : <td>-</td>
                                 }
                                 {
-                                  p.status === "ordered" || p.status === "completed"
+                                  p.status === "ordered"
                                     ?
                                     <td>
-                                      <button className="cursor text-red-900" onClick={() => edit(p._id)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                          <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-                                          <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
-                                        </svg>
+                                      <button className="cursor" onClick={() => makeVoid(p)}>
+                                        <HugeiconsIcon
+                                          icon={Cancel02Icon}
+                                          size={24}
+                                          color="currentColor"
+                                          strokeWidth={1.5}
+                                        />
                                       </button>
                                     </td>
                                     :
-                                    p.status === "approved"
+                                    p.status === "completed"
                                       ?
                                       <td>
-                                        <button className="cursor text-blue-900" onClick={() => order(p._id)}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                          </svg>
-                                        </button>
-                                      </td>
-                                      :
-                                      <td>
-                                        <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
+                                        <button className="cursor text-red-900" onClick={() => edit(p._id)}>
                                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                             <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
                                             <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
                                           </svg>
                                         </button>
                                       </td>
+                                      :
+                                      p.status === "approved"
+                                        ?
+                                        <td>
+                                          <button className="cursor text-blue-900" onClick={() => order(p._id)}>
+                                            <HugeiconsIcon
+                                              icon={CoinsDollarIcon}
+                                              size={24}
+                                              color="currentColor"
+                                              strokeWidth={1.5}
+                                            />
+                                          </button>
+                                          <button className="cursor text-red-900" onClick={() => makeVoid(p)}>
+                                            <HugeiconsIcon
+                                              icon={Cancel02Icon}
+                                              size={24}
+                                              color="currentColor"
+                                              strokeWidth={1.5}
+                                            />
+                                          </button>
+                                        </td>
+                                        :
+                                        p.status != 'void'
+                                          ?
+                                          <td className="flex flex-col gap-3">
+                                            <button className="cursor text-red-900" onClick={() => makeVoid(p)}>
+                                              <HugeiconsIcon
+                                                icon={Cancel02Icon}
+                                                size={24}
+                                                color="currentColor"
+                                                strokeWidth={1.5}
+                                              />
+                                            </button>
+                                            <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
+                                              <HugeiconsIcon
+                                                icon={Edit03Icon}
+                                                size={24}
+                                                color="currentColor"
+                                                strokeWidth={1.5}
+                                              />
+                                            </button>
+                                          </td>
+                                          :
+                                          <td className="flex flex-col gap-3">
+                                            <button className="cursor text-green-900">
+                                              <HugeiconsIcon
+                                                icon={Edit03Icon}
+                                                size={24}
+                                                color="currentColor"
+                                                strokeWidth={1.5}
+                                              />
+                                            </button>
+                                          </td>
                                 }
                               </tr>
                             )
