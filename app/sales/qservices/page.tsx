@@ -98,6 +98,7 @@ export default function Quotation() {
     formData.append("payAmt", data.payAmt)
     formData.append("qNumber", selectedQNumber)
     formData.append("id", masterAccountId)
+    formData.append("userId", useAuth.getState().userId)
     if (data.invoiceDate) formData.append("invoiceDate", data.invoiceDate)
     formData.append("payTerm", data.payTerm || "")
     formData.append("paymentMethod", data.paymentMethod || "Cash")

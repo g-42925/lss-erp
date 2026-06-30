@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allBankOuts: any[] = [];
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     
     logs.forEach((log) => {
       // In Log, type: 'payment' handles normal payments, 'adjustment' handles adjustments.

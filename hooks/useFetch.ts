@@ -26,7 +26,7 @@ export default function useFetch<R, B>(config: Conf<B>) {
 		const b = body ? body : undefined
 
 		try {
-			if (config.method == "POST" || config.method == "PUT") {
+			if (config.method == "POST" || config.method == "PUT" || config.method == "PATCH") {
 				request = await fetch(config.url, {
 					method: config.method,
 					body: b as string,

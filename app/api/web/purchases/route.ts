@@ -395,13 +395,14 @@ export async function PUT(request: NextRequest) {
           resolvedLocationId = defaultLoc?._id;
         }
 
-        await Batche.create({
+        const batchCreated = await Batche.create({
           ...rest,
           status: 'ACTIVE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
           accumulative: config.ratio * rest.qty,
           reserved: 0,
-          locationId: resolvedLocationId
+          locationId: resolvedLocationId,
+          createdAt: new Date()
         })
 
         console.log(rest)
@@ -411,6 +412,8 @@ export async function PUT(request: NextRequest) {
           productId: purchase.productId,
           date: new Date(),
           quantity: config.ratio * rest.qty,
+          sourceId: batchCreated._id,
+          sourceType: 'PURCHASE'
         })
 
       }
@@ -439,13 +442,14 @@ export async function PUT(request: NextRequest) {
           resolvedLocationId = defaultLoc?._id;
         }
 
-        await Batche.create({
+        const batchCreated = await Batche.create({
           ...rest,
           status: 'ACTIVE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
           accumulative: rest.qty,
           reserved: 0,
-          locationId: resolvedLocationId
+          locationId: resolvedLocationId,
+          createdAt: new Date()
         })
 
         console.log(rest)
@@ -455,6 +459,8 @@ export async function PUT(request: NextRequest) {
           productId: purchase.productId,
           date: new Date(),
           quantity: rest.qty,
+          sourceId: batchCreated._id,
+          sourceType: 'PURCHASE'
         })
 
         console.log(rest)

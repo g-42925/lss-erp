@@ -131,15 +131,15 @@ export default function Debt() {
           newPaymentMethod: editPaymentMethod,
         }),
       })
-      const json = await res.json()
-      if (json.error) {
-        alert(json.message)
-      } else {
-        // Update the log in state
-        setLogs(prev => prev.map(l => l._id === editingLog._id ? json.result : l))
-        editLogRef.current?.close()
+
+      if (await res.json().error) {
+        alert('something went wrong')
       }
-    } catch (e: any) {
+      else {
+        window.location.href = '/finance/debt'
+      }
+    }
+    catch (e: any) {
       alert(e.message)
     } finally {
       setEditSubmitting(false)
@@ -400,22 +400,9 @@ export default function Debt() {
                   />
                 </fieldset>
 
-                {editingLog.editedAt && (
-                  <div className="text-xs text-gray-500 border-t pt-2 mt-1 space-y-1">
-                    <p>Terakhir diedit: {new Date(editingLog.editedAt).toLocaleString('id-ID')}</p>
-                    {editingLog.editedBy?.name && <p>Diedit oleh: {editingLog.editedBy.name}</p>}
-                    {editingLog.editApprovedBy?.name && <p>Disetujui oleh: {editingLog.editApprovedBy.name}</p>}
-                  </div>
-                )}
-
                 <div className="modal-action">
                   <button type="button" className="btn" onClick={() => editLogRef.current?.close()}>Batal</button>
-                  <button
-                    type="button"
-                    className="btn btn-warning"
-                    disabled={editSubmitting}
-                    onClick={submitEditLog}
-                  >
+                  <button type="button" className="btn btn-warning" disabled={editSubmitting} onClick={submitEditLog}>
                     {editSubmitting ? <span className="loading loading-spinner loading-sm"></span> : 'Simpan Perubahan'}
                   </button>
                 </div>

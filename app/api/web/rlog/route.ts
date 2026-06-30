@@ -189,21 +189,24 @@ export async function PUT(request: NextRequest) {
     const InboundLog = (await import("@/models/InboundLog")).default;
     let inboundLog = await InboundLog.findOne({ sourceId: batch._id });
     if (!inboundLog) {
+      const batchDate = batch._id.getTimestamp();
       inboundLog = await InboundLog.findOne({
         productId: batch.productId,
         warehouseId: batch.warehouseId,
         date: { 
-          $gte: new Date(new Date(batch.createdAt).getTime() - 10000), 
-          $lte: new Date(new Date(batch.createdAt).getTime() + 10000) 
+          $gte: new Date(batchDate.getTime() - 10000), 
+          $lte: new Date(batchDate.getTime() + 10000) 
         }
       });
     }
 
     if (inboundLog) {
       await InboundLog.findByIdAndUpdate(inboundLog._id, {
-        $inc: { quantity: diffQty }
+        $inc: { quantity: diffQty },
+        $set: { sourceId: batch._id, sourceType: 'PURCHASE' }
       });
     }
+
 
     const updatePayload: any = {
       qty: newQty,

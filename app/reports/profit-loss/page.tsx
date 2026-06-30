@@ -138,12 +138,12 @@ export default function ProfitLossReportPage() {
 
     const data = filtered.map(item => ({
       'Tanggal': fmtDate(item.saleDate),
-      'Sales Order Number': item.salesOrderNumber,
-      'Customer Name': item.customerName,
-      'Product Name': item.productName,
+      'S.O': item.salesOrderNumber,
+      'Customer': item.customerName,
+      'Product': item.productName,
       'Qty': item.qty,
-      'Selling Price Per Unit': fmtMoney(item.sellingPricePerUnit),
-      'Unit Cost': fmtMoney(item.unitCost),
+      'Price': fmtMoney(item.sellingPricePerUnit),
+      'Cost': fmtMoney(item.unitCost),
       'Total Sales': fmtMoney(item.subTotal),
       'Total Profit': fmtMoney(item.profitLossAmount),
     }))

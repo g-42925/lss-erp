@@ -30,12 +30,16 @@ export async function POST(request: NextRequest) {
         batchId: batch._id
       });
 
+      // Tentukan apakah perlu deduct stock dan buat OutboundLog
+      let shouldCreateOutboundLog = false;
+
       if (reservation && reservation.status === 'IMMEDIATE') {
-        // Order biasa: stock sudah dipotong saat order dibuat, tidak perlu double-deduct
-        // Hanya tandai reservation sebagai FULFILLED
+        // Order pickup hari ini: stock sudah dipotong & OutboundLog sudah dibuat saat order dibuat.
+        // Hanya tandai reservation sebagai FULFILLED — JANGAN buat OutboundLog lagi.
         await Reservation.findByIdAndUpdate(reservation._id, { status: 'FULFILLED' })
-      } else if (reservation && reservation.status === 'ACTIVE') {
-        // Order reserved: kurangi reserved dan tambah outQty
+      }
+      else if (reservation && reservation.status === 'ACTIVE') {
+        // Order reserved (pickup masa depan): baru sekarang dipotong stock-nya.
         await Batches.updateOne(
           { _id: batch._id },
           {
@@ -47,6 +51,7 @@ export async function POST(request: NextRequest) {
         )
         // Mark reservation as FULFILLED
         await Reservation.findByIdAndUpdate(reservation._id, { status: 'FULFILLED' })
+        shouldCreateOutboundLog = true; // OutboundLog belum ada, buat sekarang
       } else {
         // Legacy / tidak ada reservation: tambah outQty seperti biasa
         await Batches.updateOne(
@@ -57,6 +62,7 @@ export async function POST(request: NextRequest) {
             }
           }
         )
+        shouldCreateOutboundLog = true; // OutboundLog belum ada, buat sekarang
       }
 
       // 2. Update Product stockValue
@@ -162,12 +168,16 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      await OutboundLog.create({
-        warehouseId: batch.warehouseId || item.locationId,
-        productId: product._id,
-        quantity: parseFloat(item.qty),
-        date: new Date()
-      });
+      // Buat OutboundLog hanya jika belum ada dari proses order creation
+      if (shouldCreateOutboundLog) {
+        await OutboundLog.create({
+          warehouseId: batch.warehouseId || item.locationId,
+          productId: product._id,
+          quantity: parseFloat(item.qty),
+          referenceNumber: deliveryNumber,
+          date: new Date()
+        });
+      }
     }
 
     const adjustment = (params.adjustment || []).map((item: any) => {
@@ -344,110 +354,87 @@ export async function GET(request: NextRequest) {
       }
 
       const deliveries = await Deliverie.aggregate([...pipeline,
-        {
-          $unwind: '$items'
-        },
-        {
-          $lookup: {
-            from: 'locations',
-            localField: 'items.locationId',
-            foreignField: '_id',
-            as: 'location'
-          }
-        },
-        {
-          $unwind: '$location'
-        },
-        {
-          $lookup: {
-            from: 'products',
-            localField: 'items.productId',
-            foreignField: '_id',
-            as: 'product'
-          }
-        },
-        {
-          $unwind: '$product'
-        },
-        {
-          $lookup: {
-            from: 'orders',
-            localField: 'salesOrderNumber',
-            foreignField: 'salesOrderNumber',
-            as: 'order'
-          }
-        },
-        {
-          $unwind: '$order'
-        },
-        {
-          $lookup: {
-            from: 'customers',
-            localField: 'order.customerId',
-            foreignField: '_id',
-            as: 'customer'
-          }
-        },
-        {
-          $unwind: {
-            path: '$customer',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'createdBy',
-            foreignField: '_id',
-            as: 'creator'
-          }
-        },
-        {
-          $unwind: {
-            path: '$creator',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $project: {
-            _id: 1,
-            date: 1,
-            deliveryNumber: 1,
-            salesOrderNumber: 1,
-            qty: '$items.qty',
-            batchNumber: '$items.batchNumber',
-            location: {
-              _id: '$location._id',
-              name: '$location.name'
-            },
-            product: {
-              _id: '$product._id',
-              productName: '$product.productName'
-            },
-            customer: {
-              bussinessName: '$customer.bussinessName'
-            },
-            orderAdjustment: '$order.adjustment',
-            createdBy: '$creator.name'
-          }
-        },
-        {
-          $sort: { date: -1 }
-        },
-        {
-          $lookup: {
-            from: 'orders',
-            localField: 'salesOrderNumber',
-            foreignField: 'salesOrderNumber',
-            as: 'order'
-          }
-        },
-        {
-          $unwind: {
-            path: '$order',
-            preserveNullAndEmptyArrays: true
-          }
+      {
+        $unwind: '$items'
+      },
+      {
+        $lookup: {
+          from: 'locations',
+          localField: 'items.locationId',
+          foreignField: '_id',
+          as: 'location'
         }
+      },
+      {
+        $unwind: '$location'
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $unwind: '$product'
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderNumber',
+          foreignField: 'salesOrderNumber',
+          as: 'order'
+        }
+      },
+      {
+        $unwind: '$order'
+      },
+      {
+        $lookup: {
+          from: 'customers',
+          localField: 'order.customerId',
+          foreignField: '_id',
+          as: 'customer'
+        }
+      },
+      {
+        $unwind: {
+          path: '$customer',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      {
+        $unwind: {
+          path: '$creator',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $sort: { date: -1 }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderNumber',
+          foreignField: 'salesOrderNumber',
+          as: 'order'
+        }
+      },
+      {
+        $unwind: {
+          path: '$order',
+          preserveNullAndEmptyArrays: true
+        }
+      }
       ])
 
       return NextResponse.json({
@@ -559,6 +546,7 @@ export async function PUT(request: NextRequest) {
           warehouseId: batch?.warehouseId || itemObj.locationId,
           productId: product._id,
           quantity: diff,
+          referenceNumber: delivery.deliveryNumber,
           date: new Date()
         });
       }

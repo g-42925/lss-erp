@@ -5,6 +5,7 @@ import Batches from '@/models/Batche'
 import Invoice from '@/models/Invoice'
 
 import Order from "@/models/Order"
+import Deliverie from '@/models/Deliverie'
 import Companie from '@/models/Companie'
 import Product from '@/models/Product'
 import Reservation from '@/models/Reservation'
@@ -153,7 +154,7 @@ export async function POST(request: NextRequest) {
 		// ─── Kelola stock berdasarkan pickup date ────────────────────────
 		// Bandingkan tanggal saja (strip waktu) agar pickup "hari ini" = deduct langsung
 		const pickupDay = new Date(pickup.getFullYear(), pickup.getMonth(), pickup.getDate())
-		const today    = new Date(now.getFullYear(),    now.getMonth(),    now.getDate())
+		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
 		if (pickupDay > today) {
 			// Pickup di masa depan → reservasi (tahan stock, jangan potong outQty)
@@ -192,8 +193,10 @@ export async function POST(request: NextRequest) {
 					remainingToReserve -= toReserve
 				}
 			}
-		} else {
+		}
+		else {
 			// Pickup hari ini atau sudah lewat → langsung potong stock (deduct outQty)
+			const deliveryItems: Array<{ productId: mongoose.Types.ObjectId; qty: number; batchNumber: string; locationId: mongoose.Types.ObjectId }> = []
 			for (const item of params.cart) {
 				const productObjId = new mongoose.Types.ObjectId(item.productId)
 				const warehouseObjId = item.warehouseId
@@ -229,8 +232,30 @@ export async function POST(request: NextRequest) {
 						pickupDate: null,
 						status: 'IMMEDIATE',
 					})
+
+					// Kumpulkan item ke delivery log
+					deliveryItems.push({
+						productId: productObjId,
+						qty: toDeduct,
+						batchNumber: batch.batchNumber,
+						locationId: batch.locationId || warehouseObjId || batch.warehouseId,
+					})
+
 					remainingToDeduct -= toDeduct
 				}
+			}
+
+			// Buat satu Deliverie document sebagai shipping log
+			if (deliveryItems.length > 0) {
+				await Deliverie.create({
+					companyId: company._id,
+					salesOrderNumber,
+					deliveryNumber: `D-${String(Date.now()).slice(-5)}`,
+					items: deliveryItems,
+					date: new Date(),
+					createdBy: params.userId ? new mongoose.Types.ObjectId(params.userId.toString()) : null,
+					editable: false
+				})
 			}
 		}
 		// ─────────────────────────────────────────────────────────────

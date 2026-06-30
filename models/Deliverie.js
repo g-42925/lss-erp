@@ -4,7 +4,7 @@ import { type } from 'os';
 const deliverySchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true
+    required: false
   },
   editedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -38,6 +38,14 @@ const deliverySchema = new mongoose.Schema({
   deliveryNumber: {
     type: String,
     required: true
+  },
+  editable: {
+    type: Boolean,
+    default: true
+  },
+  void: {
+    type: Boolean,
+    default: false
   }
 });
 

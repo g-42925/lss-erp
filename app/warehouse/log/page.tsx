@@ -304,14 +304,6 @@ export default function Delivery() {
             </button>
           </div>
 
-          {/* ---- Results count ---- */}
-          {!getDeliveries.loading && !getDeliveries.error && (
-            <div className="text-sm text-gray-500">
-              Showing <span className="font-semibold text-black">{filteredDeliveries.length}</span> delivery record(s)
-              {' '}for <span className="font-semibold text-blue-700">{formatDateRange()}</span>
-            </div>
-          )}
-
           {/* ---- Table ---- */}
           {
             getDeliveries.loading
@@ -366,7 +358,7 @@ export default function Delivery() {
                                 <td>{Object.keys(p.customer || {}).length === 0 ? p.order?.customCustomer?.name : p.customer?.bussinessName}</td>
                                 <td><span className="font-bold">{p.qty}</span></td>
                                 <td>
-                                  <button onClick={() => edit(p)} className="btn btn-sm btn-primary">
+                                  <button disabled={!p.editable} onClick={() => edit(p)} className="btn btn-sm btn-primary">
                                     Edit
                                   </button>
                                 </td>

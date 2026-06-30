@@ -11,6 +11,8 @@ import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
 import Batche from '@/models/Batche'
 import Reservation from '@/models/Reservation'
+import Deliverie from '@/models/Deliverie'
+import OutboundLog from '@/models/OutboundLog'
 
 
 export async function POST(request: NextRequest) {
@@ -30,6 +32,7 @@ export async function POST(request: NextRequest) {
     const id = formData.get("id") as string
     const paymentMethod = formData.get("paymentMethod") as string || "Cash"
     const pickupDateStr = formData.get("pickupDate") as string | null
+    const userId = formData.get("userId") as string | null
 
     const company = await Companie.findOne({
       masterAccountId: id
@@ -134,7 +137,8 @@ export async function POST(request: NextRequest) {
         contract: contractUploadUrl,
         attachment: attachmentUploadUrl,
         type: "direct",
-        cart: _cart
+        cart: _cart,
+        createdBy: userId ? new mongoose.Types.ObjectId(userId) : null
       })
 
       const [_o] = await Order.aggregate([
@@ -238,7 +242,13 @@ export async function POST(request: NextRequest) {
       cartItems: Array<{ productId: ObjectId | string; warehouseId?: ObjectId | string; qty: number }>,
       salesOrderNumber: string,
       orderId: ObjectId | string,
+      createdBy: ObjectId | string | null,
+      companyId: ObjectId | string,
     ) {
+      const deliveryNumber = `D-${String(Date.now()).slice(-5)}`
+      // Kumpulkan semua item yang benar-benar dipotong untuk shipping log
+      const deliveryItems: Array<{ productId: mongoose.Types.ObjectId; qty: number; batchNumber: string; locationId: mongoose.Types.ObjectId }> = []
+
       for (const item of cartItems) {
         const productObjId = new mongoose.Types.ObjectId(item.productId.toString())
         const warehouseObjId = item.warehouseId
@@ -277,8 +287,63 @@ export async function POST(request: NextRequest) {
             status: 'IMMEDIATE',
           })
 
+          // Kumpulkan item ke delivery log
+          // batch.warehouseId adalah required field di schema Batche, selalu ada
+          const batchWarehouseId = batch.warehouseId
+            ? new mongoose.Types.ObjectId(batch.warehouseId.toString())
+            : null
+          // Gunakan warehouseId dari batch sebagai prioritas utama, fallback ke cart item
+          const effectiveWarehouseId = batchWarehouseId || warehouseObjId
+
+          deliveryItems.push({
+            productId: productObjId,
+            qty: toDeduct,
+            batchNumber: batch.batchNumber,
+            locationId: batch.locationId || effectiveWarehouseId,
+          })
+
+          // Catat OutboundLog — selalu dicoba, tidak bergantung pada kondisi optional
+          if (effectiveWarehouseId) {
+            try {
+              await OutboundLog.create({
+                warehouseId: effectiveWarehouseId,
+                productId: productObjId,
+                quantity: toDeduct,
+                referenceNumber: deliveryNumber,
+                date: new Date()
+              })
+              console.log(`[deductStockImmediately] OutboundLog created: SO=${salesOrderNumber}, product=${productObjId}, qty=${toDeduct}, warehouse=${effectiveWarehouseId}`)
+            } catch (logErr: any) {
+              console.error('[deductStockImmediately] OutboundLog.create failed:', logErr.message, {
+                warehouseId: effectiveWarehouseId?.toString(),
+                productId: productObjId?.toString(),
+                quantity: toDeduct,
+                referenceNumber: salesOrderNumber,
+              })
+            }
+          } else {
+            console.error('[deductStockImmediately] Cannot create OutboundLog: warehouseId not found.', {
+              batchId: batch._id?.toString(),
+              batchWarehouseId: batch.warehouseId?.toString(),
+              cartWarehouseId: item.warehouseId?.toString(),
+              salesOrderNumber,
+            })
+          }
+
           remainingToDeduct -= toDeduct
         }
+      }
+
+      // Buat satu Deliverie document sebagai shipping log
+      if (deliveryItems.length > 0) {
+        await Deliverie.create({
+          companyId: new mongoose.Types.ObjectId(companyId.toString()),
+          salesOrderNumber,
+          deliveryNumber,
+          items: deliveryItems,
+          date: new Date(),
+          createdBy: createdBy ? new mongoose.Types.ObjectId(createdBy.toString()) : null,
+        })
       }
     }
 
@@ -336,6 +401,7 @@ export async function POST(request: NextRequest) {
         payTerm,
         total: total,
         taxValue: rest.taxValue || 0,
+        createdBy: userId ? new mongoose.Types.ObjectId(userId) : null
       }
 
       const _order = await Order.create(order)
@@ -358,12 +424,12 @@ export async function POST(request: NextRequest) {
             // Order reserved: pickup di masa depan → tandai reserved qty di batch
             await createReservationsIfNeeded(cartForStock, so, _order._id, pickupDate)
           } else {
-            // Pickup hari ini → langsung potong stock
-            await deductStockImmediately(cartForStock, so, _order._id)
+            // Pickup hari ini → langsung potong stock + catat shipping log
+            await deductStockImmediately(cartForStock, so, _order._id, _order.createdBy ?? null, company._id)
           }
         } else {
-          // Tidak ada pickupDate → order biasa, langsung potong stock
-          await deductStockImmediately(cartForStock, so, _order._id)
+          // Tidak ada pickupDate → order biasa, langsung potong stock + catat shipping log
+          await deductStockImmediately(cartForStock, so, _order._id, _order.createdBy ?? null, company._id)
         }
       }
       // ─────────────────────────────────────────────────────────────────
@@ -676,7 +742,7 @@ export async function PUT(request: NextRequest) {
 
     const Deliverie = (await import("@/models/Deliverie")).default;
     const existingDeliveries = await Deliverie.find({ salesOrderNumber: order.salesOrderNumber });
-    
+
     // Map existing shipped qty by product Id
     const deliveredMap: Record<string, number> = {};
     existingDeliveries.forEach(d => {
@@ -702,16 +768,16 @@ export async function PUT(request: NextRequest) {
     for (const c of newCart) {
       const pId = c.productId.toString();
       const updatedItem = items.find((i: any) => i.productId === pId);
-      
+
       if (updatedItem) {
         const newQty = parseInt(updatedItem.qty);
         if (isNaN(newQty) || newQty <= 0) throw new Error(`Invalid quantity for product`);
-        
+
         const delivered = deliveredMap[pId] || 0;
         if (newQty < delivered) {
-           throw new Error(`Cannot reduce quantity below delivered amount (${delivered}) for a targeted product.`);
+          throw new Error(`Cannot reduce quantity below delivered amount (${delivered}) for a targeted product.`);
         }
-        
+
         const unitPrice = c.subTotal / c.qty;
         c.qty = newQty;
         c.subTotal = unitPrice * newQty;
@@ -721,7 +787,7 @@ export async function PUT(request: NextRequest) {
     // Recalculate with new discount + per-item taxes
     const overallSubtotal = newCart.reduce((sum: number, c: any) => sum + c.subTotal, 0);
     let totalTaxAmount = 0;
-    
+
     newCart.forEach((c: any) => {
       const pId = c.productId.toString();
       const itemTaxDefs = itemTaxDefsMap[pId] || [];
@@ -789,6 +855,126 @@ export async function PUT(request: NextRequest) {
       editedAt: new Date()
     }, { new: true });
 
+    // ─── Sinkronisasi stock & shipping log untuk order IMMEDIATE ─────────────
+    // Cek apakah order ini termasuk "immediate": pickup hari ini atau tanpa pickupDate
+    const isImmediateOrder = (() => {
+      if (!order.pickupDate) return true; // tidak ada pickup date → langsung potong
+      const pd = new Date(order.pickupDate);
+      const pickupDay = new Date(pd.getFullYear(), pd.getMonth(), pd.getDate());
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return pickupDay <= today; // pickup hari ini atau sudah lewat
+    })();
+
+    if (isImmediateOrder) {
+      // Bangun map qty lama dari cart sebelum edit
+      const oldQtyMap: Record<string, number> = {};
+      order.cart.forEach((c: any) => {
+        oldQtyMap[c.productId.toString()] = c.qty;
+      });
+
+      // Cari Deliverie yang sudah ada untuk order ini
+      const existingDelivery = await Deliverie.findOne({ salesOrderNumber: order.salesOrderNumber });
+
+      for (const c of newCart) {
+        const pId = c.productId.toString();
+        const oldQty = oldQtyMap[pId] || 0;
+        const delta = c.qty - oldQty;
+
+        if (delta <= 0) continue; // tidak ada peningkatan, skip
+
+        const productObjId = new mongoose.Types.ObjectId(pId);
+        const warehouseObjId = c.warehouseId
+          ? new mongoose.Types.ObjectId(c.warehouseId.toString())
+          : null;
+
+        // Potong stock batch FIFO sebesar delta
+        const batchQuery: Record<string, unknown> = {
+          productId: productObjId,
+          status: 'ACTIVE',
+        };
+        if (warehouseObjId) batchQuery.warehouseId = warehouseObjId;
+
+        const batches = await Batche.find(batchQuery).sort({ createdAt: 1 });
+        let remainingToDeduct = delta;
+
+        for (const batch of batches) {
+          if (remainingToDeduct <= 0) break;
+          const freeQty = batch.accumulative - batch.outQty - (batch.reserved || 0);
+          if (freeQty <= 0) continue;
+          const toDeduct = Math.min(freeQty, remainingToDeduct);
+
+          // Potong outQty di batch
+          await Batche.findByIdAndUpdate(batch._id, { $inc: { outQty: toDeduct } });
+
+          // Catat OutboundLog untuk edit order IMMEDIATE
+          const editEffectiveWarehouseId = batch.warehouseId
+            ? new mongoose.Types.ObjectId(batch.warehouseId.toString())
+            : warehouseObjId;
+          if (editEffectiveWarehouseId) {
+            try {
+              await OutboundLog.create({
+                warehouseId: editEffectiveWarehouseId,
+                productId: productObjId,
+                quantity: toDeduct,
+                referenceNumber: existingDelivery ? existingDelivery.deliveryNumber : order.salesOrderNumber,
+                date: new Date()
+              });
+            } catch (logErr: any) {
+              console.error('[PUT order] OutboundLog.create failed:', logErr.message);
+            }
+          } else {
+            console.warn('[PUT order] Skipping OutboundLog: warehouseId not found for batch', batch._id);
+          }
+
+          // Buat Reservation IMMEDIATE untuk jejak delta
+          await Reservation.create({
+            batchId: batch._id,
+            salesOrderNumber: order.salesOrderNumber,
+            salesOrderId: order._id,
+            productId: productObjId,
+            warehouseId: warehouseObjId,
+            qty: toDeduct,
+            pickupDate: null,
+            status: 'IMMEDIATE',
+          });
+
+          // Perbarui Deliverie yang sudah ada
+          if (existingDelivery) {
+            // Cari apakah item dengan productId + batchNumber ini sudah ada
+            const existingItemIdx = existingDelivery.items.findIndex(
+              (di: any) =>
+                di.productId.toString() === pId &&
+                di.batchNumber === batch.batchNumber
+            );
+
+            if (existingItemIdx >= 0) {
+              // Tambah qty pada item yang sudah ada
+              existingDelivery.items[existingItemIdx].qty += toDeduct;
+            } else {
+              // Tambahkan item baru ke delivery
+              existingDelivery.items.push({
+                productId: productObjId,
+                qty: toDeduct,
+                batchNumber: batch.batchNumber,
+                locationId: batch.locationId || warehouseObjId || batch.warehouseId,
+              });
+            }
+          }
+
+          remainingToDeduct -= toDeduct;
+        }
+      }
+
+      // Simpan perubahan Deliverie jika ada
+      if (existingDelivery) {
+        existingDelivery.editedBy = editingUserId ? new mongoose.Types.ObjectId(editingUserId.toString()) : undefined;
+        existingDelivery.editedAt = new Date();
+        await existingDelivery.save();
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     return NextResponse.json({
       noResult: false,
       message: "Order items updated successfully",
@@ -801,6 +987,101 @@ export async function PUT(request: NextRequest) {
       message: e.message,
       result: null,
       error: true
+    });
+  }
+}
+
+// ─── PATCH: Void a sales order ────────────────────────────────────────────────
+export async function PATCH(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { _id, approvalCode, voidingUserId } = body;
+
+    if (!approvalCode) throw new Error("Approval code is required");
+    if (!_id) throw new Error("Order ID is required");
+
+    // Validate approval code
+    const User = (await import("@/models/User")).default;
+    const approver = await User.findOne({ approvalCode });
+    if (!approver) throw new Error("Invalid approval code");
+
+    // Find and validate the order
+    const order = await Order.findById(_id);
+    if (!order) throw new Error("Order not found");
+    if (order.void) throw new Error("Order is already voided");
+
+    // ─── Mark order as void ───────────────────────────────────────────────
+    await Order.findByIdAndUpdate(_id, {
+      void: true,
+      voidedBy: voidingUserId ? new mongoose.Types.ObjectId(voidingUserId) : approver._id,
+      voidedAt: new Date(),
+    });
+
+    // ─── Process each related delivery → void + reverse outQty ───────────
+    const deliveries = await Deliverie.find({
+      salesOrderNumber: order.salesOrderNumber,
+      void: { $ne: true }, // only non-voided ones
+    });
+
+    for (const delivery of deliveries) {
+      for (const item of delivery.items) {
+        const batchNumber = item.batchNumber;
+        const qty = Number(item.qty);
+        if (!batchNumber || qty <= 0) continue;
+
+        // Reduce outQty on the matching batch (identified by batchNumber and productId)
+        await Batche.findOneAndUpdate(
+          { batchNumber: batchNumber, productId: item.productId },
+          { $inc: { outQty: -qty } }
+        );
+      }
+
+      // Mark this delivery as void
+      await Deliverie.findByIdAndUpdate(delivery._id, {
+        void: true,
+      });
+    }
+
+    // ─── Delete OutboundLogs linked to this order ─────────────────────────
+    await OutboundLog.deleteMany({
+      referenceNumber: order.salesOrderNumber
+    });
+
+    // ─── Cancel active reservations for this order ────────────────────────
+    // First read ACTIVE reservations (pickup future) so we can release reserved qty
+    const futureReservations = await Reservation.find({
+      salesOrderNumber: order.salesOrderNumber,
+      status: 'ACTIVE',
+      pickupDate: { $ne: null }, // ACTIVE (future pickup) have a pickupDate; IMMEDIATE have null
+    });
+    for (const res of futureReservations) {
+      await Batche.findByIdAndUpdate(res.batchId, {
+        $inc: { reserved: -res.qty }
+      });
+    }
+
+    // Now cancel all remaining ACTIVE / IMMEDIATE reservations
+    await Reservation.updateMany(
+      {
+        salesOrderNumber: order.salesOrderNumber,
+        status: { $in: ['ACTIVE', 'IMMEDIATE'] },
+      },
+      { $set: { status: 'CANCELLED' } }
+    );
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Order voided successfully",
+      result: { orderId: _id, deliveriesVoided: deliveries.length },
+      error: false,
+    });
+  } catch (e: any) {
+    return NextResponse.json({
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true,
     });
   }
 }

@@ -174,13 +174,14 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             <details>
               <summary>Report</summary>
               <ul>
+                <SidebarItem href="/dashboard/finance/cashflow">Cashflow</SidebarItem>
                 <SidebarItem href="/reports/profit-loss">Profit & Loss</SidebarItem>
                 <SidebarItem href="/reports/tax">Tax Report</SidebarItem>
                 <SidebarItem href="/reports/product-sell">Product Sales</SidebarItem>
                 <SidebarItem href="/reports/product-purchase">Product Purchases</SidebarItem>
                 <SidebarItem href="/finance/report/sell-payment">Sell Payment</SidebarItem>
                 <SidebarItem href="/finance/report/purchase-payment">Purchase Payment</SidebarItem>
-                <SidebarItem href="/inventory/stock-report">Stock Report</SidebarItem>
+                <SidebarItem href="/reports/stock-report">Stock Report</SidebarItem>
                 <SidebarItem href="/reports/remarks">Remark Report</SidebarItem>
                 <SidebarItem href="/reports/expiry">Expiry Report</SidebarItem>
                 <SidebarItem href="/finance/bank-report">Bank Report</SidebarItem>

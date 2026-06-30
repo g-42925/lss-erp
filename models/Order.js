@@ -57,7 +57,10 @@ const orderSchema = new mongoose.Schema({
       productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
       qty: { type: Number, required: true },
     }
-  ]
+  ],
+  void: { type: Boolean, default: false },
+  voidedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  voidedAt: { type: Date, required: false },
 });
 
 export default mongoose.models.Order || mongoose.model('Order', orderSchema)

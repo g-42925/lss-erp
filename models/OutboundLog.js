@@ -19,6 +19,10 @@ const outboundLogSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  referenceNumber: {
+    type: String,
+    required: false
+  }
 });
 
 export default mongoose.models.OutboundLog || mongoose.model('OutboundLog', outboundLogSchema)

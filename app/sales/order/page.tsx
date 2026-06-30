@@ -30,8 +30,11 @@ export default function Order() {
   const editOrderModalRef = useRef<HTMLDialogElement>(null)
   const markUnavailableModalRef = useRef<HTMLDialogElement>(null)
   const refundModalRef = useRef<HTMLDialogElement>(null)
+  const voidModalRef = useRef<HTMLDialogElement>(null)
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [unavailableTargetOrder, setUnavailableTargetOrder] = useState<any>(null)
+  const [voidTargetOrder, setVoidTargetOrder] = useState<any>(null)
+  const [voidApprovalCode, setVoidApprovalCode] = useState<string>("")
   const [unavailablePid, setUnavailablePid] = useState<string>("")
   const [unavailableQty, setUnavailableQty] = useState<number>(1)
   const [refundTargetOrderId, setRefundTargetOrderId] = useState<string>("")
@@ -217,6 +220,45 @@ export default function Order() {
     method: 'PUT',
     onError: (m) => alert(m)
   })
+
+  const voidOrderFn = useFetch<any, any>({
+    url: '/api/web/order',
+    method: 'PATCH',
+    onError: (m) => alert(m)
+  })
+
+  function openVoidModal(order: any) {
+    setVoidTargetOrder(order)
+    setVoidApprovalCode("")
+    voidModalRef.current?.showModal()
+  }
+
+  function submitVoidOrder(e: React.FormEvent) {
+    e.preventDefault()
+    if (!voidTargetOrder) return
+    if (!voidApprovalCode) {
+      alert("Kode approval wajib diisi")
+      return
+    }
+    const payload = {
+      _id: voidTargetOrder._id,
+      approvalCode: voidApprovalCode,
+      voidingUserId: userId,
+    }
+    voidOrderFn.fn('', JSON.stringify(payload), () => {
+      Swal.fire({
+        title: "Order Dinyatakan VOID",
+        text: `Order ${voidTargetOrder.salesOrderNumber} berhasil di-void. Delivery log terkait juga telah di-void dan stok batch dikembalikan.`,
+        icon: "success",
+        timer: 2500,
+        showConfirmButton: false,
+      })
+      voidModalRef.current?.close()
+      // Refresh orders list
+      const url4 = `/api/web/order?id=${masterAccountId}&type=good`
+      getOrdersFn.fn(url4, JSON.stringify({}), (_) => { })
+    })
+  }
 
   function submitEditOrder(e: React.FormEvent) {
     e.preventDefault();
@@ -558,6 +600,7 @@ export default function Order() {
     formData.append("contract", contract as any)
     formData.append("attachment", attachment as any)
     formData.append("productType", "good")
+    formData.append("userId", userId)
 
     Object.keys(data).forEach((key) => {
       formData.append(key, data[key])
@@ -1200,9 +1243,7 @@ export default function Order() {
                         <tr>
                           <th>Sale Date</th>
                           <th>Created By</th>
-                          <th>Edited by</th>
-                          <th>Approved by</th>
-                          <th>Edited at</th>
+                          <th>Edited By</th>
                           <th>Order Number</th>
                           <th>Product</th>
                           <th>Customer</th>
@@ -1218,8 +1259,15 @@ export default function Order() {
                         {
                           filteredOrders.map((x: any, index: number) => {
                             return (
-                              <tr key={index}>
-                                <td>{new Date(x.saleDate).toLocaleString("id-ID")}</td>
+                              <tr key={index} className={x.void ? 'opacity-50 bg-red-50' : ''}>
+                                <td>
+                                  <div className="flex items-center gap-2">
+                                    {new Date(x.saleDate).toLocaleDateString("id-ID")}
+                                    {x.void && (
+                                      <span className="badge badge-error badge-xs text-white font-bold tracking-wider">VOID</span>
+                                    )}
+                                  </div>
+                                </td>
                                 <td className="text-left whitespace-nowrap">
                                   <div className="flex flex-col gap-1">
                                     {x.u?.name || '-'}
@@ -1227,19 +1275,8 @@ export default function Order() {
                                 </td>
                                 <td className="text-left whitespace-nowrap">
                                   <div className="flex flex-col gap-1">
-                                    {x.editor?.name || '-'}
+                                    {x.editor?.name || '-'} ({new Date(x.editedAt).toLocaleDateString("id-ID")})
                                   </div>
-                                </td>
-                                <td className="text-left whitespace-nowrap">
-                                  <div className="flex flex-col gap-1">
-                                    {x.approver?.name || '-'}
-                                  </div>
-                                </td>
-                                <td className="text-left whitespace-nowrap">
-                                  <div className="flex flex-col gap-1">
-                                    {x.editedAt ? new Date(x.editedAt).toLocaleString("id-ID") : '-'}
-                                  </div>
-
                                 </td>
                                 <td>{x.salesOrderNumber}</td>
                                 <td>
@@ -1272,8 +1309,8 @@ export default function Order() {
                                 <td>{Number(x.total).toLocaleString("id-ID")}</td>
                                 <td>{x.discountType === "percent" ? Math.round(x.total * (x.discountValue / 100)).toLocaleString("id-ID") : Number(x.discountValue).toLocaleString("id-ID")}</td>
                                 <td>{Number(x.taxValue).toLocaleString("id-ID")}</td>
-                                <td>{x.payTerm ? new Date(x.payTerm).toLocaleString("id-ID") : '-'}</td>
-                                <td>{x.pickupDate ? new Date(x.pickupDate).toLocaleString("id-ID") : '-'}</td>
+                                <td>{x.payTerm ? new Date(x.payTerm).toLocaleDateString("id-ID") : '-'}</td>
+                                <td>{x.pickupDate ? new Date(x.pickupDate).toLocaleDateString("id-ID") : '-'}</td>
                                 <td>
                                   <div className="dropdown dropdown-left dropdown-bottom z-50">
                                     <div tabIndex={0} role="button" className="btn btn-sm btn-ghost btn-circle">
@@ -1308,6 +1345,19 @@ export default function Order() {
                                           <span className="font-semibold">Activate Invoice</span>
                                         </button>
                                       </li>
+                                      {!x.void && (
+                                        <li>
+                                          <button
+                                            onClick={() => openVoidModal(x)}
+                                            className="flex items-center gap-3 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                          >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-[18px]">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                                            </svg>
+                                            <span className="font-semibold">Void Order</span>
+                                          </button>
+                                        </li>
+                                      )}
                                     </ul>
                                   </div>
                                 </td>
@@ -2022,6 +2072,71 @@ export default function Order() {
                   disabled={refundFn.loading || refundInputQty <= 0 || refundInputQty > refundMaxQty || !refundApprovalCode}
                 >
                   {refundFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Proses'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+
+        {/* Void Order Modal */}
+        <dialog ref={voidModalRef} className="modal text-black backdrop-blur-sm">
+          <div className="modal-box w-11/12 max-w-sm p-0 overflow-hidden rounded-2xl shadow-2xl flex flex-col">
+            <div className="bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-white text-xl font-bold tracking-tight">Void Order</h3>
+                <p className="text-orange-200 text-sm mt-0.5">Batalkan order dan kembalikan stok</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => voidModalRef.current?.close()}
+                className="text-orange-200 hover:text-white transition-colors p-1 rounded-lg hover:bg-orange-800"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={submitVoidOrder} className="p-6 flex flex-col gap-5 bg-white">
+              <div className="bg-orange-50 border border-orange-200 text-orange-800 p-4 rounded-xl text-sm mb-2 font-medium">
+                <strong className="block text-base mb-1">Perhatian!</strong>
+                Order <b>{voidTargetOrder?.salesOrderNumber}</b> akan dibatalkan. Delivery log akan di-void dan stok akan dikembalikan ke gudang. Proses ini tidak dapat dibatalkan.
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700">Kode Approval (Admin/Manager)</label>
+                <div className="relative flex items-center">
+                  <input
+                    type="password"
+                    className="input input-bordered w-full bg-white border-2 border-orange-300 focus:border-orange-500 font-medium text-gray-900 pr-10"
+                    value={voidApprovalCode}
+                    onChange={(e) => setVoidApprovalCode(e.target.value)}
+                    placeholder="Masukkan kode..."
+                    required
+                  />
+                  <div className="absolute right-3 text-orange-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  className="btn btn-ghost hover:bg-gray-100 text-gray-700 font-semibold"
+                  onClick={() => voidModalRef.current?.close()}
+                  disabled={voidOrderFn.loading}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-md shadow-orange-200 border-none px-6"
+                  disabled={voidOrderFn.loading || !voidApprovalCode}
+                >
+                  {voidOrderFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Void Order'}
                 </button>
               </div>
             </form>
