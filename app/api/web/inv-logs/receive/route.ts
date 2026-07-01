@@ -25,7 +25,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { _id, date, note, receivedBy } = body;
+    const { _id } = body;
 
     if (!_id) {
       await session.abortTransaction();
@@ -90,7 +90,6 @@ export async function PUT(request: NextRequest) {
 
     const now = new Date();
     // Use caller-supplied date (business date) or fall back to now
-    const receivingDate = date ? new Date(date) : now;
 
     // ── 3. Atomic stock increment ─────────────────────────────────────────────
     await InvItem.findByIdAndUpdate(
