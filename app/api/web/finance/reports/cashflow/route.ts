@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         };
 
         // Date filtering if provided
-        let dateFilter = {};
+        let dateFilter: any = {};
         if (startDate || endDate) {
             const df: any = {};
             if (startDate) df.$gte = new Date(startDate);
