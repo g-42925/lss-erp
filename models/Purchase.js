@@ -14,6 +14,7 @@ const PurchaseSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, required: false },
   vendorId: { type: mongoose.Schema.Types.ObjectId, required: false },
   supplierId: { type: mongoose.Schema.Types.ObjectId, required: false },
+  customSupplier: { type: String, required: false },
   purchaseType: { type: String, required: true, enum: ['product', 'payment', 'procurement'] },
   quantity: { type: Number, required: false },
   estimatedPrice: { type: Number, required: true },

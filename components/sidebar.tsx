@@ -31,14 +31,31 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="drawer drawer-open bg-gray-200 text-white print:bg-transparent print:text-black print:block">
+    <div className="drawer lg:drawer-open bg-gray-200 text-white print:bg-transparent print:text-black print:block h-screen">
       <input id="my-drawer-1" type="checkbox" className="drawer-toggle" />
-      <div className="drawer-content print:w-full">
-        {children}
+      
+      <div className="drawer-content flex flex-col h-screen overflow-hidden print:w-full print:h-auto">
+        <div className="w-full navbar bg-gray-800 text-white lg:hidden shrink-0 z-[60]">
+          <div className="flex-none">
+            <label htmlFor="my-drawer-1" aria-label="open sidebar" className="btn btn-square btn-ghost">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-6 h-6 stroke-current">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </label>
+          </div>
+          <div className="flex-1 px-2 mx-2 font-bold max-w-full truncate text-sm uppercase tracking-wider">
+            {companyName || "ERP System"}
+          </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto w-full relative text-black print:text-black">
+          {children}
+        </div>
       </div>
-      <div className="drawer-side print:hidden">
+      
+      <div className="drawer-side print:hidden z-[100]">
         <label htmlFor="my-drawer-1" aria-label="close sidebar" className="drawer-overlay"></label>
-        <ul className="menu bg-base-200 min-h-full w-80 p-0 bg-gray-700">
+        <ul className="menu bg-gray-700 min-h-full w-80 p-0 text-white">
           <li className="bg-gray-800 p-3 text-white flex flex-row gap-3">
             <a href="/dashboard">{companyName}</a>
             <button className="ml-auto" onClick={() => _logout()}>

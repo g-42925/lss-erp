@@ -229,6 +229,11 @@ export default function CashflowReportPage() {
                             <p className="text-rose-700/70 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">Total Uang Keluar</p>
                             <p className="text-2xl font-extrabold text-rose-700 relative z-10">{IDR(summary.totalOut)}</p>
                         </div>
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 relative overflow-hidden">
+                            <div className="w-16 h-16 bg-emerald-500/10 rounded-full absolute -right-4 -top-4"></div>
+                            <p className="text-emerald-700/70 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">Saldo Bersih</p>
+                            <p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.netCashflow)}</p>
+                        </div>
                     </div>
                 )}
 

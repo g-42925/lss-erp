@@ -61,7 +61,8 @@ export async function PUT(request: NextRequest) {
             _id, {
             finalPrice: rest.finalPrice,
             payAmount: rest.payAmount,
-            quantity: rest.quantity
+            quantity: rest.quantity,
+            customSupplier: rest.customSupplier
           }
           )
           return NextResponse.json(

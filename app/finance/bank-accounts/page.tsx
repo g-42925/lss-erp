@@ -6,6 +6,8 @@ import useFetch from "@/hooks/useFetch"
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
 
 const BANKS = [
   "BCA", "BRI", "BNI", "Mandiri", "CIMB Niaga", "Danamon",
@@ -64,16 +66,16 @@ export default function BankAccounts() {
     const body = JSON.stringify({ ...data, id: masterAccountId })
     await addFn.fn("", body, (c) => {
       modalRef.current?.close()
-      newForm.reset()
-      setAccounts([c, ...accounts])
+      window.location.href = "/finance/bank-accounts"
     })
   }
 
   async function editSubmit(data: any) {
-    const body = JSON.stringify({ ...data })
-    await putFn.fn("", body, (result) => {
-      setAccounts(accounts.map((a) => (a._id === result._id ? result : a)))
+    const approval = prompt("Input manager code is required")
+    if (approval === '') return alert('Manager code is required')
+    await putFn.fn("", JSON.stringify({ ...data, approval }), (result) => {
       editRef.current?.close()
+      window.location.href = "/finance/bank-accounts"
     })
   }
 
@@ -90,8 +92,13 @@ export default function BankAccounts() {
       bank: item.bank,
       accountNumber: item.accountNumber,
       accountName: item.accountName,
+      balance: item.balance,
     })
     editRef.current?.showModal()
+  }
+
+  function toIdr(value: number) {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value)
   }
 
   if (!hasHydrated) return null
@@ -145,7 +152,8 @@ export default function BankAccounts() {
                     <th className="text-xs uppercase text-gray-500">Bank</th>
                     <th className="text-xs uppercase text-gray-500">Account Number</th>
                     <th className="text-xs uppercase text-gray-500">In the Name Of</th>
-                    <th className="text-xs uppercase text-gray-500">Actions</th>
+                    <th className="text-xs uppercase text-gray-500">Balance</th>
+                    <th className="text-xs uppercase text-gray-500">...</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,24 +167,17 @@ export default function BankAccounts() {
                         <span className="font-mono tracking-wider">{a.accountNumber}</span>
                       </td>
                       <td>{a.accountName}</td>
+                      <td>{toIdr(a.balance)}</td>
                       <td>
                         <div className="flex flex-row gap-2">
                           <button
-                            id={`btn-edit-${a._id}`}
-                            className="btn btn-sm"
-                            onClick={() => openEdit(a)}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                            </svg>
-                            Edit
-                          </button>
-                          <button
-                            id={`btn-delete-${a._id}`}
-                            className="btn btn-sm btn-error btn-outline"
-                            onClick={() => del(a._id)}
-                          >
-                            Delete
+                            id={`btn-edit-${a._id}`} onClick={() => openEdit(a)}>
+                            <HugeiconsIcon
+                              icon={Edit03Icon}
+                              size={24}
+                              color="currentColor"
+                              strokeWidth={1.5}
+                            />
                           </button>
                         </div>
                       </td>
@@ -234,6 +235,20 @@ export default function BankAccounts() {
               />
               {newForm.formState.errors.accountName && (
                 <span className="text-red-500 text-xs">Account name is required</span>
+              )}
+            </div>
+
+            {/* Balance */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-600 font-medium">Balance</label>
+              <input
+                {...newForm.register("balance", { required: true })}
+                type="text"
+                placeholder="e.g. 1234567890"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:border-blue-500 font-mono tracking-wider"
+              />
+              {newForm.formState.errors.balance && (
+                <span className="text-red-500 text-xs">Balance is required</span>
               )}
             </div>
 
@@ -308,6 +323,20 @@ export default function BankAccounts() {
               />
               {editForm.formState.errors.accountName && (
                 <span className="text-red-500 text-xs">Account name is required</span>
+              )}
+            </div>
+
+            {/* Balance */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-600 font-medium">Balance</label>
+              <input
+                {...editForm.register("balance", { required: true })}
+                type="number"
+                placeholder="e.g. 1000000"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:border-blue-500"
+              />
+              {editForm.formState.errors.balance && (
+                <span className="text-red-500 text-xs">Balance is required</span>
               )}
             </div>
 

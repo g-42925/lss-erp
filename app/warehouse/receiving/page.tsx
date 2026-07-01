@@ -1,12 +1,10 @@
 "use client"
 import useFetch from "@/hooks/useFetch";
 import useAuth from "@/store/auth"
-import Sidebar from "@/components/sidebar";
+import Link from "next/link";
 
 import { useRef, useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
-import { redirect, useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function Receiving() {
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -129,12 +127,12 @@ export default function Receiving() {
       ...filter,
       productId: filter.product?._id,
       product: filter.product?.productName || filter.product?.name || '',
-      supplier: filter.supplier?.bussinessName ?? '-',
+      supplier: filter.supplier?.bussinessName ?? filter.customSupplier,
       status: filter.status,
       receivedQty: '',
       max: remaining,
       purchaseOrderNumber: filter.purchaseOrderNumber,
-      locationId: locationId
+      locationId: locationId,
     })
 
     if (filter.status != 'ordered') {
@@ -222,10 +220,10 @@ export default function Receiving() {
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
                                 <td>{p.product?.productName || p.product?.name || '-'}</td>
-                                <td>{p.quantity} ({p.product.conversionRatioX})</td>
+                                <td>{p.quantity} ({p.product.conversionRatioX || p.product.unit})</td>
                                 <td>
                                   <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }}>
-                                    {p.receivedQty} ({p.product.conversionRatioX})
+                                    {p.receivedQty} ({p.product.conversionRatioX || p.product.unit})
                                   </Link>
                                 </td>
                                 <td>

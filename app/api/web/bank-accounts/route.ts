@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 
 import Companie from "@/models/Companie";
 import BankAccount from "@/models/BankAccount";
+import User from "@/models/User";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
       accountNumber: body.accountNumber,
       accountName: body.accountName,
       addedBy: company[0]._id,
+      balance: body.balance,
     });
 
     return NextResponse.json({
@@ -36,9 +38,18 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { _id, ...rest } = body;
+  const { _id, approval, ...rest } = body;
+
   try {
     await connectToDatabase();
+    const user = await User.findOne({ approvalCode: approval });
+    if (!user) return NextResponse.json({
+      noResult: true,
+      message: "Invalid manager code",
+      result: null,
+      error: true,
+    });
+
     const updated = await BankAccount.findByIdAndUpdate(_id, rest, { new: true });
     return NextResponse.json({
       noResult: false,
@@ -46,7 +57,8 @@ export async function PUT(request: NextRequest) {
       result: updated,
       error: false,
     });
-  } catch (e: any) {
+  }
+  catch (e: any) {
     return NextResponse.json({
       noResult: true,
       message: e.message,

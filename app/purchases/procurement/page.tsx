@@ -165,6 +165,7 @@ function Procurement() {
         target.payAmount = result.payAmount
         target.supplier = result.spl
         target.quantity = result.quantity
+        target.customSupplier = result.customSupplier
         editRef.current?.close()
       })
     }
@@ -197,6 +198,7 @@ function Procurement() {
           target.status = "ordered"
           target.supplier = result.spl
           target.finalPrice = result.finalPrice
+          target.customSupplier = result.customSupplier
           target.payAmount = result.payAmount
           orderRef.current?.close()
         })
@@ -240,6 +242,7 @@ function Procurement() {
       currPayAmt: filter.payAmount,
       payAmount: filter.payAmount,
       supplierId: filter.supplierId,
+      customSupplier: filter.customSupplier,
       editable: filter.editable
     })
 
@@ -362,6 +365,7 @@ function Procurement() {
                         <th>Purchase Order Number</th>
                         <th>Item</th>
                         <th>Quantity</th>
+                        <th>Supplier / Asal</th>
                         <th>Final Price</th>
                         <th>Pay Amount</th>
                         <th>Status</th>
@@ -379,6 +383,7 @@ function Procurement() {
                                 <td>{p.purchaseOrderNumber}</td>
                                 <td>{p.product.name}</td>
                                 <td>{p.quantity} ({p.product.unit})</td>
+                                <td>{p.customSupplier || "-"}</td>
                                 {
                                   p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
                                 }
@@ -545,6 +550,10 @@ function Procurement() {
                 <input className="input w-full" {...orderForm.register("quantity")} type="text" readOnly />
               </fieldset>
               <fieldset className="fieldset">
+                <legend className="fieldset-legend">Supplier / Asal</legend>
+                <input className="input w-full" {...orderForm.register("customSupplier")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
                 <legend className="fieldset-legend">Final price</legend>
                 <input className="input w-full" {...orderForm.register("finalPrice")} type="text" />
               </fieldset>
@@ -588,6 +597,10 @@ function Procurement() {
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Quantity</legend>
                 <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Supplier / Asal</legend>
+                <input className="input w-full" {...editPrForm.register("customSupplier")} type="text" />
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Final Price</legend>

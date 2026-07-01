@@ -53,6 +53,18 @@ const logSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: false
+  },
+  from: {
+    name: {
+      type: String,
+      required: false
+    }
+  },
+  to: {
+    name: {
+      type: String,
+      required: false
+    }
   }
 });
 
