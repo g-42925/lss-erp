@@ -5,7 +5,7 @@ import Companie from '@/models/Companie'
 import Measurement from '@/models/Measurement'
 
 
-export async function GET(request: NextResponse) {
+export async function GET(request: NextRequest) {
 	try {
 		await connectToDatabase()
 		const url = new URL(request.url);
