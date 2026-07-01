@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Ambil produk
     const product = await Product.findOne({ productOf: company._id, _id: productObjId }).lean();
     if (!product) {
-       return NextResponse.json({ noResult: true, message: 'Product not found', result: null, error: true });
+      return NextResponse.json({ noResult: true, message: 'Product not found', result: null, error: true });
     }
 
     // ── 1. Calculate stockAtStart by summing all logs BEFORE startDate ──────────────────────
@@ -65,16 +65,16 @@ export async function GET(request: NextRequest) {
     const stockAtStart = totalInBefore - totalOutBefore;
 
     // ── 4. Logs DALAM periode [startDate, endDate] ────────────────────────────
-    const inboundInRange = await InboundLog.find({ 
-      warehouseId: warehouseObjId, 
-      productId: productObjId, 
-      date: { $gte: startDate, $lte: endDate } 
+    const inboundInRange = await InboundLog.find({
+      warehouseId: warehouseObjId,
+      productId: productObjId,
+      date: { $gte: startDate, $lte: endDate }
     }).lean();
 
-    const outboundInRange = await OutboundLog.find({ 
-      warehouseId: warehouseObjId, 
-      productId: productObjId, 
-      date: { $gte: startDate, $lte: endDate } 
+    const outboundInRange = await OutboundLog.find({
+      warehouseId: warehouseObjId,
+      productId: productObjId,
+      date: { $gte: startDate, $lte: endDate }
     }).lean();
 
     let totalInboundRange = 0;
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       if (!log.date) continue;
       // Convert to WIB string YYYY-MM-DD
       const localStr = new Date(new Date(log.date).getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
-      const qty = log.quantity || log.qty || 0;
+      const qty = log.quantity ?? 0;
       inMap.set(localStr, (inMap.get(localStr) || 0) + qty);
       totalInboundRange += qty;
     }
@@ -94,13 +94,13 @@ export async function GET(request: NextRequest) {
       if (!log.date) continue;
       // Convert to WIB string YYYY-MM-DD
       const localStr = new Date(new Date(log.date).getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
-      const qty = log.quantity || log.qty || 0;
+      const qty = log.quantity ?? 0;
       outMap.set(localStr, (outMap.get(localStr) || 0) + qty);
       totalOutboundRange += qty;
     }
 
     // ── 5. Build daily report ───────────────────────────────────────────────
-    
+
     const resultList = [];
     let runningStock = stockAtStart;
 
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     while (loopDate.getTime() <= endLimit) {
       const localStr = new Date(loopDate.getTime() + 7 * 3600 * 1000).toISOString().split('T')[0];
-      
+
       const inQty = inMap.get(localStr) || 0;
       const outQty = outMap.get(localStr) || 0;
       const endStockOfDay = runningStock + inQty - outQty;
@@ -127,9 +127,9 @@ export async function GET(request: NextRequest) {
       loopDate.setDate(loopDate.getDate() + 1);
     }
 
-    return NextResponse.json({ 
-      noResult: false, 
-      message: '', 
+    return NextResponse.json({
+      noResult: false,
+      message: '',
       result: {
         productInfo: {
           itemCode: product.productId,
@@ -138,8 +138,8 @@ export async function GET(request: NextRequest) {
           category: product.category || ''
         },
         data: resultList
-      }, 
-      error: false 
+      },
+      error: false
     });
   } catch (e: unknown) {
     console.error(e);
