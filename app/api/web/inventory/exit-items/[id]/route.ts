@@ -161,8 +161,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         );
       }
 
-      const warehouseObjId = exitLog.warehouseId;
-      const productObjId = exitLog.productId;
+      const warehouseObjId = exitLog.warehouseId!;
+      const productObjId = exitLog.productId!;
 
       // Return stock to batches (LIFO)
       const batches = await Batche.find({
