@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import InvLog from '@/models/InvLog';
 import InvItem from '@/models/InvItem';
-import InvReceiving from '@/models/InvReceiving';
 
 // ─── PUT /api/web/inv-logs/receive ────────────────────────────────────────────
 // Mark a procurement log as received, update stock, and write a receiving log.
