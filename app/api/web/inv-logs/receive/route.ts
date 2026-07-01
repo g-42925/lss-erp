@@ -109,23 +109,23 @@ export async function PUT(request: NextRequest) {
       { session, new: true }
     );
 
-    // ── 5. Insert InvReceiving record (audit trail) ───────────────────────────
-    const [receivingRecord] = await InvReceiving.create(
-      [
-        {
-          companyId: log.companyId,
-          invLogId: log._id,
-          itemId: log.itemId,
-          qty: log.qty,
-          unitPrice: log.unitPrice,
-          totalPrice: log.totalPrice,
-          receivedBy: receivedBy ?? null,
-          note: note ?? log.note ?? '',
-          date: receivingDate,
-        },
-      ],
-      { session }
-    );
+    // // ── 5. Insert InvReceiving record (audit trail) ───────────────────────────
+    // const [receivingRecord] = await InvReceiving.create(
+    //   [
+    //     {
+    //       companyId: log.companyId,
+    //       invLogId: log._id,
+    //       itemId: log.itemId,
+    //       qty: log.qty,
+    //       unitPrice: log.unitPrice,
+    //       totalPrice: log.totalPrice,
+    //       receivedBy: receivedBy ?? null,
+    //       note: note ?? log.note ?? '',
+    //       date: receivingDate,
+    //     },
+    //   ],
+    //   { session }
+    // );
 
     await session.commitTransaction();
     session.endSession();
@@ -135,7 +135,6 @@ export async function PUT(request: NextRequest) {
       message: `Successfully received ${log.qty} ${item.unit} of "${item.name}". Stock updated.`,
       result: {
         log: updatedLog,
-        receiving: receivingRecord,
       },
       error: false,
     });
