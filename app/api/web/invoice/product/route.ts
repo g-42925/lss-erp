@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
   catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })
@@ -202,7 +202,7 @@ export async function GET(request: NextRequest) {
   catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })
@@ -235,7 +235,7 @@ export async function PUT(request: NextRequest) {
   catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })
