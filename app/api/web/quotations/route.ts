@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
@@ -129,16 +130,9 @@ export async function POST(request: NextRequest) {
     const company = await Companie.findOne({ masterAccountId: params.id })
     const price = params.productType === 'service' ? params.price : params.cart.map((c: any) => c.subTotal).reduce((p: number, c: number) => p + c, 0)
 
-    const _cart = [
-      {
-        productId: params.productId,
-        qty: params.qty,
-        subTotal: params.price,
-        tax: false
-      }
-    ]
 
-    const cart = params.productType === 'service' ? _cart : params.cart
+
+
 
     let result;
     if (params.productType === 'service') {

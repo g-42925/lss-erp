@@ -63,8 +63,10 @@ export async function GET(request: NextRequest) {
         };
 
         // Date filtering if provided
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let dateFilter: any = {};
         if (startDate || endDate) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const df: any = {};
             if (startDate) df.$gte = new Date(startDate);
             if (endDate) {
@@ -76,6 +78,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 1. Fetch Invoices (Money IN)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const invoiceQuery: any = {
             companyId: company._id,
             paymentHistory: { $exists: true, $not: { $size: 0 } }
@@ -83,6 +86,7 @@ export async function GET(request: NextRequest) {
         const invoices = await Invoice.find(invoiceQuery).populate('salesOrderId').lean();
 
         invoices.forEach((inv) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             inv.paymentHistory?.forEach((payment: any) => {
                 if (payment.reverted) return;
 
@@ -108,7 +112,6 @@ export async function GET(request: NextRequest) {
                 }
 
                 if (include) {
-                    const customerName = 'Pelanggan';
                     allTransactions.push({
                         _id: new mongoose.Types.ObjectId().toString(),
                         date: paymentDate,
@@ -126,6 +129,7 @@ export async function GET(request: NextRequest) {
         const purchases = await Purchase.find({ companyId: company._id }).select('_id purchaseOrderNumber').lean();
         const purchaseIds = purchases.map((p) => p._id);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const logQuery: any = { purchaseId: { $in: purchaseIds }, amount: { $gt: 0 } };
         if (Object.keys(dateFilter).length > 0) {
             logQuery.date = dateFilter;
@@ -163,6 +167,7 @@ export async function GET(request: NextRequest) {
         });
 
         // 3. Fetch Manual Cashflow Logs
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const manualQuery: any = { companyId: company._id };
         if (mode === 'cash') {
             manualQuery.accountType = 'Cash';
@@ -181,6 +186,7 @@ export async function GET(request: NextRequest) {
         manualLogs.forEach(entry => {
             let methodName = 'Cash';
             if (entry.accountType === 'Bank') {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 methodName = entry.bankAccountId ? (entry.bankAccountId as any).bank : 'Bank';
             }
 
@@ -225,13 +231,12 @@ export async function GET(request: NextRequest) {
             },
             error: false,
         });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }
-    catch (e: any) {
+    catch (e: unknown) {
         console.error("Cashflow API Error:", e);
         return NextResponse.json({
             noResult: true,
-            message: e.message,
+            message: e instanceof Error ? e.message : "Something went wrong",
             result: null,
             error: true,
         });
@@ -282,11 +287,12 @@ export async function POST(request: NextRequest) {
             error: false
         });
 
-    } catch (e: any) {
+    }
+    catch (e: unknown) {
         console.error("Cashflow POST Error:", e);
         return NextResponse.json({
             noResult: true,
-            message: e.message,
+            message: e instanceof Error ? e.message : "Something went wrong",
             error: true
         });
     }

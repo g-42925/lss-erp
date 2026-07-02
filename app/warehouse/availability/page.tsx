@@ -57,11 +57,19 @@ export default function AvailabilityPage() {
   useEffect(() => {
     if (!warehouseId) return
     let isMounted = true
+    const controller = new AbortController()
 
-    setLoading(true)
-    setReport([])
-    
-    fetch(`/api/web/warehouse/availability?id=${masterAccountId}&warehouseId=${warehouseId}`)
+    // Defer state reset to avoid synchronous setState inside effect body
+    const timer = setTimeout(() => {
+      if (isMounted) {
+        setLoading(true)
+        setReport([])
+      }
+    }, 0)
+
+    fetch(`/api/web/warehouse/availability?id=${masterAccountId}&warehouseId=${warehouseId}`, {
+      signal: controller.signal,
+    })
       .then(r => r.json())
       .then(data => {
         if (!isMounted) return
@@ -73,13 +81,17 @@ export default function AvailabilityPage() {
         }
       })
       .catch(e => {
-        if (isMounted) alert(e.message)
+        if (isMounted && e.name !== 'AbortError') alert(e.message)
       })
       .finally(() => {
         if (isMounted) setLoading(false)
       })
-      
-    return () => { isMounted = false }
+
+    return () => {
+      isMounted = false
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [warehouseId, masterAccountId])
 
   // ─── Auth guard ───────────────────────────────────────────────────────────
@@ -142,7 +154,7 @@ export default function AvailabilityPage() {
                 ))}
               </select>
             </div>
-            
+
             {loading && (
               <div className="flex items-center gap-2 text-sm text-slate-500 px-2 py-2">
                 <span className="loading loading-spinner loading-xs text-indigo-500" />
@@ -197,10 +209,10 @@ export default function AvailabilityPage() {
 
           {loading ? (
             <div className="flex items-center justify-center py-32">
-               <div className="flex flex-col items-center gap-3">
-                  <span className="loading loading-spinner loading-lg text-indigo-500" />
-                  <span className="text-sm text-slate-500 font-medium">Menyesuaikan kalkulasi stok...</span>
-               </div>
+              <div className="flex flex-col items-center gap-3">
+                <span className="loading loading-spinner loading-lg text-indigo-500" />
+                <span className="text-sm text-slate-500 font-medium">Menyesuaikan kalkulasi stok...</span>
+              </div>
             </div>
           ) : !hasRun ? (
             <div className="flex flex-col items-center justify-center py-32 text-slate-400">
@@ -245,7 +257,7 @@ export default function AvailabilityPage() {
                           : <span className="text-xs text-slate-300">—</span>}
                       </td>
                       <td className="px-5 py-4 text-center text-slate-500 font-medium">{row.warehouseUnit || row.saleUnit || "-"}</td>
-                      
+
                       <td className="px-5 py-4 text-center bg-indigo-50/20">
                         <span className="font-bold text-indigo-700 text-base">{row.physicalStock.toLocaleString("id-ID")}</span>
                       </td>
@@ -255,10 +267,9 @@ export default function AvailabilityPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-center bg-emerald-50/30">
-                        <span className={`inline-flex items-center justify-center min-w-[3rem] rounded-full px-3 py-1 font-bold ${
-                           row.available <= 0 ? "bg-red-100 text-red-700"
-                           : row.available <= 5 ? "bg-orange-100 text-orange-700"
-                           : "bg-emerald-100 text-emerald-700"
+                        <span className={`inline-flex items-center justify-center min-w-[3rem] rounded-full px-3 py-1 font-bold ${row.available <= 0 ? "bg-red-100 text-red-700"
+                            : row.available <= 5 ? "bg-orange-100 text-orange-700"
+                              : "bg-emerald-100 text-emerald-700"
                           }`}>
                           {row.available.toLocaleString("id-ID")}
                         </span>
@@ -293,7 +304,7 @@ export default function AvailabilityPage() {
           <p className="text-sm text-slate-700 mt-2 font-medium">Gudang: <span className="font-bold">{warehouseLabel}</span></p>
           <p className="text-xs text-slate-500 mt-1">Dicetak pada: {new Date().toLocaleString("id-ID")}</p>
         </div>
-        
+
         <div className="grid grid-cols-4 gap-4 mb-8">
           {[
             { label: "Fisik Gudang", value: totalPhysical.toLocaleString("id-ID"), color: "text-indigo-800" },
@@ -307,7 +318,7 @@ export default function AvailabilityPage() {
             </div>
           ))}
         </div>
-        
+
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr className="border-b-2 border-slate-800 font-bold text-left bg-slate-100">
@@ -326,7 +337,7 @@ export default function AvailabilityPage() {
                 <td className="py-2 px-3 font-mono text-slate-500">{row.itemCode ?? "-"}</td>
                 <td className="py-2 px-3 font-semibold text-slate-800">{row.productName}</td>
                 <td className="py-2 px-3 text-center text-slate-600 font-medium">{row.warehouseUnit || row.saleUnit || "-"}</td>
-                
+
                 <td className="py-2 px-3 text-center font-bold text-indigo-900">{row.physicalStock.toLocaleString("id-ID")}</td>
                 <td className="py-2 px-3 text-center font-medium text-amber-900">{row.reserved > 0 ? row.reserved.toLocaleString("id-ID") : "0"}</td>
                 <td className="py-2 px-3 text-center font-bold text-emerald-900">{row.available.toLocaleString("id-ID")}</td>
@@ -344,7 +355,7 @@ export default function AvailabilityPage() {
             </tr>
           </tfoot>
         </table>
-        
+
         <div className="mt-16 flex justify-end">
           <div className="text-center w-48">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Diperiksa oleh</p>

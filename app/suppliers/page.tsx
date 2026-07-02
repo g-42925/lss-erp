@@ -1,4 +1,7 @@
-"use client";
+"use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import Sidebar from '@/components/sidebar'
 import useFetch from '@/hooks/useFetch'
@@ -7,7 +10,6 @@ import useAuth from "@/store/auth"
 import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
-import { redirect } from 'next/dist/serverapi-utils';
 import { useRouter } from 'next/navigation'
 
 export default function Suppliers() {
@@ -257,7 +259,7 @@ export default function Suppliers() {
                         {
                           suppliers.map((s) => {
                             return (
-                              <tr>
+                              <tr key={s._id}>
                                 <td>{s.bussinessName}</td>
                                 <td>{s.email}</td>
                                 <td>{s.taxNumber}</td>
@@ -294,7 +296,7 @@ export default function Suppliers() {
                         {
                           searchResult.map((s) => {
                             return (
-                              <tr>
+                              <tr key={s._id}>
                                 <td>{s.bussinessName}</td>
                                 <td>{s.email}</td>
                                 <td>{s.taxNumber}</td>
@@ -321,7 +323,7 @@ export default function Suppliers() {
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Supplier</span>
-            <form onSubmit={editSupplierForm.handleSubmit(handleEdit)} className="h-140 flex flex-col gap-3 relative">
+            <form onSubmit={(e) => editSupplierForm.handleSubmit(handleEdit)(e)} className="h-140 flex flex-col gap-3 relative">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Bussiness Name</legend>
@@ -363,7 +365,7 @@ export default function Suppliers() {
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Supplier</span>
-            <form onSubmit={newSupplierForm.handleSubmit(submit)} className="h-140 flex flex-col gap-3 relative">
+            <form onSubmit={(e) => newSupplierForm.handleSubmit(submit)(e)} className="h-140 flex flex-col gap-3 relative">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Bussiness Name</legend>

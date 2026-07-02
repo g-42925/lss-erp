@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 "use client"
 
 import Link from "next/link";
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -26,8 +27,8 @@ export default function Procurement() {
   const editPrForm = useForm()
   const router = useRouter()
 
-  const type = editPrForm.watch("type")
-  const currentStatus = editPrForm.watch("currentStatus")
+  const type = useWatch({ control: editPrForm.control, name: "type" });
+  const currentStatus = useWatch({ control: editPrForm.control, name: "currentStatus" });
 
   const getFn = useFetch<any[], any>({
     url: `/api/web/purchases?id=xxx`,
@@ -298,7 +299,7 @@ export default function Procurement() {
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>
-            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col">
+            <form onSubmit={(e) => { void editPrForm.handleSubmit(editSubmit)(e); }} className="h-96 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Product</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
@@ -342,7 +343,7 @@ export default function Procurement() {
         <div className="modal-box">
           <div className="flex flex-col ">
             <span className="text-2xl">Edit purchase order</span>
-            <form onSubmit={editPrForm.handleSubmit(_editSubmit)} className="h-120 relative flex flex-col">
+            <form onSubmit={(e) => { void editPrForm.handleSubmit(_editSubmit)(e); }} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Product</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />

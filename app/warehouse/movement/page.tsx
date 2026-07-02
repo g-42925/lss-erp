@@ -1,4 +1,7 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import Link from "next/link";
 import useAuth from "@/store/auth"
@@ -18,7 +21,7 @@ export default function Delivery() {
   const modalRef = useRef<HTMLDialogElement>(null)
   const [orderItems, setOrderItems] = useState<any[]>([])
   const [deliveries, setDeliveries] = useState<any[]>([])
-  const [deliveryPayload, setDeliveryPayload] = useState<{ [key: string]: { qty: number, batchDetail: string } }>({})
+  const [deliveryPayload, setDeliveryPayload] = useState<{ [key: string]: { qty: number, batchDetail: string, adjustment: number } }>({})
   const [selectedOrder, setSelectedOrder] = useState<any>('')
   const [printOrders, setPrintOrders] = useState<any[]>([])
   const [printLoading, setPrintLoading] = useState(false)
@@ -127,7 +130,7 @@ export default function Delivery() {
       // Initialize payload
       const initialPayload: any = {}
       result.forEach((item: any) => {
-        initialPayload[item.product._id] = { qty: 0, batchDetail: '' }
+        initialPayload[item.product._id] = { qty: 0, batchDetail: '', adjustment: 0 }
       })
       setDeliveryPayload(initialPayload)
     })
@@ -307,45 +310,45 @@ export default function Delivery() {
 
           {/* PRINT ONLY LAYOUT */}
           <div className="hidden print:block text-black mt-4">
-             {printOrders.map((order, idx) => (
-               <div key={idx} className="mb-6 p-4 border border-gray-300 rounded shadow-sm break-inside-avoid bg-white">
-                 <div className="flex justify-between border-b pb-2 mb-2 font-semibold">
-                   <div>SO: {order.salesOrderNumber}</div>
-                   <div>Customer: {order.customCustomer ? order.customCustomer.name : (order.customer?.bussinessName || '-')}</div>
-                   <div>Date: {new Date(order.saleDate).toLocaleDateString("id-ID")}</div>
-                 </div>
-                 <table className="w-full text-sm mt-2 text-left">
-                   <thead>
-                     <tr className="border-b text-gray-700">
-                       <th className="py-1 w-1/2">Product</th>
-                       <th className="py-1 text-center">Ordered</th>
-                       <th className="py-1 text-center">Shipped</th>
-                       <th className="py-1 text-center">To Ship</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {order.itemsData?.map((item: any, i: number) => (
-                       <tr key={i} className="border-b border-gray-100">
-                         <td className="py-2">
-                           <div className="font-bold">{item.product?.productName}</div>
-                           <div className="text-gray-500 text-xs">{item.product?.productId || ''}</div>
-                         </td>
-                         <td className="py-2 text-center">{item.orderedQty}</td>
-                         <td className="py-2 text-center">{item.deliveredQty}</td>
-                         <td className="py-2 text-center font-bold">
-                           {item.limit > 0 ? item.limit : 0}
-                         </td>
-                       </tr>
-                     ))}
-                     {(!order.itemsData || order.itemsData.length === 0) && (
-                       <tr>
-                         <td colSpan={4} className="py-3 text-center text-gray-500 italic">No details available</td>
-                       </tr>
-                     )}
-                   </tbody>
-                 </table>
-               </div>
-             ))}
+            {printOrders.map((order, idx) => (
+              <div key={idx} className="mb-6 p-4 border border-gray-300 rounded shadow-sm break-inside-avoid bg-white">
+                <div className="flex justify-between border-b pb-2 mb-2 font-semibold">
+                  <div>SO: {order.salesOrderNumber}</div>
+                  <div>Customer: {order.customCustomer ? order.customCustomer.name : (order.customer?.bussinessName || '-')}</div>
+                  <div>Date: {new Date(order.saleDate).toLocaleDateString("id-ID")}</div>
+                </div>
+                <table className="w-full text-sm mt-2 text-left">
+                  <thead>
+                    <tr className="border-b text-gray-700">
+                      <th className="py-1 w-1/2">Product</th>
+                      <th className="py-1 text-center">Ordered</th>
+                      <th className="py-1 text-center">Shipped</th>
+                      <th className="py-1 text-center">To Ship</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {order.itemsData?.map((item: any, i: number) => (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="py-2">
+                          <div className="font-bold">{item.product?.productName}</div>
+                          <div className="text-gray-500 text-xs">{item.product?.productId || ''}</div>
+                        </td>
+                        <td className="py-2 text-center">{item.orderedQty}</td>
+                        <td className="py-2 text-center">{item.deliveredQty}</td>
+                        <td className="py-2 text-center font-bold">
+                          {item.limit > 0 ? item.limit : 0}
+                        </td>
+                      </tr>
+                    ))}
+                    {(!order.itemsData || order.itemsData.length === 0) && (
+                      <tr>
+                        <td colSpan={4} className="py-3 text-center text-gray-500 italic">No details available</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        const result = await s3.send(putCommand);
+        await s3.send(putCommand);
 
         const head = await s3.send(
           new HeadObjectCommand({

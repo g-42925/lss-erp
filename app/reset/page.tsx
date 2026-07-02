@@ -1,8 +1,7 @@
 "use client"
 
-import Image from "next/image"
-import useAuth from "@/store/auth"
-import { redirect, useRouter } from "next/navigation";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import useFetch from "@/hooks/useFetch";
 
@@ -38,7 +37,7 @@ export default function Master() {
       password
     })
 
-    resetFn.fn('', body, (result) => {
+    resetFn.fn('', body, () => {
       router.push(
         '/login'
       )

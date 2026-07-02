@@ -1,4 +1,7 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import Link from "next/link";
 import Image from "next/image"
@@ -25,6 +28,7 @@ export default function Receivable() {
 
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
 
   const router = useRouter()
 

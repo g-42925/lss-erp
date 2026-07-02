@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import useAuth from "@/store/auth"
@@ -14,7 +15,6 @@ export default function BankReport() {
   const logsRef = useRef<HTMLDialogElement>(null)
 
   const [reports, setReports] = useState<any[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedBank, setSelectedBank] = useState<any>(null)
   
   // Date filtering state
@@ -43,14 +43,12 @@ export default function BankReport() {
     })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function openLogs(bank: any) {
     setSelectedBank(bank)
     logsRef.current?.showModal()
   }
 
   // Filter functionality for logs
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function getFilteredLogs(logs: any[]) {
     if (!logs) return [];
     let filtered = logs;
@@ -66,7 +64,6 @@ export default function BankReport() {
     return filtered;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function getFilteredTotals(logs: any[]) {
       const filtered = getFilteredLogs(logs)
       let totalIn = 0;
@@ -223,7 +220,6 @@ export default function BankReport() {
                             <td colSpan={6} className="text-center py-8 text-gray-500">No transactions found for this period.</td>
                         </tr>
                     ) : selectedBank?.logs && (
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         getFilteredLogs(selectedBank.logs).map((log: any, index: number) => (
                             <tr key={index} className="hover:bg-gray-50">
                                 <td className="whitespace-nowrap">{new Date(log.date).toLocaleString('id-ID')}</td>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -6,8 +7,8 @@ import Companie from '@/models/Companie'
 import CryptoJS from "crypto-js";
 import mongoose from 'mongoose';
 
-export async function POST(request:NextRequest) {
-  try{
+export async function POST(request: NextRequest) {
+  try {
     await connectToDatabase()
     const params = await request.json()
     const masterAccountId = params.secretId
@@ -19,45 +20,41 @@ export async function POST(request:NextRequest) {
       masterAccountId
     })
 
-    if(!r){
-		  return NextResponse.json({
+    if (!r) {
+      return NextResponse.json({
         noResult: true,
         message: "invalid secret id",
         result: null
       });
     }
-    else{
+    else {
       const newUser = {
-        username:params.username,
-        email:params.email,
-        password:_pwd,
-        name:r.name,
-        isSuperAdmin:true,
-        roleName:"super admin",
-        masterAccountId:masterAccountId,
-        roleId:roleId
+        username: params.username,
+        email: params.email,
+        password: _pwd,
+        name: r.name,
+        isSuperAdmin: true,
+        roleName: "super admin",
+        masterAccountId: masterAccountId,
+        roleId: roleId
       }
 
       await User.create(
         newUser
-      )   
+      )
 
-		  return NextResponse.json({
+      return NextResponse.json({
         noResult: false,
         message: "",
         result: newUser
       });
     }
   }
-  catch(e:any){
-		return NextResponse.json({
+  catch (e: unknown) {
+    return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: '',
       result: null
     });
   }
-}
-
-type Failed = {
-  message:string
 }

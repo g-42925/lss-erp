@@ -1,9 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import Image from "next/image"
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
@@ -11,24 +10,20 @@ import { useRouter } from 'next/navigation'
 
 export default function Measure() {
   const loggedIn = useAuth((state) => state.loggedIn)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
 
   const [measurements, setMeasurement] = useState<any[]>([])
-  const [locations, setLocations] = useState<any[]>([])
+
   const [searchResult, setSearchResult] = useState<any[]>([])
 
   const editForm = useForm()
   const newMeasureForm = useForm()
   const router = useRouter()
 
-  const putFn = useFetch<any, any>({
-    url: '/api/web/roles',
-    method: 'PUT'
-  })
+
 
   const addFn = useFetch<any, any>({
     url: '/api/web/measure',
@@ -41,7 +36,7 @@ export default function Measure() {
   const editFn = useFetch<any, any>({
     url: '/api/web/measure',
     method: 'PUT',
-    onError: (m) => {
+    onError: () => {
 
     }
   })
@@ -67,13 +62,7 @@ export default function Measure() {
     method: 'GET'
   })
 
-  const deleteFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
-    method: 'DELETE',
-    onError: (m) => {
-      alert(m)
-    }
-  })
+
 
   async function submit(data: any) {
     const body = JSON.stringify({
@@ -169,21 +158,12 @@ export default function Measure() {
       target.conversionRatioX = newMeasurement.conversionRatioX
       target.conversionRatioY = newMeasurement.conversionRatioY
 
-      editRef.current.close()
+      editRef.current?.close()
 
     })
   }
 
-  async function del(_id: string) {
-    const url = `/api/web/location?id=${_id}`
-    const body = JSON.stringify({})
 
-    await deleteFn.fn(url, body, (result) => {
-      setLocations(
-        locations.filter((l) => l._id != result)
-      )
-    })
-  }
 
   async function edit(m: any) {
     editForm.reset({
@@ -195,7 +175,7 @@ export default function Measure() {
       _id: m._id
     })
 
-    editRef.current.showModal()
+    editRef.current?.showModal()
   }
 
   useEffect(() => {
@@ -205,13 +185,14 @@ export default function Measure() {
       const url2 = `/api/web/suppliers?id=${masterAccountId}`
       const url3 = `/api/web/unit?id=${masterAccountId}`;
 
-      getFn.fn(url, JSON.stringify({}), (result) => { })
-      getSuppliersFn.fn(url2, JSON.stringify({}), (result) => { })
-      getUnitFn.fn(url3, JSON.stringify({}), (result) => { })
+      getFn.fn(url, JSON.stringify({}), () => { })
+      getSuppliersFn.fn(url2, JSON.stringify({}), () => { })
+      getUnitFn.fn(url3, JSON.stringify({}), () => { })
       getMeasurementsFn.fn(url4, JSON.stringify({}), (result) => {
         setMeasurement(result)
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [masterAccountId])
 
   if (!hasHydrated) return null
@@ -322,7 +303,7 @@ export default function Measure() {
         <div className="modal-box ">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Measurement</span>
-            <form onSubmit={editForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
+            <form onSubmit={(e) => { void editForm.handleSubmit(editSubmit)(e); }} className="h-120 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>
                 <select {...editForm.register("supplierId")} className="select w-full">
@@ -391,7 +372,7 @@ export default function Measure() {
         <div className="modal-box h-140">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Measurement</span>
-            <form onSubmit={newMeasureForm.handleSubmit(submit)} className="h-99 relative flex flex-col">
+            <form onSubmit={(e) => { void newMeasureForm.handleSubmit(submit)(e); }} className="h-99 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>
                 <select {...newMeasureForm.register("supplierId")} className="select w-full">
@@ -458,8 +439,4 @@ export default function Measure() {
       </dialog>
     </>
   )
-}
-
-type Failed = {
-  message: string
 }

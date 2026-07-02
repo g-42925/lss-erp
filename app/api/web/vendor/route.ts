@@ -1,108 +1,108 @@
 import { connectToDatabase } from "@/lib/mongodb";
-import { NextRequest,NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import Companie from "@/models/Companie"
 import Vendor from "@/models/Vendor"
 
-export async function POST(request:NextRequest){
+export async function POST(request: NextRequest) {
   const body = await request.json()
-  
+
   try {
     await connectToDatabase()
-    
+
     const company = await Companie.find({
-      masterAccountId:body.masterAccountId,
+      masterAccountId: body.masterAccountId,
     })
 
     const vendor = await Vendor.create(
       {
         ...body,
-        vendorOf:company[0]._id,
+        vendorOf: company[0]._id,
       }
     )
 
     return NextResponse.json(
       {
-        noResult:false,
-        message:"",
-        result:vendor,
-        error:false
+        noResult: false,
+        message: "",
+        result: vendor,
+        error: false
       }
     )
-  } 
-  catch (e:any) {
+  }
+  catch (e: unknown) {
     return NextResponse.json(
       {
-        noResult:true,
-        message:e.message,
-        result:null,
-        error:true
+        noResult: true,
+        message: e instanceof Error ? e.message : "Something went wrong",
+        result: null,
+        error: true
       }
     )
-  }	
+  }
 }
 
-export async function PUT(request:NextRequest){
+export async function PUT(request: NextRequest) {
   const body = await request.json()
-  const {_id,...rest} = body
+  const { _id, ...rest } = body
   try {
     await connectToDatabase()
     await Vendor.findByIdAndUpdate(
-      _id,rest
+      _id, rest
     )
     return NextResponse.json(
       {
-        noResult:false,
-        message:"",
-        result:body,
-        error:false
+        noResult: false,
+        message: "",
+        result: body,
+        error: false
       }
-    );     
+    );
   }
-  catch(e:any){
+  catch (e: unknown) {
     return NextResponse.json(
       {
-        noResult:true,
-        message:e.message,
-        result:null,
-        error:true
+        noResult: true,
+        message: e instanceof Error ? e.message : "Something went wrong",
+        result: null,
+        error: true
       }
-    )		
+    )
   }
 }
 
-export async function GET(request:NextRequest){
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
-    try {
-      await connectToDatabase()
-      const company = await Companie.find({
-        masterAccountId:id
-      })
+  try {
+    await connectToDatabase()
+    const company = await Companie.find({
+      masterAccountId: id
+    })
 
-      const vendors = await Vendor.find(
-        {
-          vendorOf:company[0]._id
-        }
-      )
-      
-      return NextResponse.json(
-        {
-          noResult:false,
-          message:"",
-          result:vendors,
-          error:false
-        }
-      )
-    } 
-    catch (e:any) {
-      return NextResponse.json(
-        {
-          noResult:true,
-          message:e.message,
-          result:null,
-          error:true
-        }
-      )
-    }	
+    const vendors = await Vendor.find(
+      {
+        vendorOf: company[0]._id
+      }
+    )
+
+    return NextResponse.json(
+      {
+        noResult: false,
+        message: "",
+        result: vendors,
+        error: false
+      }
+    )
+  }
+  catch (e: unknown) {
+    return NextResponse.json(
+      {
+        noResult: true,
+        message: e instanceof Error ? e.message : "Something went wrong",
+        result: null,
+        error: true
+      }
+    )
+  }
 }

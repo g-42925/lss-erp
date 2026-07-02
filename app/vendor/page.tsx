@@ -1,4 +1,7 @@
-"use client";
+"use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */;
 
 import Sidebar from '@/components/sidebar'
 import useFetch from '@/hooks/useFetch'
@@ -249,7 +252,7 @@ export default function Vendor() {
                         {
                           vendors.map((v) => {
                             return (
-                              <tr>
+                              <tr key={v._id}>
                                 <td>{v.name}</td>
                                 <td>{v.email}</td>
                                 <td>{v.address}</td>
@@ -284,7 +287,7 @@ export default function Vendor() {
                         {
                           searchResult.map((v) => {
                             return (
-                              <tr>
+                              <tr key={v._id}>
                                 <td>{v.name}</td>
                                 <td>{v.email}</td>
                                 <td>{v.address}</td>

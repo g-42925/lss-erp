@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
       .populate({ path: 'vendorId', model: Vendor, select: 'name' })
       .sort({ date: -1 });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reportData: any[] = [];
     const summary: Record<string, { qty: number, subTotal: number }> = {};
 
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
         status: purchase.status || 'requested',
       });
     }
-    
+
     reportData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return NextResponse.json({
@@ -75,10 +76,11 @@ export async function GET(request: NextRequest) {
       error: false
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (e: any) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     });

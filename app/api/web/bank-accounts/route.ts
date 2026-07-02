@@ -26,10 +26,10 @@ export async function POST(request: NextRequest) {
       result: account,
       error: false,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true,
     });
@@ -58,10 +58,10 @@ export async function PUT(request: NextRequest) {
       error: false,
     });
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true,
     });
@@ -83,10 +83,10 @@ export async function GET(request: NextRequest) {
       result: accounts,
       error: false,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true,
     });
@@ -105,10 +105,10 @@ export async function DELETE(request: NextRequest) {
       result: id,
       error: false,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true,
     });

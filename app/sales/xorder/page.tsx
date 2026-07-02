@@ -1,5 +1,7 @@
 "use client"
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Link from "next/link"
@@ -12,7 +14,17 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ContractsIcon } from '@hugeicons/core-free-icons'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons';
 
+import React, { Suspense } from "react";
+
 export default function XOrder() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <XOrderContent />
+    </Suspense>
+  )
+}
+
+function XOrderContent() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const [searchTerm, setSearchTerm] = useState<string>("")

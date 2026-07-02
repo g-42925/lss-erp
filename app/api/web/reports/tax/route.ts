@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       .sort({ date: -1 });
 
     // 2. Process data into transactions per item tax
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reportData: any[] = [];
     const taxSummary: Record<string, number> = {};
 
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
           for (const t of item.taxes) {
             if (t.taxAmount > 0) {
               const tn = t.taxName || 'Unknown Tax';
-              
+
               if (!taxSummary[tn]) taxSummary[tn] = 0;
               taxSummary[tn] += t.taxAmount;
 
@@ -80,31 +81,31 @@ export async function GET(request: NextRequest) {
           const t = sOrder.taxes[i];
           const tVal = t.taxValue || 0;
           if (tVal > 0) {
-             const tAmount = (subTotal * tVal) / 100;
-             if (tAmount > 0) {
-               const tn = t.taxName || 'Unknown Tax';
+            const tAmount = (subTotal * tVal) / 100;
+            if (tAmount > 0) {
+              const tn = t.taxName || 'Unknown Tax';
 
-               if (!taxSummary[tn]) taxSummary[tn] = 0;
-               taxSummary[tn] += Math.round(tAmount);
+              if (!taxSummary[tn]) taxSummary[tn] = 0;
+              taxSummary[tn] += Math.round(tAmount);
 
-               reportData.push({
-                  id: `${sOrder._id.toString()}-${i}-${tn}`,
-                  transactionNumber: sOrder.salesOrderNumber,
-                  date: sOrder.date,
-                  customerName: sOrder.customerId?.customerName || sOrder.customCustomer?.name || 'Walk-in Customer',
-                  productName: sOrder.productId?.productName || 'Service',
-                  taxName: tn,
-                  taxValue: tVal,
-                  taxAmount: Math.round(tAmount),
-                  subTotal: subTotal,
-                  source: 'Service Order'
-               });
-             }
+              reportData.push({
+                id: `${sOrder._id.toString()}-${i}-${tn}`,
+                transactionNumber: sOrder.salesOrderNumber,
+                date: sOrder.date,
+                customerName: sOrder.customerId?.customerName || sOrder.customCustomer?.name || 'Walk-in Customer',
+                productName: sOrder.productId?.productName || 'Service',
+                taxName: tn,
+                taxValue: tVal,
+                taxAmount: Math.round(tAmount),
+                subTotal: subTotal,
+                source: 'Service Order'
+              });
+            }
           }
         }
       }
     }
-    
+
     // Sort combined records by date descending
     reportData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -118,10 +119,10 @@ export async function GET(request: NextRequest) {
       error: false
     });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     });

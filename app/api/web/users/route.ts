@@ -1,7 +1,7 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
-import withPermissionCheck from '@/hofs/withPermissionCheck'
+
 
 import User from "@/models/User";
 import CryptoJS from "crypto-js";
@@ -31,11 +31,11 @@ export async function POST(request: NextRequest) {
     )
 
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }
@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
   const id = url.searchParams.get("id")?.trim();
   try {
     await connectToDatabase()
-    const result = await User.findByIdAndDelete(id);
+    await User.findByIdAndDelete(id);
     return NextResponse.json(
       {
         noResult: false,
@@ -58,11 +58,11 @@ export async function DELETE(request: NextRequest) {
       }
     )
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }
@@ -89,11 +89,11 @@ export async function GET(request: NextRequest) {
       }
     )
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }
@@ -128,11 +128,11 @@ export async function PUT(req: Request) {
       }
     );
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }

@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
 
 
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }
@@ -138,11 +138,11 @@ export async function GET(request: NextRequest) {
       }
     )
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }
@@ -165,15 +165,15 @@ export async function PUT(request: NextRequest) {
     const status = body.get("status") as string
 
     if (!id) {
-        return NextResponse.json({
-            noResult: true,
-            message: "Work Order ID is required",
-            result: null,
-            error: true
-        })
+      return NextResponse.json({
+        noResult: true,
+        message: "Work Order ID is required",
+        result: null,
+        error: true
+      })
     }
 
-    const updateData: any = {
+    const updateData: Record<string, string | undefined> = {
       taskName,
       description,
       startTime,
@@ -231,11 +231,11 @@ export async function PUT(request: NextRequest) {
     })
 
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }

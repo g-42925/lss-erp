@@ -1,12 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import Link from "next/link";
-import Image from "next/image"
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch";
-import Sidebar from "@/components/sidebar";
 import { useForm } from "react-hook-form"
-import { useRef, useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
 
@@ -15,18 +15,9 @@ export default function List() {
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const modalRef = useRef<HTMLDialogElement>(null)
-  const editRef = useRef<HTMLDialogElement>(null)
 
   const [products, setProducts] = useState<any[]>([])
-  const [role, setRole] = useState<string>('')
-  const [newRoleName, setNewRoleName] = useState<string>('')
   const [searchResult, setSearchResult] = useState<any[]>([])
-  const [query, setQuery] = useState<string>('')
-
-  const [selectedPage, setSelectedPage] = useState<string>('')
-
-  const [selected, setSelected] = useState<any>({})
 
   const newRoleForm = useForm()
   const editRoleForm = useForm()
@@ -67,7 +58,8 @@ export default function List() {
     })
 
     await addFn.fn('', body, (newRole) => {
-      modalRef.current?.close()
+      const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+      if (modal) modal.close();
 
       setProducts(
         [
@@ -121,7 +113,8 @@ export default function List() {
 
       setSearchResult([])
 
-      editRef.current?.close()
+      const modal = document.getElementById('my_modal_2') as HTMLDialogElement;
+      if (modal) modal.close();
     })
   }
 
@@ -146,9 +139,8 @@ export default function List() {
       page: filter.page.split('/')
     })
 
-    setNewRoleName(filter.name)
-
-    editRef.current?.showModal()
+    const modal = document.getElementById('my_modal_2') as HTMLDialogElement;
+    if (modal) modal.showModal();
   }
 
   useEffect(() => {
@@ -162,7 +154,8 @@ export default function List() {
         setProducts(result)
       })
     }
-  }, [masterAccountId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [masterAccountId, hasHydrated])
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
@@ -175,7 +168,10 @@ export default function List() {
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
             <span className="self-center">All product</span>
-            <button disabled onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
+            <button disabled onClick={() => {
+              const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+              if (modal) modal.showModal();
+            }} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
@@ -275,7 +271,7 @@ export default function List() {
           }
         </div>
       </div>
-      <dialog id="my_modal_2" ref={editRef} className="modal text-black">
+      <dialog id="my_modal_2" className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Role</span>
@@ -307,7 +303,7 @@ export default function List() {
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
+      <dialog id="my_modal_1" className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Role</span>

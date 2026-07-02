@@ -26,12 +26,14 @@ export async function GET(request: NextRequest) {
     }
 
     const warehouses = await Warehouse.find({ companyId: company._id });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const warehouseIds = warehouses.map((w: any) => w._id);
 
     // Build the date filter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dateFilter: any = {};
     let hasDateFilter = false;
-    
+
     if (startDate) {
       dateFilter.$gte = new Date(startDate);
       hasDateFilter = true;
@@ -43,7 +45,8 @@ export async function GET(request: NextRequest) {
       hasDateFilter = true;
     }
 
-    const filter: any = { 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filter: any = {
       warehouseId: { $in: warehouseIds },
       expiryDate: { $ne: null }
     };
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
       .populate({ path: 'locationId', model: Location, select: 'name code' })
       .sort({ expiryDate: 1 });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reportData: any[] = [];
     const summary = {
       totalExpiredQty: 0,
@@ -96,7 +100,8 @@ export async function GET(request: NextRequest) {
       error: false
     });
 
-  } catch (e: any) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (e: s) {
     return NextResponse.json({
       noResult: true,
       message: e.message,

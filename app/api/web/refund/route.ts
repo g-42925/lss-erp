@@ -113,10 +113,10 @@ export async function POST(request: NextRequest) {
       error: false
     });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     });
@@ -165,56 +165,56 @@ export async function PUT(request: NextRequest) {
     }
 
     if (params.action === 'exit') {
-        if (!params.reason) {
-            return NextResponse.json({ error: true, message: "Reason is required for exit" });
-        }
-        
-        if (!params.approvalCode) {
-            return NextResponse.json({ error: true, message: "Kode approval diperlukan untuk exit" });
-        }
+      if (!params.reason) {
+        return NextResponse.json({ error: true, message: "Reason is required for exit" });
+      }
 
-        const approver = await User.findOne({ approvalCode: params.approvalCode });
-        if (!approver) {
-            return NextResponse.json({ error: true, message: "Kode approval tidak valid" });
-        }
+      if (!params.approvalCode) {
+        return NextResponse.json({ error: true, message: "Kode approval diperlukan untuk exit" });
+      }
 
-        await ExitLog.create({
-            companyId: refund.companyId,
-            warehouseId: refund.warehouseId,
-            productId: refund.productId,
-            qty: qtyToProcess,
-            reason: params.reason,
-            note: params.note || `Refund exit from Order: ${refund.salesOrderNumber}`,
-            createdByUserId: params.userId ? new mongoose.Types.ObjectId(params.userId) : undefined,
-            createdByName: params.userName || undefined,
-            approvedByUserId: approver._id,
-            approvedByName: approver.name,
-        });
+      const approver = await User.findOne({ approvalCode: params.approvalCode });
+      if (!approver) {
+        return NextResponse.json({ error: true, message: "Kode approval tidak valid" });
+      }
 
-        await OutboundLog.create({
-            warehouseId: refund.warehouseId,
-            productId: refund.productId,
-            quantity: qtyToProcess,
-            date: new Date()
-        });
+      await ExitLog.create({
+        companyId: refund.companyId,
+        warehouseId: refund.warehouseId,
+        productId: refund.productId,
+        qty: qtyToProcess,
+        reason: params.reason,
+        note: params.note || `Refund exit from Order: ${refund.salesOrderNumber}`,
+        createdByUserId: params.userId ? new mongoose.Types.ObjectId(params.userId) : undefined,
+        createdByName: params.userName || undefined,
+        approvedByUserId: approver._id,
+        approvedByName: approver.name,
+      });
 
-        const newExited = alreadyExited + qtyToProcess;
-        refund.exitedQty = newExited;
-        
-        if (alreadyStored + newExited >= refund.qty) {
-            refund.status = 'resolved';
-        }
+      await OutboundLog.create({
+        warehouseId: refund.warehouseId,
+        productId: refund.productId,
+        quantity: qtyToProcess,
+        date: new Date()
+      });
 
-        await refund.save();
+      const newExited = alreadyExited + qtyToProcess;
+      refund.exitedQty = newExited;
 
-        return NextResponse.json({
-            noResult: false,
-            message: alreadyStored + newExited >= refund.qty
-                ? "Fully processed"
-                : `Exited ${qtyToProcess} unit(s). ${refund.qty - alreadyStored - newExited} remaining.`,
-            result: refund,
-            error: false
-        });
+      if (alreadyStored + newExited >= refund.qty) {
+        refund.status = 'resolved';
+      }
+
+      await refund.save();
+
+      return NextResponse.json({
+        noResult: false,
+        message: alreadyStored + newExited >= refund.qty
+          ? "Fully processed"
+          : `Exited ${qtyToProcess} unit(s). ${refund.qty - alreadyStored - newExited} remaining.`,
+        result: refund,
+        error: false
+      });
     }
 
     if (!refund.warehouseId) {

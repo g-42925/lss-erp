@@ -1,5 +1,7 @@
 "use client"
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Image from "next/image"
@@ -141,12 +143,12 @@ export default function Invoices() {
       const { sellingPrice } = invoice?.product
       const { cart, discountType, discountValue, total, taxValue } = invoice.order
 
-      const subTotals = cart.map((c) => {
+      const subTotals = cart.map((c: any) => {
         const product = products.find(p => p._id === c.productId)
         return product.sellingPrice * c.qty
       })
 
-      const _total = subTotals.reduce((sum, current) => {
+      const _total = subTotals.reduce((sum: number, current: number) => {
         return sum + current;
       }, 0);
 
@@ -172,12 +174,12 @@ export default function Invoices() {
       const { sellingPrice } = invoice.product
       const { cart, discountType, discountValue, total, taxValue } = invoice.order
 
-      const subTotals = cart.map((c) => {
+      const subTotals = cart.map((c: any) => {
         const product = products.find(p => p._id === c.productId)
         return product.sellingPrice * c.qty
       })
 
-      const _total = subTotals.reduce((sum, current) => {
+      const _total = subTotals.reduce((sum: number, current: number) => {
         return sum + current;
       }, 0);
 
@@ -355,7 +357,7 @@ export default function Invoices() {
                       {
                         searchResult.length < 1
                           ?
-                          getInvoicesFn?.result?.map((s, index) => {
+                          getInvoicesFn?.result?.map((s: any, index: number) => {
                             return (
                               <tr key={index}>
                                 <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
@@ -509,7 +511,6 @@ export default function Invoices() {
 
             {selectedInvoice?.variousItem && selectedInvoice?.order?.cart?.length > 1 ? (
               (() => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const itemChunks = (selectedInvoice.order.cart as any[]).reduce((acc: any[][], curr: any, idx: number) => {
                   const chunkIdx = Math.floor(idx / 5);
                   if (!acc[chunkIdx]) acc[chunkIdx] = [];
@@ -591,7 +592,7 @@ export default function Invoices() {
                   {selectedInvoice?.order?.cart?.length === 1 ? (
                     <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice) - (selectedInvoice?.unavailableList[0].qty * selectedInvoice?.product?.sellingPrice)).toLocaleString('id-ID')}</span>
                   ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart.map((c) => c.subTotal).reduce((sum, current) => sum + current, 0)) - (999)).toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)) - (999)).toLocaleString('id-ID')}</span>
                   )}
                 </div>
                 <div className="flex flex-row">

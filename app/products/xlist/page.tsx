@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import Link from "next/link";
@@ -86,7 +87,8 @@ export default function XList() {
         setProducts(result)
       })
     }
-  }, [masterAccountId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [masterAccountId, hasHydrated])
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')

@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 
 import { useForm } from "react-hook-form"
 
@@ -15,9 +18,7 @@ export default function Add() {
   const [fileName, setFileName] = useState<string>('')
   const [previewUrl, setPreviewUrl] = useState('')
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const [categories, setCategories] = useState<any[]>([])
   const [units, setUnits] = useState<any[]>([])
 
@@ -74,6 +75,11 @@ export default function Add() {
   }
 
   useEffect(() => {
+    productForm.setValue("productId", `P-${String(Date.now()).slice(-5)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/categories?id=${masterAccountId}`
       const url2 = `/api/web/unit?id=${masterAccountId}`
@@ -84,7 +90,8 @@ export default function Add() {
         setUnits(r)
       })
     }
-  }, [masterAccountId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [masterAccountId, hasHydrated])
 
   return (
     <>
@@ -108,7 +115,7 @@ export default function Add() {
               </fieldset>
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Product Id</legend>
-                <input readOnly value={`P-${String(Date.now()).slice(-5)}`} {...productForm.register("productId")} type="text" className="input w-full" placeholder="Type here" />
+                <input readOnly {...productForm.register("productId")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
               <fieldset className="fieldset flex-1" hidden>
                 <legend className="fieldset-legend">Barcode type</legend>
@@ -246,7 +253,7 @@ export default function Add() {
             previewUrl != ''
               ?
               <div className="w-1/4 flex flex-col justify-center items-center">
-                <img className="rounded-md" src={previewUrl} />
+                <img className="rounded-md" src={previewUrl} alt="Product preview" />
               </div>
               :
               <></>
@@ -257,7 +264,7 @@ export default function Add() {
       <div className="modal text-black">
         <div className="modal-box p-0 bg-transparent shadow-none">
           <label htmlFor="lightbox-modal" className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</label>
-          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" />
+          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" alt="Lightbox image" />
         </div>
       </div>
     </>

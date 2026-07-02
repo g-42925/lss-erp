@@ -1,4 +1,7 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import Link from "next/link";
 import Image from "next/image"
@@ -91,26 +94,26 @@ export default function XDebt() {
   }
 
   async function paySubmit(data: any) {
-     const newPayAmt = parseInt(data.payAmount)
-     if (newPayAmt <= 0) return alert("Amount must be greater than 0")
-     const payload = JSON.stringify({
-       _id: data._id,
-       type: "payment",
-       newPayAmt: newPayAmt,
-       payAmount: parseInt(data.currPayAmt) + newPayAmt,
-       status: '___approved',
-       reference: null,
-       paymentMethod: data.paymentMethod,
-       date: new Date(data.date),
-       userId: userId
-     })
-     
-     await putFn.fn('', payload, (result) => {
-       const target = debts.find((d) => d._id === result._id)
-       if(target) target.payAmount = result.payAmount
-       payRef.current?.close()
-       SetDebts([...debts])
-     })
+    const newPayAmt = parseInt(data.payAmount)
+    if (newPayAmt <= 0) return alert("Amount must be greater than 0")
+    const payload = JSON.stringify({
+      _id: data._id,
+      type: "payment",
+      newPayAmt: newPayAmt,
+      payAmount: parseInt(data.currPayAmt) + newPayAmt,
+      status: '___approved',
+      reference: null,
+      paymentMethod: data.paymentMethod,
+      date: new Date(data.date),
+      userId: userId
+    })
+
+    await putFn.fn('', payload, (result) => {
+      const target = debts.find((d) => d._id === result._id)
+      if (target) target.payAmount = result.payAmount
+      payRef.current?.close()
+      SetDebts([...debts])
+    })
   }
 
   function openEditLog(log: any) {
@@ -140,13 +143,13 @@ export default function XDebt() {
   }
 
   async function viewLogs(debtId: string) {
-     setLogsLoading(true)
-     setLogs([])
-     logsRef.current?.showModal()
-     getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debtId}`, "{}", (res) => {
-        setLogs(res)
-        setLogsLoading(false)
-     })
+    setLogsLoading(true)
+    setLogs([])
+    logsRef.current?.showModal()
+    getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debtId}`, "{}", (res) => {
+      setLogs(res)
+      setLogsLoading(false)
+    })
   }
 
 
@@ -350,13 +353,13 @@ export default function XDebt() {
                       <td>{L.paymentMethod || '-'}</td>
                       <td>{L.initial ? 'Yes' : 'No'}</td>
                       <td className="text-xs text-left max-w-[200px]">
-                         {L.editedAt && (
-                           <>
-                             <div>Edited At: {new Date(L.editedAt).toLocaleString('id-ID')}</div>
-                             <div>By: {L.editedBy?.name || '-'}</div>
-                             <div>Appr: {L.editApprovedBy?.name || '-'}</div>
-                           </>
-                         )}
+                        {L.editedAt && (
+                          <>
+                            <div>Edited At: {new Date(L.editedAt).toLocaleString('id-ID')}</div>
+                            <div>By: {L.editedBy?.name || '-'}</div>
+                            <div>Appr: {L.editApprovedBy?.name || '-'}</div>
+                          </>
+                        )}
                       </td>
                       <td className="flex flex-row gap-2 h-full items-center">
                         <button className="btn btn-sm btn-outline text-blue-600" onClick={() => openEditLog(L)}>Edit</button>

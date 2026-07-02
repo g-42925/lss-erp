@@ -1,0 +1,44 @@
+
+> lss-erp@0.1.0 build
+> next build --webpack
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   ▲ Next.js 16.0.7 (webpack)
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: /home/muhammad/lss-erp/public/sw.js
+ ○ (pwa)   URL: /sw.js
+ ○ (pwa)   Scope: /
+Browserslist: browsers data (caniuse-lite) is 7 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ Compiled successfully in 47s
+   Running TypeScript ...
+   Collecting page data using 3 workers ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 3 workers (0/145) ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   Generating static pages using 3 workers (36/145) 
+   Generating static pages using 3 workers (72/145) 
+ ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/sales/order". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at S (/home/muhammad/lss-erp/.next/server/chunks/7471.js:2:2111)
+    at p (/home/muhammad/lss-erp/.next/server/chunks/7471.js:7:126764)
+    at em (/home/muhammad/lss-erp/.next/server/app/sales/order/page.js:66:3085)
+    at ar (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:84366)
+    at aa (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:86185)
+    at as (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:107952)
+    at ao (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:105374)
+    at an (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:84718)
+    at aa (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:86234)
+    at aa (/home/muhammad/lss-erp/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:2:104714)
+Error occurred prerendering page "/sales/order". Read more: https://nextjs.org/docs/messages/prerender-error
+Export encountered an error on /sales/order/page: /sales/order, exiting the build.
+ ⨯ Next.js build worker exited with code: 1 and signal: null

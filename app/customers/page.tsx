@@ -1,10 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 "use client";
 
-import Sidebar from '@/components/sidebar'
 import useFetch from '@/hooks/useFetch'
 import useAuth from "@/store/auth"
 
-import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
@@ -102,7 +101,7 @@ export default function Customers() {
     const body = JSON.stringify({ ...data, addedOn: f.addedOn })
 
     await editFn.fn('', body, (result) => {
-      const [target] = customers.filter((s, index) => {
+      const [target] = customers.filter((s) => {
         return s._id === data._id
       })
 
@@ -140,12 +139,6 @@ export default function Customers() {
     })
 
     editRef.current?.show()
-  }
-
-  function normalizeDate(date: string) {
-    return new Date(date).toLocaleDateString("id-ID", {
-      timeZone: "Asia/Jakarta"
-    })
   }
 
   useEffect(() => {
@@ -253,7 +246,7 @@ export default function Customers() {
                         {
                           customers.map((c) => {
                             return (
-                              <tr>
+                              <tr key={c._id}>
                                 <td>{c.bussinessName}</td>
                                 <td>{c.email} </td>
                                 <td>{c.taxNumber} </td>
@@ -290,7 +283,7 @@ export default function Customers() {
                         {
                           searchResult.map((c) => {
                             return (
-                              <tr>
+                              <tr key={c._id}>
                                 <td>{c.bussinessName}</td>
                                 <td>{c.email} </td>
                                 <td>{c.taxNumber} </td>
@@ -317,7 +310,7 @@ export default function Customers() {
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Edit Supplier</span>
-            <form onSubmit={editCustomerForm.handleSubmit(handleEdit)} className="h-140 flex flex-col gap-3 relative">
+            <form onSubmit={(e) => { void editCustomerForm.handleSubmit(handleEdit)(e); }} className="h-140 flex flex-col gap-3 relative">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Bussiness Name</legend>
@@ -359,7 +352,7 @@ export default function Customers() {
         <div className="modal-box">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Customer</span>
-            <form onSubmit={newCustomerForm.handleSubmit(submit)} className="h-140 flex flex-col gap-3 relative">
+            <form onSubmit={(e) => { void newCustomerForm.handleSubmit(submit)(e); }} className="h-140 flex flex-col gap-3 relative">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Bussiness Name</legend>

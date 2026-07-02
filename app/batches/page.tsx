@@ -8,7 +8,17 @@ import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form";
 
 
+import React, { Suspense } from "react";
+
 export default function Batches() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BatchesContent />
+    </Suspense>
+  )
+}
+
+function BatchesContent() {
   const [mounted, setMounted] = useState<boolean>(false);
   const [stock, setStock] = useState<any[]>([])
   const [batches, setBatches] = useState<any[]>([])

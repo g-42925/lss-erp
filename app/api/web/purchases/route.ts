@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -404,7 +405,7 @@ export async function PUT(request: NextRequest) {
           reserved: 0,
           locationId: resolvedLocationId,
           createdAt: new Date()
-        })
+        }) as any
 
         console.log(rest)
 
@@ -451,7 +452,7 @@ export async function PUT(request: NextRequest) {
           reserved: 0,
           locationId: resolvedLocationId,
           createdAt: new Date()
-        })
+        }) as any
 
         console.log(rest)
 

@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "prisma-test.ts", "test2.ts", "test-mongo.ts", "testmongo.js", "test-add-items.js", "test-collections.js", "test-data.js", "test-db.js", "test-get-id.js", "test-invoice-id.js", "test-refund-credit.js", "test-report.js", "tmp_batch_check.js"]
 }

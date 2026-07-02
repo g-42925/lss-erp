@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       .populate('editApprovedBy', 'name')
       .lean()
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filteredLogs = logs.filter((l: any) => l.amount !== 0)
 
     return NextResponse.json({
@@ -34,10 +35,10 @@ export async function GET(request: NextRequest) {
       error: false
     })
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })
@@ -64,11 +65,12 @@ export async function PUT(request: NextRequest) {
 
     const oldLog = await Log.findById(logId)
     if (!oldLog) {
-       return NextResponse.json({ noResult: true, message: "Log tidak ditemukan", result: null, error: true })
+      return NextResponse.json({ noResult: true, message: "Log tidak ditemukan", result: null, error: true })
     }
 
     const editor = userId ? await User.findById(userId) : null
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updates: any = {
       editedAt: new Date(),
       editApprovedBy: approver._id,
@@ -99,10 +101,10 @@ export async function PUT(request: NextRequest) {
       error: false
     })
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })

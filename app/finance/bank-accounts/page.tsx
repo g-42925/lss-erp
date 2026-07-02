@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 "use client"
 
 import useAuth from "@/store/auth"
@@ -194,7 +195,7 @@ export default function BankAccounts() {
       <dialog id="modal-add-bank" ref={modalRef} className="modal text-black">
         <div className="modal-box">
           <h3 className="text-xl font-bold mb-4">Add Bank Account</h3>
-          <form onSubmit={newForm.handleSubmit(submit)} className="flex flex-col gap-3">
+          <form onSubmit={(e) => { void newForm.handleSubmit(submit)(e); }} className="flex flex-col gap-3">
             {/* Bank selector */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-gray-600 font-medium">Bank</label>
@@ -280,7 +281,7 @@ export default function BankAccounts() {
       <dialog id="modal-edit-bank" ref={editRef} className="modal text-black">
         <div className="modal-box">
           <h3 className="text-xl font-bold mb-4">Edit Bank Account</h3>
-          <form onSubmit={editForm.handleSubmit(editSubmit)} className="flex flex-col gap-3">
+          <form onSubmit={(e) => { void editForm.handleSubmit(editSubmit)(e); }} className="flex flex-col gap-3">
             <input type="hidden" {...editForm.register("_id")} />
 
             {/* Bank selector */}

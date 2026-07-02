@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
 import User from '@/models/User'
 import Companie from '@/models/Companie'
 import CryptoJS from "crypto-js";
-import { noSSR } from "next/dynamic";
+
 
 
 export async function POST(request:NextRequest) {

@@ -105,10 +105,11 @@ export async function GET(request: NextRequest) {
       result: payments,
       error: false
     });
-  } catch (e: any) {
+  }
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       error: true
     });
   }

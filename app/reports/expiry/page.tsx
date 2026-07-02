@@ -31,11 +31,6 @@ function firstOfMonthStr() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
 }
 
-function todayStr() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-}
-
 function endOfYearStr() {
     const now = new Date()
     return `${now.getFullYear()}-12-31`

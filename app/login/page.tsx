@@ -1,8 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import useAuth from '@/store/auth'
-import { useRouter } from 'next/navigation';
-
 import { useState } from "react";
 import useFetch from "@/hooks/useFetch";
 
@@ -16,7 +15,6 @@ export default function Login() {
 	const login = useAuth((state) => state.login)
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const router = useRouter()
 
 	// const auth = useAuth((state) => state)
 	// const hasHydrated = useAuth((s) => s._hasHydrated)
@@ -48,7 +46,9 @@ export default function Login() {
 					isSuperAdmin: result.isSuperAdmin,
 					locationId: result.locationId,
 					userId: result._id,
-					companyId: result.company._id
+					companyId: result.company._id,
+					id: result._id,
+					roleDetail: result.roleDetail || null
 				}
 			)
 

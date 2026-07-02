@@ -36,16 +36,19 @@ export async function GET(request: NextRequest) {
       companyId: company._id,
       paymentHistory: { $exists: true, $not: { $size: 0 } },
     }).populate({
-        path: 'salesOrderId',
-        model: 'Order'
+      path: 'salesOrderId',
+      model: 'Order'
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cashLog: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bankLog: any[] = [];
     let cashTotal = 0;
     let bankTotal = 0;
 
     invoices.forEach((inv) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       inv.paymentHistory.forEach((payment: any) => {
         if (payment.reverted) return;
 
@@ -70,7 +73,7 @@ export async function GET(request: NextRequest) {
     // 2. Fetch Bank Accounts to group bank logs
     const bankAccounts = await BankAccount.find({ addedBy: company._id });
     const bankStats = bankAccounts.map((account) => {
-      const accountLogs = bankLog.filter((log) => 
+      const accountLogs = bankLog.filter((log) =>
         log.method.toLowerCase().includes(account.bank.toLowerCase())
       );
       const accountTotal = accountLogs.reduce((sum, log) => sum + log.amount, 0);
@@ -177,11 +180,12 @@ export async function GET(request: NextRequest) {
       },
       error: false,
     });
-  } catch (e: any) {
+  }
+  catch (e: unknown) {
     console.error("COA Assets API Error:", e);
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true,
     });

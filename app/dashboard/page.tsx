@@ -417,24 +417,28 @@ export default function DashboardPage() {
                   icon="⚠️"
                   label="Segera Expired (10 hari)"
                   value={`${data.expiringCount}`}
+                  sub={`${data.expiringQty} qty terdampak`}
                   severity="warn"
                 />
                 <AlertCard
                   icon="🚨"
                   label="Sudah Expired"
                   value={`${data.expiredCount}`}
+                  sub={`${data.expiredQty} qty terbuang`}
                   severity="danger"
                 />
                 <AlertCard
                   icon="📬"
                   label="Piutang"
                   value={`${data.outstandingReceivableCount}`}
+                  sub={`${SHORT_IDR(data.outstandingReceivable)} belum terbayar`}
                   severity="warn"
                 />
                 <AlertCard
                   icon="💳"
                   label="Hutang"
                   value={SHORT_IDR(data.totalDebt)}
+                  sub={`${data.totalDebtCount} transaksi`}
                   severity="info"
                 />
               </div>

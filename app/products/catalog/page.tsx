@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -29,6 +30,7 @@ export default function ProductCatalog() {
         setProducts(result || [])
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, masterAccountId])
 
   // Extract unique categories for the filter

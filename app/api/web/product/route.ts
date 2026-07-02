@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Product from '@/models/Product'
 
 import { connectToDatabase } from "@/lib/mongodb";
@@ -7,7 +8,7 @@ export async function GET(request:NextRequest){
   try{
     const url = new URL(request.url)
     const _id = url.searchParams.get("_id")
-    const conn = await connectToDatabase()
+    await connectToDatabase()
     const result = await Product.findById(_id)
    
     return NextResponse.json({

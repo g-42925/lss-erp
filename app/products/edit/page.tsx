@@ -1,26 +1,32 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import Link from "next/link";
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, useRef } from "react";
-import Sidebar from '@/components/sidebar'
+import { useEffect, useState } from "react";
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
 import { useRouter } from 'next/navigation'
 import { useForm } from "react-hook-form"
 
+import React, { Suspense } from "react";
 
 export default function Add() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AddContent />
+    </Suspense>
+  )
+}
+
+function AddContent() {
   const [file, setFile] = useState<File | null>(null)
   const [fileName, setFileName] = useState<string>('')
   const [previewUrl, setPreviewUrl] = useState('')
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
-  const [categories, setCategories] = useState<any[]>([])
-  const [units, setUnits] = useState<any[]>([])
-  const [category, setCategory] = useState<string>('')
+  const [categories, setCategories] = useState<{id: string; name: string}[]>([])
+  const [units, setUnits] = useState<{_id: string; name: string}[]>([])
   const searchParams = useSearchParams();
   const router = useRouter()
   const productForm = useForm()
@@ -75,7 +81,7 @@ export default function Add() {
       formData.append(key, data[key])
     })
 
-    updateProductFn.fn(`/api/web/products`, formData, (r) => {
+    updateProductFn.fn(`/api/web/products`, formData, () => {
       router.push(
         '/products/list'
       )
@@ -119,6 +125,7 @@ export default function Add() {
         })
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [masterAccountId])
 
   //if(categories.length < 1 || units.length < 1) return; 
@@ -281,7 +288,8 @@ export default function Add() {
             previewUrl != ''
               ?
               <div className="w-1/4 flex flex-col justify-center items-center">
-                <img className="rounded-md" src={previewUrl} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="rounded-md" src={previewUrl} alt="Preview" />
               </div>
               :
               <></>
@@ -292,7 +300,8 @@ export default function Add() {
       <div className="modal">
         <div className="modal-box p-0 bg-transparent shadow-none">
           <label htmlFor="lightbox-modal" className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</label>
-          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" alt="Lightbox Modal" />
         </div>
       </div>
     </>

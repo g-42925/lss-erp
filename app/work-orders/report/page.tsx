@@ -1,4 +1,6 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useEffect, useState } from "react";
 import useFetch from "@/hooks/useFetch";
@@ -8,15 +10,15 @@ import useAuth from "@/store/auth";
 export default function WorkOrderReport() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  
+
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
-  
+
   const [filterStartDate, setFilterStartDate] = useState("")
   const [filterEndDate, setFilterEndDate] = useState("")
   const [filterStatus, setFilterStatus] = useState("All")
   const [filterEmp, setFilterEmp] = useState("All")
-  
+
   const getLogsFn = useFetch<any[], any>({
     url: `/api/web/work-orders?id=xxx`,
     method: 'GET'
@@ -37,7 +39,6 @@ export default function WorkOrderReport() {
         setEmployees(list);
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, masterAccountId])
 
   if (!hasHydrated) return null
@@ -46,7 +47,7 @@ export default function WorkOrderReport() {
     let match = true;
     if (filterStatus !== "All" && wo.status !== filterStatus) match = false;
     if (filterEmp !== "All" && wo.assignedTo !== filterEmp) match = false;
-    
+
     if (filterStartDate) {
       const woStart = new Date(wo.startTime).getTime();
       const fStart = new Date(filterStartDate).getTime();
@@ -100,7 +101,7 @@ export default function WorkOrderReport() {
                 </select>
               </div>
             </div>
-            
+
             <button onClick={() => setTimeout(() => window.print(), 100)} className="btn btn-info text-white">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6 mr-2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0v-2.941c0-1.13.927-2.05 2.056-2.05h6.388c1.13 0 2.056.92 2.056 2.05v2.941Z" />
@@ -177,17 +178,17 @@ export default function WorkOrderReport() {
       <div className="hidden print:block text-black p-8 bg-white absolute top-0 left-0 w-full min-h-screen z-50">
         <div className="text-center font-bold text-3xl mb-2 pb-2 uppercase tracking-widest">Work Order Aggregated Report</div>
         <div className="text-center text-sm mb-6 border-b-2 border-black pb-4 text-gray-600">
-          Generated on {new Date().toLocaleString()}<br/>
+          Generated on {new Date().toLocaleString()}<br />
           Filters applied - Status: {filterStatus} | Employee: {filterEmp === 'All' ? 'All' : employees.find(e => e.pegawai_id === filterEmp || e.pegawaid_id === filterEmp)?.nama_pegawai} | Date Range: {filterStartDate || 'Any'} to {filterEndDate || 'Any'}
         </div>
-        
+
         <div className="grid grid-cols-4 border-b border-black font-bold pb-2 mb-2 text-left">
           <div className="pl-2">Task Name</div>
           <div>Employee</div>
           <div>Dates</div>
           <div>Status</div>
         </div>
-        
+
         {filteredWorkOrders.map((wo, index) => {
           const emp = employees.find(e => e.pegawai_id === wo.assignedTo || e.pegawaid_id === wo.assignedTo);
           const employeeName = emp ? emp.nama_pegawai : wo.assignedTo;

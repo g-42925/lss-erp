@@ -1,26 +1,32 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import Link from "next/link";
-import Sidebar from '@/components/sidebar'
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from 'next/navigation';
 import { useForm } from "react-hook-form"
 import { useRouter } from 'next/navigation'
 
+import React, { Suspense } from "react";
 
 export default function XEdit() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <XEditContent />
+    </Suspense>
+  )
+}
+
+function XEditContent() {
   const [file, setFile] = useState<File | null>(null)
   const [fileName, setFileName] = useState<string>('')
   const [previewUrl, setPreviewUrl] = useState('')
   const hasHydrated = useAuth((s) => s._hasHydrated)
-  const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const [categories, setCategories] = useState<any[]>([])
-  const [units, setUnits] = useState<any[]>([])
 
   const productForm = useForm()
   const searchParams = useSearchParams();
@@ -76,7 +82,7 @@ export default function XEdit() {
       formData.append(key, data[key])
     })
 
-    updateProductFn.fn(`/api/web/products`, formData, (r) => {
+    updateProductFn.fn(`/api/web/products`, formData, () => {
       router.push(
         '/products/list'
       )
@@ -93,9 +99,7 @@ export default function XEdit() {
       getCategoriesFn.fn(url, JSON.stringify({}), (r) => {
         setCategories(r)
       })
-      getUnitsFn.fn(url2, JSON.stringify({}), (r) => {
-        setUnits(r)
-      })
+      getUnitsFn.fn(url2, JSON.stringify({}), () => { })
       getProductFn.fn(url3, JSON.stringify({}), (r) => {
         setPreviewUrl(r.image)
 
@@ -110,6 +114,7 @@ export default function XEdit() {
         })
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [masterAccountId])
 
   return (
@@ -212,7 +217,8 @@ export default function XEdit() {
             previewUrl != ''
               ?
               <div className="w-1/4 flex flex-col justify-center items-center">
-                <img className="rounded-md" src={previewUrl} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="rounded-md" src={previewUrl} alt="Preview" />
               </div>
               :
               <></>
@@ -223,7 +229,8 @@ export default function XEdit() {
       <div className="modal">
         <div className="modal-box p-0 bg-transparent shadow-none">
           <label htmlFor="lightbox-modal" className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</label>
-          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" alt="Lightbox Modal" />
         </div>
       </div>
     </>

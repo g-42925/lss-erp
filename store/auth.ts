@@ -12,6 +12,11 @@ interface AuthData {
   locationId: string;
   userId: string;
   companyId: string;
+  id?: string;
+  roleDetail: {
+    page: string[];
+    permission: string;
+  };
 }
 
 const useAuth = create<Auth>()(
@@ -36,6 +41,7 @@ const useAuth = create<Auth>()(
           _hasHydrated: false,
           userId: '',
           companyId: '',
+          roleDetail: { page: [], permission: '' },
         })),
 
         setLocationId: (locationId: string) => set(() => ({ locationId })),
@@ -51,6 +57,7 @@ const useAuth = create<Auth>()(
         _hasHydrated: false,
         userId: '',
         companyId: '',
+        roleDetail: { page: [], permission: '' },
       }),
       {
         name: 'auth-storage',

@@ -6,7 +6,17 @@ import { useRef, useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useSearchParams } from 'next/navigation';
 
+import React, { Suspense } from "react";
+
 export default function Rlog() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RlogContent />
+    </Suspense>
+  )
+}
+
+function RlogContent() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)

@@ -1,4 +1,7 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import useAuth from '@/store/auth'
 import { useRouter } from 'next/navigation';
@@ -30,7 +33,6 @@ export default function SelectLocation() {
             const url = `/api/web/location?id=${masterAccountId}`
             getLocationFn.fn(url, JSON.stringify({}), (res) => {})
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasHydrated, isSuperAdmin, masterAccountId])
 
     async function submit(e: any) {

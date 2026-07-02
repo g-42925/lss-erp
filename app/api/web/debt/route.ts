@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const id = url.searchParams.get("id")
     const type = url.searchParams.get("type")
-    const _ = await connectToDatabase()
+    await connectToDatabase()
     const cmp = await Companie.findOne({
       masterAccountId: id
     })
@@ -76,10 +76,10 @@ export async function GET(request: NextRequest) {
       }
     )
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })

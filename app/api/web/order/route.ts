@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
@@ -404,7 +405,7 @@ export async function POST(request: NextRequest) {
         createdBy: userId ? new mongoose.Types.ObjectId(userId) : null
       }
 
-      const _order = await Order.create(order)
+      const _order = await Order.create(order) as any
 
       // ─── Stock management berdasarkan tipe order ────────────────────
       if (rest.productType === 'good') {
@@ -720,7 +721,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { _id, items, approvalCode, editingUserId, discountType, discountValue, taxes } = body;
+    const { _id, items, approvalCode, editingUserId, discountType, discountValue } = body;
 
     if (!approvalCode) {
       throw new Error("Approval code is required");

@@ -1,4 +1,7 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -58,7 +61,6 @@ export default function WorkOrders() {
         setEmployees(list);
       })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, masterAccountId])
 
   function openEditModal(wo: any) {

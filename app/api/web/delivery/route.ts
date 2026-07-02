@@ -180,6 +180,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adjustment = (params.adjustment || []).map((item: any) => {
       return {
         deliveryNumber: deliveryNumber,
@@ -217,11 +218,11 @@ export async function POST(request: NextRequest) {
       error: false
     })
   }
-  catch (e: any) {
+  catch (e: unknown) {
     console.error("Delivery POST Error:", e)
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })
@@ -236,7 +237,6 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const so = url.searchParams.get("so")
     const filter = url.searchParams.get("f")
-    const id = url.searchParams.get("id")
     const fromParam = url.searchParams.get("from")
     const toParam = url.searchParams.get("to")
 
@@ -260,12 +260,15 @@ export async function GET(request: NextRequest) {
       const reservedBatchIds = reservations.map(r => r.batchId);
       const reservedBatches = await Batches.find({ _id: { $in: reservedBatchIds } });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const results = await Promise.all(order.cart.map(async (item: any) => {
         const productId = item.productId._id || item.productId
 
         // Calculate how many have been delivered for this specific product
         let deliveredQty = 0
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         existingDeliveries.forEach((d: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           d.items.forEach((di: any) => {
             if (di.productId.toString() === productId.toString()) {
               deliveredQty += di.qty
@@ -278,6 +281,7 @@ export async function GET(request: NextRequest) {
         const productReservedBatchIds = productReservedBatches.map(b => b._id);
         const isReservedForProduct = productReservedBatchIds.length > 0;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const batchMatchQuery: any = { productId: productId };
         if (isReservedForProduct) {
           batchMatchQuery._id = { $in: productReservedBatchIds };
@@ -336,6 +340,7 @@ export async function GET(request: NextRequest) {
       // which is usually clearer for warehouse staff.
 
       // Build optional date match stage
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dateMatch: any = {}
       if (fromParam) {
         const fromDate = new Date(fromParam)
@@ -348,6 +353,7 @@ export async function GET(request: NextRequest) {
         dateMatch.$lte = toDate
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pipeline: any[] = []
       if (Object.keys(dateMatch).length > 0) {
         pipeline.push({ $match: { date: dateMatch } })
@@ -445,11 +451,11 @@ export async function GET(request: NextRequest) {
       })
     }
   }
-  catch (e: any) {
+  catch (e: unknown) {
     console.error("Delivery GET Error:", e)
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })
@@ -483,6 +489,7 @@ export async function PUT(request: NextRequest) {
 
     if (!delivery) throw new Error("Delivery not found")
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const itemObj = delivery.items.find((i: any) => i.productId.toString() === productId && i.batchNumber === batchNumber)
 
     if (!itemObj) throw new Error("Delivery item not found")
@@ -585,11 +592,11 @@ export async function PUT(request: NextRequest) {
     })
 
   }
-  catch (e: any) {
+  catch (e: unknown) {
     console.error("Delivery PUT Error:", e)
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     })

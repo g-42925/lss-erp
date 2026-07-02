@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const so = url.searchParams.get("so")
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let matchCondition: any = {};
     if (so && so !== 'null') {
       matchCondition = { purchaseOrderNumber: so };
@@ -114,11 +115,11 @@ export async function GET(request: NextRequest) {
       error: false
     })
   }
-  catch (e: any) {
+  catch (e: unknown) {
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null,
         error: true
       }
@@ -193,9 +194,9 @@ export async function PUT(request: NextRequest) {
       inboundLog = await InboundLog.findOne({
         productId: batch.productId,
         warehouseId: batch.warehouseId,
-        date: { 
-          $gte: new Date(batchDate.getTime() - 10000), 
-          $lte: new Date(batchDate.getTime() + 10000) 
+        date: {
+          $gte: new Date(batchDate.getTime() - 10000),
+          $lte: new Date(batchDate.getTime() + 10000)
         }
       });
     }
@@ -208,6 +209,7 @@ export async function PUT(request: NextRequest) {
     }
 
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updatePayload: any = {
       qty: newQty,
       lastEditedBy: editingUserId,
@@ -229,10 +231,10 @@ export async function PUT(request: NextRequest) {
       result: updatedBatch,
       error: false
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     });

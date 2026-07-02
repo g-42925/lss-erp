@@ -4,93 +4,93 @@ import { NextRequest, NextResponse } from "next/server";
 import Companie from '@/models/Companie'
 import Purchase from '@/models/Purchase'
 
-export async function GET(request:NextRequest){
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const id = url.searchParams.get("id");  
-  const type = url.searchParams.get("type");  
+  const id = url.searchParams.get("id");
+  const type = url.searchParams.get("type");
 
-  
-  try{
+
+  try {
     await connectToDatabase()
     const cmp = await Companie.findOne({
-      masterAccountId:id
+      masterAccountId: id
     })
 
     const purchases = await Purchase.aggregate([
       {
-        $match:{
-          companyId:cmp._id,
-          purchaseType:type
+        $match: {
+          companyId: cmp._id,
+          purchaseType: type
         }
       },
       {
-        $lookup:{
-          from:'products',
-          localField:'productId',
-          foreignField:'_id',
-          as:'product'
+        $lookup: {
+          from: 'products',
+          localField: 'productId',
+          foreignField: '_id',
+          as: 'product'
         }
       },
       {
-        $unwind:{
-          path:'$product',
-          preserveNullAndEmptyArrays:true
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
         }
       },
       {
-        $lookup:{
-          from:'suppliers',
-          localField:'supplierId',
-          foreignField:'_id',
-          as:'supplier'
+        $lookup: {
+          from: 'suppliers',
+          localField: 'supplierId',
+          foreignField: '_id',
+          as: 'supplier'
         }
       },
       {
-        $unwind:{
-          path:'$supplier',
-          preserveNullAndEmptyArrays:true
-        }
-      },      
-      {
-        $lookup:{
-          from:'vendors',
-          localField:'vendorId',
-          foreignField:'_id',
-          as:'vendor'
+        $unwind: {
+          path: '$supplier',
+          preserveNullAndEmptyArrays: true
         }
       },
       {
-        $unwind:{
-          path:'$vendor',
-          preserveNullAndEmptyArrays:true
+        $lookup: {
+          from: 'vendors',
+          localField: 'vendorId',
+          foreignField: '_id',
+          as: 'vendor'
         }
       },
       {
-        $lookup:{
-          from:'logs',
-          foreignField:'purchaseId',
-          localField:'_id',
-          as:'log'
+        $unwind: {
+          path: '$vendor',
+          preserveNullAndEmptyArrays: true
         }
       },
       {
-        $unwind:'$log'
+        $lookup: {
+          from: 'logs',
+          foreignField: 'purchaseId',
+          localField: '_id',
+          as: 'log'
+        }
+      },
+      {
+        $unwind: '$log'
       }
     ])
 
     return NextResponse.json({
-      noResult:false,
-      message:"",
-      result:purchases,
-      error:false
+      noResult: false,
+      message: "",
+      result: purchases,
+      error: false
     })
   }
-  catch(e:any){
+  catch (e: unknown) {
     return NextResponse.json({
-      noResult:true,
-      message:e.message,
-      result:null,
-      error:true
+      noResult: true,
+      message: e instanceof Error ? e.message : "Something went wrong",
+      result: null,
+      error: true
     })
   }
 }

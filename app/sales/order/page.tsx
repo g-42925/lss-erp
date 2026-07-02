@@ -1,5 +1,7 @@
 "use client"
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Link from "next/link";
@@ -13,7 +15,17 @@ import { AddInvoiceIcon } from '@hugeicons/core-free-icons'
 import { Delete01Icon } from '@hugeicons/core-free-icons';
 import { Edit03Icon } from '@hugeicons/core-free-icons';
 
+import React, { Suspense } from "react";
+
 export default function Order() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OrderContent />
+    </Suspense>
+  )
+}
+
+function OrderContent() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const userId = useAuth((state) => state.userId)
@@ -318,8 +330,8 @@ export default function Order() {
   }
 
   function getDeliveredQty(orderId: string, productId: string) {
-    const order = getOrdersFn.result.find((o) => o._id === orderId)
-    return order.delivered.items.find((i) => i.productId == productId).qty
+    const order = getOrdersFn.result.find((o: any) => o._id === orderId)
+    return order.delivered.items.find((i: any) => i.productId == productId).qty
   }
 
   function initiateRefund(orderId: string, item: any) {
@@ -486,7 +498,7 @@ export default function Order() {
   })
   function activateInvoice(x: any, son: string) {
 
-    const newPrices = x.cart.map((c) => {
+    const newPrices = x.cart.map((c: any) => {
       const subTotal = c.subTotal
       const qty = c.qty
       if (x.discountType === 'percent') {
@@ -506,13 +518,13 @@ export default function Order() {
       }
     })
 
-    const unavailable = newPrices.map((n) => {
-      const [filter] = unAvailableList.filter(c => c.id == n.productId)
+    const unavailable = newPrices.map((n: any) => {
+      const [filter] = unAvailableList.filter((c: any) => c.id == n.productId)
       return n.newPrice * filter.qty
     })
 
 
-    const totalUnavailable = unavailable.reduce((acc, curr) => acc + curr, 0);
+    const totalUnavailable = unavailable.reduce((acc: number, curr: number) => acc + curr, 0);
 
     const unavalaibleList = unAvailableList.map((u) => {
       return {
@@ -1097,7 +1109,7 @@ export default function Order() {
                 <select {...newOrderForm.register('product', { onChange: onProdChg })} className="select w-full">
                   <option>Available Product:</option>
                   {
-                    getProductsFn?.result?.map((p) => {
+                    getProductsFn?.result?.map((p: any) => {
                       return (
                         <option key={p._id} value={`${p._id}/${p.productName}/${p.remain}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
                       )
@@ -1110,7 +1122,7 @@ export default function Order() {
                 <select {...newOrderForm.register('warehouseId')} className="select w-full">
                   <option>Available Warehouse:</option>
                   {
-                    getDSaleStockFn?.result?.map((l) => {
+                    getDSaleStockFn?.result?.map((l: any) => {
                       return (
                         <option key={l._id} value={l._id} >{l.name} ({l.available})</option>
                       )
@@ -1458,7 +1470,7 @@ export default function Order() {
               <select {...newOrderForm.register('product', { onChange: onProdChg })} className="select w-full">
                 <option>Available Product:</option>
                 {
-                  getProductsFn?.result?.map((p) => {
+                  getProductsFn?.result?.map((p: any) => {
                     return (
                       <option key={p._id} value={`${p._id}/${p.productName}/${p.allocated}/${p.sellingPrice}/${p.applicableTax}`}>{p.productName}</option>
                     )
@@ -1471,7 +1483,7 @@ export default function Order() {
               <select {...newOrderForm.register('locationId')} className="select w-full">
                 <option>Available Location:</option>
                 {
-                  getDSaleStockFn?.result?.map((l) => {
+                  getDSaleStockFn?.result?.map((l: any) => {
                     return (
                       <option key={l._id} value={l._id}>{l.name} ({l.allocated})</option>
                     )

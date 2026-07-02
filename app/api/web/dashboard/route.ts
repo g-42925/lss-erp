@@ -3,11 +3,9 @@ import { connectToDatabase } from '@/lib/mongodb'
 import Order from '@/models/Order'
 import ServiceOrder from '@/models/ServiceOrder'
 import Purchase from '@/models/Purchase'
-import Invoice from '@/models/Invoice'
 import Batche from '@/models/Batche'
 import Product from '@/models/Product'
 import Customer from '@/models/Customer'
-import Debt from '@/models/Debt'
 import Companie from '@/models/Companie'
 
 export async function GET(req: NextRequest) {

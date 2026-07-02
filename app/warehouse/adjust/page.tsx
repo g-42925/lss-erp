@@ -261,8 +261,8 @@ export default function AdjustmentsPage() {
       setSuccessMsg(data.message || "Berhasil mengubah quantity.")
       setTimeout(() => setSuccessMsg(""), 4000)
       loadLogs(warehouseId, startDate, endDate)
-    } catch (err: any) {
-      setSubmitError(err.message || "Gagal mengubah.")
+    } catch (err: unknown) {
+      setSubmitError((err instanceof Error ? err.message : String(err)) || "Gagal mengubah.")
     } finally {
       setSubmitting(false)
     }
@@ -306,8 +306,8 @@ export default function AdjustmentsPage() {
       setSuccessMsg(data.message || "Berhasil menyimpannya kembali.")
       setTimeout(() => setSuccessMsg(""), 4000)
       loadLogs(warehouseId, startDate, endDate)
-    } catch (err: any) {
-      setSubmitError(err.message || "Gagal melakukan store back.")
+    } catch (err: unknown) {
+      setSubmitError((err instanceof Error ? err.message : String(err)) || "Gagal melakukan store back.")
     } finally {
       setSubmitting(false)
     }

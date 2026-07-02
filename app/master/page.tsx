@@ -1,8 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
-import Image from "next/image"
-import useAuth from "@/store/auth"
-import { redirect } from "next/navigation";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useFetch from "@/hooks/useFetch";
@@ -19,8 +18,6 @@ export default function Master() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [isInvalid, setIsInvalid] = useState(false)
 
   const router = useRouter();
 

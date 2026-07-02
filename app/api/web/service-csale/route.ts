@@ -2,7 +2,7 @@
 import Invoice from '@/models/Invoice'
 import ServiceOrder from "@/models/ServiceOrder"
 import Companie from '@/models/Companie'
-import Product from '@/models/Product'
+
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
@@ -41,7 +41,9 @@ export async function POST(request: NextRequest) {
       address: address,
     }
 
-    const obj = {
+    const rangeNum = range ? parseInt(range as string) : 0;
+
+    const obj: Record<string, unknown> = {
       companyId: company._id,
       customCustomer,
       productId: productId.split("/")[0],
@@ -62,18 +64,18 @@ export async function POST(request: NextRequest) {
       taxes: JSON.parse(taxes)
     }
 
-    if (obj.contractType === "One Time" && obj.frequency === "Month" && obj.range > 1) {
+    if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
       delete obj.payTerm
     }
 
-    if (obj.contractType === "Full" || obj.contractType === "Trial") {
+    if (contractType === "Full" || contractType === "Trial") {
       delete obj.paymentMethod
       delete obj.debt
       delete obj.payAmount
       delete obj.payTerm
     }
 
-    if (obj.contractType === "One Time" && obj.frequency === "Once") {
+    if (contractType === "One Time" && frequency === "Once") {
       delete obj.dueDate
     }
 
@@ -140,7 +142,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      if (obj.contractType === "One Time" && obj.frequency === "Month" && obj.range < 2) {
+      if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
         await Invoice.create({
           invoiceNumber: "xxx",
           companyId: company._id,
@@ -186,7 +188,7 @@ export async function POST(request: NextRequest) {
     console.log(e)
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: (e as Error).message,
       result: null,
       error: true
     })
@@ -214,7 +216,7 @@ export async function GET(request: NextRequest) {
   catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: (e as Error).message,
       result: null,
       error: true
     })

@@ -55,12 +55,12 @@ export async function POST(request: NextRequest) {
     });
 
   }
-  catch (e: any) {
+  catch (e: unknown) {
     console.log(e)
     return NextResponse.json(
       {
         noResult: true,
-        message: e.message,
+        message: e instanceof Error ? e.message : "Something went wrong",
         result: null
       }
     )

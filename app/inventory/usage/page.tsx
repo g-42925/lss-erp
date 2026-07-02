@@ -111,7 +111,7 @@ export default function InvUsagePage() {
                   filtered.map((u) => (
                     <tr key={u._id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 text-slate-500 text-xs">
-                        {new Date(u.used_at).toLocaleString('id-ID')}
+                        {new Date(u.usage_at).toLocaleString('id-ID')}
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-semibold text-slate-800">{u.itemId?.name}</div>

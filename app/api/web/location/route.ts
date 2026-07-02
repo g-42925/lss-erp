@@ -1,5 +1,4 @@
-import mongoose from 'mongoose';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -42,7 +41,7 @@ export async function DELETE(request:NextRequest){
   const id = url.searchParams.get("id")?.trim();
   try {
     await connectToDatabase()
-    const result = await Location.findByIdAndDelete(id);
+    await Location.findByIdAndDelete(id);
     return NextResponse.json(
       {
         noResult:false,

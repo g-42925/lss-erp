@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import Link from "next/link";
@@ -7,7 +8,6 @@ import withAuth from "@/hofs/withAuth";
 
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CoinsDollarIcon } from '@hugeicons/core-free-icons';
 import { Cancel02Icon } from '@hugeicons/core-free-icons';
@@ -41,17 +41,8 @@ function Requisition() {
   const orderForm = useForm()
   const newPrForm = useForm()
   const editPrForm = useForm()
-  const router = useRouter()
 
   const watchPayAmount = orderForm.watch("payAmount")
-
-
-  const status = editPrForm.watch('status');
-
-  const putFn = useFetch<any, any>({
-    url: '/api/web/purchases',
-    method: 'PUT'
-  })
 
   const addFn = useFetch<any, any>({
     url: '/api/web/purchases',
@@ -102,7 +93,7 @@ function Requisition() {
       createdBy: user
     })
 
-    addFn.fn('', body, (r) => {
+    addFn.fn('', body, () => {
       window.location.href = '/purchases/requisition'
     })
   }
@@ -134,16 +125,13 @@ function Requisition() {
   }
 
   async function _editSubmit(data: any) {
-    const [target] = pr.filter((r) => r._id === data._id)
-    const [product] = products.filter((p) => p._id === data.productId)
-
     const edited = JSON.stringify({
       ...data,
       status: 'requested'
     })
 
-    await editFn.fn('', edited, (result) => {
-      window
+    await editFn.fn('', edited, () => {
+      window.location.reload()
     })
   }
 
@@ -188,7 +176,7 @@ function Requisition() {
         alert("Pay amount cannot be higher than final price")
       }
       else {
-        await editFn.fn('', pOrdered, (result) => {
+        await editFn.fn('', pOrdered, () => {
           window.location.href = '/purchases/requisition'
         })
       }
@@ -295,7 +283,7 @@ function Requisition() {
 
       const body = JSON.stringify({})
 
-      bankAccount.fn(url1, body, (result) => { })
+      bankAccount.fn(url1, body, () => { })
       getProductsFn.fn(url2, body, (result) => {
         setProducts(result)
       })
@@ -307,7 +295,8 @@ function Requisition() {
         setPr(result)
       })
     }
-  }, [masterAccountId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [masterAccountId, hasHydrated])
 
 
   return (
@@ -585,7 +574,7 @@ function Requisition() {
                 <legend className="fieldset-legend">Supplier</legend>
                 <select {...orderForm.register("supplierId")} className="select w-full">
                   {
-                    suppliers.map((s, index) => {
+                    suppliers.map((s) => {
                       return (
                         <option key={s._id} value={s._id}>
                           {s.bussinessName}
@@ -643,7 +632,7 @@ function Requisition() {
                 <legend className="fieldset-legend">Supplier</legend>
                 <select {...editPrForm.register("supplierId")} className="select w-full">
                   {
-                    suppliers.map((s, index) => {
+                    suppliers.map((s) => {
                       return (
                         <option key={s._id} value={s._id}>
                           {s.bussinessName}
@@ -673,7 +662,3 @@ function Requisition() {
 }
 
 export default withAuth(Requisition)
-
-type Failed = {
-  message: string
-}

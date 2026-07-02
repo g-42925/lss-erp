@@ -235,8 +235,8 @@ export default function Invoices() {
                     <tbody className="text-center">
                       {
                         searchResult.length < 1
-                          ?
-                          getInvoicesFn?.result?.map((s, index) => {
+                          ? (getInvoicesFn.loading ? <tr><td colSpan={9}><div className="text-center p-3"><span className="loading loading-spinner"></span></div></td></tr> :
+                          getInvoicesFn?.result?.map((s: any, index: number) => {
                             return (
                               <tr key={index}>
                                 <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
@@ -277,7 +277,7 @@ export default function Invoices() {
                               </tr>
                             )
                           })
-                          :
+                          ) :
                           searchResult.map((s, index) => {
                             return (
                               <tr key={index}>

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import Link from "next/link";
@@ -7,7 +8,6 @@ import withAuth from "@/hofs/withAuth";
 
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Edit03Icon } from '@hugeicons/core-free-icons';
 
@@ -39,17 +39,8 @@ function Procurement() {
   const orderForm = useForm()
   const newPrForm = useForm()
   const editPrForm = useForm()
-  const router = useRouter()
 
   const watchPayAmount = orderForm.watch("payAmount")
-
-
-  const status = editPrForm.watch('status');
-
-  const putFn = useFetch<any, any>({
-    url: '/api/web/purchases',
-    method: 'PUT'
-  })
 
   const addFn = useFetch<any, any>({
     url: '/api/web/purchases',
@@ -306,7 +297,7 @@ function Procurement() {
 
       const body = JSON.stringify({})
 
-      bankAccount.fn(url1, body, (result) => { })
+      bankAccount.fn(url1, body, () => { })
       getItemsFn.fn(url2, body, (result) => {
         setItems(result)
       })
@@ -315,7 +306,8 @@ function Procurement() {
         setPr(result)
       })
     }
-  }, [masterAccountId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [masterAccountId, hasHydrated])
 
 
   return (
@@ -631,7 +623,3 @@ function Procurement() {
 }
 
 export default withAuth(Procurement)
-
-type Failed = {
-  message: string
-}

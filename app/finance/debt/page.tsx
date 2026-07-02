@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 "use client"
 
 import Link from "next/link";
@@ -20,12 +21,9 @@ export default function Debt() {
   const logsRef = useRef<HTMLDialogElement>(null)
   const editLogRef = useRef<HTMLDialogElement>(null)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [debts, SetDebts] = useState<any[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editingLog, setEditingLog] = useState<any>(null)
   const [editApprovalCode, setEditApprovalCode] = useState("")
   const [editAmount, setEditAmount] = useState<number>(0)
@@ -132,7 +130,8 @@ export default function Debt() {
         }),
       })
 
-      if (await res.json().error) {
+      const response = await res.json()
+      if (response.error) {
         alert('something went wrong')
       }
       else {

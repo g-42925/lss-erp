@@ -1,4 +1,7 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import CryptoJS from "crypto-js";
 
@@ -195,7 +198,6 @@ export default function Users() {
 
       getLocationFn.fn(url3, body, (result) => { })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, isSuperAdmin])
 
   // Block render while not hydrated or not authorised

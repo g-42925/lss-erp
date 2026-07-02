@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import Link from "next/link";
 import useAuth from "@/store/auth"
-import Sidebar from "@/components/sidebar";
 import useFetch from "@/hooks/useFetch";
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form";
 
 
@@ -16,8 +17,6 @@ export default function Allocation() {
 
 	const masterAccountId = useAuth((state) => state.masterAccountId)
 	const hasHydrated = useAuth((s) => s._hasHydrated)
-
-	const modalRef = useRef<HTMLDialogElement>(null)
 
 	const openingStockForm = useForm();
 
@@ -31,7 +30,7 @@ export default function Allocation() {
 			const [loc, prod] = v.split(":")
 
 			if (prod) {
-				const result = stock.filter((r) => {
+				const result = stock.filter((r: any) => {
 					return r.locationName.includes(loc) && r.product.productName.includes(prod)
 				})
 
@@ -118,7 +117,8 @@ export default function Allocation() {
 		else {
 			allocateFn.fn('', JSON.stringify(params), r => {
 				setLog(r)
-				modalRef?.current?.close()
+				const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+				if (modal) modal.close();
 			})
 		}
 	}
@@ -171,7 +171,8 @@ export default function Allocation() {
 
 			logFn.fn(url3, body, (result) => {
 				setLog(result)
-				modalRef?.current?.close()
+				const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+				if (modal) modal.close();
 			})
 
 
@@ -179,7 +180,8 @@ export default function Allocation() {
 				true
 			)
 		}
-	}, [masterAccountId])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [masterAccountId, hasHydrated])
 
 	if (!mounted) return null;
 
@@ -190,7 +192,10 @@ export default function Allocation() {
 				<div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
 					<div className="flex flex-row">
 						<span className="self-center">All allocation</span>
-						<button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
+						<button onClick={() => {
+							const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+							if (modal) modal.showModal();
+						}} className="btn ml-auto">
 							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
 								<path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
 							</svg>
@@ -238,7 +243,7 @@ export default function Allocation() {
 												searchResult.length < 1
 													?
 													log?.map((s, logIndex) => {
-														return s?.allocations?.map((a, aIndex: any) => {
+														return s?.allocations?.map((a: any, aIndex: any) => {
 															return (
 																<tr key={`${logIndex}-${aIndex}`}>
 																	<td>{new Date(a.date).toLocaleDateString('id-ID')}</td>
@@ -272,7 +277,7 @@ export default function Allocation() {
 					}
 				</div>
 			</div>
-			<dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
+			<dialog id="my_modal_1" className="modal h-full text-black">
 				<form onSubmit={openingStockForm.handleSubmit(handleSubmit)} className="modal-box flex flex-col gap-3">
 					<h3 className="text-lg font-bold">Allocate</h3>
 					<div className="flex flex-row items-center gap-2">
@@ -305,10 +310,10 @@ export default function Allocation() {
 						<label className="w-[60px]">Batches</label>
 						<select  {...openingStockForm.register("batches")} className="select flex-1">
 							<option>
-								Select Batches
+								Select
 							</option>
-							{
-								getBatchesFn?.result?.map((b) => {
+							{getBatchesFn.loading ? <div>wait.</div> :
+								getBatchesFn?.result?.map((b: any) => {
 									return <option key={b.batchNumber} value={`${b.batchNumber}/${b.accumulative - b.outQty}`}>{b.batchNumber} ({b.accumulative - b.outQty})</option>
 								})
 							}

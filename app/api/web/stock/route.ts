@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import mongoose from "mongoose";
@@ -135,8 +136,7 @@ export async function POST(request: NextRequest) {
         batchNumber,
         qty: 1,
         reserved: 0,
-
-      })
+      }) as any
 
       const [batch] = await Batche.aggregate([
         {

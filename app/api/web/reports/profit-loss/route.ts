@@ -34,10 +34,10 @@ async function getProductsUnitCostMap(companyId: string) {
       }
     },
     {
-        $unwind: {
-          path: "$batches",
-          preserveNullAndEmptyArrays: true
-        }
+      $unwind: {
+        path: "$batches",
+        preserveNullAndEmptyArrays: true
+      }
     },
     {
       $group: {
@@ -100,7 +100,7 @@ async function getProductsUnitCostMap(companyId: string) {
   ]);
 
   const unitCostMap = new Map();
-  
+
   for (const product of byType) {
     const totalQty = Math.max(1, (product.remain || 0) + (product.allocated || 0));
     // If unitCostStock exists and is manually set, we could use it, but usually stockValue is more reliable for average cost
@@ -154,10 +154,10 @@ export async function GET(request: NextRequest) {
         if (!item.productId) continue;
 
         const productIdStr = item.productId._id ? item.productId._id.toString() : item.productId.toString();
-        
+
         // Modal Cost (per unit)
         const unitCost = unitCostMap.get(productIdStr) || 0;
-        
+
         // Selling Price (per unit) - handled safely to avoid NaN
         const subTotal = item.subTotal || 0;
         const qty = item.qty || 1;
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
         // Profit / Loss calculation
         const totalCost = unitCost * qty;
         const totalProfitOrLoss = subTotal - totalCost;
-        
+
         const isProfit = totalProfitOrLoss >= 0;
 
         reportData.push({
@@ -196,10 +196,10 @@ export async function GET(request: NextRequest) {
       error: false
     });
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : "Something went wrong",
       result: null,
       error: true
     });

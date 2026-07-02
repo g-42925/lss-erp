@@ -1,0 +1,64 @@
+
+> lss-erp@0.1.0 build
+> next build --webpack
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   ▲ Next.js 16.0.7 (webpack)
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for server...
+ ✓ (pwa) Compiling for client (static)...
+ ○ (pwa) Service worker: /home/muhammad/lss-erp/public/sw.js
+ ○ (pwa)   URL: /sw.js
+ ○ (pwa)   Scope: /
+Failed to compile.
+
+./app/batches/page.tsx
+Module parse failed: Identifier 'Suspense' has already been declared (465:9)
+File was processed with these loaders:
+ * ./node_modules/next/dist/build/webpack/loaders/next-flight-client-module-loader.js
+ * ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+You may need an additional loader to handle the result of these loaders.
+|     });
+| }
+> import { Suspense } from "react";
+| export default function Page() {
+|     return /*#__PURE__*/ _jsx(Suspense, {
+
+Import trace for requested module:
+./app/batches/page.tsx
+
+./app/products/edit/page.tsx
+Module parse failed: Identifier 'Suspense' has already been declared (514:9)
+File was processed with these loaders:
+ * ./node_modules/next/dist/build/webpack/loaders/next-flight-client-module-loader.js
+ * ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+You may need an additional loader to handle the result of these loaders.
+|     });
+| }
+> import { Suspense } from "react";
+| export default function Page() {
+|     return /*#__PURE__*/ _jsx(Suspense, {
+
+Import trace for requested module:
+./app/products/edit/page.tsx
+
+./app/products/xedit/page.tsx
+Module parse failed: Identifier 'Suspense' has already been declared (382:9)
+File was processed with these loaders:
+ * ./node_modules/next/dist/build/webpack/loaders/next-flight-client-module-loader.js
+ * ./node_modules/next/dist/build/webpack/loaders/next-swc-loader.js
+You may need an additional loader to handle the result of these loaders.
+|     });
+| }
+> import { Suspense } from "react";
+| export default function Page() {
+|     return /*#__PURE__*/ _jsx(Suspense, {
+
+Import trace for requested module:
+./app/products/xedit/page.tsx
+
+
+> Build failed because of webpack errors
