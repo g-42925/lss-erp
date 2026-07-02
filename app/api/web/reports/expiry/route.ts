@@ -101,10 +101,10 @@ export async function GET(request: NextRequest) {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (e: s) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e.message,
+      message: e instanceof Error ? e.message : String(e),
       result: null,
       error: true
     });
