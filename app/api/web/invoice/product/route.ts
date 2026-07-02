@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
 
-    const result = await Invoice.create({
+    const [result] = await Invoice.create({
       ...params,
       companyId: company._id,
       salesOrderId: order._id,
@@ -43,12 +43,10 @@ export async function POST(request: NextRequest) {
       payAmount: 0,
     })
 
-    const requested = result._doc
-
     const [agg] = await Invoice.aggregate([
       {
         $match: {
-          _id: requested._id
+          _id: result._id
         }
       },
       {
