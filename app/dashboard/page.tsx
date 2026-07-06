@@ -66,12 +66,7 @@ function pct(val: number) {
 
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({
-  label, value, sub, change, icon, gradient, linkHref
-}: {
-  label: string; value: string; sub?: string; change?: number
-  icon: React.ReactNode; gradient: string; linkHref?: string
-}) {
+function KpiCard({ label, value, sub, change, icon, gradient, linkHref }: { label: string; value: string; sub?: string; change?: number; icon: React.ReactNode; gradient: string; linkHref?: string }) {
   const changeColor = change === undefined ? "" : change >= 0 ? "text-emerald-500" : "text-rose-500"
   const changeBg = change === undefined ? "" : change >= 0 ? "bg-emerald-50" : "bg-rose-50"
   const arrow = change === undefined ? "" : change >= 0 ? "↑" : "↓"
@@ -87,11 +82,6 @@ function KpiCard({
           <div className="p-2 rounded-xl bg-white/20 backdrop-blur-sm">
             {icon}
           </div>
-          {change !== undefined && (
-            <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${changeBg} ${changeColor}`}>
-              {arrow} {pct(Math.abs(change))}
-            </span>
-          )}
         </div>
         <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">{label}</p>
         <p className="text-2xl font-extrabold leading-none truncate">{value}</p>
@@ -358,10 +348,7 @@ export default function DashboardPage() {
                     const h = Math.max(4, (p.revenue / max) * 100)
                     return (
                       <div key={i} className="flex flex-col items-center flex-1 gap-1 group relative">
-                        <div
-                          className="w-full rounded-t-2xl bg-gradient-to-t from-violet-500 to-purple-400 transition-all duration-700 hover:from-violet-600 hover:to-purple-500 cursor-pointer"
-                          style={{ height: `${h}%` }}
-                        >
+                        <div className="w-full rounded-t-2xl bg-gradient-to-t from-violet-500 to-purple-400 transition-all duration-700 hover:from-violet-600 hover:to-purple-500 cursor-pointer" style={{ height: `${h}%` }}>
                           {/* Tooltip */}
                           <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] rounded-lg px-2 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                             {SHORT_IDR(p.revenue)}
@@ -371,12 +358,6 @@ export default function DashboardPage() {
                       </div>
                     )
                   })}
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Total bulan ini: <span className="font-bold text-violet-600">{IDR(data.revenueThisMonth)}</span></span>
-                  <span className={`text-xs font-bold ${data.revenueChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                    {data.revenueChange >= 0 ? "▲" : "▼"} {pct(Math.abs(data.revenueChange))} vs bulan lalu
-                  </span>
                 </div>
               </div>
 
