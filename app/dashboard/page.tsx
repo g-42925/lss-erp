@@ -418,24 +418,28 @@ export default function DashboardPage() {
                   label="Segera Expired (10 hari)"
                   value={`${data.expiringCount}`}
                   severity="warn"
+                  sub=""
                 />
                 <AlertCard
                   icon="🚨"
                   label="Sudah Expired"
                   value={`${data.expiredCount}`}
                   severity="danger"
+                  sub=""
                 />
                 <AlertCard
                   icon="📬"
                   label="Piutang"
                   value={`${data.outstandingReceivableCount}`}
                   severity="warn"
+                  sub=""
                 />
                 <AlertCard
                   icon="💳"
                   label="Hutang"
                   value={data.totalDebt.toLocaleString("id-ID")}
                   severity="info"
+                  sub=""
                 />
               </div>
             </div>
