@@ -46,10 +46,10 @@ export default function SelectLocation() {
     if (!hasHydrated || !isSuperAdmin) return null;
 
     return (
-        <div className="h-screen bg-gray-900 flex flex-col gap-3 justify-center items-center">
-            <form onSubmit={submit} className="w-1/3 flex flex-col gap-6 bg-white p-6 rounded-md shadow-lg">
-                <span className="font-bold text-2xl text-center text-black">Select Location</span>
-                <span className="text-gray-600 text-center text-sm">Please select a location to continue to your dashboard.</span>
+        <div className="min-h-screen bg-gray-900 flex flex-col gap-3 justify-center items-center p-4">
+            <form onSubmit={submit} className="w-full max-w-sm md:max-w-md lg:max-w-lg xl:w-1/3 flex flex-col gap-6 bg-white p-6 lg:p-8 rounded-xl shadow-2xl">
+                <span className="font-bold text-2xl lg:text-3xl text-center text-black">Select Location</span>
+                <span className="text-gray-600 text-center text-sm md:text-base">Please select a location to continue to your dashboard.</span>
                 
                 {getLocationFn.loading ? (
                     <div className="flex justify-center items-center h-20">
