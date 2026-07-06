@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
+import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockReportDailyEntry = {
@@ -163,6 +164,24 @@ export default function StockReportPage() {
   const endingStock = items.length > 0 ? items[items.length - 1].endStock : 0
   const beginningStock = items.length > 0 ? items[0].firstStock : 0
 
+  function toExcel() {
+    if (items.length === 0) return alert('Tidak ada data untuk diexport')
+    const productLabel = productInfo?.name || 'Produk'
+    const data = items.map(row => ({
+      'Tanggal': fmtDate(row.date),
+      'Saldo Awal': row.firstStock,
+      'Inbound': row.inbound,
+      'Outbound': row.outbound,
+      'Saldo Akhir': row.endStock,
+    }))
+    // Add summary row
+    data.push({ 'Tanggal': 'TOTAL', 'Saldo Awal': beginningStock, 'Inbound': totalInbound, 'Outbound': totalOutbound, 'Saldo Akhir': endingStock })
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Ledger')
+    XLSX.writeFile(workbook, `stock-ledger-${productLabel.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
@@ -252,6 +271,14 @@ export default function StockReportPage() {
             >
               {loading ? <span className="loading loading-spinner loading-xs" /> : null}
               Tampilkan
+            </button>
+            <button
+              onClick={toExcel}
+              disabled={loading || !hasRun || items.length === 0}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-60 mt-2 sm:mt-0"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              Export Excel
             </button>
           </div>
         </div>

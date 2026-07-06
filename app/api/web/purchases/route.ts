@@ -158,7 +158,6 @@ export async function PUT(request: NextRequest) {
             reference,
             paymentMethod: rest.paymentMethod,
             createdBy: rest.userId,
-            from: 'x1'
           })
 
           if (rest.type === "payment") {
@@ -229,7 +228,6 @@ export async function PUT(request: NextRequest) {
           type: 'payment',
           paymentMethod: rest.paymentMethod,
           createdBy: rest.userId,
-          from: 'x2'
         })
 
         if (rest.purchaseType === 'procurement') {

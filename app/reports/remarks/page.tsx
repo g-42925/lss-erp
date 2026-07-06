@@ -3,6 +3,7 @@
 import { useState } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
+import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type RemarkType = 'exit' | 'adjust' | 'retur'
@@ -289,6 +290,29 @@ export default function RemarkReportPage() {
     retur: items.filter(i => i.type === 'retur').length,
   }
 
+  function toExcel() {
+    if (filtered.length === 0) return alert('Tidak ada data untuk diexport')
+    const data = filtered.map(row => ({
+      'Tanggal': fmtDate(row.date),
+      'Jenis': row.typeLabel,
+      'Produk': row.productName,
+      'Kode Produk': row.productCode,
+      'Gudang': row.warehouseName,
+      'Jumlah': row.qty,
+      'Jumlah Asli': row.originalQty ?? row.qty,
+      'Dibuat Oleh': row.createdByName,
+      'Disetujui Oleh': row.approvedByName,
+      'Status': row.status,
+      'Alasan': row.reason,
+      'Catatan': row.note || '',
+      'Qty Store Back': row.storedBackQty || 0,
+    }))
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Remark Report')
+    XLSX.writeFile(workbook, `remark-report-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
@@ -363,6 +387,14 @@ export default function RemarkReportPage() {
                 : <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
               }
               Tampilkan Laporan
+            </button>
+            <button
+              onClick={toExcel}
+              disabled={loading || !hasRun}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              Export Excel
             </button>
           </div>
         </div>

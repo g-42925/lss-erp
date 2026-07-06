@@ -3,6 +3,7 @@
 import { useState } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
+import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TaxEntry = {
@@ -15,7 +16,8 @@ type TaxEntry = {
   taxValue: number // percentage
   taxAmount: number
   subTotal: number
-  source: string
+  source: string,
+  taxInvoiceNumber: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,7 +78,7 @@ export default function TaxReportPage() {
       const res = await fetch(`/api/web/reports/tax?${params}`)
       const data = await res.json()
       if (!data.error && data.result) {
-        
+
         const startTime = new Date(startDate).setHours(0, 0, 0, 0)
         const endTime = new Date(endDate).setHours(23, 59, 59, 999)
 
@@ -85,10 +87,10 @@ export default function TaxReportPage() {
         const filteredByDate = (data.result.data ?? []).filter((item: TaxEntry) => {
           const d = new Date(item.date).getTime()
           if (d >= startTime && d <= endTime) {
-             const tn = item.taxName || 'Unknown'
-             if(!runtimeSummary[tn]) runtimeSummary[tn] = 0
-             runtimeSummary[tn] += item.taxAmount
-             return true;
+            const tn = item.taxName || 'Unknown'
+            if (!runtimeSummary[tn]) runtimeSummary[tn] = 0
+            runtimeSummary[tn] += item.taxAmount
+            return true;
           }
           return false;
         })
@@ -127,6 +129,26 @@ export default function TaxReportPage() {
   const availableTaxes = Array.from(new Set(items.map(i => i.taxName)))
 
   const totalCalculatedTax = Object.values(taxSummary).reduce((acc, curr) => acc + curr, 0)
+
+  function toExcel() {
+    if (filtered.length === 0) return alert('Tidak ada data untuk diexport')
+    const data = filtered.map(item => ({
+      'Tanggal': fmtDate(item.date),
+      'No Transaksi': item.transactionNumber,
+      'Pelanggan': item.customerName,
+      'Produk / Layanan': item.productName,
+      'Tipe Pajak': item.taxName,
+      'Tax Base (Subtotal)': item.subTotal,
+      'Nilai Pajak (%)': item.taxValue,
+      'Nominal Pajak': item.taxAmount,
+      'No Faktur Pajak': item.taxInvoiceNumber || '-',
+      'Sumber': item.source,
+    }))
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Tax Report')
+    XLSX.writeFile(workbook, `tax-report-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -192,6 +214,14 @@ export default function TaxReportPage() {
             {loading ? <span className="loading loading-spinner loading-xs" /> : null}
             Tampilkan Laporan
           </button>
+          <button
+            onClick={toExcel}
+            disabled={loading || !hasRun}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-60"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+            Export Excel
+          </button>
         </div>
       </div>
 
@@ -199,7 +229,7 @@ export default function TaxReportPage() {
       {hasRun && !loading && (
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <SummaryCard label="Total Keseluruhan Pajak" value={fmtMoney(totalCalculatedTax)} color="amber" icon="💵" />
-          
+
           {Object.entries(taxSummary).map(([taxName, amt], idx) => (
             <SummaryCard key={idx} label={`Total ${taxName}`} value={fmtMoney(amt as number)} color="teal" />
           ))}
@@ -248,6 +278,7 @@ export default function TaxReportPage() {
                   <th className="px-4 py-3 text-right">Tax Base (Subtotal)</th>
                   <th className="px-4 py-3 text-right">Nilai Pajak (%)</th>
                   <th className="px-4 py-3 text-right">Nominal Pajak</th>
+                  <th className="px-4 py-3 text-right">Faktur Pajak</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -255,7 +286,7 @@ export default function TaxReportPage() {
                   <tr key={row.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{fmtDate(row.date)}</td>
                     <td className="px-4 py-3.5 font-mono text-xs text-slate-600">
-                        <span className="bg-slate-100 rounded px-1.5 py-0.5 border border-slate-200">{row.transactionNumber}</span>
+                      <span className="bg-slate-100 rounded px-1.5 py-0.5 border border-slate-200">{row.transactionNumber}</span>
                     </td>
                     <td className="px-4 py-3.5 text-slate-800 font-medium truncate max-w-[150px]">{row.customerName}</td>
                     <td className="px-4 py-3.5 text-slate-700 truncate max-w-[200px] text-xs">{row.productName}</td>
@@ -263,6 +294,7 @@ export default function TaxReportPage() {
                     <td className="px-4 py-3.5 text-right font-mono text-slate-600 text-xs">{fmtMoney(row.subTotal)}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-slate-500 text-xs">{row.taxValue}%</td>
                     <td className="px-4 py-3.5 text-right font-mono font-bold text-emerald-600 text-xs">+{fmtMoney(row.taxAmount)}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-slate-500 text-xs">{row.taxInvoiceNumber === '' ? '-' : row.taxInvoiceNumber}</td>
                   </tr>
                 ))}
               </tbody>
@@ -270,7 +302,7 @@ export default function TaxReportPage() {
           </div>
         )}
       </div>
-    </div>
+    </div>  
   )
 }
 

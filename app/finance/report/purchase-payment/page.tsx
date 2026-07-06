@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
+import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PaymentRow = {
@@ -112,7 +113,29 @@ export default function PurchasePaymentReportPage() {
 
   const totalAmount = filtered.reduce((s, r) => s + r.amount, 0)
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  function toExcel() {
+    if (filtered.length === 0) return alert('Tidak ada data untuk diexport')
+    const data = filtered.map((row, idx) => {
+      const isProcurement = row.purchaseType === 'procurement'
+      const counterpartName = isProcurement ? 'Procurement (Internal)' : (row.supplierData?.bussinessName || row.supplierData?.name || row.vendorData?.bussinessName || row.vendorData?.name || 'Tidak Diketahui')
+      return {
+        'No': idx + 1,
+        'Tanggal': fmtDateOnly(row.date),
+        'No Pembayaran': row.paymentNumber,
+        'No PO': row.purchaseOrderNumber,
+        'Supplier / Vendor': counterpartName,
+        'Tipe': isProcurement ? 'Procurement' : 'Supplier',
+        'Metode': row.method || '-',
+        'Nominal (IDR)': row.amount,
+      }
+    })
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchase Payment')
+    XLSX.writeFile(workbook, `purchase-payment-${new Date().toISOString().slice(0,10)}.xlsx`)
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <>
       {/* ── Screen View ─────────────────────────────────────────────────── */}
@@ -124,16 +147,24 @@ export default function PurchasePaymentReportPage() {
             <h1 className="text-3xl font-bold tracking-tight text-slate-800">Laporan Pengeluaran Pembelian</h1>
             <p className="mt-1 text-sm text-slate-500">Laporan pembayaran keluar *(Purchase Payment)* per periode</p>
           </div>
-          <button
-            id="btn-print-purchase-report"
-            onClick={() => setTimeout(() => window.print(), 100)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V6.375c0-1.036-.84-1.875-1.875-1.875h-6.75A1.875 1.875 0 0 1 6.75 6.375v2.941" />
-            </svg>
-            Print Report
-          </button>
+          <div className="flex gap-2">
+            <button
+              id="btn-print-purchase-report"
+              onClick={() => setTimeout(() => window.print(), 100)}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V6.375c0-1.036-.84-1.875-1.875-1.875h-6.75A1.875 1.875 0 0 1 6.75 6.375v2.941" /></svg>
+              Print Report
+            </button>
+            <button
+              onClick={toExcel}
+              disabled={!hasRun || filtered.length === 0}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+              Export Excel
+            </button>
+          </div>
         </div>
 
         {/* Filter card */}

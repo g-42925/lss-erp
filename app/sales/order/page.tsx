@@ -43,6 +43,9 @@ function OrderContent() {
   const markUnavailableModalRef = useRef<HTMLDialogElement>(null)
   const refundModalRef = useRef<HTMLDialogElement>(null)
   const voidModalRef = useRef<HTMLDialogElement>(null)
+  const taxInvoiceModalRef = useRef<HTMLDialogElement>(null)
+  const editTaxInvoiceModalRef = useRef<HTMLDialogElement>(null)
+  const [taxInvoiceNumber, setTaxInvoiceNumber] = useState<string>("")
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [unavailableTargetOrder, setUnavailableTargetOrder] = useState<any>(null)
   const [voidTargetOrder, setVoidTargetOrder] = useState<any>(null)
@@ -76,6 +79,7 @@ function OrderContent() {
   const [orders, setOrders] = useState<any[]>([])
   const [unAvailableList, setUnAvailableList] = useState<any[]>([])
   const [openDialog, setOpenDialog] = useState(false);
+  const [taxEditApprovalCode, setTaxEditApprovalCode] = useState<string>("")
 
 
   const newOrderForm = useForm<any>({
@@ -239,10 +243,66 @@ function OrderContent() {
     onError: (m) => alert(m)
   })
 
+  const updateTaxInvoiceFn = useFetch<any, any>({
+    url: '/api/web/order/tax-invoice',
+    method: 'PUT',
+    onError: (m) => alert(m)
+  })
+
   function openVoidModal(order: any) {
     setVoidTargetOrder(order)
     setVoidApprovalCode("")
     voidModalRef.current?.showModal()
+  }
+
+  function openTaxInvoiceModal(order: any) {
+    setSelectedOrder(order)
+    setTaxInvoiceNumber(order.taxInvoiceNumber || "")
+    taxInvoiceModalRef.current?.showModal()
+  }
+
+  function openEditTaxInvoiceModal(order: any) {
+    setSelectedOrder(order)
+    setTaxInvoiceNumber(order.taxInvoiceNumber || "")
+    editTaxInvoiceModalRef.current?.showModal()
+  }
+
+  function submitTaxInvoiceModal(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedOrder) return
+
+    updateTaxInvoiceFn.fn('', JSON.stringify({
+      orderId: selectedOrder._id,
+      taxInvoiceNumber
+    }), (_) => {
+      taxInvoiceModalRef.current?.close()
+      const url4 = '/api/web/order?id=' + masterAccountId + "&type=" + (searchParams.get("type") || "good")
+      getOrdersFn.fn(url4, JSON.stringify({}), (_) => { })
+    })
+  }
+
+  function editTaxInvoiceModal(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedOrder) return
+    if (!taxEditApprovalCode) {
+      alert("Kode approval wajib diisi")
+      return
+    }
+
+    console.log({
+      orderId: selectedOrder._id,
+      taxInvoiceNumber,
+      approvalCode: taxEditApprovalCode,
+    })
+    updateTaxInvoiceFn.fn('', JSON.stringify({
+      orderId: selectedOrder._id,
+      taxInvoiceNumber,
+      approvalCode: taxEditApprovalCode,
+    }), (_) => {
+      editTaxInvoiceModalRef.current?.close()
+      const url4 = '/api/web/order?id=' + masterAccountId + "&type=" + (searchParams.get("type") || "good")
+      getOrdersFn.fn(url4, JSON.stringify({}), (_) => { })
+    })
   }
 
   function submitVoidOrder(e: React.FormEvent) {
@@ -1290,7 +1350,10 @@ function OrderContent() {
                                     {x.editor?.name || '-'} ({new Date(x.editedAt).toLocaleDateString("id-ID")})
                                   </div>
                                 </td>
-                                <td>{x.salesOrderNumber}</td>
+                                <td>
+                                  <div>{x.salesOrderNumber}</div>
+                                  {x.taxInvoiceNumber && <div className="text-xs text-gray-500 mt-1">FP: {x.taxInvoiceNumber}</div>}
+                                </td>
                                 <td>
                                   {x.variousItem ? (
                                     <div className="dropdown dropdown-hover dropdown-right dropdown-end z-[100]">
@@ -1336,6 +1399,21 @@ function OrderContent() {
                                           <HugeiconsIcon icon={Edit03Icon} size={18} />
                                           <span className="font-semibold text-gray-700">Edit Order</span>
                                         </button>
+                                      </li>
+                                      <li>
+                                        {
+                                          x.taxInvoiceNumber ? (
+                                            <button onClick={() => openEditTaxInvoiceModal(x)} className="flex items-center gap-3">
+                                              <HugeiconsIcon icon={Edit03Icon} size={18} />
+                                              <span className="font-semibold text-gray-700">Edit Faktur Pajak</span>
+                                            </button>
+                                          ) : (
+                                            <button onClick={() => openTaxInvoiceModal(x)} className="flex items-center gap-3">
+                                              <HugeiconsIcon icon={Edit03Icon} size={18} />
+                                              <span className="font-semibold text-gray-700">Input Faktur Pajak</span>
+                                            </button>
+                                          )
+                                        }
                                       </li>
                                       <li>
                                         <button onClick={() => openOrderCartModal(x)} className="flex items-center gap-3">
@@ -2149,6 +2227,105 @@ function OrderContent() {
                   disabled={voidOrderFn.loading || !voidApprovalCode}
                 >
                   {voidOrderFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Void Order'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+        <dialog ref={editTaxInvoiceModalRef} className="modal text-black backdrop-blur-sm">
+          <div className="modal-box w-full max-w-md">
+            <h3 className="font-bold text-lg text-gray-800 mb-4">Edit Faktur Pajak</h3>
+            {updateTaxInvoiceFn.error && (
+              <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-200">
+                {updateTaxInvoiceFn.error}
+              </div>
+            )}
+            <form onSubmit={editTaxInvoiceModal} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nomor Faktur Pajak
+                </label>
+                <input
+                  type="text"
+                  placeholder="Masukkan nomor faktur pajak"
+                  className="input input-bordered w-full border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm"
+                  value={taxInvoiceNumber}
+                  onChange={(e) => setTaxInvoiceNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Kode Approval (Admin/Manager)
+                </label>
+                <input
+                  type="password"
+                  placeholder="Masukkan kode approval"
+                  className="input input-bordered w-full border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm"
+                  onChange={(e) => setTaxEditApprovalCode(e.target.value)}
+                />
+              </div>
+
+
+              <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => editTaxInvoiceModalRef.current?.close()}
+                  className="btn btn-ghost hover:bg-gray-100 text-gray-700 font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateTaxInvoiceFn.loading}
+                  className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md border-none px-6"
+                >
+                  {updateTaxInvoiceFn.loading ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : 'Simpan'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+        <dialog ref={taxInvoiceModalRef} className="modal text-black backdrop-blur-sm">
+          <div className="modal-box w-full max-w-md">
+            <h3 className="font-bold text-lg text-gray-800 mb-4">Input Faktur Pajak</h3>
+            {updateTaxInvoiceFn.error && (
+              <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm font-medium border border-red-200">
+                {updateTaxInvoiceFn.error}
+              </div>
+            )}
+            <form onSubmit={submitTaxInvoiceModal} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nomor Faktur Pajak
+                </label>
+                <input
+                  type="text"
+                  placeholder="Masukkan nomor faktur pajak"
+                  className="input input-bordered w-full border-gray-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm"
+                  value={taxInvoiceNumber}
+                  onChange={(e) => setTaxInvoiceNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => taxInvoiceModalRef.current?.close()}
+                  className="btn btn-ghost hover:bg-gray-100 text-gray-700 font-semibold"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateTaxInvoiceFn.loading}
+                  className="btn bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md border-none px-6"
+                >
+                  {updateTaxInvoiceFn.loading ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : 'Simpan'}
                 </button>
               </div>
             </form>

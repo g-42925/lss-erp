@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
 
     const url = new URL(request.url);
-    const id = url.searchParams.get("id");
+    const id = url.searchParams.get("id"); 0
 
     if (!id) {
       return NextResponse.json({ error: true, message: "Company Master Account ID is required", noResult: true, result: null });
@@ -62,7 +62,8 @@ export async function GET(request: NextRequest) {
                 taxValue: t.taxValue,
                 taxAmount: t.taxAmount,
                 subTotal: item.subTotal, // base amount for this item
-                source: 'Sales Order'
+                source: 'Sales Order',
+                taxInvoiceNumber: order.taxInvoiceNumber || ''
               });
             }
           }

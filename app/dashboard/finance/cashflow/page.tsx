@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import useAuth from "@/store/auth";
+import * as XLSX from 'xlsx';
 
 // -- Typings --
 type CashflowTransaction = {
@@ -193,6 +194,24 @@ export default function CashflowReportPage() {
 		}
 	}
 
+	function toExcel() {
+		if (transactions.length === 0) return alert('Tidak ada data untuk diexport')
+		const data = transactions.map(t => ({
+			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+			'Dari': t.from || '-',
+			'Kepada': t.to || '-',
+			'Sumber': t.source,
+			'Referensi': t.reference,
+			'Akun / Metode': t.method,
+			'Tipe': t.type.toUpperCase(),
+			'Jumlah (IDR)': t.amount,
+		}))
+		const worksheet = XLSX.utils.json_to_sheet(data)
+		const workbook = XLSX.utils.book_new()
+		XLSX.utils.book_append_sheet(workbook, worksheet, `Cashflow ${mode.charAt(0).toUpperCase() + mode.slice(1)}`)
+		XLSX.writeFile(workbook, `cashflow-${mode}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+	}
+
 	if (!hasHydrated || !loggedIn) return null;
 
 	return (
@@ -241,7 +260,6 @@ export default function CashflowReportPage() {
 						onChange={(e) => setStartDate(e.target.value)}
 						className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50"
 					/>
-					<span className="text-slate-400 font-medium">s/d</span>
 					<input
 						type="date"
 						value={endDate}
@@ -250,14 +268,11 @@ export default function CashflowReportPage() {
 					/>
 
 					{mode === 'bank' && (
-						<select
-							value={bankAccountId}
-							onChange={(e) => setBankAccountId(e.target.value)}
-							className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50 min-w-[200px]"
-						>
-							<option value="">Semua Rekening Bank</option>
+						<select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50">
 							{bankAccounts.map(b => (
-								<option key={b._id} value={b._id}>{b.bank} - {b.accountName}</option>
+								<option key={b._id} value={b._id}>
+									{b.bank} - {b.accountName}
+								</option>
 							))}
 						</select>
 					)}
@@ -268,6 +283,14 @@ export default function CashflowReportPage() {
 						className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-70 ml-auto"
 					>
 						{loading ? 'Memuat...' : 'Terapkan Filter'}
+					</button>
+					<button
+						onClick={toExcel}
+						disabled={loading || transactions.length === 0}
+						className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-70 flex items-center gap-2"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+						Export Excel
 					</button>
 				</div>
 

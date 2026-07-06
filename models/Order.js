@@ -18,6 +18,7 @@ const orderSchema = new mongoose.Schema({
   type: { type: String },
   discountValue: { type: Number },
   taxValue: { type: Number },
+  taxInvoiceNumber: { type: String },
   contract: { type: String },
   attachment: { type: String },
   payTerm: { type: mongoose.Schema.Types.Mixed },

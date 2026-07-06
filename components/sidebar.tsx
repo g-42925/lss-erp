@@ -33,7 +33,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   return (
     <div className="drawer lg:drawer-open bg-gray-200 text-white print:bg-transparent print:text-black print:block h-screen">
       <input id="my-drawer-1" type="checkbox" className="drawer-toggle" />
-      
+
       <div className="drawer-content flex flex-col h-screen overflow-hidden print:w-full print:h-auto">
         <div className="w-full navbar bg-gray-800 text-white lg:hidden shrink-0 z-[60]">
           <div className="flex-none">
@@ -47,12 +47,12 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             {companyName || "ERP System"}
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto w-full relative text-black print:text-black">
           {children}
         </div>
       </div>
-      
+
       <div className="drawer-side print:hidden z-[100]">
         <label htmlFor="my-drawer-1" aria-label="close sidebar" className="drawer-overlay"></label>
         <ul className="menu bg-gray-700 min-h-full w-80 p-0 text-white">
@@ -201,7 +201,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <SidebarItem href="/reports/stock-report">Stock Report</SidebarItem>
                 <SidebarItem href="/reports/remarks">Remark Report</SidebarItem>
                 <SidebarItem href="/reports/expiry">Expiry Report</SidebarItem>
-                <SidebarItem href="/finance/bank-report">Bank Report</SidebarItem>
                 <SidebarItem href="/work-orders">Work Orders</SidebarItem>
               </ul>
             </details>
