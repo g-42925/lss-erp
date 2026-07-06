@@ -157,7 +157,8 @@ export async function PUT(request: NextRequest) {
             type: rest.type,
             reference,
             paymentMethod: rest.paymentMethod,
-            createdBy: rest.userId
+            createdBy: rest.userId,
+            from: 'x1'
           })
 
           if (rest.type === "payment") {
@@ -178,6 +179,9 @@ export async function PUT(request: NextRequest) {
           )
         }
         else {
+
+          // code type x2
+
           await Log.create({
             purchaseId: _id,
             date: rest.date || new Date(),
@@ -187,7 +191,8 @@ export async function PUT(request: NextRequest) {
             type: rest.type,
             reference,
             paymentMethod: rest.paymentMethod,
-            createdBy: rest.userId
+            createdBy: rest.userId,
+            to: { name: rest.to }
           })
 
           if (rest.type === "payment") {
@@ -223,7 +228,8 @@ export async function PUT(request: NextRequest) {
           paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
           type: 'payment',
           paymentMethod: rest.paymentMethod,
-          createdBy: rest.userId
+          createdBy: rest.userId,
+          from: 'x2'
         })
 
         if (rest.purchaseType === 'procurement') {

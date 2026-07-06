@@ -39,6 +39,14 @@ const cashflowSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: false
+  },
+  from: {
+    type: String,
+    required: false
+  },
+  to: {
+    type: String,
+    required: false
   }
 }, { timestamps: true });
 

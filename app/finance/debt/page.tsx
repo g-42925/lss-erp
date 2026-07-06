@@ -55,6 +55,7 @@ export default function Debt() {
   })
 
   async function openPay(debt: any) {
+    console.log(debt)
     const todayStr = new Date().toISOString().split('T')[0]
     payForm.reset({
       _id: debt._id,
@@ -64,6 +65,7 @@ export default function Debt() {
       payAmount: 0,
       paymentMethod: "Cash",
       payDate: todayStr,
+      to: debt.supplier.name
     })
     payRef.current?.showModal()
   }
@@ -81,6 +83,7 @@ export default function Debt() {
       paymentMethod: data.paymentMethod,
       date: data.payDate ? new Date(data.payDate).toISOString() : new Date().toISOString(),
       userId: userId,
+      to: data.to
     })
 
     await putFn.fn('', payload, (result) => {
@@ -257,6 +260,7 @@ export default function Debt() {
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay Amount</legend>
                 <input className="input w-full" {...payForm.register("payAmount")} type="number" required />
+                <input className="input w-full" {...payForm.register("to")} type="hidden" required />
               </fieldset>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Payment Method</legend>

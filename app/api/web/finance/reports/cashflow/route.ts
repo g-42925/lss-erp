@@ -6,6 +6,7 @@ import Invoice from "@/models/Invoice";
 import Purchase from "@/models/Purchase";
 import Log from "@/models/Log";
 import Cashflow from "@/models/Cashflow";
+import Order from "@/models/Order";
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -85,10 +86,14 @@ export async function GET(request: NextRequest) {
         };
         const invoices = await Invoice.find(invoiceQuery).populate('salesOrderId').lean();
 
-        invoices.forEach((inv) => {
+        invoices.forEach(async (inv) => {
+
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            inv.paymentHistory?.forEach((payment: any) => {
+            inv.paymentHistory?.forEach(async (payment: any) => {
                 if (payment.reverted) return;
+
+                // search related order
+                const order = await Order.findOne({ salesOrderNumber: inv.salesOrderNumber });
 
                 // Apply date filter
                 const paymentDate = new Date(payment.date);
@@ -119,7 +124,8 @@ export async function GET(request: NextRequest) {
                         method: payment.method,
                         reference: inv.invoiceNumber,
                         source: 'Sales Invoice',
-                        type: 'in'
+                        type: 'in',
+                        from: order.customCustomer.name
                     });
                 }
             });
@@ -161,7 +167,8 @@ export async function GET(request: NextRequest) {
                     method: log.paymentMethod,
                     reference: (log.paymentNumber || '') + (relatedPurchase ? ` (${relatedPurchase.purchaseOrderNumber})` : ''),
                     source: 'Purchase Payment',
-                    type: 'out'
+                    type: 'out',
+                    to: log.to.name
                 });
             }
         });
@@ -197,7 +204,9 @@ export async function GET(request: NextRequest) {
                 method: methodName,
                 reference: entry.reference,
                 source: 'Manual Entry',
-                type: entry.type // 'in', 'out', or 'initial'
+                type: entry.type, // 'in', 'out', or 'initial'
+                from: entry.from,
+                to: entry.to
             });
         });
 
@@ -248,7 +257,8 @@ export async function POST(request: NextRequest) {
         await connectToDatabase();
 
         const body = await request.json();
-        const { masterAccountId, accountType, bankAccountId, type, amount, reference, date, recordedBy } = body;
+
+        const { masterAccountId, accountType, bankAccountId, type, amount, reference, date, recordedBy, additional } = body;
 
         if (!masterAccountId || !accountType || !type || amount === undefined || !reference) {
             return NextResponse.json({
@@ -259,13 +269,12 @@ export async function POST(request: NextRequest) {
         }
 
         const company = await Companie.findOne({ masterAccountId });
-        if (!company) {
-            return NextResponse.json({
-                noResult: true,
-                message: "Company not found",
-                error: true
-            });
-        }
+
+        if (!company) return NextResponse.json({
+            noResult: true,
+            message: "Company not found",
+            error: true
+        });
 
         const newEntry = new Cashflow({
             companyId: company._id,
@@ -275,7 +284,8 @@ export async function POST(request: NextRequest) {
             amount,
             reference,
             date: date || new Date(),
-            recordedBy: recordedBy || null
+            recordedBy: recordedBy || null,
+            ...additional
         });
 
         await newEntry.save();
