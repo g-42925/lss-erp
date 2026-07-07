@@ -7,7 +7,9 @@ import useFetch from "@/hooks/useFetch";
 import { useForm } from "react-hook-form"
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
-
+import { HugeiconsIcon } from '@hugeicons/react';
+import { LocationAdd01Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
 
 export default function Location() {
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -150,6 +152,11 @@ export default function Location() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [masterAccountId, hasHydrated])
 
+  function addLocation() {
+    const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+    if (modal) modal.showModal();
+  }
+
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
   if (!isSuperAdmin) router.push('/dashboard')
@@ -161,27 +168,14 @@ export default function Location() {
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
             <span className="self-center">All location</span>
-            <button onClick={() => {
-              const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
-              if (modal) modal.showModal();
-            }} className="btn ml-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add
+            <button onClick={addLocation} className="ml-auto">
+              <HugeiconsIcon
+                icon={LocationAdd01Icon}
+                size={24}
+                color="currentColor"
+                strokeWidth={1.5}
+              />
             </button>
-          </div>
-          <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
-            </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
           </div>
           {
             getFn.loading
@@ -198,11 +192,10 @@ export default function Location() {
                 :
                 <div>
                   <table className="table">
-                    <thead>
+                    <thead className="text-black">
                       <tr>
                         <th>Name</th>
-                        <th>Code</th>
-                        <th>Actions</th>
+                        <th>...</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -213,13 +206,14 @@ export default function Location() {
                             return (
                               <tr key={index}>
                                 <td>{location.name}</td>
-                                <td>{location.code}</td>
                                 <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(location._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
+                                  <button className="" onClick={() => edit(location._id)}>
+                                    <HugeiconsIcon
+                                      icon={Edit03Icon}
+                                      size={24}
+                                      color="currentColor"
+                                      strokeWidth={1.5}
+                                    />
                                   </button>
                                 </td>
                               </tr>
@@ -273,13 +267,11 @@ export default function Location() {
         </div>
       </dialog>
       <dialog id="my_modal_1" className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Location</span>
-            <form onSubmit={newLocationForm.handleSubmit(submit)} className="h-64 relative flex flex-col gap-3">
+            <form onSubmit={newLocationForm.handleSubmit(submit)} className="h-32 relative flex flex-col gap-3">
               <input {...newLocationForm.register("name")} type="text" placeholder="new location name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <input {...newLocationForm.register("code")} type="text" placeholder="new location code" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <div className="modal-action">
                 <form method="dialog">
