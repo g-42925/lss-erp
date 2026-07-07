@@ -11,6 +11,9 @@ import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
+import { HugeiconsIcon } from '@hugeicons/react';
+import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
+import { Edit03Icon } from '@hugeicons/core-free-icons';
 
 export default function Suppliers() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
@@ -178,11 +181,13 @@ export default function Suppliers() {
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
             <span className="self-center">All your Suppliers</span>
-            <button disabled={!isSuperAdmin && roleDetail.permission === 'readonly'} onClick={() => modalRef.current?.show()} className="btn ml-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add
+            <button disabled={!isSuperAdmin && roleDetail.permission === 'readonly'} onClick={() => modalRef.current?.show()} className="ml-auto">
+              <HugeiconsIcon
+                icon={AddCircleHalfDotIcon}
+                size={24}
+                color="currentColor"
+                strokeWidth={1.5}
+              />
             </button>
           </div>
           {
@@ -220,9 +225,12 @@ export default function Suppliers() {
                                 <td className="max-w-[10ch] truncate">{s.mobile}</td>
                                 <td>
                                   <button disabled={!isSuperAdmin && roleDetail.permission !== 'addandedit'} onClick={() => edit(s._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                                    </svg>
+                                    <HugeiconsIcon
+                                      icon={Edit03Icon}
+                                      size={24}
+                                      color="currentColor"
+                                      strokeWidth={1.5}
+                                    />
                                   </button>
                                 </td>
                               </tr>
