@@ -161,77 +161,63 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({
             noResult: true,
             message: "product image is required",
-            result: null
+            result: null,
+            error: true
           });
         }
 
+        // === migration to bunny === //
+        const buffer = await file.arrayBuffer()
+        const r = await Companie.findOne({ masterAccountId: formData.get("id") })
         const fileName = (formData.get("fileName") as string) ?? file.name;
-        const buffer = Buffer.from(await file.arrayBuffer());
+        const uploadUrl = `https://storage.bunnycdn.com/leryn-ljm/erp_${r.email.split('@')[0]}/${fileName}`;
+        const cdnUrl = `https://leryn-ljm.b-cdn.net/erp_${r.email.split('@')[0]}/${fileName}`;
 
-        const s3 = new S3Client({
-          region: "us-east-1",
-          endpoint: "https://s3.filebase.com",
-          credentials: {
-            accessKeyId: "B8F0135956143AE0685E",
-            secretAccessKey: "gKrbIZJnzLWBXZ0VGQvnlAumvngpBH35PsXN5zUp",
+        const response = await fetch(uploadUrl, {
+          body: buffer,
+          method: "PUT",
+          headers: {
+            AccessKey: process.env.BUNNY_PASSWORD!,
+            "Content-Type": file.type
           },
         });
 
-        const putCommand = new PutObjectCommand({
-          Bucket: "leryn-storage",
-          Key: fileName,
-          Body: buffer,
-          ContentType: file.type,
-          Metadata: {
-            cid: "true", // 👈 sama seperti PHP
-          },
-        });
-
-        await s3.send(putCommand);
-
-        const head = await s3.send(
-          new HeadObjectCommand({
-            Bucket: "leryn-storage",
-            Key: fileName,
-          })
-        );
-
-        const cid = head.Metadata?.cid;
-
-        const productImage = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
-
-        const r = await Companie.findOne({
-          masterAccountId: formData.get("id")
-        })
-
-        const newProduct = {
-          productName,
-          productId,
-          barcodeType,
-          category,
-          description,
-          conversionRatioX,
-          conversionRatioY,
-          applicableTax,
-          sellingPriceTaxType,
-          productType,
-          sellingPrice,
-          productOf: r._id,
-          image: productImage,
-          haveExpiredDate,
-          discountType,
-          discountValue
+        if (!response.ok) {
+          return NextResponse.json({
+            noResult: true,
+            message: "product image upload is failed",
+            result: null
+          });
         }
+        else {
+          const newProduct = {
+            productName,
+            productId,
+            barcodeType,
+            category,
+            description,
+            conversionRatioX,
+            conversionRatioY,
+            applicableTax,
+            sellingPriceTaxType,
+            productType,
+            sellingPrice,
+            productOf: r._id,
+            image: cdnUrl,
+            haveExpiredDate,
+            discountType,
+            discountValue
+          }
 
-        const product = await Product.create(newProduct)
+          await Product.create(newProduct)
 
-        return NextResponse.json({
-          noResult: false,
-          message: "",
-          result: product
-        });
-
-        break;
+          return NextResponse.json({
+            noResult: false,
+            message: "product added successfully",
+            result: null
+          });
+        }
+      // === migration to bunny === //
     }
   }
   catch (e: any) {

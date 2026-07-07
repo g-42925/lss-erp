@@ -24,6 +24,11 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   const logout = useAuth((state) => state.logout)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const router = useRouter()
+  const pathname = usePathname()
+
+  if (pathname === '/login' || pathname === '/select-location' || pathname === '/reset') {
+    return <>{children}</>
+  }
 
   function _logout() {
     logout()

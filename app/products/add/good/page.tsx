@@ -12,6 +12,10 @@ import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
 
 import { useRouter } from "next/navigation";
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Image01Icon } from '@hugeicons/core-free-icons';
+
+
 
 export default function Add() {
   const [file, setFile] = useState<File | null>(null)
@@ -69,7 +73,7 @@ export default function Add() {
     })
 
     addProductsFn.fn(`/api/web/products`, formData, (r) => {
-      router.push('/products/list')
+      window.location.href = '/products/catalog'
     })
 
   }
@@ -97,8 +101,8 @@ export default function Add() {
     <>
       <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Add new product</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x relative">
-          <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
+        <div className="bg-white h-fit border-t-4 border-blue-900 flex flex-col lg:flex-row p-4 lg:p-6 gap-6 lg:divide-x relative">
+          <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-0 lg:p-6">
             {
               addProductsFn.error
                 ?
@@ -108,19 +112,18 @@ export default function Add() {
                 :
                 <></>
             }
-            <div className="flex flex-row gap-3">
+            <div className="flex flex-col lg:flex-row gap-3">
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Product name</legend>
-                <input {...productForm.register("productName")} type="text" className="input w-full" placeholder="Type here" />
+                <legend className="fieldset-legend text-black">Product name</legend>
+                <input {...productForm.register("productName")} type="text" className="input w-full bg-white" placeholder="Type here" />
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Product Id</legend>
                 <input readOnly {...productForm.register("productId")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
-              <fieldset className="fieldset flex-1" hidden>
-                <legend className="fieldset-legend">Barcode type</legend>
-                <select {...productForm.register("barcodeType")} className="select w-full">
-                  <option>Pick a barcode type</option>
+              <fieldset className="fieldset flex-1 hidden">
+                <legend className="fieldset-legend text-black">Barcode type</legend>
+                <select {...productForm.register("barcodeType")} className="select w-full bg-white">
                   <option>UPC</option>
                   <option>EAN-13</option>
                   <option>EAN-8</option>
@@ -131,9 +134,8 @@ export default function Add() {
                 </select>
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Category</legend>
-                <select {...productForm.register("category")} className="select w-full">
-                  <option disabled selected>Pick a category</option>
+                <legend className="fieldset-legend text-black">Category</legend>
+                <select {...productForm.register("category")} className="select w-full bg-white">
                   {
                     categories.map((c) => {
                       return (
@@ -145,14 +147,14 @@ export default function Add() {
                 </select>
               </fieldset>
             </div>
-            <div className="flex flex-row gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Description</legend>
-                <textarea {...productForm.register("description")} className="textarea w-full" placeholder="Bio"></textarea>
+                <legend className="fieldset-legend text-black">Description</legend>
+                <textarea {...productForm.register("description")} className="textarea w-full bg-white" placeholder="Bio"></textarea>
               </fieldset>
               <div className="flex-1 flex flex-col gap-3">
                 <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">Product Image</legend>
+                  <legend className="fieldset-legend text-black">Product Image</legend>
                   <div className="w-full flex flex-col justify-center items-center h-[80px] border-2 border-dashed border-gray-400 overflow-hidden">
                     <input onChange={(e) => setPreview(e)} type="file" className="h-full w-full opacity-0" />
                     {fileName == '' ? <span className="absolute">upload here</span> : <span className="absolute overflow-hidden ellipsis">{fileName}</span>}
@@ -160,10 +162,10 @@ export default function Add() {
                 </fieldset>
               </div>
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="flex flex-col lg:flex-row gap-3">
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">From</legend>
-                <select {...productForm.register("conversionRatioX")} className="select w-full">
+                <legend className="fieldset-legend text-black">From</legend>
+                <select {...productForm.register("conversionRatioX")} className="select w-full bg-white">
                   {
                     units.map((c) => {
                       return (
@@ -174,8 +176,8 @@ export default function Add() {
                 </select>
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">To</legend>
-                <select {...productForm.register("conversionRatioY")} className="select w-full">
+                <legend className="fieldset-legend text-black">To</legend>
+                <select {...productForm.register("conversionRatioY")} className="select w-full bg-white">
                   {
                     units.map((c) => {
                       return (
@@ -185,60 +187,53 @@ export default function Add() {
                   }
                 </select>
               </fieldset>
-              <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Applicable tax</legend>
-                <select {...productForm.register("applicableTax")} className="select w-full">
+              <fieldset className="fieldset flex-1 hidden">
+                <legend className="fieldset-legend text-black">Applicable tax</legend>
+                <select {...productForm.register("applicableTax")} className="select w-full bg-white">
+                  <option selected>No</option>
                   <option>PPN11</option>
                 </select>
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Discount type</legend>
                 <select {...productForm.register("discountType")} className="select w-full">
-                  <option>fixed</option>
+                  <option selected>fixed</option>
                   <option>percentage</option>
                   <option>none</option>
                 </select>
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Selling price tax type</legend>
                 <select {...productForm.register("sellingPriceTaxType")} className="select w-full">
-                  <option>Excluded</option>
+                  <option selected>Excluded</option>
                   <option>Included</option>
                 </select>
               </fieldset>
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="flex flex-row lg:flex-row gap-3">
               <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Product type</legend>
                 <input value="good" {...productForm.register("productType")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Price</legend>
-                <input {...productForm.register("sellingPrice")} type="text" className="input w-full" placeholder="Type here" />
+                <legend className="fieldset-legend text-black">Price</legend>
+                <input {...productForm.register("sellingPrice")} type="text" className="input w-full bg-white" placeholder="Type here" />
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Discount value</legend>
-                <input {...productForm.register("discountValue")} type="text" className="input w-full" placeholder="Type here" />
+                <input value="0" {...productForm.register("discountValue")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
               <fieldset className="fieldset flex-1">
-                <legend className="fieldset-legend">Have Expired Date</legend>
-                <select {...productForm.register("haveExpiredDate")} className="select w-full">
+                <legend className="fieldset-legend text-black">Have Expired Date</legend>
+                <select {...productForm.register("haveExpiredDate")} className="select w-full bg-white">
                   <option value={"true"}>Yes</option>
                   <option value={"false"}>No</option>
                 </select>
               </fieldset>
             </div>
-            <div className="flex flex-row gap-3">
+            <div className="flex flex-row sm:flex-row gap-3">
               <button disabled={addProductsFn.loading} type="submit" className={`flex-1 p-3 rounded-full bg-black relative text-white w-full ${addProductsFn.loading ? 'cursor-not-allowed bg-red-900' : ''}`}>
                 Submit
-              </button>
-              <button disabled={addProductsFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
-                <Link href="/products/list">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  </svg>
-                </Link>
               </button>
               <button disabled={addProductsFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
                 <Link href="/products/add/service">
@@ -247,13 +242,21 @@ export default function Add() {
                   </svg>
                 </Link>
               </button>
+              <button disabled={previewUrl == ''} type="submit" className="p-3 rounded-full bg-black relative text-white" onClick={() => (document.getElementById('preview_modal') as HTMLDialogElement)?.showModal()}>
+                <HugeiconsIcon
+                  icon={Image01Icon}
+                  size={24}
+                  color="currentColor"
+                  strokeWidth={1.5}
+                />
+              </button>
             </div>
           </form>
           {
             previewUrl != ''
               ?
-              <div className="w-1/4 flex flex-col justify-center items-center">
-                <img className="rounded-md" src={previewUrl} alt="Product preview" />
+              <div className="w-full lg:w-1/4 flex flex-col justify-center items-center p-4 lg:p-0">
+                <img className="rounded-md hidden lg:block" src={previewUrl} alt="Product preview" />
               </div>
               :
               <></>
@@ -261,12 +264,17 @@ export default function Add() {
         </div>
       </div>
 
-      <div className="modal text-black">
+      <dialog id="preview_modal" className="modal text-black">
         <div className="modal-box p-0 bg-transparent shadow-none">
-          <label htmlFor="lightbox-modal" className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</label>
-          <img id="lightbox-image" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgVfHORQFLyUf_rNove-xUmxIskDeMJ63REz_YIMQ6S0vCyQdkBvJos4igKspvCgpqnpy8h0xM--1uckzZIxDgyoHy37-MowkF-YzvVx8&s=10" className="w-full max-w-3xl mx-auto" alt="Lightbox image" />
+          <form method="dialog">
+            <button className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</button>
+          </form>
+          {previewUrl && <img src={previewUrl} className="w-full max-w-3xl mx-auto rounded-md" alt="Product preview" />}
         </div>
-      </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
     </>
   )
 }

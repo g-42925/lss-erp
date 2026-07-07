@@ -16,12 +16,6 @@ export default function Login() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 
-	// const auth = useAuth((state) => state)
-	// const hasHydrated = useAuth((s) => s._hasHydrated)
-
-	// if(!hasHydrated) return null
-	// if(auth.loggedIn) redirect('/dashboard')
-
 	const loginFn = useFetch<any, any>({
 		url: "/api/web/login",
 		method: "POST",

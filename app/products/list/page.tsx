@@ -178,18 +178,6 @@ export default function List() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
-            <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
-            </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
-          </div>
           {
             getFn.loading
               ?
