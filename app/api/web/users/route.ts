@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase()
     const users = await User.find({
       masterAccountId: id,
+      isSuperAdmin: false
     })
 
     return NextResponse.json(

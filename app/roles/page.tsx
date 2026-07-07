@@ -172,6 +172,12 @@ function Roles() {
     </label>
   )
 
+  function newRole() {
+    setSelectedPages({})
+    newRoleForm.reset()
+    modalRef.current?.showModal()
+  }
+
   useEffect(() => {
     if (hasHydrated) {
       const url = `/api/web/roles?id=${masterAccountId}`
@@ -191,24 +197,15 @@ function Roles() {
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl font-bold text-gray-800">Role Management <span className="text-sm font-normal text-gray-500 ml-2">Define granular tool access</span></span>
+        <span className="text-2xl font-bold text-gray-800">Role Management</span>
         <div className="bg-white h-full border-t-4 border-blue-900 rounded-lg shadow-lg flex flex-col p-6 gap-6">
           <div className="flex flex-row items-center">
             <h2 className="text-xl font-semibold text-gray-700">Existing Roles</h2>
-            <button onClick={() => {
-              setSelectedPages({})
-              newRoleForm.reset()
-              modalRef.current?.showModal()
-            }} className="btn btn-primary ml-auto shadow-md">
+            <button onClick={() => newRole()} className="btn btn-primary ml-auto shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
-              Create New Role
             </button>
-          </div>
-
-          <div className="flex flex-row gap-4">
-            <input onChange={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Filter roles..." className="input input-bordered w-full max-w-xs text-black" />
           </div>
 
           <div className="overflow-x-auto">
@@ -216,27 +213,16 @@ function Roles() {
               <div className="flex justify-center p-10"><span className="loading loading-spinner loading-lg text-primary"></span></div>
             ) : (
               <table className="table table-zebra w-full text-black">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 text-black">
                   <tr>
                     <th>Role Name</th>
-                    <th>Permissions Detailed</th>
                     <th className="text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(searchResult.length > 0 ? searchResult : roles).map((role, index) => (
-                    <tr key={index} className="hover">
+                  {roles.map((role, index) => (
+                    <tr key={index}>
                       <td className="font-medium text-blue-900">{role.name}</td>
-                      <td>
-                        <div className="flex flex-wrap gap-1">
-                          {role.pages?.slice(0, 3).map((p, i) => (
-                            <span key={i} className="badge badge-ghost badge-sm text-[10px]">
-                              {p.link.split('/').pop()} ({p.permissions.join(',')})
-                            </span>
-                          ))}
-                          {role.pages?.length > 3 && <span className="text-xs text-gray-400">+{role.pages.length - 3} more</span>}
-                        </div>
-                      </td>
                       <td className="text-right flex justify-end gap-2">
                         <button className="btn btn-sm btn-outline btn-info" onClick={() => handleEdit(role._id)}>
                           Edit
