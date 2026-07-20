@@ -29,6 +29,7 @@ export default function Add() {
   const router = useRouter()
 
   const productForm = useForm()
+  const newCategoryForm = useForm()
 
   const getUnitsFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
@@ -41,6 +42,14 @@ export default function Add() {
   const getCategoriesFn = useFetch<any[], any>({
     url: `/api/web/categories?id=xxx`,
     method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const addCategoryFn = useFetch<any, any>({
+    url: '/api/web/categories',
+    method: 'POST',
     onError: (m) => {
       alert(m)
     }
@@ -59,6 +68,26 @@ export default function Add() {
     setPreviewUrl(URL.createObjectURL(file))
     setFile(file)
     setFileName(file.name)
+  }
+
+  async function submitCategory(data: any) {
+    const body = JSON.stringify({
+      ...data,
+      id: masterAccountId,
+    })
+
+    await addCategoryFn.fn('', body, (c) => {
+      const modal = document.getElementById('my_modal_category') as HTMLDialogElement;
+      if (modal) modal.close();
+      setCategories([...categories, c])
+      newCategoryForm.reset()
+      productForm.setValue('category', c.name) // automatically select it
+    })
+  }
+
+  function openCategoryModal() {
+    const modal = document.getElementById('my_modal_category') as HTMLDialogElement;
+    if (modal) modal.showModal();
   }
 
   async function handleSubmit(data: any) {
@@ -135,16 +164,20 @@ export default function Add() {
               </fieldset>
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend text-black">Category</legend>
-                <select {...productForm.register("category")} className="select w-full bg-white">
-                  {
-                    categories.map((c) => {
-                      return (
-                        <option key={c._id}>{c.name}</option>
-                      )
-                    })
-                  }
-
-                </select>
+                <div className="flex gap-2 w-full">
+                  <select {...productForm.register("category")} className="select flex-1 bg-white">
+                    {
+                      categories.map((c) => {
+                        return (
+                          <option key={c._id}>{c.name}</option>
+                        )
+                      })
+                    }
+                  </select>
+                  <button type="button" onClick={openCategoryModal} className="btn bg-blue-900 text-white rounded-md px-4">
+                    +
+                  </button>
+                </div>
               </fieldset>
             </div>
             <div className="flex flex-col lg:flex-row gap-6">
@@ -270,6 +303,31 @@ export default function Add() {
             <button className="btn btn-sm btn-circle absolute right-2 top-2 z-50">✕</button>
           </form>
           {previewUrl && <img src={previewUrl} className="w-full max-w-3xl mx-auto rounded-md" alt="Product preview" />}
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+      
+      <dialog id="my_modal_category" className="modal text-black">
+        <div className="modal-box bg-white">
+          <div className="flex flex-col gap-3">
+            <span className="text-2xl">Add Category</span>
+            <form onSubmit={newCategoryForm.handleSubmit(submitCategory)} className="relative flex flex-col gap-3">
+              <input {...newCategoryForm.register("name")} type="text" placeholder="New category name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
+              <input value="xxx" {...newCategoryForm.register("categoryCode")} type="hidden" />
+              <textarea {...newCategoryForm.register("description")} className="textarea mb-3 w-full p-3 rounded-md border-1 border-black bg-white" placeholder="Category description"></textarea>
+              {addCategoryFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
+              <div className="flex flex-row gap-3 mt-4 justify-end">
+                <button type="button" onClick={() => (document.getElementById('my_modal_category') as HTMLDialogElement)?.close()} className="btn p-3 rounded-md text-white bg-gray-400 border-none">
+                  Cancel
+                </button>
+                <button type="submit" disabled={addCategoryFn.loading} className={`btn p-3 rounded-md text-white bg-blue-900 border-none ${addCategoryFn.loading ? 'opacity-50' : ''}`}>
+                  {addCategoryFn.loading ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
         <form method="dialog" className="modal-backdrop">
           <button>close</button>

@@ -103,7 +103,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/products/catalog">Catalog</SidebarItem>
                 <SidebarItem href="/products/add/good">New</SidebarItem>
-                <SidebarItem href="/products/category">Category</SidebarItem>
                 <SidebarItem href="/products/unit">Unit</SidebarItem>
                 <SidebarItem href="/products/measure">Measure</SidebarItem>
               </ul>
@@ -192,6 +191,16 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               </ul>
             </details>
           </li>
+          {/* Payroll */}
+          <li>
+            <details>
+              <summary>Payroll</summary>
+              <ul>
+                <SidebarItem href="/payroll">Payroll</SidebarItem>
+              </ul>
+            </details>
+          </li>
+
           <li>
             <details>
               <summary>Report</summary>

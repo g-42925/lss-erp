@@ -221,6 +221,7 @@ export async function POST(request: NextRequest) {
     }
   }
   catch (e: any) {
+    console.log(e)
     return NextResponse.json({
       noResult: true,
       message: e.message,

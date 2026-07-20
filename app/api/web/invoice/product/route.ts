@@ -18,20 +18,20 @@ export async function POST(request: NextRequest) {
       masterAccountId: params.id
     })
 
-    const orders = await Order.find({
-      companyId: company._id,
-    })
-
     const order = await Order.findOne({
       salesOrderNumber: params.salesOrderNumber
+    })
+
+    const invoiceCount = await Invoice.countDocuments({
+      companyId: company._id,
     })
 
     const now = new Date();
     const shortYear = String(now.getFullYear()).slice(-2);
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
+    const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
 
-    const [result] = await Invoice.create({
+    const result = await Invoice.create({
       ...params,
       companyId: company._id,
       salesOrderId: order._id,
@@ -210,16 +210,35 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const params = await request.json()
   const so = params.salesOrderNumber
+  const invoiceId = params._id
+  const invoiceNumber = params.invoiceNumber
 
   try {
     await connectToDatabase()
 
+    // Build a specific filter so we update only the intended invoice.
+    // Priority: _id > invoiceNumber > salesOrderNumber (fallback).
+    // Using only salesOrderNumber would match the FIRST invoice of the order
+    // and incorrectly overwrite it when multiple invoices exist for the same order.
+    let filter: Record<string, unknown>
+    if (invoiceId) {
+      const mongoose = (await import('mongoose')).default
+      filter = { _id: new mongoose.Types.ObjectId(invoiceId) }
+    } else if (invoiceNumber) {
+      filter = { invoiceNumber }
+    } else {
+      filter = { salesOrderNumber: so }
+    }
+
+    // Strip fields that should not be overwritten via $set
+    const safeParams = { ...params }
+    delete safeParams._id
+    delete safeParams.invoiceNumber
+
     const result = await Invoice.updateOne(
+      filter,
       {
-        salesOrderNumber: so
-      },
-      {
-        $set: params
+        $set: safeParams
       }
     )
 
