@@ -30,6 +30,7 @@ export default function Add() {
 
   const productForm = useForm()
   const newCategoryForm = useForm()
+  const newUnitForm = useForm()
 
   const getUnitsFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
@@ -49,6 +50,14 @@ export default function Add() {
 
   const addCategoryFn = useFetch<any, any>({
     url: '/api/web/categories',
+    method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const addUnitFn = useFetch<any, any>({
+    url: '/api/web/unit',
     method: 'POST',
     onError: (m) => {
       alert(m)
@@ -87,6 +96,26 @@ export default function Add() {
 
   function openCategoryModal() {
     const modal = document.getElementById('my_modal_category') as HTMLDialogElement;
+    if (modal) modal.showModal();
+  }
+
+  async function submitUnit(data: any) {
+    const body = JSON.stringify({
+      ...data,
+      id: masterAccountId,
+    })
+
+    await addUnitFn.fn('', body, (c) => {
+      const modal = document.getElementById('my_modal_unit') as HTMLDialogElement;
+      if (modal) modal.close();
+      setUnits([...units, c])
+      newUnitForm.reset()
+      productForm.setValue('conversionRatioX', c.name)
+    })
+  }
+
+  function openUnitModal() {
+    const modal = document.getElementById('my_modal_unit') as HTMLDialogElement;
     if (modal) modal.showModal();
   }
 
@@ -198,27 +227,37 @@ export default function Add() {
             <div className="flex flex-col lg:flex-row gap-3">
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend text-black">From</legend>
-                <select {...productForm.register("conversionRatioX")} className="select w-full bg-white">
-                  {
-                    units.map((c) => {
-                      return (
-                        <option key={c._id}>{c.name}</option>
-                      )
-                    })
-                  }
-                </select>
+                <div className="flex gap-2 w-full">
+                  <select {...productForm.register("conversionRatioX")} className="select flex-1 bg-white">
+                    {
+                      units.map((c) => {
+                        return (
+                          <option key={c._id}>{c.name}</option>
+                        )
+                      })
+                    }
+                  </select>
+                  <button type="button" onClick={openUnitModal} className="btn bg-blue-900 text-white rounded-md px-4">
+                    +
+                  </button>
+                </div>
               </fieldset>
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend text-black">To</legend>
-                <select {...productForm.register("conversionRatioY")} className="select w-full bg-white">
-                  {
-                    units.map((c) => {
-                      return (
-                        <option key={c._id}>{c.name}</option>
-                      )
-                    })
-                  }
-                </select>
+                <div className="flex gap-2 w-full">
+                  <select {...productForm.register("conversionRatioY")} className="select flex-1 bg-white">
+                    {
+                      units.map((c) => {
+                        return (
+                          <option key={c._id}>{c.name}</option>
+                        )
+                      })
+                    }
+                  </select>
+                  <button type="button" onClick={openUnitModal} className="btn bg-blue-900 text-white rounded-md px-4">
+                    +
+                  </button>
+                </div>
               </fieldset>
               <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend text-black">Applicable tax</legend>
@@ -324,6 +363,35 @@ export default function Add() {
                 </button>
                 <button type="submit" disabled={addCategoryFn.loading} className={`btn p-3 rounded-md text-white bg-blue-900 border-none ${addCategoryFn.loading ? 'opacity-50' : ''}`}>
                   {addCategoryFn.loading ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+
+      <dialog id="my_modal_unit" className="modal text-black">
+        <div className="modal-box bg-white">
+          <div className="flex flex-col gap-3">
+            <span className="text-2xl">Add Unit</span>
+            <form onSubmit={newUnitForm.handleSubmit(submitUnit)} className="relative flex flex-col gap-3">
+              <input {...newUnitForm.register("name")} type="text" placeholder="New unit name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
+              <input {...newUnitForm.register("shortName")} type="text" placeholder="New unit short name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
+              <select {...newUnitForm.register("allowDecimal")} className="appearance-none mb-3 w-full p-3 rounded-md border-1 border-black bg-white">
+                <option disabled selected>Allow decimal?</option>
+                <option>no</option>
+                <option>yes</option>
+              </select>
+              {addUnitFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
+              <div className="flex flex-row gap-3 mt-4 justify-end">
+                <button type="button" onClick={() => (document.getElementById('my_modal_unit') as HTMLDialogElement)?.close()} className="btn p-3 rounded-md text-white bg-gray-400 border-none">
+                  Cancel
+                </button>
+                <button type="submit" disabled={addUnitFn.loading} className={`btn p-3 rounded-md text-white bg-blue-900 border-none ${addUnitFn.loading ? 'opacity-50' : ''}`}>
+                  {addUnitFn.loading ? 'Adding...' : 'Add'}
                 </button>
               </div>
             </form>
