@@ -100,7 +100,8 @@ export async function PUT(request: NextRequest) {
 
     const existingInvoice = await Invoice.findOne({
       salesOrderId: so._id,
-      invoiceType: 'service'
+      invoiceType: 'service',
+      status: 'draft'
     })
 
     if (existingInvoice) {
@@ -123,6 +124,14 @@ export async function PUT(request: NextRequest) {
           result: null,
           error: true
         })
+      }
+
+      if (existingInvoice.invoiceNumber === "xxx" || !existingInvoice.invoiceNumber) {
+        const invoiceCount = await Invoice.countDocuments({ companyId: company._id });
+        const now = new Date();
+        const shortYear = String(now.getFullYear()).slice(-2);
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        existingInvoice.invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`;
       }
 
       existingInvoice.status = params.status
@@ -149,7 +158,7 @@ export async function PUT(request: NextRequest) {
       })
     }
     else {
-      const orders = await ServiceOrder.find({
+      const invoiceCount = await Invoice.countDocuments({
         companyId: company._id,
       })
 
@@ -157,7 +166,7 @@ export async function PUT(request: NextRequest) {
       const shortYear = String(now.getFullYear()).slice(-2);
       const month = String(now.getMonth() + 1).padStart(2, '0');
 
-      const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
+      const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
 
       await ServiceOrder.updateOne(
         {

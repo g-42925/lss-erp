@@ -27,6 +27,9 @@ export async function PUT(request: NextRequest) {
     const haveExpiredDate = formData.get("haveExpiredDate") as string;
     const discountType = formData.get("discountType") as string;
     const discountValue = formData.get("discountValue") as string;
+    const conversionType = formData.get("conversionType") as string;
+    const conversionValue = formData.get("conversionValue") as string;
+    const packagingId = formData.get("packagingId") as string;
 
 
     if (file) {
@@ -79,7 +82,10 @@ export async function PUT(request: NextRequest) {
         image: productImage,
         haveExpiredDate,
         discountType,
-        discountValue
+        discountValue,
+        conversionType,
+        conversionValue,
+        packagingId
       }
 
       const product = await Product.findByIdAndUpdate(
@@ -108,7 +114,10 @@ export async function PUT(request: NextRequest) {
         image,
         haveExpiredDate,
         discountType,
-        discountValue
+        discountValue,
+        conversionType,
+        conversionValue,
+        packagingId
       }
 
       const product = await Product.findByIdAndUpdate(
@@ -155,6 +164,9 @@ export async function POST(request: NextRequest) {
         const haveExpiredDate = formData.get("haveExpiredDate") as string;
         const discountType = formData.get("discountType") as string;
         const discountValue = formData.get("discountValue") as string;
+        const conversionType = formData.get("conversionType") as string;
+        const conversionValue = formData.get("conversionValue") as string;
+        const packagingId = formData.get("packagingId") as string;
 
 
         if (!file) {
@@ -170,8 +182,8 @@ export async function POST(request: NextRequest) {
         const buffer = await file.arrayBuffer()
         const r = await Companie.findOne({ masterAccountId: formData.get("id") })
         const fileName = (formData.get("fileName") as string) ?? file.name;
-        const uploadUrl = `https://storage.bunnycdn.com/leryn-ljm/erp_${r.email.split('@')[0]}/${fileName}`;
-        const cdnUrl = `https://leryn-ljm.b-cdn.net/erp_${r.email.split('@')[0]}/${fileName}`;
+        const uploadUrl = `https://storage.bunnycdn.com/leryn-ljm-2/erp_products_${r.email.split('@')[0]}/${fileName}`;
+        const cdnUrl = `https://leryn-ljm-2.b-cdn.net/erp_products_${r.email.split('@')[0]}/${fileName}`;
 
         const response = await fetch(uploadUrl, {
           body: buffer,
@@ -206,7 +218,10 @@ export async function POST(request: NextRequest) {
             image: cdnUrl,
             haveExpiredDate,
             discountType,
-            discountValue
+            discountValue,
+            conversionType,
+            conversionValue,
+            packagingId
           }
 
           await Product.create(newProduct)

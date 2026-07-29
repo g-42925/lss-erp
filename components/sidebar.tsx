@@ -84,12 +84,10 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             </li>
           )}
 
-          {/* Contacts */}
           <li>
             <details open>
               <summary>Contacts</summary>
               <ul>
-                <SidebarItem href="/suppliers">Suppliers</SidebarItem>
                 <SidebarItem href="/customers">Customers</SidebarItem>
                 <SidebarItem href="/vendor">Vendor</SidebarItem>
               </ul>
@@ -103,8 +101,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/products/catalog">Catalog</SidebarItem>
                 <SidebarItem href="/products/add/good">New</SidebarItem>
-
-                <SidebarItem href="/products/measure">Measure</SidebarItem>
+                <SidebarItem href="/products/packaging">Packaging</SidebarItem>
               </ul>
             </details>
           </li>

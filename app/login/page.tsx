@@ -40,9 +40,9 @@ export default function Login() {
 					isSuperAdmin: result.isSuperAdmin,
 					locationId: result.locationId,
 					userId: result._id,
-					companyId: result.company._id,
+					companyId: result.company?._id || "",
 					id: result._id,
-					roleDetail: result.roleDetail || null
+					roleDetail: result.roleDetail || { page: [], permission: '' }
 				}
 			)
 

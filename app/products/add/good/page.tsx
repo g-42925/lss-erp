@@ -25,6 +25,7 @@ export default function Add() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const [categories, setCategories] = useState<any[]>([])
   const [units, setUnits] = useState<any[]>([])
+  const [packagings, setPackagings] = useState<any[]>([])
 
   const router = useRouter()
 
@@ -32,6 +33,7 @@ export default function Add() {
   const newCategoryForm = useForm()
   const newUnitForm = useForm()
 
+  const conversionType = productForm.watch("conversionType") || "value";
   const getUnitsFn = useFetch<any[], any>({
     url: `/api/web/unit?id=xxx`,
     method: 'GET',
@@ -42,6 +44,14 @@ export default function Add() {
 
   const getCategoriesFn = useFetch<any[], any>({
     url: `/api/web/categories?id=xxx`,
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getPackagingsFn = useFetch<any[], any>({
+    url: `/api/web/packaging?id=xxx`,
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -145,11 +155,15 @@ export default function Add() {
     if (hasHydrated) {
       const url = `/api/web/categories?id=${masterAccountId}`
       const url2 = `/api/web/unit?id=${masterAccountId}`
+      const urlPackaging = `/api/web/packaging?id=${masterAccountId}`
       getCategoriesFn.fn(url, JSON.stringify({}), (r) => {
         setCategories(r)
       })
       getUnitsFn.fn(url2, JSON.stringify({}), (r) => {
         setUnits(r)
+      })
+      getPackagingsFn.fn(urlPackaging, JSON.stringify({}), (r) => {
+        setPackagings(r)
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -237,9 +251,6 @@ export default function Add() {
                       })
                     }
                   </select>
-                  <button type="button" onClick={openUnitModal} className="btn bg-blue-900 text-white rounded-md px-4">
-                    +
-                  </button>
                 </div>
               </fieldset>
               <fieldset className="fieldset flex-1">
@@ -259,6 +270,44 @@ export default function Add() {
                   </button>
                 </div>
               </fieldset>
+            </div>
+            <div className="flex flex-col lg:flex-row gap-3">
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend text-black">Conversion Type</legend>
+                <div className="flex gap-2 w-full mt-2 items-center">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-md border text-black text-sm">
+                    <input {...productForm.register("conversionType")} type="radio" value="value" className="radio radio-sm" />
+                    Conversion Value
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-md border text-black text-sm">
+                    <input {...productForm.register("conversionType")} type="radio" value="packaging" className="radio radio-sm" />
+                    Packaging Options
+                  </label>
+                </div>
+              </fieldset>
+              {conversionType === "value" && (
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend text-black">Conversion Value (Integer)</legend>
+                  <input {...productForm.register("conversionValue", { valueAsNumber: true })} type="number" className="input w-full bg-white" placeholder="e.g. 12" />
+                </fieldset>
+              )}
+              {conversionType === "packaging" && (
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend text-black">Select Packaging</legend>
+                  <select {...productForm.register("packagingId")} className="select w-full bg-white">
+                    <option value="">Select an option...</option>
+                    {
+                      packagings.map((p) => {
+                        return (
+                          <option key={p._id} value={p._id}>{p.name} (Qty: {p.qty})</option>
+                        )
+                      })
+                    }
+                  </select>
+                </fieldset>
+              )}
+            </div>
+            <div className="flex flex-col lg:flex-row gap-3">
               <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend text-black">Applicable tax</legend>
                 <select {...productForm.register("applicableTax")} className="select w-full bg-white">
@@ -347,7 +396,7 @@ export default function Add() {
           <button>close</button>
         </form>
       </dialog>
-      
+
       <dialog id="my_modal_category" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
@@ -355,7 +404,6 @@ export default function Add() {
             <form onSubmit={newCategoryForm.handleSubmit(submitCategory)} className="relative flex flex-col gap-3">
               <input {...newCategoryForm.register("name")} type="text" placeholder="New category name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               <input value="xxx" {...newCategoryForm.register("categoryCode")} type="hidden" />
-              <textarea {...newCategoryForm.register("description")} className="textarea mb-3 w-full p-3 rounded-md border-1 border-black bg-white" placeholder="Category description"></textarea>
               {addCategoryFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
               <div className="flex flex-row gap-3 mt-4 justify-end">
                 <button type="button" onClick={() => (document.getElementById('my_modal_category') as HTMLDialogElement)?.close()} className="btn p-3 rounded-md text-white bg-gray-400 border-none">
@@ -379,12 +427,6 @@ export default function Add() {
             <span className="text-2xl">Add Unit</span>
             <form onSubmit={newUnitForm.handleSubmit(submitUnit)} className="relative flex flex-col gap-3">
               <input {...newUnitForm.register("name")} type="text" placeholder="New unit name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
-              <input {...newUnitForm.register("shortName")} type="text" placeholder="New unit short name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
-              <select {...newUnitForm.register("allowDecimal")} className="appearance-none mb-3 w-full p-3 rounded-md border-1 border-black bg-white">
-                <option disabled selected>Allow decimal?</option>
-                <option>no</option>
-                <option>yes</option>
-              </select>
               {addUnitFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
               <div className="flex flex-row gap-3 mt-4 justify-end">
                 <button type="button" onClick={() => (document.getElementById('my_modal_unit') as HTMLDialogElement)?.close()} className="btn p-3 rounded-md text-white bg-gray-400 border-none">

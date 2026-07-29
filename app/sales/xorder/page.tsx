@@ -42,6 +42,7 @@ function XOrderContent() {
   // Direct mode state
   const [directContract, setDirectContract] = useState<File | null>(null)
   const [directAttachment, setDirectAttachment] = useState<File | null>(null)
+  const [editContract, setEditContract] = useState<File | null>(null)
   const [selectedTaxes, setSelectedTaxes] = useState<any[]>([])
 
   const modalRef = useRef<HTMLDialogElement>(null)
@@ -57,6 +58,7 @@ function XOrderContent() {
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
   const newInvoiceForm = useForm()
+  const editOrderForm = useForm()
   const directOrderForm = useForm<any>({
     defaultValues: {
       customerName: "",
@@ -120,6 +122,14 @@ function XOrderContent() {
   const addDirectServiceOrderFn = useFetch<any, any>({
     url: '/api/web/service-csale',
     method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const updateDirectServiceOrderFn = useFetch<any, any>({
+    url: '/api/web/service-csale',
+    method: 'PUT',
     onError: (m) => {
       alert(m)
     }
@@ -263,6 +273,46 @@ function XOrderContent() {
 
     addDirectServiceOrderFn.fn('', formData, (r) => {
       window.location.href = '/sales/xorder'
+    })
+  }
+
+  function openEditModal(order: any) {
+    editOrderForm.reset({
+      _id: order._id,
+      customerName: order.customCustomer?.name || order.customerId || "",
+      address: order.customCustomer?.address || "",
+      productId: order.productId,
+      price: order.price,
+      contractType: order.contractType,
+      frequency: order.frequency,
+      qty: order.qty,
+      range: order.range
+    })
+    editRef.current?.showModal()
+  }
+
+  function submitEditOrder(data: any) {
+    const formData = new FormData()
+    formData.append("_id", data._id)
+    formData.append("id", masterAccountId)
+    formData.append("customer", JSON.stringify({
+      name: data.customerName,
+      address: data.address
+    }))
+    formData.append("productId", data.productId)
+    formData.append("price", data.price)
+    formData.append("contractType", data.contractType)
+    formData.append("frequency", data.frequency)
+    formData.append("qty", data.qty || "1")
+    formData.append("range", data.range || "1")
+
+    if (editContract) {
+      formData.append("contract", editContract as any)
+    }
+
+    updateDirectServiceOrderFn.fn('', formData, (r) => {
+      editRef.current?.close()
+      window.location.reload()
     })
   }
 
@@ -610,6 +660,13 @@ function XOrderContent() {
     )
   }
 
+  function downloadContract(url: string) {
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "contract.pdf"
+    link.click()
+  }
+
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3 text-black">
@@ -698,7 +755,7 @@ function XOrderContent() {
                                           size={24}
                                           color="currentColor"
                                           strokeWidth={1.5}
-                                          onClick={() => alert('ok')}
+                                          onClick={() => downloadContract(s.contract)}
                                         />
                                       </button>
                                       :
@@ -736,8 +793,13 @@ function XOrderContent() {
                                         </button>
                                       )
                                   }
-                                </td>
-                              </tr>
+                                    <button onClick={() => openEditModal(s)} className="text-gray-900">
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                      </svg>
+                                    </button>
+                                  </td>
+                                </tr>
                             )
                           })
                           :
@@ -837,6 +899,94 @@ function XOrderContent() {
           <div className="flex flex-row gap-3 modal-action">
             <button type="button" className="btn" onClick={() => invoiceModalRef.current?.close()}>Cancel</button>
             <button className="btn bg-red-900 text-white">Submit</button>
+          </div>
+        </form>
+      </dialog>
+      <dialog ref={editRef} className="modal h-full text-black">
+        <form onSubmit={editOrderForm.handleSubmit(submitEditOrder)} className="h-86 modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Edit Service Order</h3>
+          
+          <input type="hidden" {...editOrderForm.register("_id")} />
+          
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Customer</label>
+            <input
+              list="edit-customers"
+              {...editOrderForm.register("customerName")}
+              type="text"
+              className="input flex-1"
+              required
+            />
+            <datalist id="edit-customers">
+              {customers.map((customer: any) => (
+                <option key={customer._id} value={customer.bussinessName} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Address</label>
+            <input {...editOrderForm.register("address")} type="text" className="input flex-1" />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Product</label>
+            <select {...editOrderForm.register("productId")} className="select flex-1" required>
+              <option value="">Select Product</option>
+              {products.map((p) => (
+                <option key={p._id} value={`${p._id}`}>{p.productName}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Contract Type</label>
+            <select {...editOrderForm.register("contractType")} className="select flex-1">
+              <option value="Full">Full</option>
+              <option value="Trial">Trial</option>
+              <option value="One Time">One Time</option>
+            </select>
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Frequency</label>
+            <select {...editOrderForm.register("frequency")} className="select flex-1">
+              <option value="Month">Month</option>
+              <option value="Once">Once</option>
+            </select>
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Qty</label>
+            <input {...editOrderForm.register("qty")} type="number" className="input flex-1" required />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Range</label>
+            <input {...editOrderForm.register("range")} type="number" className="input flex-1" required />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Price</label>
+            <input {...editOrderForm.register("price")} type="number" className="input flex-1" required />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Contract Doc</label>
+            <input
+              onChange={(e) => setEditContract(e.target.files?.[0] ?? null)}
+              type="file"
+              className="file-input flex-1"
+            />
+          </div>
+
+          {updateDirectServiceOrderFn.noResult || updateDirectServiceOrderFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
+          
+          <div className="flex flex-row gap-3 modal-action mt-4">
+            <button type="button" className="btn flex-1" onClick={() => editRef.current?.close()}>Cancel</button>
+            <button type="submit" disabled={updateDirectServiceOrderFn.loading} className="btn bg-blue-900 text-white flex-1">
+              {updateDirectServiceOrderFn.loading ? <span className="loading loading-spinner loading-sm"></span> : "Save Changes"}
+            </button>
           </div>
         </form>
       </dialog>

@@ -21,6 +21,8 @@ export default function Measure() {
 
   const editForm = useForm()
   const newMeasureForm = useForm()
+  const newSupplierForm = useForm()
+  const addSupplierModalRef = useRef<HTMLDialogElement>(null)
   const router = useRouter()
 
 
@@ -49,6 +51,14 @@ export default function Measure() {
   const getSuppliersFn = useFetch<any[], any>({
     url: `/api/web/supplier?id=xxx`,
     method: 'GET'
+  })
+
+  const addSupplierFn = useFetch<any, any>({
+    url: '/api/web/suppliers',
+    method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
   })
 
 
@@ -84,6 +94,20 @@ export default function Measure() {
       }
       setMeasurement([newMeasurement, ...measurements])
       modalRef.current?.close()
+    })
+  }
+
+  async function addSupplierSubmit(data: any) {
+    const body = JSON.stringify({
+      ...data,
+      masterAccountId,
+    })
+
+    await addSupplierFn.fn('', body, (r) => {
+      getSuppliersFn.fn(`/api/web/suppliers?id=${masterAccountId}`, JSON.stringify({}), () => {
+        newSupplierForm.reset()
+        addSupplierModalRef.current?.close()
+      })
     })
   }
 
@@ -374,8 +398,14 @@ export default function Measure() {
             <span className="text-2xl">Add Measurement</span>
             <form onSubmit={(e) => { void newMeasureForm.handleSubmit(submit)(e); }} className="h-99 relative flex flex-col">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Supplier</legend>
+                <div className="flex flex-row justify-between w-full h-8 items-center mb-2">
+                  <legend className="fieldset-legend">Supplier</legend>
+                  <button type="button" onClick={() => addSupplierModalRef.current?.showModal()} className="btn btn-sm btn-ghost text-blue-600">
+                    + Add New
+                  </button>
+                </div>
                 <select {...newMeasureForm.register("supplierId")} className="select w-full">
+                  <option value={''}>Select Supplier:</option>
                   {
                     getSuppliersFn?.result?.map((s, index) => {
                       return (
@@ -433,6 +463,39 @@ export default function Measure() {
               <button type="submit" className="p-3 rounded-md mt-4 text-white bg-blue-900">
                 Add
               </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog id="modal_add_supplier" ref={addSupplierModalRef} className="modal text-black">
+        <div className="modal-box bg-white">
+          <div className="flex flex-col gap-3">
+            <span className="text-2xl">Add Supplier</span>
+            <form onSubmit={(e) => { void newSupplierForm.handleSubmit(addSupplierSubmit)(e); }} className="flex flex-col gap-3">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend text-black">Business Name</legend>
+                <input className="input w-full bg-white" {...newSupplierForm.register("bussinessName")} type="text" required />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend text-black">Email</legend>
+                <input className="input w-full bg-white" {...newSupplierForm.register("email")} type="email" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend text-black">Address</legend>
+                <input className="input w-full bg-white" {...newSupplierForm.register("address")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend text-black">Mobile</legend>
+                <input className="input w-full bg-white" {...newSupplierForm.register("mobile")} type="text" />
+              </fieldset>
+              
+              {addSupplierFn.noResult || addSupplierFn.error ? <label className="input-validator text-red-900">something went wrong</label> : null}
+              
+              <div className="modal-action">
+                <button type="button" className="btn mr-2" onClick={() => addSupplierModalRef.current?.close()}>Cancel</button>
+                <button type="submit" className="btn bg-blue-900 text-white">Add Supplier</button>
+              </div>
             </form>
           </div>
         </div>

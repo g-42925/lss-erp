@@ -160,6 +160,21 @@ function Roles() {
     })
   }
 
+  const selectAllPermissions = () => {
+    if (!getFeaturesFn?.result) return;
+    const allSelected: Record<string, string[]> = {};
+    getFeaturesFn.result.forEach(group => {
+      group.features.forEach(f => {
+        allSelected[f.link] = ["view", "create", "edit", "delete"];
+      });
+    });
+    setSelectedPages(allSelected);
+  };
+
+  const clearAllPermissions = () => {
+    setSelectedPages({});
+  };
+
   const PermissionToggle = ({ link, permission, label }: { link: string, permission: string, label: string }) => (
     <label className="flex items-center gap-1 text-xs cursor-pointer hover:bg-gray-100 p-1 rounded">
       <input
@@ -252,7 +267,13 @@ function Roles() {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50">
-              <span className="text-sm font-semibold mb-3 block">Feature Access & Actions</span>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-semibold block">Feature Access & Actions</span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={selectAllPermissions} className="btn btn-xs btn-outline btn-primary">Select All</button>
+                  <button type="button" onClick={clearAllPermissions} className="btn btn-xs btn-outline btn-error">Clear All</button>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {getFeaturesFn?.result?.map((group, gIdx) => (
                   <div key={gIdx} className="card bg-white shadow-sm border p-3">
@@ -294,7 +315,13 @@ function Roles() {
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50">
-              <span className="text-sm font-semibold mb-3 block">Configure Permissions</span>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-semibold block">Configure Permissions</span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={selectAllPermissions} className="btn btn-xs btn-outline btn-primary">Select All</button>
+                  <button type="button" onClick={clearAllPermissions} className="btn btn-xs btn-outline btn-error">Clear All</button>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {getFeaturesFn?.result?.map((group, gIdx) => (
                   <div key={gIdx} className="card bg-white shadow-sm border p-3">

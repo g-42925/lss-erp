@@ -20,7 +20,10 @@ const ProductSchema = new mongoose.Schema({
   warehouseUnit: { type: String, required: false },
   saleUnit: { type: String, required: false },
   discountType: { type: String, required: false, enum: ["percent", "fixed", "none"] },
-  discountValue: { type: Number, required: false }
+  discountValue: { type: Number, required: false },
+  conversionType: { type: String, required: false, enum: ["value", "packaging"] },
+  conversionValue: { type: Number, required: false },
+  packagingId: { type: String, required: false }
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

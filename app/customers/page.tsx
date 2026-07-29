@@ -155,12 +155,18 @@ export default function Customers() {
     }
   }, [masterAccountId])
 
-  if (!hasHydrated) return null
-  if (!loggedIn) router.push('/login')
-  if (!isSuperAdmin) {
-    if (!roleDetail.page.includes('suppliers')) {
-      router.push('/dashboard')
+  useEffect(() => {
+    if (hasHydrated) {
+      if (!loggedIn) {
+        router.push('/login')
+      } else if (!isSuperAdmin && !roleDetail.page.includes('suppliers')) {
+        router.push('/dashboard')
+      }
     }
+  }, [hasHydrated, loggedIn, isSuperAdmin, roleDetail, router])
+
+  if (!hasHydrated || !loggedIn || (!isSuperAdmin && !roleDetail.page.includes('suppliers'))) {
+    return null
   }
 
   return (

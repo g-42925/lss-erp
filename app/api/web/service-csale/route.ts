@@ -222,3 +222,88 @@ export async function GET(request: NextRequest) {
     })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const formData = await request.formData();
+    
+    const _id = formData.get("_id") as string;
+    const productId = formData.get("productId") as string;
+    const contractType = formData.get("contractType") as string;
+    const customer = JSON.parse(formData.get("customer") as string);
+    const range = formData.get("range");
+    const frequency = formData.get("frequency") as string;
+    const price = formData.get("price") as string;
+    const qty = formData.get("qty") as string;
+    
+    const contract = formData.get("contract") as File | null;
+    const id = formData.get("id") as string;
+
+    const updateData: any = {
+      productId,
+      contractType,
+      customCustomer: customer,
+      range: parseInt(range as string) || 1,
+      frequency,
+      price: parseFloat(price) || 0,
+      qty: parseInt(qty as string) || 1
+    };
+
+    if (contract) {
+      const company = await Companie.findOne({
+        masterAccountId: id
+      });
+      const fileName = contract.name;
+      const buffer = Buffer.from(await contract.arrayBuffer());
+
+      const s3 = new S3Client({
+        region: "us-east-1",
+        endpoint: "https://s3.filebase.com",
+        credentials: {
+          accessKeyId: "B8F0135956143AE0685E",
+          secretAccessKey: "gKrbIZJnzLWBXZ0VGQvnlAumvngpBH35PsXN5zUp",
+        },
+      });
+
+      const putCommand = new PutObjectCommand({
+        Bucket: `leryn-storage`,
+        Key: `erp/${company.email.split("@")[0]}/upload/${fileName}`,
+        Body: buffer,
+        ContentType: contract.type,
+        Metadata: {
+          cid: "true",
+        },
+      });
+
+      await s3.send(putCommand)
+
+      const head = await s3.send(
+        new HeadObjectCommand({
+          Bucket: "leryn-storage",
+          Key: `erp/${company.email.split("@")[0]}/upload/${fileName}`,
+        })
+      );
+
+      const cid = head.Metadata?.cid;
+      const contractUrl = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
+      updateData.contract = contractUrl;
+    }
+
+    await ServiceOrder.findByIdAndUpdate(_id, updateData);
+
+    return NextResponse.json({
+      noResult: false,
+      message: "success",
+      result: {},
+      error: false
+    });
+  } catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: (e as Error).message,
+      result: null,
+      error: true
+    });
+  }
+}

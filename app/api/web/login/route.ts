@@ -19,6 +19,14 @@ export async function POST(request: NextRequest) {
       password: pwd.toString()
     })
 
+    if (!r) {
+      return NextResponse.json({
+        noResult: true,
+        message: "no account found",
+        result: null
+      });
+    }
+
     const company = await Companie.findOne({
       masterAccountId: r.masterAccountId
     })
@@ -33,14 +41,6 @@ export async function POST(request: NextRequest) {
           _pages[page.link] = page.permissions || ['view']
         })
       }
-    }
-
-    if (!r) {
-      return NextResponse.json({
-        noResult: true,
-        message: "no account found",
-        result: null
-      });
     }
 
 
