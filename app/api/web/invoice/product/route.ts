@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
 
-    const result = await Invoice.create({
+    const result: any = await Invoice.create({
       ...params,
       companyId: company._id,
       salesOrderId: order._id,
