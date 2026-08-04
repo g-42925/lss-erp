@@ -167,7 +167,7 @@ export default function Procurement() {
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
-  if (!isSuperAdmin) router.push('/dashboard')
+  // if (!isSuperAdmin) router.push('/dashboard')
 
 
   return (

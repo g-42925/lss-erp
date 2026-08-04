@@ -72,13 +72,26 @@ export async function POST(request: NextRequest) {
       {
         $lookup: {
           from: "products",
-          localField: "order.productId",
-          foreignField: "_id",
-          as: "order.product",
-        },
+          let: {
+            productId: { $arrayElemAt: ["$order.cart.productId", 0] }
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$_id", "$$productId"]
+                }
+              }
+            }
+          ],
+          as: "product"
+        }
       },
       {
-        $unwind: "$order.product"
+        $unwind: {
+          path: "$product",
+          preserveNullAndEmptyArrays: true
+        }
       },
     ])
 
@@ -241,6 +254,49 @@ export async function PUT(request: NextRequest) {
         $set: safeParams
       }
     )
+
+    // If financial correction values are provided (from adjustment flow),
+    // also update the Order document so it stays in sync with the invoice.
+    if (so && (params.total !== undefined || params.taxValue !== undefined)) {
+      const orderUpdate: Record<string, unknown> = {}
+      if (params.total !== undefined) orderUpdate.total = params.total
+      if (params.taxValue !== undefined) orderUpdate.taxValue = params.taxValue
+      if (params.discountType !== undefined) orderUpdate.discountType = params.discountType
+      if (params.discountValue !== undefined) orderUpdate.discountValue = params.discountValue
+
+      // Also update each cart item's subTotal to reflect the adjusted quantities
+      // so that discount display on invoice page computes correctly from cart.subTotal
+      if (Array.isArray(params.unavailableList) && params.unavailableList.length > 0) {
+        const mongoose = (await import('mongoose')).default
+        const order = await Order.findOne({ salesOrderNumber: so })
+        if (order) {
+          const unavailableMap: Record<string, number> = {}
+          params.unavailableList.forEach((u: { productId: string; qty: number }) => {
+            unavailableMap[u.productId.toString()] = Number(u.qty)
+          })
+
+          const updatedCart = order.cart.map((c: any) => {
+            const cartObj = c.toObject ? c.toObject() : { ...c }
+            const pid = cartObj.productId?.toString()
+            const unavailableQty = unavailableMap[pid] || 0
+            if (unavailableQty > 0) {
+              const unitPrice = cartObj.subTotal / cartObj.qty
+              const newQty = Math.max(0, cartObj.qty - unavailableQty)
+              cartObj.qty = newQty
+              cartObj.subTotal = unitPrice * newQty
+            }
+            return cartObj
+          }).filter((c: any) => c.qty > 0)
+
+          orderUpdate.cart = updatedCart
+        }
+      }
+
+      await Order.updateOne(
+        { salesOrderNumber: so },
+        { $set: orderUpdate }
+      )
+    }
 
     return NextResponse.json({
       noResult: false,

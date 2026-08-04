@@ -559,6 +559,7 @@ export async function PUT(request: NextRequest) {
       }
 
       itemObj.qty = newQty
+      delivery.markModified('items')
       await delivery.save()
     }
 

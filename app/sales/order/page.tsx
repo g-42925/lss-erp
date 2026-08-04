@@ -45,8 +45,10 @@ function OrderContent() {
   const voidModalRef = useRef<HTMLDialogElement>(null)
   const taxInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const editTaxInvoiceModalRef = useRef<HTMLDialogElement>(null)
+  const adjustmentModalRef = useRef<HTMLDialogElement>(null)
   const [taxInvoiceNumber, setTaxInvoiceNumber] = useState<string>("")
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
+  const [adjustmentTargetOrder, setAdjustmentTargetOrder] = useState<any>(null)
   const [unavailableTargetOrder, setUnavailableTargetOrder] = useState<any>(null)
   const [voidTargetOrder, setVoidTargetOrder] = useState<any>(null)
   const [voidApprovalCode, setVoidApprovalCode] = useState<string>("")
@@ -92,6 +94,8 @@ function OrderContent() {
 
 
   const watchDebt = newOrderForm.watch('debt')
+  const watchProduct = newOrderForm.watch('product')
+
 
 
   const orderTaxesSummary = useMemo(() => {
@@ -534,6 +538,13 @@ function OrderContent() {
       alert(m)
     }
   })
+
+  const selectedProductObj = useMemo(() => {
+    if (!watchProduct) return null
+    const pid = watchProduct.split('/')[0]
+    return getProductsFn?.result?.find((p: any) => p._id === pid)
+  }, [watchProduct, getProductsFn?.result])
+
   const getTaxesFn = useFetch<any[], any>({
     url: `/api/web/tax?id=xxx`,
     method: 'GET',
@@ -558,49 +569,81 @@ function OrderContent() {
   })
   function activateInvoice(x: any, son: string) {
 
-    const newPrices = x.cart.map((c: any) => {
-      const subTotal = c.subTotal
-      const qty = c.qty
+    // Build a set of unavailable product IDs with their quantities
+    const unavailableMap: Record<string, number> = {}
+    unAvailableList.forEach((u: any) => {
+      unavailableMap[u.id] = parseFloat(u.qty)
+    })
+
+    // Recalculate cart after removing unavailable quantities
+    const effectiveCart = x.cart.map((c: any) => {
+      const pid = (c.productId?._id || c.productId)?.toString()
+      const unavailableQty = unavailableMap[pid] || 0
+      const effectiveQty = Math.max(0, c.qty - unavailableQty)
+      const unitPrice = c.subTotal / c.qty
+      const effectiveSubTotal = unitPrice * effectiveQty
+      return { ...c, qty: effectiveQty, subTotal: effectiveSubTotal }
+    }).filter((c: any) => c.qty > 0)
+
+    const overallSubtotal = effectiveCart.reduce((acc: number, c: any) => acc + c.subTotal, 0)
+
+    // Recalculate discount
+    let discountAmount = 0
+    if (x.discountType === 'percent') {
+      discountAmount = overallSubtotal * (x.discountValue / 100)
+    } else if (x.discountType === 'fixed') {
+      discountAmount = x.discountValue || 0
+    }
+
+    const subtotalAfterDiscount = overallSubtotal - discountAmount
+
+    // Recalculate tax based on effective cart
+    let totalTaxValue = 0
+    effectiveCart.forEach((c: any) => {
+      let taxableAmount = c.subTotal
       if (x.discountType === 'percent') {
-        let total = 0;
-        total = subTotal - (subTotal * x.discountValue / 100)
+        taxableAmount = c.subTotal - (c.subTotal * (x.discountValue / 100))
+      } else if (x.discountType === 'fixed') {
+        const proportion = overallSubtotal !== 0 ? c.subTotal / overallSubtotal : 0
+        taxableAmount = c.subTotal - (x.discountValue * proportion)
+      }
+      if (c.taxes && c.taxes.length > 0) {
         c.taxes.forEach((t: any) => {
-          total = total + (total * t.taxValue / 100)
+          totalTaxValue += taxableAmount * (t.taxValue / 100)
         })
-
-        return {
-          productId: c.productId,
-          newPrice: total / qty
-        }
-      }
-      else {
-        // handled later
       }
     })
 
-    const unavailable = newPrices.map((n: any) => {
-      const [filter] = unAvailableList.filter((c: any) => c.id == n.productId)
-      return n.newPrice * filter.qty
+    const newTotal = subtotalAfterDiscount + totalTaxValue
+
+    // Calculate unavailable amount for reference
+    const unavailableItems = x.cart.filter((c: any) => {
+      const pid = (c.productId?._id || c.productId)?.toString()
+      return unavailableMap[pid] !== undefined
     })
+    const totalUnavailable = unavailableItems.reduce((acc: number, c: any) => {
+      const pid = (c.productId?._id || c.productId)?.toString()
+      const unavailableQty = unavailableMap[pid] || 0
+      const unitPrice = c.subTotal / c.qty
+      return acc + (unitPrice * unavailableQty)
+    }, 0)
 
-
-    const totalUnavailable = unavailable.reduce((acc: number, curr: number) => acc + curr, 0);
-
-    const unavalaibleList = unAvailableList.map((u) => {
-      return {
-        productId: u.id,
-        qty: u.qty,
-      }
-    })
-
+    const unavalaibleList = unAvailableList.map((u: any) => ({
+      productId: u.id,
+      qty: u.qty,
+    }))
 
     const params = {
       salesOrderNumber: son,
       status: 'active',
       unavailable: totalUnavailable,
-      unavailableList: unavalaibleList
+      unavailableList: unavalaibleList,
+      // Corrected financial values after adjustment
+      total: Math.round(newTotal),
+      taxValue: Math.round(totalTaxValue),
+      discountType: x.discountType,
+      discountValue: x.discountValue,
     }
-
 
     activateInvoiceFn.fn(``, JSON.stringify(params), (r) => {
       alert("Invoice activated successfully")
@@ -999,6 +1042,11 @@ function OrderContent() {
     }
   }, [hasHydrated, qNumber, getProductsFn.result])
 
+  function openAdjustmentModal(order: any) {
+    setAdjustmentTargetOrder(order)
+    adjustmentModalRef.current?.showModal()
+  }
+
   function openUnavailableModal(order: any) {
     setUnavailableTargetOrder(order)
     if (order.cart && order.cart.length > 0) {
@@ -1083,7 +1131,7 @@ function OrderContent() {
     <>
       <div className="h-full p-6 flex flex-col gap- text-black">
         <span className="text-2xl">Product Order</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
+        <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
               <div className="flex flex-row items-center gap-3">
@@ -1170,8 +1218,9 @@ function OrderContent() {
                   <option>Available Product:</option>
                   {
                     getProductsFn?.result?.map((p: any) => {
+                      const price = (p.conversionValue && Number(p.conversionValue) > 0) ? (p.smallestUnitPrice || (Number(p.sellingPrice) / Number(p.conversionValue))) : p.sellingPrice;
                       return (
-                        <option key={p._id} value={`${p._id}/${p.productName}/${p.remain}/${p.sellingPrice}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
+                        <option key={p._id} value={`${p._id}/${p.productName}/${p.remain}/${price}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
                       )
                     })
                   }
@@ -1183,8 +1232,12 @@ function OrderContent() {
                   <option>Available Warehouse:</option>
                   {
                     getDSaleStockFn?.result?.map((l: any) => {
+                      let displayAvailable: string | number = l.available;
+                      if (selectedProductObj && selectedProductObj.conversionValue && Number(selectedProductObj.conversionValue) > 0) {
+                        displayAvailable = `${l.available / selectedProductObj.conversionValue} ${selectedProductObj.conversionRatioX || ''}`.trim();
+                      }
                       return (
-                        <option key={l._id} value={l._id} >{l.name} ({l.available})</option>
+                        <option key={l._id} value={l._id} >{l.name} ({displayAvailable})</option>
                       )
                     })
                   }
@@ -1196,7 +1249,7 @@ function OrderContent() {
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select multiple {...newOrderForm.register('ppn')} className="select w-full h-24">
+                <select multiple {...newOrderForm.register('ppn')} className="w-full h-28 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-white text-sm">
                   <option value="no">
                     no tax
                   </option>
@@ -1251,7 +1304,7 @@ function OrderContent() {
       <>
         <div className="h-full p-6 flex flex-col gap-3 text-black">
           <span className="text-2xl">Product Order</span>
-          <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+          <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
             <div className="flex flex-row">
               <span className="self-center">All order</span>
               <div className="flex flex-row gap-3 ml-auto">
@@ -1351,8 +1404,12 @@ function OrderContent() {
                                   </div>
                                 </td>
                                 <td>
-                                  <div>{x.salesOrderNumber}</div>
-                                  {x.taxInvoiceNumber && <div className="text-xs text-gray-500 mt-1">FP: {x.taxInvoiceNumber}</div>}
+                                  <div className="flex flex-col items-center justify-center gap-1.5">
+                                    <div className="flex items-center gap-2 whitespace-nowrap">
+                                      <span className="font-medium text-gray-800">{x.salesOrderNumber}</span>
+                                    </div>
+                                    {x.taxInvoiceNumber && <div className="text-[11px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">FP: {x.taxInvoiceNumber}</div>}
+                                  </div>
                                 </td>
                                 <td>
                                   {x.variousItem ? (
@@ -1388,7 +1445,10 @@ function OrderContent() {
                                 <td>{x.pickupDate ? new Date(x.pickupDate).toLocaleDateString("id-ID") : '-'}</td>
                                 <td>
                                   <div className="dropdown dropdown-left dropdown-bottom z-50">
-                                    <div tabIndex={0} role="button" className="btn btn-sm btn-ghost btn-circle">
+                                    <div tabIndex={0} role="button" className="btn btn-sm btn-ghost btn-circle relative">
+                                      {x.adjustment && x.adjustment.length > 0 && (
+                                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-amber-500 rounded-full border border-white"></div>
+                                      )}
                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                                       </svg>
@@ -1423,6 +1483,17 @@ function OrderContent() {
                                           <span className="font-semibold text-gray-700">View Cart / Refund</span>
                                         </button>
                                       </li>
+                                      {x.adjustment && x.adjustment.length > 0 && (
+                                        <li>
+                                          <button onClick={() => openAdjustmentModal(x)} className="flex items-center gap-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                            <span className="font-semibold">Info Adjustment</span>
+                                            <span className="badge badge-sm badge-warning">{x.adjustment.length}</span>
+                                          </button>
+                                        </li>
+                                      )}
                                       <li>
                                         <button onClick={() => addUnvailable(x)} className="flex items-center gap-3 text-red-600 hover:text-red-700 hover:bg-red-50">
                                           <HugeiconsIcon icon={Delete01Icon} size={18} />
@@ -1549,8 +1620,9 @@ function OrderContent() {
                 <option>Available Product:</option>
                 {
                   getProductsFn?.result?.map((p: any) => {
+                    const price = (p.conversionValue && Number(p.conversionValue) > 0) ? (p.smallestUnitPrice || (Number(p.sellingPrice) / Number(p.conversionValue))) : p.sellingPrice;
                     return (
-                      <option key={p._id} value={`${p._id}/${p.productName}/${p.allocated}/${p.sellingPrice}/${p.applicableTax}`}>{p.productName}</option>
+                      <option key={p._id} value={`${p._id}/${p.productName}/${p.allocated}/${price}/${p.applicableTax}`}>{p.productName}</option>
                     )
                   })
                 }
@@ -1575,7 +1647,7 @@ function OrderContent() {
             </div>
             <div className="flex flex-row items-center gap-3">
               <label className="w-[85px]">Tax</label>
-              <select multiple {...newOrderForm.register('ppn')} className="select w-full h-24">
+              <select multiple {...newOrderForm.register('ppn')} className="w-full h-28 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-white text-sm">
                 <option value="no">no tax</option>
                 {
                   getTaxesFn?.result?.map((t: any) => {
@@ -1767,7 +1839,7 @@ function OrderContent() {
                               </div>
                               <span className="font-semibold text-gray-800 text-sm">{prodName}</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-3">
                               <div className="flex flex-col gap-1">
                                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                   Quantity <span className="lowercase text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-md ml-1 border border-red-200">Max: {productDetails ? productDetails.remain : '∞'}</span>
@@ -1949,6 +2021,68 @@ function OrderContent() {
             </div>
 
             <form onSubmit={submitUnavailable} className="p-6 flex flex-col gap-5 bg-white">
+
+              {/* ── Panel Adjustment dari Warehouse ─────────────────────── */}
+              {(() => {
+                const rawAdj: any[] = unavailableTargetOrder?.adjustment || []
+                if (rawAdj.length === 0) return null
+
+                // Aggregate per productId
+                const adjMap: Record<string, { qty: number; deliveries: string[] }> = {}
+                rawAdj.forEach((a: any) => {
+                  const pid = (a.productId?._id || a.productId)?.toString()
+                  if (!pid) return
+                  if (!adjMap[pid]) adjMap[pid] = { qty: 0, deliveries: [] }
+                  adjMap[pid].qty += a.qty
+                  if (a.deliveryNumber && !adjMap[pid].deliveries.includes(a.deliveryNumber)) {
+                    adjMap[pid].deliveries.push(a.deliveryNumber)
+                  }
+                })
+
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-3 bg-amber-100 border-b border-amber-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4 text-amber-600 flex-shrink-0">
+                        <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-xs font-bold text-amber-800 uppercase tracking-widest">Informasi Adjustment dari Warehouse</p>
+                    </div>
+                    <div className="flex flex-col divide-y divide-amber-100">
+                      {Object.entries(adjMap).map(([pid, info]) => {
+                        const prodName = getProductsFn.result?.find((p: any) => p._id?.toString() === pid)?.productName || 'Unknown Product'
+                        return (
+                          <div key={pid} className="flex items-center justify-between gap-3 px-4 py-3">
+                            <div className="flex flex-col min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{prodName}</p>
+                              <p className="text-xs text-amber-700 mt-0.5">
+                                Kurang: <span className="font-bold">{info.qty} unit</span>
+                                {info.deliveries.length > 0 && (
+                                  <span className="text-gray-400 ml-1">· {info.deliveries.join(', ')}</span>
+                                )}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUnavailablePid(pid)
+                                setUnavailableQty(info.qty)
+                              }}
+                              className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors shadow-sm"
+                            >
+                              Terapkan
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <p className="text-[10px] text-amber-600 px-4 py-2 border-t border-amber-200 bg-amber-50/50">
+                      Klik “Terapkan” untuk mengisi form secara otomatis dari data warehouse.
+                    </p>
+                  </div>
+                )
+              })()}
+              {/* ─────────────────────────────────────────────────────── */}
+
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-gray-700">Pilih Produk</label>
                 <div className="relative">
@@ -2329,6 +2463,92 @@ function OrderContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </dialog>
+
+        <dialog ref={adjustmentModalRef} className="modal text-black backdrop-blur-sm">
+          <div className="modal-box w-11/12 max-w-lg p-0 overflow-hidden rounded-2xl shadow-2xl flex flex-col">
+            <div className="bg-gradient-to-r from-amber-600 to-amber-700 px-6 py-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-white text-xl font-bold tracking-tight">Informasi Adjustment</h3>
+                <p className="text-amber-200 text-sm mt-0.5">Rincian kekurangan produk dari pengiriman gudang</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => adjustmentModalRef.current?.close()}
+                className="text-amber-200 hover:text-white transition-colors p-1 rounded-lg hover:bg-amber-800"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 bg-white">
+              <div className="flex flex-col gap-3">
+                {
+                  (() => {
+                    const rawAdj: any[] = adjustmentTargetOrder?.adjustment || []
+                    if (rawAdj.length === 0) return (
+                      <div className="text-center text-gray-500 py-4">Tidak ada data adjustment.</div>
+                    )
+
+                    const adjMap: Record<string, { qty: number; deliveries: string[] }> = {}
+                    rawAdj.forEach((a: any) => {
+                      const pid = (a.productId?._id || a.productId)?.toString()
+                      if (!pid) return
+                      if (!adjMap[pid]) adjMap[pid] = { qty: 0, deliveries: [] }
+                      adjMap[pid].qty += a.qty
+                      if (a.deliveryNumber && !adjMap[pid].deliveries.includes(a.deliveryNumber)) {
+                        adjMap[pid].deliveries.push(a.deliveryNumber)
+                      }
+                    })
+
+                    return Object.entries(adjMap).map(([pid, info]) => {
+                      const prodName = getProductsFn.result?.find((p: any) => p._id?.toString() === pid)?.productName || 'Unknown Product'
+                      return (
+                        <div key={pid} className="flex justify-between items-start gap-4 p-4 border border-amber-200 bg-amber-50 rounded-xl shadow-sm">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-gray-800">{prodName}</span>
+                            {info.deliveries.length > 0 && (
+                              <span className="text-xs text-amber-700 mt-1">
+                                Delivery: <span className="font-semibold">{info.deliveries.join(', ')}</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Kurang</span>
+                            <span className="text-sm font-bold bg-amber-600 text-white px-3 py-1 rounded-lg">
+                              {info.qty} Unit
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })
+                  })()
+                }
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => adjustmentModalRef.current?.close()}
+                  className="btn btn-ghost hover:bg-gray-100 text-gray-700 font-semibold"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    adjustmentModalRef.current?.close()
+                    openUnavailableModal(adjustmentTargetOrder)
+                  }}
+                  className="btn bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-md shadow-amber-200 border-none px-6"
+                >
+                  Mark Unavailable
+                </button>
+              </div>
+            </div>
           </div>
         </dialog>
       </>

@@ -73,9 +73,12 @@ export async function GET(request: NextRequest) {
         },
       },
       { $unwind: "$product" },
-      // Only products belonging to this company
+      // Only products belonging to this company AND using conversionType = "value"
       {
-        $match: { "product.productOf": company._id },
+        $match: {
+          "product.productOf": company._id,
+          "product.conversionType": "value",
+        },
       },
       {
         $project: {
@@ -85,6 +88,9 @@ export async function GET(request: NextRequest) {
           saleUnit: "$product.saleUnit",
           warehouseUnit: "$product.warehouseUnit",
           category: "$product.category",
+          conversionType: "$product.conversionType",
+          conversionValue: "$product.conversionValue",
+          conversionRatioX: "$product.conversionRatioX",
           available: 1,
         },
       },

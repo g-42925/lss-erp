@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Warehouse = { _id: string; name: string; code: string }
-type Product = { _id: string; productName: string; productId: string; available: number; warehouseUnit?: string; saleUnit?: string }
+type Product = { _id: string; productName: string; productId: string; available: number; warehouseUnit?: string; saleUnit?: string; conversionValue: number; conversionRatioX: string }
 type AdjustEntry = {
   _id: string
   date: string
@@ -138,7 +138,12 @@ export default function AdjustmentsPage() {
     setProducts([])
     fetch(`/api/web/adjust/products?id=${masterAccountId}&warehouseId=${wId}`)
       .then(r => r.json())
-      .then(d => { if (!d.error) setProducts(d.result ?? []) })
+      .then(d => {
+        if (!d.error) {
+          setProducts(d.result ?? [])
+          console.log(d.result)
+        }
+      })
       .finally(() => setLoadingProducts(false))
   }
 
@@ -577,18 +582,13 @@ export default function AdjustmentsPage() {
                     <option value="">— Pilih Produk —</option>
                     {products.map(p => (
                       <option key={p._id} value={p._id}>
-                        {p.productName} {p.productId ? `(${p.productId})` : ""} — Stok: {p.available}
+                        {p.productName} (Stok: {`${p.available / p.conversionValue} ${p.conversionRatioX}`})
                       </option>
                     ))}
                   </select>
                 )}
                 {products.length === 0 && !loadingProducts && (
-                  <p className="text-xs text-amber-600 mt-0.5">Tidak ada produk dengan stok tersedia di gudang ini.</p>
-                )}
-                {selectedProduct && (
-                  <p className="text-xs text-emerald-600 mt-0.5">
-                    Stok tersedia: <strong>{selectedProduct.available}</strong> {selectedProduct.warehouseUnit || selectedProduct.saleUnit || ""}
-                  </p>
+                  <p className="text-xs text-amber-600 mt-0.5">Tidak ada produk <strong>Conversion Value</strong> dengan stok tersedia di gudang ini.</p>
                 )}
               </div>
 

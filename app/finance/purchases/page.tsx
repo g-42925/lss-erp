@@ -134,7 +134,7 @@ export default function Purchases() {
       _id: filter._id,
       quantity: filter.quantity,
       estimatedPrice: filter.estimatedPrice,
-      product: filter.product.productName,
+      product: filter.product?.productName || 'Unknown Product',
       finalPrice: filter.finalPrice,
       currPayAmt: filter.payAmount,
       payAmount: filter.payAmount,
@@ -152,7 +152,7 @@ export default function Purchases() {
       _id: filter._id,
       quantity: filter.quantity,
       estimatedPrice: filter.estimatedPrice,
-      product: filter.product.productName,
+      product: filter.product?.productName || 'Unknown Product',
       status: filter.status,
       currentStatus: filter.status
     })
@@ -174,7 +174,7 @@ export default function Purchases() {
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
-  if (!isSuperAdmin) router.push('/dashboard')
+  // if (!isSuperAdmin) router.push('/dashboard')
 
 
   return (
@@ -232,8 +232,8 @@ export default function Purchases() {
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                <td>{p.product.productName}</td>
-                                <td>{p.quantity} ({p.product.conversionRatioX})</td>
+                                <td>{p.product?.productName || '-'}</td>
+                                <td>{p.quantity} ({p.product?.conversionRatioX || '-'})</td>
                                 <td>{p.estimatedPrice}</td>
                                 <td>
                                   {
@@ -248,12 +248,12 @@ export default function Purchases() {
                                   {
                                     p.status === "ordered" || p.status === "completed"
                                       ?
-                                      p.supplier.bussinessName
+                                      p.supplier?.bussinessName || "-"
                                       :
                                       "-"
                                   }
                                 </td>
-                                <td>{p.receivedQty} ({p.product.conversionRatioX})</td>
+                                <td>{p.receivedQty} ({p.product?.conversionRatioX || '-'})</td>
                                 <td>{p.status}</td>
                                 <td>
                                   <span>{p.approvedBy?.name ?? "-"} ({p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('id-ID') : "-"})</span>

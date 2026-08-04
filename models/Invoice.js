@@ -5,6 +5,14 @@ const invoiceSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: true
   },
+  serviceDiscount: {
+    discountType: {
+      type: String
+    },
+    discountValue: {
+      type: Number
+    }
+  },
   invoiceType: {
     type: String,
     required: true
@@ -15,11 +23,11 @@ const invoiceSchema = new mongoose.Schema({
   },
   salesOrderId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    required: false,
   },
   salesOrderNumber: {
     type: String,
-    required: true
+    required: false
   },
   payAmount: {
     type: Number,

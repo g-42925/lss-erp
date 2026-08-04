@@ -137,9 +137,9 @@ export default function Delivery() {
     setEditingItem({
       _id: item._id,
       productId: item.product._id,
-      batchNumber: item.batchNumber,
+      batchNumber: item.items?.batchNumber,
       deliveryNumber: item.deliveryNumber,
-      qty: item.qty,
+      qty: item.items?.qty,
       adjustment: currentAdj,
       productName: item.product.productName,
       approvalCode: ''
@@ -359,7 +359,7 @@ export default function Delivery() {
                                 <td><span className="badge badge-ghost">{p.location?.name}</span></td>
                                 <td className="font-semibold">{p.product?.productName}</td>
                                 <td>{Object.keys(p.customer || {}).length === 0 ? p.order?.customCustomer?.name : p.customer?.bussinessName}</td>
-                                <td><span className="font-bold">{p.qty}</span></td>
+                                <td><span className="font-bold">{p.items?.qty}</span></td>
                                 <td>
                                   <button disabled={!p.editable} onClick={() => edit(p)} className="btn btn-sm btn-primary">
                                     Edit
@@ -407,7 +407,7 @@ export default function Delivery() {
           <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: '6px', padding: '10px 14px' }}>
             <p style={{ fontSize: '11px', color: '#6b7280', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Items Shipped</p>
             <p style={{ fontSize: '22px', fontWeight: 'bold', color: '#1e3a8a', margin: '2px 0 0' }}>
-              {filteredDeliveries.reduce((sum, d) => sum + (Number(d.qty) || 0), 0).toLocaleString('id-ID')}
+              {filteredDeliveries.reduce((sum, d) => sum + (Number(d.items?.qty) || 0), 0).toLocaleString('id-ID')}
             </p>
           </div>
           <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: '6px', padding: '10px 14px' }}>
@@ -455,7 +455,7 @@ export default function Delivery() {
                 </td>
                 <td style={{ padding: '6px 8px', color: '#6b7280' }}>{p.location?.name || '-'}</td>
                 <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 'bold', color: '#111827' }}>
-                  {Number(p.qty).toLocaleString('id-ID')}
+                  {Number(p.items?.qty).toLocaleString('id-ID')}
                 </td>
                 <td style={{ padding: '6px 8px', color: '#374151' }}>{p.createdBy || '-'}</td>
               </tr>
@@ -465,7 +465,7 @@ export default function Delivery() {
             <tr style={{ backgroundColor: '#f3f4f6', borderTop: '2px solid #1e3a8a' }}>
               <td colSpan={6} style={{ padding: '7px 8px', fontWeight: 'bold', textAlign: 'right', color: '#1e3a8a' }}>Total Qty Shipped:</td>
               <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 'bold', color: '#1e3a8a', fontSize: '13px' }}>
-                {filteredDeliveries.reduce((sum, d) => sum + (Number(d.qty) || 0), 0).toLocaleString('id-ID')}
+                {filteredDeliveries.reduce((sum, d) => sum + (Number(d.items?.qty) || 0), 0).toLocaleString('id-ID')}
               </td>
               <td></td>
             </tr>

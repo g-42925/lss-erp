@@ -17,16 +17,20 @@ export default function Receiving() {
   const locationId = useAuth((state) => state.locationId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const [warehouses, setWarehouses] = useState<any[]>([])
+  const [assetCategories, setAssetCategories] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [purchases, setPurchases] = useState<any[]>([])
   const [disabled, setDisabled] = useState<boolean>(false)
   const [expiredFieldHide, setExpiredFieldHide] = useState<boolean>(false)
   const [purchaseType, setPurchaseType] = useState<string>("product")
+  const [activeProduct, setActiveProduct] = useState<any>(null)
   const userId = useAuth((state) => state.userId)
 
   const editRef = useRef<HTMLDialogElement>(null)
 
   const editPrForm = useForm()
+  const receivedQtyWatch = editPrForm.watch("receivedQty")
+  const saveAsWatch = editPrForm.watch("saveAs")
 
   const router = useRouter()
 
@@ -126,6 +130,7 @@ export default function Receiving() {
     }
 
     const remaining = filter.quantity - (filter.receivedQty || 0)
+    setActiveProduct(filter.product ?? null)
 
     editPrForm.reset({
       ...filter,
@@ -136,6 +141,8 @@ export default function Receiving() {
       receivedQty: '',
       max: remaining,
       purchaseOrderNumber: filter.purchaseOrderNumber,
+      saveAs: "inventory",
+      assetCategoryId: "",
       locationId: locationId,
     })
 
@@ -153,6 +160,8 @@ export default function Receiving() {
       const url3 = `/api/web/warehouse?id=${masterAccountId}&lId=${locationId}`
 
       const body = JSON.stringify({})
+
+      fetch('/api/web/asset-categories?id=' + masterAccountId).then(r => r.json()).then(j => setAssetCategories(j.result || []))
 
       fetchWarehousesFn.fn(url3, body, (result) => {
         setWarehouses(result)
@@ -211,6 +220,7 @@ export default function Receiving() {
                         <th>Product</th>
                         <th>Quantity</th>
                         <th>Received</th>
+                        <th>Conversion</th>
                         <th>...</th>
                       </tr>
                     </thead>
@@ -219,19 +229,33 @@ export default function Receiving() {
                         searchResult.length < 1
                           ?
                           purchases.filter((p) => p.status !== 'void').map((p, index) => {
+                            const pUnit = p.product?.conversionRatioX || p.product?.unit || ''
+                            const sUnit = p.product?.conversionRatioY || p.product?.saleUnit || pUnit
+                            const isCV = p.product?.conversionType === 'value' && p.product?.conversionValue
+
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
-                                <td>{p.product?.productName || p.product?.name || '-'}</td>
-                                <td>{p.quantity} ({p.product.conversionRatioX || p.product.unit})</td>
+                                <td className="font-medium">
+                                  {p.product?.productName || p.product?.name || '-'}
+                                </td>
+                                <td>{p.quantity} {pUnit}</td>
                                 <td>
-                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }}>
-                                    {p.receivedQty} ({p.product.conversionRatioX || p.product.unit})
+                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }} className="text-blue-700 hover:underline">
+                                    {p.receivedQty} {pUnit}
                                   </Link>
                                 </td>
+                                <td className="text-xs text-slate-500 whitespace-nowrap">
+                                  {isCV
+                                    ? <span className="bg-orange-50 text-orange-700 border border-orange-200 rounded px-1.5 py-0.5 font-mono">
+                                      1 {pUnit} = {p.product.conversionValue} {sUnit}
+                                    </span>
+                                    : <span className="text-slate-300">—</span>
+                                  }
+                                </td>
                                 <td>
-                                  <button disabled={p.status != 'ordered'} onClick={() => edit(p._id)}>
+                                  <button disabled={p.status != 'ordered'} onClick={() => edit(p._id)} className="disabled:opacity-30 hover:opacity-70 transition-opacity">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                       <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
                                     </svg>
@@ -242,19 +266,36 @@ export default function Receiving() {
                           })
                           :
                           searchResult.filter((p) => p.status !== 'void').map((p, index) => {
+                            const pUnit = p.product?.conversionRatioX || p.product?.unit || ''
+                            const sUnit = p.product?.conversionRatioY || p.product?.saleUnit || pUnit
+                            const isCV = p.product?.conversionType === 'value' && p.product?.conversionValue
+
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{p.purchaseOrderNumber}</td>
-                                <td>{p.product?.productName || p.product?.name || '-'}</td>
-                                <td>{p.quantity} ({p.product?.purchaseUnit || p.product?.unit || '-'})</td>
+                                <td className="font-medium">
+                                  {p.product?.productName || p.product?.name || '-'}
+                                  {isCV && (
+                                    <span className="ml-2 text-[9px] font-bold uppercase bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 whitespace-nowrap">Conv. Value</span>
+                                  )}
+                                </td>
+                                <td>{p.quantity} {pUnit}</td>
                                 <td>
-                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }}>
-                                    {p.receivedQty}
+                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }} className="text-blue-700 hover:underline">
+                                    {p.receivedQty} {pUnit}
                                   </Link>
                                 </td>
+                                <td className="text-xs text-slate-500 whitespace-nowrap">
+                                  {isCV
+                                    ? <span className="bg-orange-50 text-orange-700 border border-orange-200 rounded px-1.5 py-0.5 font-mono">
+                                      1 {pUnit} = {p.product.conversionValue} {sUnit}
+                                    </span>
+                                    : <span className="text-slate-300">—</span>
+                                  }
+                                </td>
                                 <td>
-                                  <button onClick={() => edit(p._id)}>
+                                  <button onClick={() => edit(p._id)} className="hover:opacity-70 transition-opacity">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
                                       <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
                                     </svg>
@@ -299,6 +340,30 @@ export default function Receiving() {
                   />
                 </fieldset>
               </div>
+
+              
+              {purchaseType === 'procurement' && (
+                <div className="flex flex-col gap-3 border p-4 rounded-md mt-2">
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Save As</legend>
+                    <select className="select w-full" {...editPrForm.register("saveAs")}>
+                      <option value="inventory">Inventory Item</option>
+                      <option value="asset">Company Asset</option>
+                    </select>
+                  </fieldset>
+                  {saveAsWatch === 'asset' && (
+                    <fieldset className="fieldset">
+                      <legend className="fieldset-legend">Asset Category</legend>
+                      <select className="select w-full" {...editPrForm.register("assetCategoryId", { required: saveAsWatch === 'asset' })}>
+                        <option value="">Select Category</option>
+                        {assetCategories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                      </select>
+                    </fieldset>
+                  )}
+                </div>
+              )}
+
+              {/* ── Conversion Value preview panel ── */}
               {
                 (purchaseType === 'product' && !expiredFieldHide)
                   ?

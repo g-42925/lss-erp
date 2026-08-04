@@ -12,7 +12,6 @@ import { useRouter } from 'next/navigation'
 export default function WarehouseNew() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const locationId = useAuth((state) => state.locationId)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
 
@@ -41,7 +40,7 @@ export default function WarehouseNew() {
     url: '/api/web/warehouse',
     method: 'POST',
     onError: (m) => {
-      alert(m)
+      console.log(m)
     }
   })
 
@@ -267,8 +266,8 @@ export default function WarehouseNew() {
                   <legend className="fieldset-legend font-semibold">Warehouse Code</legend>
                   <input
                     {...newWarehouseForm.register("code", { required: true })}
+                    defaultValue={`wh-${Date.now()}`}
                     type="text"
-                    placeholder="WH-001"
                     className="input input-bordered w-full"
                   />
                 </fieldset>
@@ -278,7 +277,7 @@ export default function WarehouseNew() {
                 <legend className="fieldset-legend font-semibold">Location</legend>
                 <select {...newWarehouseForm.register("locationId", { required: true })} className="select select-bordered w-full">
                   {locations.map((loc) => (
-                    <option disabled={loc._id != locationId} key={loc._id} value={loc._id}>{loc.name} ({loc.code})</option>
+                    <option disabled={loc._id != locationId} key={loc._id} value={loc._id}>{loc.name}</option>
                   ))}
                 </select>
                 <div className="fieldset-label text-xs mt-1">Assign this warehouse to a broad geographic location</div>
@@ -333,7 +332,7 @@ export default function WarehouseNew() {
 
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend font-semibold">Warehouse Code</legend>
-                  <input
+                  <input readOnly
                     {...editWarehouseForm.register("code", { required: true })}
                     type="text"
                     className="input input-bordered w-full"
@@ -345,7 +344,7 @@ export default function WarehouseNew() {
                 <legend className="fieldset-legend font-semibold">Location</legend>
                 <select {...editWarehouseForm.register("locationId", { required: true })} className="select select-bordered w-full">
                   {locations.map((loc) => (
-                    <option disabled={loc._id != locationId} key={loc._id} value={loc._id}>{loc.name} ({loc.code})</option>
+                    <option disabled={loc._id != locationId} key={loc._id} value={loc._id}>{loc.name}</option>
                   ))}
                 </select>
               </fieldset>

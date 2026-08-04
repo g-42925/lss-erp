@@ -32,10 +32,6 @@ export async function POST(request: NextRequest) {
     const contract = formData.get("contract") as File
     const taxes = formData.get("taxes") as string
 
-    const company = await Companie.findOne({
-      masterAccountId: id
-    })
-
     const customCustomer = {
       name: customerName,
       address: address,
@@ -43,87 +39,73 @@ export async function POST(request: NextRequest) {
 
     const rangeNum = range ? parseInt(range as string) : 0;
 
-    const obj: Record<string, unknown> = {
-      companyId: company._id,
-      customCustomer,
-      productId: productId.split("/")[0],
-      price,
-      contractType,
-      frequency,
-      qty,
-      range,
-      debt,
-      payTerm,
-      dueDate,
-      paymentMethod,
-      payAmount,
-      contract,
-      date: Date.now(),
-      productType: "service",
-      salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
-      taxes: JSON.parse(taxes)
-    }
-
-    if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
-      delete obj.payTerm
-    }
-
-    if (contractType === "Full" || contractType === "Trial") {
-      delete obj.paymentMethod
-      delete obj.debt
-      delete obj.payAmount
-      delete obj.payTerm
-    }
-
-    if (contractType === "One Time" && frequency === "Once") {
-      delete obj.dueDate
-    }
-
     if (contract) {
       const fileName = (formData.get("fileName") as string) ?? contract.name;
+      const r = await Companie.findOne({ masterAccountId: id })
+      const cdnUrl = `https://leryn-ljm-3.b-cdn.net/erp_${r.email.split('@')[0]}/contracts/${fileName}`;
       const buffer = Buffer.from(await contract.arrayBuffer());
-
       const s3 = new S3Client({
-        region: "us-east-1",
-        endpoint: "https://s3.filebase.com",
+        forcePathStyle: true,
+        region: process.env.S3_REGION!,
+        endpoint: process.env.S3_ENDPOINT!,
         credentials: {
-          accessKeyId: "B8F0135956143AE0685E",
-          secretAccessKey: "gKrbIZJnzLWBXZ0VGQvnlAumvngpBH35PsXN5zUp",
+          accessKeyId: process.env.S3_ACCESS_KEY!,
+          secretAccessKey: process.env.S3_SECRET_KEY!,
         },
       });
 
-      const putCommand = new PutObjectCommand({
-        Bucket: `leryn-storage`,
-        Key: `erp/${company.email.split("@")[0]}/upload/${fileName}`,
-        Body: buffer,
-        ContentType: contract.type,
-        Metadata: {
-          cid: "true",
-        },
-      });
-
-      await s3.send(putCommand)
-
-      const head = await s3.send(
-        new HeadObjectCommand({
-          Bucket: "leryn-storage",
-          Key: `erp/${company.email.split("@")[0]}/upload/${fileName}`,
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET!,
+          Key: `erp_${r.email.split("@")[0]}/contracts/${fileName}`,
+          Body: Buffer.from(buffer),
+          ContentType: contract.type,
         })
       );
 
-      const cid = head.Metadata?.cid;
 
-      const contractUrl = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
+      const obj: Record<string, unknown> = {
+        companyId: r._id,
+        customCustomer,
+        productId: productId.split("/")[0],
+        price,
+        contractType,
+        frequency,
+        qty,
+        range,
+        debt,
+        payTerm,
+        dueDate,
+        paymentMethod,
+        payAmount,
+        contract: cdnUrl,
+        date: Date.now(),
+        productType: "service",
+        salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+        taxes: taxes ? JSON.parse(taxes) : []
+      }
 
-      const result = await ServiceOrder.create({
-        ...obj,
-        contract: contractUrl
-      })
+      if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
+        delete obj.payTerm
+      }
+
+      if (contractType === "Full" || contractType === "Trial") {
+        delete obj.paymentMethod
+        delete obj.debt
+        delete obj.payAmount
+        delete obj.payTerm
+      }
+
+      if (contractType === "One Time" && frequency === "Once") {
+        delete obj.dueDate
+      }
+
+      const result = await ServiceOrder.create(obj)
 
       if (obj.contractType === "One Time" && obj.frequency === "Once") {
         await Invoice.create({
           invoiceNumber: "xxx",
-          companyId: company._id,
+          companyId: r._id,
           invoiceType: "service",
           salesOrderId: result._id,
           salesOrderNumber: result.salesOrderNumber,
@@ -145,7 +127,7 @@ export async function POST(request: NextRequest) {
       if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
         await Invoice.create({
           invoiceNumber: "xxx",
-          companyId: company._id,
+          companyId: r._id,
           invoiceType: "service",
           salesOrderId: result._id,
           salesOrderNumber: result.salesOrderNumber,
@@ -164,8 +146,6 @@ export async function POST(request: NextRequest) {
         })
       }
 
-
-
       return NextResponse.json({
         noResult: false,
         message: "success",
@@ -174,7 +154,89 @@ export async function POST(request: NextRequest) {
       })
     }
     else {
-      await ServiceOrder.create(obj)
+      const _r = await Companie.findOne({ masterAccountId: id })
+
+      const obj: Record<string, unknown> = {
+        companyId: _r._id,
+        customCustomer,
+        productId: productId.split("/")[0],
+        price,
+        contractType,
+        frequency,
+        qty,
+        range,
+        debt,
+        payTerm,
+        dueDate,
+        paymentMethod,
+        payAmount,
+        date: Date.now(),
+        productType: "service",
+        salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+        taxes: JSON.parse(taxes)
+      }
+
+      if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
+        delete obj.payTerm
+      }
+
+      if (contractType === "Full" || contractType === "Trial") {
+        delete obj.paymentMethod
+        delete obj.debt
+        delete obj.payAmount
+        delete obj.payTerm
+      }
+
+      if (contractType === "One Time" && frequency === "Once") {
+        delete obj.dueDate
+      }
+
+
+      const result = await ServiceOrder.create(obj)
+
+      if (obj.contractType === "One Time" && obj.frequency === "Once") {
+        await Invoice.create({
+          invoiceNumber: "xxx",
+          companyId: _r._id,
+          invoiceType: "service",
+          salesOrderId: result._id,
+          salesOrderNumber: result.salesOrderNumber,
+          payAmount: payAmount,
+          paid: false,
+          date: Date.now(),
+          paymentMethod: obj.paymentMethod,
+          status: "draft",
+          paymentHistory: [
+            {
+              amount: payAmount,
+              date: Date.now(),
+              method: obj.paymentMethod,
+            }
+          ]
+        })
+      }
+
+      if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
+        await Invoice.create({
+          invoiceNumber: "xxx",
+          companyId: _r._id,
+          invoiceType: "service",
+          salesOrderId: result._id,
+          salesOrderNumber: result.salesOrderNumber,
+          payAmount: payAmount,
+          paid: false,
+          date: Date.now(),
+          paymentMethod: obj.paymentMethod,
+          status: "draft",
+          paymentHistory: [
+            {
+              amount: payAmount,
+              date: Date.now(),
+              method: obj.paymentMethod,
+            }
+          ]
+        })
+      }
 
       return NextResponse.json({
         noResult: false,
@@ -227,7 +289,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const formData = await request.formData();
-    
+
     const _id = formData.get("_id") as string;
     const productId = formData.get("productId") as string;
     const contractType = formData.get("contractType") as string;
@@ -236,7 +298,7 @@ export async function PUT(request: NextRequest) {
     const frequency = formData.get("frequency") as string;
     const price = formData.get("price") as string;
     const qty = formData.get("qty") as string;
-    
+
     const contract = formData.get("contract") as File | null;
     const id = formData.get("id") as string;
 

@@ -304,7 +304,7 @@ function Requisition() {
       <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl text-black">Purchases</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+          <div className="flex flex-row gap-3 items-center">
             <span className="self-center">Manage purchase status</span>
             <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -312,9 +312,9 @@ function Requisition() {
               </svg>
               Add
             </button>
-          </div>
-          <div className="flex flex-row">
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <div className="flex flex-row">
+              <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            </div>
           </div>
           {
             getFn.loading

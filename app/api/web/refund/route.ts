@@ -78,11 +78,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: true, message: "Product not found" });
     }
 
-    // Get unit cost to store in refund for future restock 
-    // Wait, let's find the batch unit cost if needed, but for now we can approximate like Product stockValue calculation
-    // const qtyTotal = (product.remain || 0) + (product.allocated || 0); // we don't have this exactly here without aggregation
-    // If we want exact, maybe just pass unitCost from the front end or handle it gracefully.
-    // For now we will just allow it to proceed.
+    let calculatedUnitCost = 0;
+    const [_productAgg] = await Product.aggregate([
+      { $match: { _id: product._id } },
+      {
+        $lookup: {
+          from: "batches",
+          localField: "_id",
+          foreignField: "productId",
+          as: "batches",
+          pipeline: [{ $match: { $expr: { $and: [{ $eq: ["$status", "ACTIVE"] }] } } }]
+        }
+      },
+      { $unwind: { path: "$batches", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: "$_id",
+          doc: { $first: "$$ROOT" },
+          accumulative: { $sum: "$batches.accumulative" },
+          out: { $sum: "$batches.outQty" }
+        }
+      },
+      { $addFields: { remain: { $subtract: ["$accumulative", "$out"] } } },
+      {
+        $lookup: {
+          from: "allocations",
+          localField: "_id",
+          foreignField: "productId",
+          as: "allocations"
+        }
+      },
+      {
+        $addFields: {
+          allocated: { $sum: { $map: { input: "$allocations", as: "a", in: "$$a.qty" } } }
+        }
+      }
+    ]);
+
+    if (_productAgg) {
+      const totalQty = Math.max(1, (_productAgg.remain || 0) + (_productAgg.allocated || 0));
+      calculatedUnitCost = Math.round((_productAgg.doc?.stockValue || 0) / totalQty);
+    }
 
     const refund = await RefundLog.create({
       companyId: order.companyId,
@@ -93,6 +129,7 @@ export async function POST(request: NextRequest) {
       qty: params.qty,
       refundAmount: params.refundAmount,
       status: 'refunded',
+      unitCost: calculatedUnitCost,
       createdAt: new Date(),
       createdByUserId: params.creatorId ? new mongoose.Types.ObjectId(params.creatorId) : undefined,
       createdByName: params.creatorName || undefined,
@@ -164,6 +201,12 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    const product = await Product.findById(refund.productId);
+    let effectiveQty = qtyToProcess;
+    if (product && product.conversionType === 'value' && product.conversionValue) {
+      effectiveQty = qtyToProcess * product.conversionValue;
+    }
+
     if (params.action === 'exit') {
       if (!params.reason) {
         return NextResponse.json({ error: true, message: "Reason is required for exit" });
@@ -182,7 +225,7 @@ export async function PUT(request: NextRequest) {
         companyId: refund.companyId,
         warehouseId: refund.warehouseId,
         productId: refund.productId,
-        qty: qtyToProcess,
+        qty: effectiveQty,
         reason: params.reason,
         note: params.note || `Refund exit from Order: ${refund.salesOrderNumber}`,
         createdByUserId: params.userId ? new mongoose.Types.ObjectId(params.userId) : undefined,
@@ -194,7 +237,7 @@ export async function PUT(request: NextRequest) {
       await OutboundLog.create({
         warehouseId: refund.warehouseId,
         productId: refund.productId,
-        quantity: qtyToProcess,
+        quantity: effectiveQty,
         date: new Date()
       });
 
@@ -227,8 +270,8 @@ export async function PUT(request: NextRequest) {
     const batchData: Record<string, unknown> = {
       warehouseId: refund.warehouseId,
       productId: refund.productId,
-      qty: qtyToProcess,
-      accumulative: qtyToProcess,
+      qty: effectiveQty,
+      accumulative: effectiveQty,
       outQty: 0,
       reserved: 0,
       batchNumber: `RFND-${String(Date.now()).slice(-5)}`,
@@ -250,10 +293,16 @@ export async function PUT(request: NextRequest) {
     await InboundLog.create({
       warehouseId: refund.warehouseId,
       productId: refund.productId,
-      quantity: qtyToProcess,
+      quantity: effectiveQty,
       date: new Date(),
-    })
+    });
 
+    if (refund.unitCost && !isNaN(refund.unitCost)) {
+      await Product.findByIdAndUpdate(
+        refund.productId,
+        { $inc: { stockValue: Math.round(refund.unitCost * effectiveQty) } }
+      );
+    }
 
     // Update the refund log
     const newStored = alreadyStored + qtyToProcess;

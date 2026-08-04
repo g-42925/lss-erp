@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Warehouse = { _id: string; name: string; code: string }
-type Product = { _id: string; productName: string; productId: string; available: number; warehouseUnit?: string; saleUnit?: string }
+type Product = { _id: string; productName: string; productId: string; available: number; warehouseUnit?: string; saleUnit?: string; conversionRatioY: string }
 type ExitEntry = {
   _id: string
   date: string
@@ -352,7 +352,7 @@ export default function ExitItemsPage() {
             </span>
             <h1 className="text-3xl font-bold tracking-tight text-slate-800">Exit Items</h1>
           </div>
-          <p className="ml-13 text-sm text-slate-500">Pencatatan pengeluaran barang karena expired, rusak, atau lost dari gudang</p>
+          <p className="ml-13 text-sm text-slate-500">Pencatatan pengeluaran barang karena expired, rusak, atau lost</p>
         </div>
         <button
           id="btn-add-exit-item"
@@ -629,18 +629,13 @@ export default function ExitItemsPage() {
                     <option value="">— Pilih Produk —</option>
                     {products.map(p => (
                       <option key={p._id} value={p._id}>
-                        {p.productName} {p.productId ? `(${p.productId})` : ""} — Stok: {p.available}
+                        {p.productName} (Stok: {p.available} {p.conversionRatioY})
                       </option>
                     ))}
                   </select>
                 )}
                 {products.length === 0 && !loadingProducts && (
                   <p className="text-xs text-amber-600 mt-0.5">Tidak ada produk dengan stok tersedia di gudang ini.</p>
-                )}
-                {selectedProduct && (
-                  <p className="text-xs text-emerald-600 mt-0.5">
-                    Stok tersedia: <strong>{selectedProduct.available}</strong> {selectedProduct.warehouseUnit || selectedProduct.saleUnit || ""}
-                  </p>
                 )}
               </div>
 

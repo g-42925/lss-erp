@@ -2,7 +2,6 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
-
 import Product from '@/models/Product'
 import Companie from '@/models/Companie'
 
@@ -85,7 +84,8 @@ export async function PUT(request: NextRequest) {
         discountValue,
         conversionType,
         conversionValue,
-        packagingId
+        packagingId,
+        smallestUnitPrice: conversionValue && Number(conversionValue) > 0 ? Number(sellingPrice) / Number(conversionValue) : undefined
       }
 
       const product = await Product.findByIdAndUpdate(
@@ -117,7 +117,8 @@ export async function PUT(request: NextRequest) {
         discountValue,
         conversionType,
         conversionValue,
-        packagingId
+        packagingId,
+        smallestUnitPrice: conversionValue && Number(conversionValue) > 0 ? Number(sellingPrice) / Number(conversionValue) : undefined
       }
 
       const product = await Product.findByIdAndUpdate(
@@ -182,57 +183,57 @@ export async function POST(request: NextRequest) {
         const buffer = await file.arrayBuffer()
         const r = await Companie.findOne({ masterAccountId: formData.get("id") })
         const fileName = (formData.get("fileName") as string) ?? file.name;
-        const uploadUrl = `https://storage.bunnycdn.com/leryn-ljm-2/erp_products_${r.email.split('@')[0]}/${fileName}`;
-        const cdnUrl = `https://leryn-ljm-2.b-cdn.net/erp_products_${r.email.split('@')[0]}/${fileName}`;
+        const cdnUrl = `https://leryn-ljm-3.b-cdn.net/erp_${r.email.split('@')[0]}/product-images/${fileName}`;
 
-        const response = await fetch(uploadUrl, {
-          body: buffer,
-          method: "PUT",
-          headers: {
-            AccessKey: process.env.BUNNY_PASSWORD!,
-            "Content-Type": file.type
+        const s3 = new S3Client({
+          forcePathStyle: true,
+          region: process.env.S3_REGION!,
+          endpoint: process.env.S3_ENDPOINT!,
+          credentials: {
+            accessKeyId: process.env.S3_ACCESS_KEY!,
+            secretAccessKey: process.env.S3_SECRET_KEY!,
           },
         });
 
-        if (!response.ok) {
-          return NextResponse.json({
-            noResult: true,
-            message: "product image upload is failed",
-            result: null
-          });
-        }
-        else {
-          const newProduct = {
-            productName,
-            productId,
-            barcodeType,
-            category,
-            description,
-            conversionRatioX,
-            conversionRatioY,
-            applicableTax,
-            sellingPriceTaxType,
-            productType,
-            sellingPrice,
-            productOf: r._id,
-            image: cdnUrl,
-            haveExpiredDate,
-            discountType,
-            discountValue,
-            conversionType,
-            conversionValue,
-            packagingId
-          }
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: process.env.S3_BUCKET!,
+            Key: `erp_${r.email.split("@")[0]}/product-images/${fileName}`,
+            Body: Buffer.from(buffer),
+            ContentType: file.type,
+          })
+        );
 
-          await Product.create(newProduct)
-
-          return NextResponse.json({
-            noResult: false,
-            message: "product added successfully",
-            result: null
-          });
+        const newProduct = {
+          productName,
+          productId,
+          barcodeType,
+          category,
+          description,
+          conversionRatioX,
+          conversionRatioY,
+          applicableTax,
+          sellingPriceTaxType,
+          productType,
+          sellingPrice,
+          productOf: r._id,
+          image: cdnUrl,
+          haveExpiredDate,
+          discountType,
+          discountValue,
+          conversionType,
+          conversionValue,
+          packagingId,
+          smallestUnitPrice: conversionValue && Number(conversionValue) > 0 ? Number(sellingPrice) / Number(conversionValue) : undefined
         }
-      // === migration to bunny === //
+
+        await Product.create(newProduct)
+
+        return NextResponse.json({
+          noResult: false,
+          message: "product added successfully",
+          result: null
+        });
     }
   }
   catch (e: any) {

@@ -221,7 +221,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
     <>
       <div className="h-full p-6 h-full flex flex-col gap-3 text-black">
         <span className="text-2xl">Product Quotation <span className="text-sm leading-loose"></span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+        <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-row">
             <span className="self-center">All quotation</span>
             <button onClick={toggle} className="btn ml-auto">
@@ -602,7 +602,7 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop, tax
     <>
       <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Product Quotation (Edit)</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
+        <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
               <div className="flex flex-row items-center gap-3">
@@ -656,7 +656,7 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop, tax
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select multiple {...editQuotationForm.register('ppn')} className="select w-full h-24">
+                <select multiple {...editQuotationForm.register('ppn')} className="w-full h-28 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-white text-sm">
                   <option value="no">
                     no tax
                   </option>
@@ -861,7 +861,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList, taxes
     <>
       <div className="h-full p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl">Product Quotation</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row relative divide-x">
+        <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
               <div className="flex flex-row items-center gap-3">
@@ -915,7 +915,7 @@ function Stock({ customers, pop, product, getAvailableList, availableList, taxes
               </div>
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[85px]">Tax</label>
-                <select multiple {...newQuotationForm.register('ppn')} className="select w-full h-24">
+                <select multiple {...newQuotationForm.register('ppn')} className="w-full h-28 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-white text-sm">
                   <option value="no">
                     no tax
                   </option>

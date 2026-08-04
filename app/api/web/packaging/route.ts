@@ -36,11 +36,13 @@ export async function POST(request: NextRequest) {
       name: data.name,
       qty: data.qty,
       addedBy: company._id,
+      mainUnit: data.mainUnit
     });
 
     const savedPackaging = await newPackaging.save();
     return NextResponse.json({ noResult: false, message: '', result: savedPackaging, error: false }, { status: 201 });
-  } catch (error) {
+  }
+  catch (error) {
     return NextResponse.json({ noResult: true, message: 'Error saving packaging', error: error?.toString(), result: null }, { status: 500 });
   }
 }

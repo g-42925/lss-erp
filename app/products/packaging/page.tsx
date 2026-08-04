@@ -129,13 +129,14 @@ export default function Packaging() {
           }
         </div>
       </div>
-      
+
       <dialog id="my_modal_1" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
             <span className="text-2xl">Add Packaging</span>
             <form onSubmit={newPackagingForm.handleSubmit(submit)} className="relative flex flex-col gap-3">
               <input {...newPackagingForm.register("name", { required: true })} type="text" placeholder="Packaging name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
+              <input {...newPackagingForm.register("mainUnit", { required: true })} type="text" placeholder="Main unit" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               <input {...newPackagingForm.register("qty", { valueAsNumber: true, required: true })} type="number" placeholder="Quantity (e.g. 12)" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
               <div className="flex flex-row gap-3 mt-4 justify-end">

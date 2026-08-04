@@ -246,11 +246,11 @@ export default function Location() {
       <dialog id="my_modal_2" className="modal text-black">
         <div className="modal-box">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Role</span>
-            <form onSubmit={editLocationForm.handleSubmit(editSubmit)} className="h-64 relative flex flex-col gap-3">
+            <span className="text-2xl">Edit Location</span>
+            <form onSubmit={editLocationForm.handleSubmit(editSubmit)} className="h-32 relative flex flex-col gap-3">
               <input {...editLocationForm.register('_id')} type="hidden" placeholder="current role _id " className="w-full p-3 rounded-md border1 border-black" />
               <input {...editLocationForm.register("name")} type="text" placeholder="current location name" className="w-full p-3 rounded-md border-1 border-black" />
-              <input {...editLocationForm.register("code")} type="text" placeholder="current location code" className="w-full p-3 rounded-md border-1 border-black" />
+              <input {...editLocationForm.register("code")} type="hidden" placeholder="current location code" className="w-full p-3 rounded-md border-1 border-black" />
               {putFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
               <div className="modal-action">
                 <form method="dialog">

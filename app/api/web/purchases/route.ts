@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Measurement from '@/models/Measurement'
 import Product from '@/models/Product'
 import Batche from '@/models/Batche'
+import Asset from '@/models/Asset'
 import Purchase from '@/models/Purchase'
 import Companie from '@/models/Companie'
 import Supplier from "@/models/Supplier";
@@ -14,6 +15,7 @@ import Warehouse from '@/models/Warehouse'
 import Location from '@/models/Location'
 import InvItem from '@/models/InvItem'
 import InboundLog from '@/models/InboundLog'
+import Packaging from '@/models/Packaging'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -254,10 +256,9 @@ export async function PUT(request: NextRequest) {
           const product = await Product.findById(rest.productId)
 
           if (product && product.toObject().conversionRatioX != product.toObject().conversionRatioY) {
+            // Measurement config is no longer supplier-specific; search by productId only
             const config = await Measurement.findOne({
               productId: rest.productId,
-              supplierId: spl._id,
-              supplierOf: spl.supplierOf
             })
 
             if (config) {
@@ -265,56 +266,25 @@ export async function PUT(request: NextRequest) {
                 measurementId: config._id
               }
             }
-            else {
-              return NextResponse.json(
-                {
-                  noResult: true,
-                  message: "measurement config not found for this product on this supplier",
-                  result: null,
-                  error: true
-                }
-              )
+            // If no config found, proceed without it (no error)
+          }
+
+          await Purchase.findByIdAndUpdate(_id, {
+            ...rest,
+            status: 'ordered',
+            ...splMeasurementConfig
+          })
+
+          const result = { ...body, spl }
+
+          return NextResponse.json(
+            {
+              noResult: false,
+              message: "",
+              result: result,
+              error: false
             }
-
-            await Purchase.findByIdAndUpdate(_id, {
-              ...rest,
-              status: 'ordered',
-              ...splMeasurementConfig
-            })
-
-            const result = { ...body, spl }
-
-            return NextResponse.json(
-              {
-                noResult: false,
-                message: "",
-                result: result,
-                error: false
-              }
-            )
-          }
-          else {
-            await Purchase.findByIdAndUpdate(_id, {
-              ...rest,
-              status: 'ordered',
-              ...splMeasurementConfig
-            })
-
-            const result = { ...body }
-
-            return NextResponse.json(
-              {
-                noResult: false,
-                message: "",
-                result: result,
-                error: false
-              }
-            )
-          }
-
-
-
-
+          )
         }
         else {
           const vnd = await Vendor.findById(rest.vendorId)
@@ -356,13 +326,38 @@ export async function PUT(request: NextRequest) {
       const purchase = await Purchase.findById(_id)
 
       if (purchase.purchaseType === 'procurement') {
-        // For procurement, we don't update Product stock values or create Batches the same way.
+        const received = parseInt(rest.qty);
         await Purchase.findByIdAndUpdate(_id, {
-          $inc: { receivedQty: parseInt(rest.qty) }
+          $inc: { receivedQty: received }
         });
-        await InvItem.findByIdAndUpdate(purchase.productId, {
-          $inc: { currentStock: parseInt(rest.qty) }
-        });
+        
+        if (rest.saveAs === 'asset') {
+          // Create Asset records (1 per received qty since qty field was removed)
+          let companyId = purchase.companyId;
+
+          if (companyId) {
+             const invItem = await InvItem.findById(purchase.productId);
+             const assetPromises = [];
+             for (let i = 0; i < received; i++) {
+               assetPromises.push(Asset.create({
+                 name: invItem?.name || "Received Asset",
+                 category: rest.assetCategoryId,
+                 addedAt: new Date(),
+                 condition: "good",
+                 status: "active",
+                 desc: "Received from PO: " + purchase.purchaseOrderNumber,
+                 companyId: companyId
+               }));
+             }
+             await Promise.all(assetPromises);
+          }
+        } else {
+          // Save as inventory
+          await InvItem.findByIdAndUpdate(purchase.productId, {
+            $inc: { currentStock: received }
+          });
+        }
+        
         return NextResponse.json({
           noResult: false,
           message: "",
@@ -424,50 +419,65 @@ export async function PUT(request: NextRequest) {
 
       }
       else {
+        // ─── No Measurement config: handle conversionType "value" or packaging ───
         const product = await Product.findById(purchase.productId)
-        const warehouse = await Warehouse.findById(rest.warehouseId)
+      const warehouse = await Warehouse.findById(rest.warehouseId)
 
-        if (product.toObject().hasOwnProperty('prevUnitCost')) {
-          await Product.findByIdAndUpdate(
-            product._id, {
-            stockValue: product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty)),
-          }
-          )
+      if (product.toObject().hasOwnProperty('prevUnitCost')) {
+        await Product.findByIdAndUpdate(
+          product._id, {
+          stockValue: product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty)),
         }
-        else {
-          await Product.findByIdAndUpdate(
-            product._id, {
-            stockValue: (purchase.finalPrice / purchase.quantity) * parseInt(rest.qty),
-          }
-          )
+        )
+      }
+      else {
+        await Product.findByIdAndUpdate(
+          product._id, {
+          stockValue: (purchase.finalPrice / purchase.quantity) * parseInt(rest.qty),
         }
+        )
+      }
 
-        let resolvedLocationId = warehouse?.locationId || rest.locationId;
-        if (!resolvedLocationId) {
-          const defaultLoc = await Location.findOne();
-          resolvedLocationId = defaultLoc?._id;
+      let resolvedLocationId = warehouse?.locationId || rest.locationId;
+      if (!resolvedLocationId) {
+        const defaultLoc = await Location.findOne();
+        resolvedLocationId = defaultLoc?._id;
+      }
+
+      // Determine accumulative qty based on conversionType
+      let accumulativeQty = parseInt(rest.qty)
+
+      if (product.conversionType === 'value' && product.conversionValue) {
+        // conversionValue: 1 unit of conversionRatioX = conversionValue units of conversionRatioY
+        accumulativeQty = product.conversionValue * parseInt(rest.qty)
+      } else if (product.packagingId) {
+        // Packaging: 1 pack = packaging.qty units
+        const packaging = await Packaging.findById(product.packagingId)
+        if (packaging && packaging.qty) {
+          accumulativeQty = packaging.qty * parseInt(rest.qty)
         }
+      }
 
-        const batchCreated = await Batche.create({
-          ...rest,
-          status: 'ACTIVE',
-          batchNumber: `B-${String(Date.now()).slice(-5)}`,
-          accumulative: rest.qty,
-          reserved: 0,
-          locationId: resolvedLocationId,
-          createdAt: new Date()
-        }) as any
+      const batchCreated = await Batche.create({
+        ...rest,
+        status: 'ACTIVE',
+        batchNumber: `B-${String(Date.now()).slice(-5)}`,
+        accumulative: accumulativeQty,
+        reserved: 0,
+        locationId: resolvedLocationId,
+        createdAt: new Date()
+      }) as any
 
-        console.log(rest)
+      console.log(rest)
 
-        await InboundLog.create({
-          warehouseId: rest.warehouseId,
-          productId: purchase.productId,
-          date: new Date(),
-          quantity: rest.qty,
-          sourceId: batchCreated._id,
-          sourceType: 'PURCHASE'
-        })
+      await InboundLog.create({
+        warehouseId: rest.warehouseId,
+        productId: purchase.productId,
+        date: new Date(),
+        quantity: accumulativeQty,
+        sourceId: batchCreated._id,
+        sourceType: 'PURCHASE'
+      })
 
         console.log(rest)
       }

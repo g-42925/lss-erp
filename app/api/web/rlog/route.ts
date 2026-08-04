@@ -166,16 +166,26 @@ export async function PUT(request: NextRequest) {
       const purchase = await Purchase.findOne({ purchaseOrderNumber: batch.purchaseOrderNumber, productId: batch.productId });
       if (purchase) {
         if (purchase.measurementId) {
+          // Prioritas 1: gunakan config Measurement (ratio dari supplier)
           const Measurement = (await import("@/models/Measurement")).default;
           const config = await Measurement.findById(purchase.measurementId);
           if (config) ratio = config.ratio;
+        }
+
+        const product = await Product.findById(purchase.productId);
+
+        if (ratio === 1 && product?.packagingId) {
+          // Prioritas 2: jika tidak ada measurementId, cek packagingId produk
+          // packaging.qty = berapa unit (ratioY) per satu kemasan (ratioX)
+          const Packaging = (await import("@/models/Packaging")).default;
+          const packaging = await Packaging.findById(product.packagingId);
+          if (packaging?.qty) ratio = packaging.qty;
         }
 
         await Purchase.findByIdAndUpdate(purchase._id, {
           $inc: { receivedQty: diff }
         });
 
-        const product = await Product.findById(purchase.productId);
         if (product && product.stockValue !== undefined) {
           const unitCost = purchase.finalPrice / purchase.quantity;
           const valChange = unitCost * diff;

@@ -139,70 +139,31 @@ export default function Invoices() {
   }
 
   function countDiscount(invoice: any) {
-    if (invoice) {
-      const { sellingPrice } = invoice?.product
-      const { cart, discountType, discountValue, total, taxValue } = invoice.order
+    if (!invoice) return 0
+    const { cart, discountType, discountValue } = invoice.order
 
-      const subTotals = cart.map((c: any) => {
-        const product = products.find(p => p._id === c.productId)
-        return product.sellingPrice * c.qty
-      })
+    // Use the stored subTotal from cart (already adjusted for unavailable items)
+    const adjustedSubtotal = cart.reduce((sum: number, c: any) => sum + (c.subTotal || 0), 0)
 
-      const _total = subTotals.reduce((sum: number, current: number) => {
-        return sum + current;
-      }, 0);
-
-      if (discountType === "percent") {
-        const r1 = (sellingPrice * cart[0].qty) * (discountValue / 100)
-        const r2 = _total * (discountValue / 100)
-        return cart.length > 1 ? r2 : r1
-      }
-
-      if (discountType === "fixed") {
-        const r1 = (sellingPrice * cart[0].qty) - discountValue
-        const r2 = _total - discountValue
-        return cart.length > 1 ? r2 : r1
-      }
+    if (discountType === "percent") {
+      return adjustedSubtotal * (discountValue / 100)
     }
-    else {
-      return 0
+    if (discountType === "fixed") {
+      return discountValue || 0
     }
+    return 0
   }
 
   function countTotal(invoice: any) {
-    if (invoice) {
-      const { sellingPrice } = invoice.product
-      const { cart, discountType, discountValue, total, taxValue } = invoice.order
-
-      const subTotals = cart.map((c: any) => {
-        const product = products.find(p => p._id === c.productId)
-        return product.sellingPrice * c.qty
-      })
-
-      const _total = subTotals.reduce((sum: number, current: number) => {
-        return sum + current;
-      }, 0);
-
-
-      if (discountType === "percent") {
-        const r1 = (sellingPrice * cart[0].qty) * (discountValue / 100)
-        const r2 = (total - taxValue) + (_total * (discountValue / 100))
-
-        return cart.length > 1 ? r2 : r1
-      }
-
-      if (discountType === "fixed") {
-        const r1 = (sellingPrice * cart[0].qty) - discountValue
-        const r2 = _total - discountValue
-
-        return cart.length > 1 ? r2 : r1
-      }
-    }
+    if (!invoice) return 0
+    // Use the corrected total stored on the Order document (updated during activateInvoice)
+    return invoice.order?.total ?? 0
   }
 
   function whatTax(taxName: string) {
-    const [{ value }] = getTaxesFn.result?.filter((t: any) => t.name === taxName)
-    return `${value}%`
+    const taxes = getTaxesFn.result?.filter((t: any) => t.name === taxName) ?? []
+    if (!taxes.length) return ''
+    return `${taxes[0].value}%`
   }
 
 
@@ -235,69 +196,23 @@ export default function Invoices() {
           @page {
             margin: 10mm;
             size: A4;
+            /* Suppress browser-native header/footer (URL, date, page number) */
+            margin-top: 0;
+            margin-bottom: 0;
           }
-
-          body * {
-            visibility: hidden;
-          }
-
-          .print-area, .print-area * {
-            visibility: visible;
-          }
-
-          .print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100% !important;
-            height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            display: block !important;
-            overflow: visible !important;
-          }
-
-          .modal-box {
-            max-width: 100% !important;
-            width: 100% !important;
-            border: none !important;
-            box-shadow: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            height: auto !important;
-          }
-
-          thead {
-            display: table-header-group !important;
-          }
-
-          tbody {
-            display: table-row-group !important;
-          }
-
-          tfoot {
-            display: table-footer-group !important;
-          }
-
+          thead { display: table-header-group !important; }
+          tbody { display: table-row-group !important; }
+          tfoot { display: table-footer-group !important; }
           tr, .invoice-header, .bank-accounts-section {
             page-break-inside: avoid !important;
             page-break-after: auto;
           }
-
           table {
             width: 100%;
             border-collapse: collapse;
             page-break-inside: auto;
           }
-
-          .print-hidden, .modal-action {
-            display: none !important;
-          }
-
-          .page-break {
-            page-break-after: always;
-          }
+          .page-break { page-break-after: always; }
         }
       `}
       </style>
@@ -476,7 +391,7 @@ export default function Invoices() {
         </form>
       </dialog>
 
-      <dialog ref={invoiceModalRef} className="print-area modal h-full print:block print:opacity-100 print:pointer-events-auto print:visible">
+      <dialog ref={invoiceModalRef} className="modal h-full print:hidden">
         <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:block print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
           <div className="flex justify-between items-start border-b pb-4 print:border-b-2 print:border-gray-200">
             <div className="flex flex-row gap-3 items-center w-full invoice-header">
@@ -533,7 +448,7 @@ export default function Invoices() {
                       <tbody className="border-gray-200">
                         {chunk.map((cartItem: any, idx: number) => {
                           const index = chunkIdx * 5 + idx + 1;
-                          const matchedProduct = products.find(p => p._id === cartItem.productId);
+                          const matchedProduct = products.find(p => p._id?.toString() === cartItem.productId?.toString());
                           return (
                             <tr key={idx}>
                               <td className="py-[5px] text-sm text-gray-800">{index}</td>
@@ -565,8 +480,8 @@ export default function Invoices() {
                     <td className="py-[5px] text-sm text-gray-800">1</td>
                     <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.product?.productName}</td>
                     <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.product?.sellingPrice)?.toLocaleString('id-ID')}</td>
-                    <td className="py-[5px] text-sm text-gray-800 text-right">{`${selectedInvoice?.order?.cart[0].qty - selectedInvoice?.unavailableList[0]?.qty} ${selectedInvoice?.product?.conversionRatioY}`}</td>
-                    <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice - (selectedInvoice?.unavailableList[0]?.qty * selectedInvoice?.product?.sellingPrice)).toLocaleString('id-ID')}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">{`${selectedInvoice?.order?.cart[0]?.qty} ${selectedInvoice?.product?.conversionRatioY}`}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</td>
                   </tr>
                 </tbody>
               </table>
@@ -590,7 +505,7 @@ export default function Invoices() {
                 <div className="flex flex-row">
                   <span className="text-gray-700 text-sm">Subtotal</span>
                   {selectedInvoice?.order?.cart?.length === 1 ? (
-                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice) - (selectedInvoice?.unavailableList[0].qty * selectedInvoice?.product?.sellingPrice)).toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</span>
                   ) : (
                     <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)) - (999)).toLocaleString('id-ID')}</span>
                   )}
@@ -616,7 +531,7 @@ export default function Invoices() {
                 </div>
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Total</span>
-                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.total - selectedInvoice?.unavailable)?.toLocaleString('id-ID')}</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>
@@ -633,6 +548,145 @@ export default function Invoices() {
           </div>
         </div >
       </dialog >
+
+      {/* ========== PRINT-ONLY INVOICE AREA ========== */}
+      {/* Rendered as a regular div so browsers include it in print (dialog top-layer is excluded) */}
+      <div id="invoice-print-area" className="hidden print:block bg-white text-black p-8">
+        {selectedInvoice && (
+          <>
+            {/* Header */}
+            <div className="flex flex-row gap-3 items-start border-b-2 border-gray-200 pb-4 mb-6 invoice-header">
+              {getCompaniesFn.result?.[0]?.logo && (
+                <Image
+                  src={getCompaniesFn.result[0].logo}
+                  className="object-contain"
+                  alt="Logo"
+                  width={65}
+                  height={65}
+                />
+              )}
+              <div>
+                <p className="text-2xl text-gray-500 font-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
+                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
+                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+              </div>
+              <div className="ml-12 flex flex-col">
+                <span className="text-2xl font-bold">Invoice</span>
+                <span className="text-sm text-gray-500">No: {selectedInvoice?.invoiceNumber}</span>
+                <span className="text-sm text-gray-500">Date: {selectedInvoice?.date ? new Date(selectedInvoice.date).toLocaleDateString('id-ID') : ''}</span>
+                <span className="text-sm text-gray-500">Termin: {selectedInvoice?.order?.payTerm ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : '-'}</span>
+              </div>
+              <div className="ml-auto flex flex-col">
+                <span className="text-sm text-gray-500">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.name : selectedInvoice?.order?.customer?.bussinessName}</span>
+                <span className="text-sm text-gray-500">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.address : selectedInvoice?.order?.customer?.address}</span>
+              </div>
+            </div>
+
+            {/* Product table */}
+            {selectedInvoice?.variousItem && selectedInvoice?.order?.cart?.length > 1 ? (
+              (() => {
+                const itemChunks = (selectedInvoice.order.cart as any[]).reduce((acc: any[][], curr: any, idx: number) => {
+                  const chunkIdx = Math.floor(idx / 5);
+                  if (!acc[chunkIdx]) acc[chunkIdx] = [];
+                  acc[chunkIdx].push(curr);
+                  return acc;
+                }, []);
+                return itemChunks.map((chunk, chunkIdx) => (
+                  <div key={chunkIdx} className={chunkIdx < itemChunks.length - 1 ? 'page-break' : ''}>
+                    <table className="w-full text-left table-fixed">
+                      <thead>
+                        <tr className="border-b-2 border-gray-200">
+                          <th className="py-2 text-sm text-gray-600 uppercase">No</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
+                          <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {chunk.map((cartItem: any, idx: number) => {
+                          const index = chunkIdx * 5 + idx + 1;
+                          const mp = products.find((p: any) => p._id?.toString() === cartItem.productId?.toString());
+                          return (
+                            <tr key={idx}>
+                              <td className="py-[5px] text-sm text-gray-800">{index}</td>
+                              <td className="py-[5px] text-sm text-gray-800">{mp?.productName}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right">{Number(mp?.sellingPrice)?.toLocaleString('id-ID')}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right">{`${cartItem.qty} ${mp?.conversionRatioY}`}</td>
+                              <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(cartItem.qty * (mp?.sellingPrice || 0))?.toLocaleString('id-ID')}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ));
+              })()
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b-2 border-gray-200">
+                    <th className="py-2 text-sm text-gray-600 uppercase">No</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
+                    <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-[5px] text-sm text-gray-800">1</td>
+                    <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.product?.productName}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.product?.sellingPrice)?.toLocaleString('id-ID')}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">{`${selectedInvoice?.order?.cart[0]?.qty} ${selectedInvoice?.product?.conversionRatioY}`}</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+
+            {/* Totals + Bank accounts */}
+            <div className="flex flex-row mt-6">
+              <div className="w-1/2 flex flex-col justify-center bank-accounts-section">
+                {bankAccounts && bankAccounts.length > 0 && bankAccounts.map((acc: any, idx: number) => (
+                  <div key={idx} className="py-1">
+                    <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} ({acc.accountName})</span>
+                  </div>
+                ))}
+              </div>
+              <div className="w-1/2 flex flex-col border-b border-gray-200 py-2">
+                <div className="flex flex-row">
+                  <span className="text-gray-700 text-sm">Subtotal</span>
+                  {selectedInvoice?.order?.cart?.length === 1 ? (
+                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</span>
+                  ) : (
+                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart?.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)) - 999).toLocaleString('id-ID')}</span>
+                  )}
+                </div>
+                <div className="flex flex-row">
+                  <span className="text-gray-700 text-sm">Discount</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(countDiscount(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                </div>
+                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0 && selectedInvoice.order.taxes.map((t: any, idx: number) => (
+                  <div key={idx} className="flex flex-row">
+                    <span className="text-gray-700 text-sm">{t.taxName}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{`${Number(selectedInvoice?.order?.taxValue)?.toLocaleString('id-ID')} (${whatTax(t.taxName)})`}</span>
+                  </div>
+                ))}
+                <div className="flex flex-row font-bold">
+                  <span className="text-gray-700 text-sm">Refund credit</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.refundCredit)?.toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex flex-row font-bold">
+                  <span className="text-gray-700 text-sm">Total</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </>
   )
 }

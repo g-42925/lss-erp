@@ -40,7 +40,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
       <input id="my-drawer-1" type="checkbox" className="drawer-toggle" />
 
       <div className="drawer-content flex flex-col h-screen overflow-hidden print:w-full print:h-auto">
-        <div className="w-full navbar bg-gray-800 text-white lg:hidden shrink-0 z-[60]">
+        <div className="w-full navbar bg-gray-800 text-white lg:hidden shrink-0 z-[60] print:hidden">
           <div className="flex-none">
             <label htmlFor="my-drawer-1" aria-label="open sidebar" className="btn btn-square btn-ghost">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-6 h-6 stroke-current">
@@ -90,6 +90,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/customers">Customers</SidebarItem>
                 <SidebarItem href="/vendor">Vendor</SidebarItem>
+                <SidebarItem href="/suppliers">Suppliers</SidebarItem>
               </ul>
             </details>
           </li>
@@ -101,7 +102,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/products/catalog">Catalog</SidebarItem>
                 <SidebarItem href="/products/add/good">New</SidebarItem>
-                <SidebarItem href="/products/packaging">Packaging</SidebarItem>
+                <SidebarItem href="/products/packaging">UoM</SidebarItem>
               </ul>
             </details>
           </li>
@@ -113,7 +114,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/inventory/exit">Exit</SidebarItem>
                 <SidebarItem href="/warehouse/adjust">Adjust</SidebarItem>
-                <SidebarItem href="/warehouse/refund">Refund</SidebarItem>
                 <SidebarItem href="/warehouse/availability">Stock</SidebarItem>
                 <SidebarItem href="/warehouse/movement">Shipping</SidebarItem>
                 <SidebarItem href="/warehouse/log">Shipping Log</SidebarItem>
@@ -151,7 +151,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             <details>
               <summary>Sales</summary>
               <ul>
-                <SidebarItem href="/sales/quotations">Quotation</SidebarItem>
                 <SidebarItem href="/sales/order">Order</SidebarItem>
                 <SidebarItem href="/sales/refund">Refund Log</SidebarItem>
                 <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
@@ -194,6 +193,16 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <summary>Payroll</summary>
               <ul>
                 <SidebarItem href="/payroll">Payroll</SidebarItem>
+              </ul>
+            </details>
+          </li>
+
+          {/* Asset Management */}
+          <li>
+            <details>
+              <summary>Asset</summary>
+              <ul>
+                <SidebarItem href="/assets">Asset Perusahaan</SidebarItem>
               </ul>
             </details>
           </li>
