@@ -132,8 +132,8 @@ function AddContent() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Edit product</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Edit product</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x relative">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
             {

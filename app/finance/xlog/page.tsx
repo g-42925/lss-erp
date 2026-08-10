@@ -38,9 +38,9 @@ export default function Log() {
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Log</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+        <span className="page-title">Log</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -50,7 +50,7 @@ export default function Log() {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getFn.loading
@@ -66,6 +66,7 @@ export default function Log() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -104,6 +105,7 @@ export default function Log() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">

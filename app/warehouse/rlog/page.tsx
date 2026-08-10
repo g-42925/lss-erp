@@ -99,10 +99,10 @@ function RlogContent() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Receiving Log</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Receiving Log</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -112,7 +112,7 @@ function RlogContent() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search product or PO..." className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search product or PO..." className="toolbar-search" />
           </div>
           {
             fetchBatchesFn.loading
@@ -128,6 +128,7 @@ function RlogContent() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center w-full">
                     <thead>
                       <tr>
@@ -170,13 +171,14 @@ function RlogContent() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
 
       <dialog id="edit_log_modal" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <h3 className="font-bold text-lg mb-4">Edit Receiving Log</h3>
           <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="flex flex-col gap-3">
             <fieldset className="fieldset">

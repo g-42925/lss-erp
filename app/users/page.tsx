@@ -215,9 +215,9 @@ export default function Users() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3">
         <span className="text-2xl text-black">Users <span className="text-sm leading-loose">Manage users</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row ">
             <span className="self-center text-black">All users</span>
             <button onClick={() => modalRef.current?.showModal()} className="ml-auto">
@@ -243,6 +243,7 @@ export default function Users() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-black">
                     <thead className="text-black">
                       <tr>
@@ -305,14 +306,15 @@ export default function Users() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box bg-white text-black h-120">
+        <div className="modal-box w-11/12 max-w-2xl bg-white text-black">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit User</span>
+            <span className="page-title">Edit User</span>
             <form onSubmit={editForm.handleSubmit(handleEdit)} className="h-72 relative">
               <input {...editForm.register("_id")} type="hidden" placeholder="_id" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...editForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
@@ -346,7 +348,7 @@ export default function Users() {
                     Cancel
                   </button>
                 </form>
-                <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+                <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                   Edit
                 </button>
               </div>
@@ -358,7 +360,7 @@ export default function Users() {
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box bg-white text-black">
           <div className="flex flex-col gap-3 ">
-            <span className="text-2xl">Add User</span>
+            <span className="page-title">Add User</span>
             <form onSubmit={newUserForm.handleSubmit(submit)} className="h-110 relative">
               <input {...newUserForm.register("name")} type="text" placeholder="name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newUserForm.register("email")} type="text" placeholder="email" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
@@ -390,7 +392,7 @@ export default function Users() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>

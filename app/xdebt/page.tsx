@@ -172,10 +172,10 @@ export default function XDebt() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Debts</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Debts</span>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All your debt</span>
             <button disabled onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -184,7 +184,7 @@ export default function XDebt() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -194,7 +194,7 @@ export default function XDebt() {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getFn.loading
@@ -210,6 +210,7 @@ export default function XDebt() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table">
                     <thead>
                       <tr>
@@ -271,6 +272,7 @@ export default function XDebt() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
@@ -282,7 +284,7 @@ export default function XDebt() {
           </button>
         </div>
         <dialog id="pay_modal" ref={payRef} className="modal text-black">
-          <div className="modal-box">
+          <div className="modal-box w-11/12 max-w-2xl">
             <h3 className="font-bold text-lg">Add Payment</h3>
             <form onSubmit={payForm.handleSubmit(paySubmit)} className="flex flex-col gap-3 mt-4">
               <fieldset className="fieldset">
@@ -320,7 +322,7 @@ export default function XDebt() {
         </dialog>
 
         <dialog id="logs_modal" ref={logsRef} className="modal text-black">
-          <div className="modal-box">
+          <div className="modal-box w-11/12 max-w-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Payment Logs</h3>
               <button className="btn btn-sm btn-circle" onClick={() => logsRef.current?.close()}>✕</button>
@@ -330,6 +332,7 @@ export default function XDebt() {
             ) : logs.length === 0 ? (
               <p>No payment logs found.</p>
             ) : (
+              <div className="overflow-x-auto w-full">
               <table className="table">
                 <thead>
                   <tr>
@@ -368,12 +371,13 @@ export default function XDebt() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </dialog>
 
         <dialog id="edit_log_modal" ref={editLogRef} className="modal text-black">
-          <div className="modal-box">
+          <div className="modal-box w-11/12 max-w-2xl">
             <h3 className="font-bold text-lg">Edit Payment Log</h3>
             <form onSubmit={editLogForm.handleSubmit(editLogSubmit)} className="flex flex-col gap-3 mt-4">
               <fieldset className="fieldset">

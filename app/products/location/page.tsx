@@ -163,9 +163,9 @@ export default function Location() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Location <span className="text-sm leading-loose">Manage location</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Location <span className="text-sm leading-loose">Manage location</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <span className="self-center">All location</span>
             <button onClick={addLocation} className="ml-auto">
@@ -191,6 +191,7 @@ export default function Location() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table">
                     <thead className="text-black">
                       <tr>
@@ -239,14 +240,15 @@ export default function Location() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Location</span>
+            <span className="page-title">Edit Location</span>
             <form onSubmit={editLocationForm.handleSubmit(editSubmit)} className="h-32 relative flex flex-col gap-3">
               <input {...editLocationForm.register('_id')} type="hidden" placeholder="current role _id " className="w-full p-3 rounded-md border1 border-black" />
               <input {...editLocationForm.register("name")} type="text" placeholder="current location name" className="w-full p-3 rounded-md border-1 border-black" />
@@ -259,7 +261,7 @@ export default function Location() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>
@@ -269,7 +271,7 @@ export default function Location() {
       <dialog id="my_modal_1" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Location</span>
+            <span className="page-title">Add Location</span>
             <form onSubmit={newLocationForm.handleSubmit(submit)} className="h-32 relative flex flex-col gap-3">
               <input {...newLocationForm.register("name")} type="text" placeholder="new location name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
@@ -280,7 +282,7 @@ export default function Location() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>

@@ -163,9 +163,9 @@ export default function List() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Products <span className="text-sm leading-loose">Manage product</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Products <span className="text-sm leading-loose">Manage product</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <span className="self-center">All product</span>
             <button disabled onClick={() => {
@@ -192,6 +192,7 @@ export default function List() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -255,15 +256,16 @@ export default function List() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Role</span>
-            <form onSubmit={editRoleForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col gap-3">
+            <span className="page-title">Edit Role</span>
+            <form onSubmit={editRoleForm.handleSubmit(editSubmit)} className="flex flex-col gap-3 pb-4">
               <input {...editRoleForm.register('_id')} type="hidden" placeholder="current role _id " className="w-full p-3 rounded-md border1 border-black" />
               <input {...editRoleForm.register("name")} type="text" placeholder="current role name" className="w-full p-3 rounded-md border-1 border-black" />
               <select {...editRoleForm.register("permission")} className="select w-full">
@@ -284,7 +286,7 @@ export default function List() {
                 </label>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>
@@ -292,10 +294,10 @@ export default function List() {
         </div>
       </dialog>
       <dialog id="my_modal_1" className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Role</span>
-            <form onSubmit={newRoleForm.handleSubmit(submit)} className="h-96 relative flex flex-col gap-3">
+            <span className="page-title">Add Role</span>
+            <form onSubmit={newRoleForm.handleSubmit(submit)} className="flex flex-col gap-3 pb-4">
               <input {...newRoleForm.register("name")} type="text" placeholder="new role name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <select {...newRoleForm.register("permission")} className="select w-full">
                 <option value="readonly">Read only</option>
@@ -321,7 +323,7 @@ export default function List() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>

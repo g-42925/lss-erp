@@ -120,7 +120,7 @@ function XEditContent() {
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Edit Service</span>
+        <span className="page-title">Edit Service</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
             {

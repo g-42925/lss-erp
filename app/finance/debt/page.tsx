@@ -165,8 +165,8 @@ export default function Debt() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Debts</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Debts</span>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
           <div className="flex flex-row">
             <span className="self-center">All your debt</span>
@@ -192,6 +192,7 @@ export default function Debt() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table">
                     <thead>
                       <tr>
@@ -229,6 +230,7 @@ export default function Debt() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
@@ -242,7 +244,7 @@ export default function Debt() {
 
         {/* ─── Pay Modal ─── */}
         <dialog id="pay_modal" ref={payRef} className="modal text-black">
-          <div className="modal-box">
+          <div className="modal-box w-11/12 max-w-2xl">
             <h3 className="font-bold text-lg">Add Payment</h3>
             <form onSubmit={payForm.handleSubmit(paySubmit)} className="flex flex-col gap-3 mt-4">
               <fieldset className="fieldset">
@@ -294,6 +296,7 @@ export default function Debt() {
             ) : logs.length === 0 ? (
               <p>No payment logs found.</p>
             ) : (
+              <div className="overflow-x-auto w-full">
               <table className="table text-sm">
                 <thead>
                   <tr>
@@ -329,13 +332,14 @@ export default function Debt() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </dialog>
 
         {/* ─── Edit Log Modal (requires approval code) ─── */}
         <dialog id="edit_log_modal" ref={editLogRef} className="modal text-black">
-          <div className="modal-box">
+          <div className="modal-box w-11/12 max-w-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Edit Payment Log</h3>
               <button className="btn btn-sm btn-circle" onClick={() => editLogRef.current?.close()}>✕</button>

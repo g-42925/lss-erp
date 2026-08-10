@@ -211,7 +211,7 @@ function Roles() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3">
         <span className="text-2xl font-bold text-gray-800">Role Management</span>
         <div className="bg-white h-full border-t-4 border-blue-900 rounded-lg shadow-lg flex flex-col p-6 gap-6">
           <div className="flex flex-row items-center">
@@ -227,6 +227,7 @@ function Roles() {
             {getFn.loading ? (
               <div className="flex justify-center p-10"><span className="loading loading-spinner loading-lg text-primary"></span></div>
             ) : (
+              <div className="overflow-x-auto w-full">
               <table className="table table-zebra w-full text-black">
                 <thead className="bg-gray-50 text-black">
                   <tr>
@@ -250,6 +251,7 @@ function Roles() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

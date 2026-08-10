@@ -1130,7 +1130,7 @@ function OrderContent() {
   return directSellMode ? (
     <>
       <div className="h-full p-6 flex flex-col gap- text-black">
-        <span className="text-2xl">Product Order</span>
+        <span className="page-title">Product Order</span>
         <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
@@ -1302,10 +1302,10 @@ function OrderContent() {
     :
     (
       <>
-        <div className="h-full p-6 flex flex-col gap-3 text-black">
-          <span className="text-2xl">Product Order</span>
+        <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+          <span className="page-title">Product Order</span>
           <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-            <div className="flex flex-row">
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
               <span className="self-center">All order</span>
               <div className="flex flex-row gap-3 ml-auto">
                 <button disabled onClick={() => modalRef.current?.showModal()} className="btn m">
@@ -1322,7 +1322,7 @@ function OrderContent() {
                 </button>
               </div>
             </div>
-            <div className="flex flex-row">
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
               <div className="flex flex-row gap-2 items-center">
                 Show
                 <select className="select w-16">
@@ -1336,14 +1336,14 @@ function OrderContent() {
                 <input
                   type="date"
                   placeholder="Filter by Pickup Date"
-                  className="border-1 border-black rounded-md p-3"
+                  className="toolbar-search"
                   value={filterPickupDate}
                   onChange={(e) => setFilterPickupDate(e.target.value)}
                 />
                 <input
                   type="text"
                   placeholder="Filter Order Number"
-                  className="border-1 border-black rounded-md p-3"
+                  className="toolbar-search"
                   value={filterOrderNumber}
                   onChange={(e) => setFilterOrderNumber(e.target.value)}
                 />
@@ -1612,7 +1612,7 @@ function OrderContent() {
           </div>
         </dialog>
         <dialog ref={customRef} id="my_modal_2" className="modal h-full text-black">
-          <form onSubmit={newOrderForm.handleSubmit(addToCart)} className="h-120 modal-box flex flex-col gap-3">
+          <form onSubmit={newOrderForm.handleSubmit(addToCart)} className="modal-box w-11/12 max-w-2xl flex flex-col gap-3">
             <h3 className="text-lg font-bold">Preorder</h3>
             <div className="flex flex-row items-center gap-3">
               <label className="w-[85px]">Product</label>

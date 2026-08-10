@@ -220,9 +220,9 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
   return (
     <>
       <div className="h-full p-6 h-full flex flex-col gap-3 text-black">
-        <span className="text-2xl">Product Quotation <span className="text-sm leading-loose"></span></span>
+        <span className="page-title">Product Quotation <span className="text-sm leading-loose"></span></span>
         <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All quotation</span>
             <button onClick={toggle} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -231,7 +231,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -241,7 +241,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search Q-Number" className="ml-auto border-1 border-black rounded-md p-3" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="search" placeholder="Search Q-Number" className="toolbar-search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
           {
             getQuotationsFn.loading
@@ -257,6 +257,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -301,6 +302,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
@@ -390,7 +392,7 @@ function Q({ toggle, edit }: { toggle: () => void, edit: (x: X) => void }) {
         </form>
       </dialog>
       <dialog ref={orderRef} id="make_order_modal" className="modal h-full text-black">
-        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="h-96 w-[500px] modal-box flex flex-col gap-3">
+        <form onSubmit={makeOrderForm.handleSubmit(makeOrderSubmit)} className="modal-box w-11/12 max-w-2xl flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make Order for {selectedQNumber}</h3>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[100px]">Invoice Date</label>
@@ -600,8 +602,8 @@ function Edit({ customers, product, getAvailableList, availableList, x, pop, tax
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Product Quotation (Edit)</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Product Quotation (Edit)</span>
         <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
@@ -859,8 +861,8 @@ function Stock({ customers, pop, product, getAvailableList, availableList, taxes
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Product Quotation</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Product Quotation</span>
         <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">

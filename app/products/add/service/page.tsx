@@ -107,8 +107,8 @@ export default function Add() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Add new service</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Add new service</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
             {
@@ -231,7 +231,7 @@ export default function Add() {
       <dialog id="my_modal_category" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Category</span>
+            <span className="page-title">Add Category</span>
             <form onSubmit={newCategoryForm.handleSubmit(submitCategory)} className="relative flex flex-col gap-3">
               <input {...newCategoryForm.register("name")} type="text" placeholder="New category name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               <input value="xxx" {...newCategoryForm.register("categoryCode")} type="hidden" />

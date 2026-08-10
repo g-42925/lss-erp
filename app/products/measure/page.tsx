@@ -225,10 +225,10 @@ export default function Measure() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Measure <span className="text-sm leading-loose">Manage measurement</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Measure <span className="text-sm leading-loose">Manage measurement</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All measurement</span>
             <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -237,7 +237,7 @@ export default function Measure() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -247,7 +247,7 @@ export default function Measure() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getFn.loading
@@ -263,6 +263,7 @@ export default function Measure() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table">
                     <thead>
                       <tr>
@@ -319,6 +320,7 @@ export default function Measure() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
@@ -326,8 +328,8 @@ export default function Measure() {
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box ">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Measurement</span>
-            <form onSubmit={(e) => { void editForm.handleSubmit(editSubmit)(e); }} className="h-120 relative flex flex-col">
+            <span className="page-title">Edit Measurement</span>
+            <form onSubmit={(e) => { void editForm.handleSubmit(editSubmit)(e); }} className="flex flex-col gap-3 pb-4">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>
                 <select {...editForm.register("supplierId")} className="select w-full">
@@ -385,7 +387,7 @@ export default function Measure() {
                 <input {...editForm.register("ratio")} type="text" className="input w-full" />
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>
@@ -395,7 +397,7 @@ export default function Measure() {
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box h-140">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Measurement</span>
+            <span className="page-title">Add Measurement</span>
             <form onSubmit={(e) => { void newMeasureForm.handleSubmit(submit)(e); }} className="h-99 relative flex flex-col">
               <fieldset className="fieldset">
                 <div className="flex flex-row justify-between w-full h-8 items-center mb-2">
@@ -471,7 +473,7 @@ export default function Measure() {
       <dialog id="modal_add_supplier" ref={addSupplierModalRef} className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Supplier</span>
+            <span className="page-title">Add Supplier</span>
             <form onSubmit={(e) => { void newSupplierForm.handleSubmit(addSupplierSubmit)(e); }} className="flex flex-col gap-3">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend text-black">Business Name</legend>

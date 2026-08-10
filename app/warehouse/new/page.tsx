@@ -144,13 +144,13 @@ export default function WarehouseNew() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
         <div className="flex flex-row items-center gap-2">
           <span className="text-2xl font-bold">Warehouses</span>
           <span className="text-sm text-gray-500 mt-2">Manage your warehouse locations</span>
         </div>
 
-        <div className="bg-white h-full border-t-4 border-blue-900 shadow-xl flex flex-col p-6 gap-6 rounded-lg">
+        <div className="bg-white h-full border-t-4 border-blue-900 shadow-xl flex flex-col p-3 md:p-6 gap-3 md:gap-6 rounded-lg">
           <div className="flex flex-row items-center border-b pb-4">
             <span className="text-lg font-semibold text-gray-700">All Warehouses</span>
             <button onClick={() => modalRef.current?.showModal()} className="btn btn-primary ml-auto flex items-center gap-2">

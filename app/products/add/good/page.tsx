@@ -171,8 +171,8 @@ export default function Add() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Add new product</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Add new product</span>
         <div className="bg-white h-fit border-t-4 border-blue-900 flex flex-col lg:flex-row p-4 lg:p-6 gap-6 lg:divide-x relative">
           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-0 lg:p-6">
             {
@@ -400,7 +400,7 @@ export default function Add() {
       <dialog id="my_modal_category" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Category</span>
+            <span className="page-title">Add Category</span>
             <form onSubmit={newCategoryForm.handleSubmit(submitCategory)} className="relative flex flex-col gap-3">
               <input {...newCategoryForm.register("name")} type="text" placeholder="New category name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               <input value="xxx" {...newCategoryForm.register("categoryCode")} type="hidden" />
@@ -424,7 +424,7 @@ export default function Add() {
       <dialog id="my_modal_unit" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Unit</span>
+            <span className="page-title">Add Unit</span>
             <form onSubmit={newUnitForm.handleSubmit(submitUnit)} className="relative flex flex-col gap-3">
               <input {...newUnitForm.register("name")} type="text" placeholder="New unit name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               {addUnitFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}

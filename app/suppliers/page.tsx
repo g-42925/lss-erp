@@ -142,11 +142,11 @@ export default function Suppliers() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">
           Suppliers <span className="text-sm leading-loose">Manage your suppliers</span>
         </span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row gap-3">
             <span className="self-center">All Suppliers</span>
             <input
@@ -223,7 +223,7 @@ export default function Suppliers() {
       <dialog ref={editRef} className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Supplier</span>
+            <span className="page-title">Edit Supplier</span>
             <form
               onSubmit={(e) => { void editSupplierForm.handleSubmit(handleEdit)(e) }}
               className="flex flex-col gap-3 relative pb-14"
@@ -273,7 +273,7 @@ export default function Suppliers() {
       <dialog ref={modalRef} className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Supplier</span>
+            <span className="page-title">Add Supplier</span>
             <form
               onSubmit={(e) => { void newSupplierForm.handleSubmit(submit)(e) }}
               className="flex flex-col gap-3 relative pb-14"

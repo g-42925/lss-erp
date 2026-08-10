@@ -77,9 +77,9 @@ export default function Packaging() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Packaging <span className="text-sm leading-loose">Manage packaging types</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Packaging <span className="text-sm leading-loose">Manage packaging types</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <span className="self-center">All packagings</span>
             <button onClick={addPackaging} className="ml-auto">
@@ -105,6 +105,7 @@ export default function Packaging() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table">
                     <thead className="text-black">
                       <tr>
@@ -125,6 +126,7 @@ export default function Packaging() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
@@ -133,7 +135,7 @@ export default function Packaging() {
       <dialog id="my_modal_1" className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Packaging</span>
+            <span className="page-title">Add Packaging</span>
             <form onSubmit={newPackagingForm.handleSubmit(submit)} className="relative flex flex-col gap-3">
               <input {...newPackagingForm.register("name", { required: true })} type="text" placeholder="Packaging name" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />
               <input {...newPackagingForm.register("mainUnit", { required: true })} type="text" placeholder="Main unit" className="mb-3 w-full p-3 rounded-md border-1 border-black bg-white" />

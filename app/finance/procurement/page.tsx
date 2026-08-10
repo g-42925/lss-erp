@@ -172,10 +172,10 @@ export default function Procurement() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Procurement Approval</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Procurement Approval</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -185,7 +185,7 @@ export default function Procurement() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getFn.loading
@@ -201,6 +201,7 @@ export default function Procurement() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -291,15 +292,16 @@ export default function Procurement() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col ">
-            <span className="text-2xl">Edit purchase order</span>
-            <form onSubmit={(e) => { void editPrForm.handleSubmit(editSubmit)(e); }} className="h-96 relative flex flex-col">
+            <span className="page-title">Edit purchase order</span>
+            <form onSubmit={(e) => { void editPrForm.handleSubmit(editSubmit)(e); }} className="flex flex-col gap-3 pb-4">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Product</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
@@ -332,7 +334,7 @@ export default function Procurement() {
                   */
                 }
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Save
               </button>
             </form>
@@ -340,10 +342,10 @@ export default function Procurement() {
         </div>
       </dialog>
       <dialog id="my_modal_3" ref={_editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col ">
-            <span className="text-2xl">Edit purchase order</span>
-            <form onSubmit={(e) => { void editPrForm.handleSubmit(_editSubmit)(e); }} className="h-120 relative flex flex-col">
+            <span className="page-title">Edit purchase order</span>
+            <form onSubmit={(e) => { void editPrForm.handleSubmit(_editSubmit)(e); }} className="flex flex-col gap-3 pb-4">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Product</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
@@ -387,7 +389,7 @@ export default function Procurement() {
                   <></>
               }
               {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>

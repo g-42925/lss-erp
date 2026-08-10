@@ -147,7 +147,7 @@ export default function WorkOrders() {
     <>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden">
         <span className="text-2xl text-black">Work Orders <span className="text-sm leading-loose">Manage work orders</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row ">
             <span className="self-center text-black">All Work Orders</span>
             <div className="flex ml-auto gap-2">
@@ -175,6 +175,7 @@ export default function WorkOrders() {
             <div><p className="text-black">{getLogsFn.message}</p></div>
           ) : (
             <div>
+              <div className="overflow-x-auto w-full">
               <table className="table text-black w-full">
                 <thead>
                   <tr>
@@ -218,15 +219,16 @@ export default function WorkOrders() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       <dialog id="modal_add_wo" ref={modalRef} className="modal text-black print:hidden">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">{modalMode === 'edit' ? 'Edit Work Order' : 'Add Work Order'}</span>
+            <span className="page-title">{modalMode === 'edit' ? 'Edit Work Order' : 'Add Work Order'}</span>
             <form onSubmit={newForm.handleSubmit(submit)} className="h-150 relative">
               <input {...newForm.register("taskName", { required: true })} type="text" placeholder="Task Name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newForm.register("description", { required: true })} type="text" placeholder="Description" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
@@ -294,7 +296,7 @@ export default function WorkOrders() {
                   Cancel
                 </div>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 {modalMode === 'edit' ? 'Update' : 'Add'}
               </button>
             </form>

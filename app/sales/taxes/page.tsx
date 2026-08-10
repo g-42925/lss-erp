@@ -160,9 +160,9 @@ export default function Taxes() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Tax <span className="text-sm leading-loose">Manage your tax</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Tax <span className="text-sm leading-loose">Manage your tax</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -185,6 +185,7 @@ export default function Taxes() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table">
                     <thead>
                       <tr>
@@ -238,15 +239,16 @@ export default function Taxes() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Tax</span>
-            <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="h-96 relative flex flex-col gap-3">
+            <span className="page-title">Edit Tax</span>
+            <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="flex flex-col gap-3 pb-4">
               <input {...editTaxForm.register("name")} type="text" placeholder="tax name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...editTaxForm.register("value", { valueAsNumber: true })} type="number" step="0.01" placeholder="tax value in % (e.g. 11)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <div className="flex items-center gap-2 mb-3">
@@ -265,7 +267,7 @@ export default function Taxes() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>
@@ -273,10 +275,10 @@ export default function Taxes() {
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Tax</span>
-            <form onSubmit={newTaxForm.handleSubmit(submit)} className="h-96 relative flex flex-col gap-3">
+            <span className="page-title">Add Tax</span>
+            <form onSubmit={newTaxForm.handleSubmit(submit)} className="flex flex-col gap-3 pb-4">
               <input {...newTaxForm.register("name")} type="text" placeholder="tax name (e.g. PPN 11%)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <input {...newTaxForm.register("value", { valueAsNumber: true })} type="number" step="0.01" placeholder="tax value in % (e.g. 11)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
               <div className="flex items-center gap-2 mb-3">
@@ -295,7 +297,7 @@ export default function Taxes() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>

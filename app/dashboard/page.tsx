@@ -236,7 +236,7 @@ export default function DashboardPage() {
         {/* ── Error ─────────────────────────────────────────────────────────── */}
         {error && (
           <div className="rounded-2xl bg-rose-50 border border-rose-200 p-5 text-rose-700 flex items-center gap-3">
-            <span className="text-2xl">❌</span>
+            <span className="page-title">❌</span>
             <div>
               <p className="font-bold text-sm">Gagal memuat data</p>
               <p className="text-xs opacity-70">{error}</p>
@@ -541,7 +541,7 @@ export default function DashboardPage() {
                     href={l.href}
                     className={`rounded-2xl border p-4 flex flex-col items-center gap-2 text-center transition-all hover:-translate-y-0.5 hover:shadow-md duration-200 ${l.color}`}
                   >
-                    <span className="text-2xl">{l.icon}</span>
+                    <span className="page-title">{l.icon}</span>
                     <span className="text-xs font-bold leading-tight">{l.label}</span>
                   </Link>
                 ))}

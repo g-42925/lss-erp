@@ -6,7 +6,7 @@ export default function Inventory() {
   return (
     <Sidebar>
       <div className="h-full p-6 flex flex-col gap-3">
-        <span className="text-2xl">Inventory</span>
+        <span className="page-title">Inventory</span>
       </div>
     </Sidebar>
   )

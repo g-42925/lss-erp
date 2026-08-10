@@ -187,10 +187,10 @@ export default function Allocation() {
 
 	return (
 		<>
-			<div className="h-full p-6 flex flex-col gap-3 text-black">
-				<span className="text-2xl">Allocation <span className="text-sm leading-loose">Manage allocation</span></span>
-				<div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-					<div className="flex flex-row">
+			<div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+				<span className="page-title">Allocation <span className="text-sm leading-loose">Manage allocation</span></span>
+				<div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
+					<div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
 						<span className="self-center">All allocation</span>
 						<button onClick={() => {
 							const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
@@ -202,7 +202,7 @@ export default function Allocation() {
 							Add
 						</button>
 					</div>
-					<div className="flex flex-row">
+					<div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
 						<div className="flex flex-row gap-2 items-center">
 							Show
 							<select className="select w-16">
@@ -212,7 +212,7 @@ export default function Allocation() {
 							</select>
 							Entries
 						</div>
-						<input type="search" onKeyUp={(e) => search((e.target as HTMLInputElement).value)} placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+						<input type="search" onKeyUp={(e) => search((e.target as HTMLInputElement).value)} placeholder="Search" className="toolbar-search" />
 					</div>
 					{
 						logFn.loading
@@ -228,6 +228,7 @@ export default function Allocation() {
 								</div>
 								:
 								<div>
+         <div className="overflow-x-auto w-full">
 									<table className="table">
 										<thead>
 											<tr>
@@ -273,6 +274,7 @@ export default function Allocation() {
 											}
 										</tbody>
 									</table>
+         </div>
 								</div>
 					}
 				</div>

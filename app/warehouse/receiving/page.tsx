@@ -176,9 +176,9 @@ export default function Receiving() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Receiving</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Receiving</span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row flex-wrap gap-4 items-center">
             <div className="tabs tabs-boxed bg-gray-100">
               <a className={`tab ${purchaseType === 'product' ? 'tab-active bg-blue-900 text-white' : ''}`} onClick={() => setPurchaseType('product')}>Products</a>
@@ -194,8 +194,8 @@ export default function Receiving() {
               Entries
             </div>
             <div className="ml-auto flex flex-row gap-3">
-              <input defaultValue={new Date().toISOString().split("T")[0]} onChange={() => alert('ok')} type="date" className="border-1 border-black rounded-md p-3" />
-              <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="border-1 border-black rounded-md p-3" />
+              <input defaultValue={new Date().toISOString().split("T")[0]} onChange={() => alert('ok')} type="date" className="toolbar-search" />
+              <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search" />
             </div>
           </div>
           {
@@ -212,6 +212,7 @@ export default function Receiving() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -307,12 +308,13 @@ export default function Receiving() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-4">
             <span className="text-2xl font-semibold">Receive Items</span>
             <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="flex flex-col gap-3">

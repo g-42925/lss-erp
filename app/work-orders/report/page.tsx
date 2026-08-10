@@ -70,7 +70,7 @@ export default function WorkOrderReport() {
     <>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden">
         <span className="text-2xl text-black">Work Order Report <span className="text-sm leading-loose">Aggregated view and summaries</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row justify-between flex-wrap gap-4 items-end">
             <div className="flex gap-4 flex-wrap">
               <div className="flex flex-col">

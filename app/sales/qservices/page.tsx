@@ -265,9 +265,9 @@ export default function Quotation() {
   return (
     <>
       <div className="h-full p-6 h-full flex flex-col gap-3 text-black">
-        <span className="text-2xl">Services Quotations</span>
+        <span className="page-title">Services Quotations</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All service quotation</span>
             <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -276,7 +276,7 @@ export default function Quotation() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -286,7 +286,7 @@ export default function Quotation() {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getQuotationsFn.loading
@@ -302,6 +302,7 @@ export default function Quotation() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -378,6 +379,7 @@ export default function Quotation() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>

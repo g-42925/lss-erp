@@ -98,10 +98,10 @@ export default function XList() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Service Products <span className="text-sm leading-loose text-gray-500">Manage services</span></span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Service Products <span className="text-sm leading-loose text-gray-500">Manage services</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center font-semibold text-gray-700">All services</span>
             <Link href="/products/xadd" className="btn ml-auto bg-black text-white hover:bg-gray-800 border-none shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -110,7 +110,7 @@ export default function XList() {
               Add
             </Link>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center text-gray-600">
               Show
               <select className="select select-bordered w-20 bg-gray-50">
@@ -120,7 +120,7 @@ export default function XList() {
               </select>
               Entries
             </div>
-            <input onChange={(e) => { setQuery((e.target as HTMLInputElement).value); search((e.target as HTMLInputElement).value); }} value={query} type="search" placeholder="Search Services" className="ml-auto border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input onChange={(e) => { setQuery((e.target as HTMLInputElement).value); search((e.target as HTMLInputElement).value); }} value={query} type="search" placeholder="Search Services" className="toolbar-search" />
           </div>
           {
             getFn.loading

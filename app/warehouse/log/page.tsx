@@ -223,9 +223,9 @@ export default function Delivery() {
       `}</style>
 
       {/* ====== SCREEN UI ====== */}
-      <div className="h-full p-6 flex flex-col gap-3 text-black no-print">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black no-print">
         <span className="text-2xl font-bold">Warehouse Deliveries</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 shadow-xl flex flex-col p-6 gap-6 rounded-lg">
+        <div className="bg-white h-full border-t-4 border-blue-900 shadow-xl flex flex-col p-3 md:p-6 gap-3 md:gap-6 rounded-lg overflow-hidden">
 
           {/* ---- Header row ---- */}
           <div className="flex flex-row items-center border-b pb-4 gap-2 flex-wrap">
@@ -423,6 +423,7 @@ export default function Delivery() {
         </div>
 
         {/* Print Table */}
+        <div className="overflow-x-auto w-full">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr style={{ backgroundColor: '#1e3a8a', color: 'white' }}>
@@ -471,6 +472,7 @@ export default function Delivery() {
             </tr>
           </tfoot>
         </table>
+        </div>
 
         {/* Print Footer */}
         <div style={{ marginTop: '24px', paddingTop: '12px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#9ca3af' }}>
@@ -579,7 +581,7 @@ export default function Delivery() {
       </dialog>
 
       <dialog ref={editModalRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <form method="dialog">
             <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
           </form>

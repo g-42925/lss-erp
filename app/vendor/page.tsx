@@ -178,9 +178,9 @@ export default function Vendor() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Vendors <span className="text-sm leading-loose">Manage your vendor</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Vendors <span className="text-sm leading-loose">Manage your vendor</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <span className="self-center">All your Vendor</span>
             <button disabled={!isSuperAdmin && !pages['/vendors']?.includes('create')} onClick={() => modalRef.current?.show()} className="ml-auto">
@@ -273,7 +273,7 @@ export default function Vendor() {
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Vendor</span>
+            <span className="page-title">Edit Vendor</span>
             <form onSubmit={editVendorForm.handleSubmit(handleEdit)} className="h-90 flex flex-col gap-3 relative">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend text-black">Name</legend>
@@ -299,7 +299,7 @@ export default function Vendor() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>
@@ -307,9 +307,9 @@ export default function Vendor() {
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box bg-white h-120">
+        <div className="modal-box w-11/12 max-w-2xl bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Vendor</span>
+            <span className="page-title">Add Vendor</span>
             <form onSubmit={newVendorForm.handleSubmit(submit)} className="h-90 flex flex-col gap-3 relative">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend text-black">Bussiness Name</legend>
@@ -339,7 +339,7 @@ export default function Vendor() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>

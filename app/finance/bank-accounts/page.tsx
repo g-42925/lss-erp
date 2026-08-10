@@ -107,7 +107,7 @@ export default function BankAccounts() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
         {/* Header */}
         <div className="flex flex-col">
           <span className="text-2xl font-bold">Bank Accounts</span>
@@ -192,7 +192,7 @@ export default function BankAccounts() {
 
       {/* Add Modal */}
       <dialog id="modal-add-bank" ref={modalRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <h3 className="text-xl font-bold mb-4">Add Bank Account</h3>
           <form onSubmit={(e) => { void newForm.handleSubmit(submit)(e); }} className="flex flex-col gap-3">
             {/* Bank selector */}
@@ -278,7 +278,7 @@ export default function BankAccounts() {
 
       {/* Edit Modal */}
       <dialog id="modal-edit-bank" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <h3 className="text-xl font-bold mb-4">Edit Bank Account</h3>
           <form onSubmit={(e) => { void editForm.handleSubmit(editSubmit)(e); }} className="flex flex-col gap-3">
             <input type="hidden" {...editForm.register("_id")} />

@@ -109,7 +109,7 @@ export default function BankReport() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
         {/* Header */}
         <div className="flex flex-col">
           <span className="text-2xl font-bold">Bank Report</span>

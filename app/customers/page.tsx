@@ -172,9 +172,9 @@ export default function Customers() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Customers <span className="text-sm leading-loose">Manage your customers</span></span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Customers <span className="text-sm leading-loose">Manage your customers</span></span>
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <span className="self-center">All your Customers</span>
             <button disabled={!isSuperAdmin && !pages['customers']?.includes('create')} onClick={() => modalRef.current?.show()} className="ml-auto">
@@ -279,7 +279,7 @@ export default function Customers() {
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Customer</span>
+            <span className="page-title">Edit Customer</span>
             <form onSubmit={(e) => { void editCustomerForm.handleSubmit(handleEdit)(e); }} className="h-140 flex flex-col gap-3 relative">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset">
@@ -311,7 +311,7 @@ export default function Customers() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>
@@ -321,7 +321,7 @@ export default function Customers() {
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box bg-white">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Customer</span>
+            <span className="page-title">Add Customer</span>
             <form onSubmit={(e) => { void newCustomerForm.handleSubmit(submit)(e); }} className="h-140 flex flex-col gap-3 relative">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset">
@@ -353,7 +353,7 @@ export default function Customers() {
                   </button>
                 </form>
               </div>
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>

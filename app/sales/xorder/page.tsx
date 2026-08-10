@@ -445,7 +445,7 @@ function XOrderContent() {
   if (directMode) {
     return (
       <>
-        <div className="h-full p-6 flex flex-col gap-3 text-black">
+        <div className="h-full p-6 flex flex-col gap-3">
           <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative overflow-y-auto">
             <div className="flex flex-row items-center gap-3">
               <span className="text-lg font-bold">New Direct Service Order</span>
@@ -669,10 +669,10 @@ function XOrderContent() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl">Services Order</span>
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+        <span className="page-title">Services Order</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All order</span>
             <div className="flex flex-row gap-3 ml-auto">
               <button disabled onClick={() => modalRef.current?.showModal()} className="btn">
@@ -689,7 +689,7 @@ function XOrderContent() {
               </button>
             </div>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -699,7 +699,7 @@ function XOrderContent() {
               </select>
               Entries
             </div>
-            <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="toolbar-search" />
           </div>
           {
             getOrdersFn.loading
@@ -715,6 +715,7 @@ function XOrderContent() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -818,6 +819,7 @@ function XOrderContent() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-10 bottom-10">

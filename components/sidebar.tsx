@@ -9,10 +9,15 @@ const SidebarItem = ({ href, children }: { href: string, children: React.ReactNo
   const { canView } = usePermission()
   const pathname = usePathname()
 
+  function closeSidebar() {
+    const drawerToggle = document.getElementById('my-drawer-1') as HTMLInputElement | null
+    if (drawerToggle) drawerToggle.checked = false
+  }
+
   // if (!canView(href)) return null;
   return (
     <li>
-      <Link href={href} className={pathname === href ? "active" : ""}>
+      <Link href={href} className={pathname === href ? "active" : ""} onClick={closeSidebar}>
         {children}
       </Link>
     </li>

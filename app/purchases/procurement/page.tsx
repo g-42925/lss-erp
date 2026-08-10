@@ -312,10 +312,10 @@ function Procurement() {
 
   return (
     <>
-      <div className="h-full p-6 flex flex-col gap-3 text-black">
+      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl text-black">Procurement Requisition</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
-          <div className="flex flex-row">
+        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">Manage purchase status</span>
             <button onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -324,7 +324,7 @@ function Procurement() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -334,7 +334,7 @@ function Procurement() {
               </select>
               Entries
             </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getFn.loading
@@ -350,6 +350,7 @@ function Procurement() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -454,14 +455,15 @@ function Procurement() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
         </div>
       </div>
       <dialog id="my_modal_0" ref={_editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Edit Procurement Requisition</span>
+            <span className="page-title">Edit Procurement Requisition</span>
             <form onSubmit={editForm.handleSubmit(_editSubmit)} className="h-92 relative flex flex-col gap-3">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset flex-1">
@@ -486,7 +488,7 @@ function Procurement() {
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>
@@ -494,9 +496,9 @@ function Procurement() {
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="text-2xl">Add Procurement Requisition</span>
+            <span className="page-title">Add Procurement Requisition</span>
             <form onSubmit={newPrForm.handleSubmit(submit)} className="h-92 relative flex flex-col gap-3">
               <div className="flex flex-col gap-3">
                 <fieldset className="fieldset flex-1">
@@ -521,7 +523,7 @@ function Procurement() {
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Add
               </button>
             </form>
@@ -529,9 +531,9 @@ function Procurement() {
         </div>
       </dialog>
       <dialog id="my_modal_2" ref={orderRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col ">
-            <span className="text-2xl">Make purchase order</span>
+            <span className="page-title">Make purchase order</span>
             <form onSubmit={orderForm.handleSubmit(orderSubmit)} className="h-146 relative flex flex-col">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Item</legend>
@@ -570,7 +572,7 @@ function Procurement() {
                 </select>
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button disabled={disabled} type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button disabled={disabled} type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Make
               </button>
             </form>
@@ -578,10 +580,10 @@ function Procurement() {
         </div>
       </dialog>
       <dialog id="my_modal_3" ref={editRef} className="modal text-black">
-        <div className="modal-box">
+        <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col ">
-            <span className="text-2xl">Edit purchase order</span>
-            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="h-120 relative flex flex-col">
+            <span className="page-title">Edit purchase order</span>
+            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="flex flex-col gap-3 pb-4">
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Item</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
@@ -604,7 +606,7 @@ function Procurement() {
               </fieldset>
 
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="p-3 rounded-md absolute bottom-0 right-0 text-white bg-blue-900">
+              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
                 Edit
               </button>
             </form>

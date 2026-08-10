@@ -181,9 +181,9 @@ export default function Invoices() {
   return (
     <>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
-        <span className="text-2xl">Invoices</span>
+        <span className="page-title">Invoices</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All invoices</span>
             <button disabled onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
@@ -192,7 +192,7 @@ export default function Invoices() {
               Add
             </button>
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
               Show
               <select className="select w-16">
@@ -202,7 +202,7 @@ export default function Invoices() {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="ml-auto border-1 border-black rounded-md p-3" />
+            <input type="search" placeholder="Search" className="toolbar-search" />
           </div>
           {
             getInvoicesFn.loading
@@ -218,6 +218,7 @@ export default function Invoices() {
                 </div>
                 :
                 <div>
+                  <div className="overflow-x-auto w-full">
                   <table className="table text-center">
                     <thead>
                       <tr>
@@ -309,6 +310,7 @@ export default function Invoices() {
                       }
                     </tbody>
                   </table>
+                  </div>
                 </div>
           }
           <button className="bg-black text-white rounded-full p-3 absolute right-10 bottom-10">
