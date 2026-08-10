@@ -537,6 +537,18 @@ export default function Invoices() {
             </div>
           </div>
 
+          {/* Signature section */}
+          <div className="flex flex-row mt-8 gap-4">
+            <div className="flex flex-col items-center w-1/2">
+              <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+              <span className="text-sm text-gray-700">Dibuat Oleh</span>
+            </div>
+            <div className="flex flex-col items-center w-1/2">
+              <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+              <span className="text-sm text-gray-700">Hormat Kami</span>
+            </div>
+          </div>
+
           <div className="modal-action print:hidden">
             <button type="button" onClick={(e) => { e.preventDefault(); window.print(); }} className="btn bg-black text-white px-6 hover:bg-gray-800">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5">
@@ -682,6 +694,18 @@ export default function Invoices() {
                   <span className="text-gray-700 text-sm">Total</span>
                   <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Signature section */}
+            <div className="flex flex-row mt-10 gap-8">
+              <div className="flex flex-col items-center w-1/2">
+                <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+                <span className="text-sm text-gray-700">Dibuat Oleh</span>
+              </div>
+              <div className="flex flex-col items-center w-1/2">
+                <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+                <span className="text-sm text-gray-700">Hormat Kami</span>
               </div>
             </div>
           </>

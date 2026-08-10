@@ -438,6 +438,21 @@ export default function Invoices() {
                     )
                   }
                 </tr>
+                {/* Baris fiktif: memakan ruang di layar, tidak terlihat & tidak muncul saat print */}
+                {[
+                  { name: 'Layanan Konsultasi Teknis', price: '-', qty: 1 },
+                  { name: 'Biaya Administrasi Proyek', price: '-', qty: 1 },
+                  { name: 'Koordinasi Lapangan', price: '-', qty: 1 },
+                  { name: 'Pengawasan & Monitoring', price: '-', qty: 1 },
+                ].map((item, i) => (
+                  <tr key={`filler-${i}`} className="opacity-0 print:hidden select-none" aria-hidden="true">
+                    <td className="py-[5px] text-gray-800 text-sm">{i + 2}</td>
+                    <td className="py-[5px] text-gray-800 text-sm">{item.name}</td>
+                    <td className="py-[5px] text-gray-800 text-right text-sm">{item.price}</td>
+                    <td className="py-[5px] text-gray-800 text-right text-sm">{item.qty}</td>
+                    <td className="py-[5px] text-gray-800 text-right text-sm">{item.price}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -486,6 +501,18 @@ export default function Invoices() {
                   )
                 }
               </div>
+            </div>
+          </div>
+
+          {/* Signature section */}
+          <div className="flex flex-row mt-8 gap-4">
+            <div className="flex flex-col items-center w-1/2">
+              <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+              <span className="text-sm text-gray-700">Dibuat Oleh</span>
+            </div>
+            <div className="flex flex-col items-center w-1/2">
+              <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+              <span className="text-sm text-gray-700">Hormat Kami</span>
             </div>
           </div>
 
