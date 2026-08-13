@@ -319,7 +319,7 @@ export default function Customers() {
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box w-11/12 max-w-3xl bg-white">
+        <div className="modal-box w-11/12 max-w-4xl bg-white">
           <div className="flex flex-col gap-3">
             <span className="page-title">Add Customer</span>
             <form onSubmit={(e) => { void newCustomerForm.handleSubmit(submit)(e); }} className="flex flex-col gap-3">
