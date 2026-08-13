@@ -336,7 +336,7 @@ export default function Customers() {
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset">
+                <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
