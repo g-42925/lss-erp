@@ -277,85 +277,85 @@ export default function Customers() {
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box bg-white">
+        <div className="modal-box w-11/12 max-w-2xl bg-white">
           <div className="flex flex-col gap-3">
             <span className="page-title">Edit Customer</span>
-            <form onSubmit={(e) => { void editCustomerForm.handleSubmit(handleEdit)(e); }} className="h-140 flex flex-col gap-3 relative">
-              <div className="flex flex-col gap-3">
-                <fieldset className="fieldset">
+            <form onSubmit={(e) => { void editCustomerForm.handleSubmit(handleEdit)(e); }} className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Bussiness Name</legend>
-                  <input className="input w-full bg-white" {...editCustomerForm.register("bussinessName")} type="text" />
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("bussinessName")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset ">
+                <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Email</legend>
-                  <input className="input w-full bg-white" {...editCustomerForm.register("email")} type="text" />
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("email")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
-                  <input className="input w-full bg-white" {...editCustomerForm.register("taxNumber")} type="text" />
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Address</legend>
-                  <input className="input w-full bg-white" {...editCustomerForm.register("address")} type="text" />
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("address")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Mobile</legend>
-                  <input className="input w-full bg-white" {...editCustomerForm.register("mobile")} type="text" />
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
-              <div className="modal-action">
+              <div className="modal-action flex justify-end gap-3 mt-4 w-full">
                 <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
+                  <button className="btn rounded-md text-white bg-gray-400 border-none hover:bg-gray-500">
                     Cancel
                   </button>
                 </form>
+                <button type="submit" className="btn rounded-md text-white bg-blue-900 border-none hover:bg-blue-800">
+                  Edit
+                </button>
               </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Edit
-              </button>
             </form>
           </div>
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box bg-white">
+        <div className="modal-box w-11/12 max-w-2xl bg-white">
           <div className="flex flex-col gap-3">
             <span className="page-title">Add Customer</span>
-            <form onSubmit={(e) => { void newCustomerForm.handleSubmit(submit)(e); }} className="h-140 flex flex-col gap-3 relative">
-              <div className="flex flex-col gap-3">
-                <fieldset className="fieldset">
+            <form onSubmit={(e) => { void newCustomerForm.handleSubmit(submit)(e); }} className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Bussiness Name</legend>
-                  <input className="input w-full bg-white" {...newCustomerForm.register("bussinessName")} type="text bg-white border-1 border-black" />
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("bussinessName")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Email</legend>
-                  <input className="input w-full bg-white" {...newCustomerForm.register("email")} type="text bg-white border-1 border-black" />
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("email")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
-                  <input className="input w-full bg-white" {...newCustomerForm.register("taxNumber")} type="text bg-white border-1 border-black" />
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Address</legend>
-                  <input className="input w-full bg-white" {...newCustomerForm.register("address")} type="text bg-white border-1 border-black" />
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("address")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Mobile</legend>
-                  <input className="input w-full bg-white" {...newCustomerForm.register("mobile")} type="text bg-white border-1 border-black" />
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
-              <div className="modal-action">
+              <div className="modal-action flex justify-end gap-3 mt-4 w-full">
                 <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
+                  <button className="btn rounded-md text-white bg-gray-400 border-none hover:bg-gray-500">
                     Cancel
                   </button>
                 </form>
+                <button type="submit" className="btn rounded-md text-white bg-blue-900 border-none hover:bg-blue-800">
+                  Add
+                </button>
               </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Add
-              </button>
             </form>
           </div>
         </div>
