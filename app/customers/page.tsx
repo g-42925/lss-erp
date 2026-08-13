@@ -205,10 +205,10 @@ export default function Customers() {
                     <table className="table">
                       <thead className="text-black">
                         <tr>
-                          <th>Name</th>
+                          <th className="w-auto">Name</th>
                           <th>Email</th>
-                          <th>Phone</th>
                           <th>Address</th>
+                          <th>Phone</th>
                           <th>...</th>
                         </tr>
                       </thead>
@@ -217,11 +217,10 @@ export default function Customers() {
                           customers.map((c) => {
                             return (
                               <tr key={c._id}>
-                                <td>{c.bussinessName}</td>
-                                <td className="max-w-[10ch] truncate">{c.email} </td>
-
-                                <td className="max-w-[10ch] truncate">{c.address} </td>
-                                <td className="max-w-[10ch] truncate">{c.mobile} </td>
+                                <td className="w-auto">{c.bussinessName}</td>
+                                <td className="w-auto">{c.email} </td>
+                                <td className="max-w-[20ch] truncate">{c.address} </td>
+                                <td className="w-auto">{c.mobile} </td>
                                 <td>
                                   <button disabled={!isSuperAdmin && !pages['customers']?.includes('edit')} onClick={() => edit(c._id)}>
                                     <HugeiconsIcon
@@ -244,10 +243,9 @@ export default function Customers() {
                     <table className="table">
                       <thead>
                         <tr>
-                          <th>Name</th>
-                          <th>Address</th>
+                          <th className="w-auto">Name</th>
+                          <th className="w-auto">Address</th>
                           <th>Email</th>
-                          <th>Address</th>
                           <th>Mobile</th>
                           <th>...</th>
                         </tr>
@@ -257,8 +255,8 @@ export default function Customers() {
                           searchResult.map((c) => {
                             return (
                               <tr key={c._id}>
-                                <td>{c.bussinessName}</td>
-                                <td className="max-w-[10ch] truncate">{c.address} </td>
+                                <td className="w-auto">{c.bussinessName}</td>
+                                <td className="max-w[20ch] truncate">{c.address} </td>
                                 <td>{c.email} </td>
                                 <td>{c.mobile} </td>
                                 <td>
