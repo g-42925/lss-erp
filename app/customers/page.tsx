@@ -218,8 +218,9 @@ export default function Customers() {
                             return (
                               <tr key={c._id}>
                                 <td>{c.bussinessName}</td>
-                                <td className="max-w-[10ch] truncate">{c.address} </td>
                                 <td className="max-w-[10ch] truncate">{c.email} </td>
+
+                                <td className="max-w-[10ch] truncate">{c.address} </td>
                                 <td className="max-w-[10ch] truncate">{c.mobile} </td>
                                 <td>
                                   <button disabled={!isSuperAdmin && !pages['customers']?.includes('edit')} onClick={() => edit(c._id)}>
