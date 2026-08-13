@@ -291,16 +291,16 @@ export default function Customers() {
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("email")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">Mobile</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset">
+                <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("address")} type="text" />
-                </fieldset>
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-black">Mobile</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
+                  <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...editCustomerForm.register("address")} />
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
@@ -333,16 +333,16 @@ export default function Customers() {
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("email")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">Mobile</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset">
+                <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("address")} type="text" />
-                </fieldset>
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-black">Mobile</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
+                  <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...newCustomerForm.register("address")} />
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
