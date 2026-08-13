@@ -326,7 +326,7 @@ export default function Customers() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Bussiness Name</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("bussinessName")} type="text" />
+                  <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...newCustomerForm.register("bussinessName")} />
                 </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend text-black">Email</legend>
