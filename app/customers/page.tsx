@@ -208,6 +208,7 @@ export default function Customers() {
                           <th>Name</th>
                           <th>Email</th>
                           <th>Phone</th>
+                          <th>Address</th>
                           <th>...</th>
                         </tr>
                       </thead>
@@ -217,6 +218,7 @@ export default function Customers() {
                             return (
                               <tr key={c._id}>
                                 <td>{c.bussinessName}</td>
+                                <td className="max-w-[10ch] truncate">{c.address} </td>
                                 <td className="max-w-[10ch] truncate">{c.email} </td>
                                 <td className="max-w-[10ch] truncate">{c.mobile} </td>
                                 <td>
