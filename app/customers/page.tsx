@@ -277,7 +277,7 @@ export default function Customers() {
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box w-11/12 max-w-2xl bg-white">
+        <div className="modal-box w-11/12 max-w-4xl bg-white">
           <div className="flex flex-col gap-3">
             <span className="page-title">Edit Customer</span>
             <form onSubmit={(e) => { void editCustomerForm.handleSubmit(handleEdit)(e); }} className="flex flex-col gap-3">
