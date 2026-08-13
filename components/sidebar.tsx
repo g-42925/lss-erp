@@ -174,6 +174,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <SidebarItem href="/finance/debt">Debts</SidebarItem>
                 <SidebarItem href="/finance/receivable">Receivable</SidebarItem>
                 <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>
+                <SidebarItem href="/finance/bank-voucher">Bank Voucher</SidebarItem>
                 <li>
                   <details>
                     <summary>Accounting</summary>
