@@ -242,8 +242,8 @@ export default function Customers() {
                       <thead>
                         <tr>
                           <th>Name</th>
+                          <th>Address</th>
                           <th>Email</th>
-                          <th>Tax Number</th>
                           <th>Address</th>
                           <th>Mobile</th>
                           <th>...</th>
@@ -255,9 +255,8 @@ export default function Customers() {
                             return (
                               <tr key={c._id}>
                                 <td>{c.bussinessName}</td>
+                                <td className="max-w-[10ch] truncate">{c.address} </td>
                                 <td>{c.email} </td>
-                                <td>{c.taxNumber} </td>
-                                <td>{c.address} </td>
                                 <td>{c.mobile} </td>
                                 <td>
                                   <button disabled={!isSuperAdmin && !pages['customers']?.includes('edit')} onClick={() => edit(c._id)}>
@@ -294,7 +293,7 @@ export default function Customers() {
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset md:col-span-2">
+                <fieldset className="fieldset md:col-span-2 hidden">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
@@ -336,7 +335,7 @@ export default function Customers() {
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset md:col-span-2">
+                <fieldset className="fieldset md:col-span-2 hidden">
                   <legend className="fieldset-legend text-black">Tax Number</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
