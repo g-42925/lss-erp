@@ -294,8 +294,8 @@ export default function Customers() {
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-black">Tax Number</legend>
+                <fieldset className="fieldset w-full">
+                  <legend className="fieldset-legend text-black w-full">Tax Number</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("taxNumber")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset md:col-span-2">
