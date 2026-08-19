@@ -14,7 +14,8 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons'
 import { Delete01Icon } from '@hugeicons/core-free-icons';
 import { Edit03Icon } from '@hugeicons/core-free-icons';
-
+import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 import React, { Suspense } from "react";
 
 export default function Order() {
@@ -1307,31 +1308,6 @@ function OrderContent() {
           <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
             <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
               <span className="self-center">All order</span>
-              <div className="flex flex-row gap-3 ml-auto">
-                <button disabled onClick={() => modalRef.current?.showModal()} className="btn m">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Add
-                </button>
-                <button onClick={() => setDirectSellMode(true)} className="btn ml-auto">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Custom
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-              <div className="flex flex-row gap-2 items-center">
-                Show
-                <select className="select w-16">
-                  <option>20</option>
-                  <option>30</option>
-                  <option>40</option>
-                </select>
-                Entries
-              </div>
               <div className="ml-auto flex flex-row gap-2">
                 <input
                   type="date"
@@ -1347,7 +1323,22 @@ function OrderContent() {
                   value={filterOrderNumber}
                   onChange={(e) => setFilterOrderNumber(e.target.value)}
                 />
+                <button onClick={() => setDirectSellMode(true)} className="bg-black text-white p-3 rounded-full">
+                  <HugeiconsIcon
+                    icon={AddCircleHalfDotIcon}
+                    color="white"
+                    size={24}
+                  />
+                </button>
+                <button className="bg-black text-white rounded-full p-3">
+                  <Link href="/sales/xorder">
+                    <HugeiconsIcon icon={ArrowLeftRightIcon} color="white" size={24} />
+                  </Link>
+                </button>
               </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+
             </div>
             {
               getOrdersFn.loading
@@ -1530,15 +1521,7 @@ function OrderContent() {
                     </table>
                   </div>
             }
-            <button className="bg-black text-white rounded-full p-3 absolute right-10 bottom-10">
-              <Link href="/sales/xorder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                </svg>
-              </Link>
-            </button>
-
-            <button onClick={() => setOpenDialog(true)} className="bg-black p-3 text-white rounded-full absolute bottom-10 right-23">
+            <button onClick={() => setOpenDialog(true)} className="bg-black p-3 text-white rounded-full absolute bottom-10 right-10">
               <HugeiconsIcon icon={AddInvoiceIcon} />
             </button>
           </div>

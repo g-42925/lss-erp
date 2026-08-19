@@ -14,6 +14,7 @@ import { ContractsIcon } from '@hugeicons/core-free-icons'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 
 
 import React, { Suspense } from "react";
@@ -571,7 +572,7 @@ function XOrderContent() {
               </div>
 
               <div className={`flex flex-row items-center gap-3 ${(!hidden || isOneTimeMultiMonth) ? '' : 'hidden'}`}>
-                <label className="w-[110px] text-sm font-medium">termin</label>
+                <label className="w-[110px] text-sm font-medium">Termin</label>
                 <label className="input flex-1">
                   <input {...directOrderForm.register("dueDate")} type="number" placeholder="termin" />
                   <span className="badge badge-neutral badge-xs">Date</span>
@@ -673,9 +674,9 @@ function XOrderContent() {
 
   return (
     <>
-      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+      <div className="p-3 md:p-6 flex flex-col gap-3 text-black">
         <span className="page-title">Services Order</span>
-        <div className="bg-white h-fit border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+        <div className="min-h-screen bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All order</span>
             <div className="flex flex-row gap-3 ml-auto">
@@ -687,6 +688,16 @@ function XOrderContent() {
                   color="currentColor"
                   strokeWidth={1.5}
                 />
+              </button>
+              <button className="bg-black text-white rounded-full p-3">
+                <Link href="/sales/order">
+                  <HugeiconsIcon
+                    icon={ArrowLeftRightIcon}
+                    size={24}
+                    color="currentColor"
+                    strokeWidth={1.5}
+                  />
+                </Link>
               </button>
             </div>
           </div>
@@ -812,13 +823,6 @@ function XOrderContent() {
                   </div>
                 </div>
           }
-          <button className="bg-black text-white rounded-full p-3 absolute right-10 bottom-10">
-            <Link href="/sales/order">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-              </svg>
-            </Link>
-          </button>
         </div>
       </div >
       <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
