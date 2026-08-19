@@ -2,7 +2,6 @@
 import Invoice from '@/models/Invoice'
 import ServiceOrder from "@/models/ServiceOrder"
 import Companie from '@/models/Companie'
-
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
@@ -10,6 +9,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 
 export async function POST(request: NextRequest) {
+
+  function formatNumber(x: number) {
+    return String(x).padStart(4, '0');
+  }
 
   try {
     await connectToDatabase()
@@ -42,6 +45,7 @@ export async function POST(request: NextRequest) {
     if (contract) {
       const fileName = (formData.get("fileName") as string) ?? contract.name;
       const r = await Companie.findOne({ masterAccountId: id })
+
       const cdnUrl = `https://leryn-ljm-3.b-cdn.net/erp_${r.email.split('@')[0]}/contracts/${fileName}`;
       const buffer = Buffer.from(await contract.arrayBuffer());
       const s3 = new S3Client({
@@ -53,6 +57,15 @@ export async function POST(request: NextRequest) {
           secretAccessKey: process.env.S3_SECRET_KEY!,
         },
       });
+
+      const invoiceCount = await Invoice.countDocuments({
+        companyId: r._id,
+      })
+
+      const now = new Date();
+      const shortYear = String(now.getFullYear()).slice(-2);
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const invoiceNumber = `${r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
 
       await s3.send(
         new PutObjectCommand({
@@ -104,7 +117,7 @@ export async function POST(request: NextRequest) {
 
       if (obj.contractType === "One Time" && obj.frequency === "Once") {
         await Invoice.create({
-          invoiceNumber: "xxx",
+          invoiceNumber,
           companyId: r._id,
           invoiceType: "service",
           salesOrderId: result._id,
@@ -126,7 +139,7 @@ export async function POST(request: NextRequest) {
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
         await Invoice.create({
-          invoiceNumber: "xxx",
+          invoiceNumber,
           companyId: r._id,
           invoiceType: "service",
           salesOrderId: result._id,
@@ -195,8 +208,17 @@ export async function POST(request: NextRequest) {
       const result = await ServiceOrder.create(obj)
 
       if (obj.contractType === "One Time" && obj.frequency === "Once") {
+        const invoiceCount = await Invoice.countDocuments({
+          companyId: _r._id,
+        })
+
+        const now = new Date();
+        const shortYear = String(now.getFullYear()).slice(-2);
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const invoiceNumber = `${r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
+
         await Invoice.create({
-          invoiceNumber: "xxx",
+          invoiceNumber,
           companyId: _r._id,
           invoiceType: "service",
           salesOrderId: result._id,
@@ -217,8 +239,17 @@ export async function POST(request: NextRequest) {
       }
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
+        const invoiceCount = await Invoice.countDocuments({
+          companyId: _r._id,
+        })
+
+        const now = new Date();
+        const shortYear = String(now.getFullYear()).slice(-2);
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const invoiceNumber = `${r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
+
         await Invoice.create({
-          invoiceNumber: "xxx",
+          invoiceNumber,
           companyId: _r._id,
           invoiceType: "service",
           salesOrderId: result._id,
@@ -298,6 +329,7 @@ export async function PUT(request: NextRequest) {
     const frequency = formData.get("frequency") as string;
     const price = formData.get("price") as string;
     const qty = formData.get("qty") as string;
+    const billed = formData.get("billed") as string;
 
     const contract = formData.get("contract") as File | null;
     const id = formData.get("id") as string;
@@ -309,7 +341,8 @@ export async function PUT(request: NextRequest) {
       range: parseInt(range as string) || 1,
       frequency,
       price: parseFloat(price) || 0,
-      qty: parseInt(qty as string) || 1
+      qty: parseInt(qty as string) || 1,
+      billed: billed
     };
 
     if (contract) {
@@ -360,7 +393,8 @@ export async function PUT(request: NextRequest) {
       result: {},
       error: false
     });
-  } catch (e: unknown) {
+  }
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
       message: (e as Error).message,

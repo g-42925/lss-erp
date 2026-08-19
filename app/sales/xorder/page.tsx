@@ -10,9 +10,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState, useMemo } from 'react'
-import { HugeiconsIcon } from '@hugeicons/react';
 import { ContractsIcon } from '@hugeicons/core-free-icons'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PencilIcon } from '@hugeicons/core-free-icons';
+
 
 import React, { Suspense } from "react";
 
@@ -286,7 +288,8 @@ function XOrderContent() {
       contractType: order.contractType,
       frequency: order.frequency,
       qty: order.qty,
-      range: order.range
+      range: order.range,
+      billed: order.billed,
     })
     editRef.current?.showModal()
   }
@@ -303,8 +306,9 @@ function XOrderContent() {
     formData.append("price", data.price)
     formData.append("contractType", data.contractType)
     formData.append("frequency", data.frequency)
-    formData.append("qty", data.qty || "1")
-    formData.append("range", data.range || "1")
+    formData.append("qty", data.qty)
+    formData.append("range", data.range)
+    formData.append("billed", data.billed)
 
     if (editContract) {
       formData.append("contract", editContract as any)
@@ -675,32 +679,14 @@ function XOrderContent() {
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All order</span>
             <div className="flex flex-row gap-3 ml-auto">
-              <button disabled onClick={() => modalRef.current?.showModal()} className="btn">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                From Quotation
+              <button onClick={() => setDirectMode(true)} className="btn btn-primary rounded-full">
+                <HugeiconsIcon icon={PencilIcon} />
               </button>
-              <button onClick={() => setDirectMode(true)} className="btn btn-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Direct Order
-              </button>
+              <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="toolbar-search" />
+
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
-            </div>
-            <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="toolbar-search" />
-          </div>
+
           {
             getOrdersFn.loading
               ?
@@ -960,17 +946,22 @@ function XOrderContent() {
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Qty</label>
-            <input {...editOrderForm.register("qty")} type="number" className="input flex-1" required />
+            <input {...editOrderForm.register("qty")} type="number" className="input flex-1" />
           </div>
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Range</label>
-            <input {...editOrderForm.register("range")} type="number" className="input flex-1" required />
+            <input {...editOrderForm.register("range")} type="number" className="input flex-1" />
           </div>
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Price</label>
-            <input {...editOrderForm.register("price")} type="number" className="input flex-1" required />
+            <input {...editOrderForm.register("price")} type="number" className="input flex-1" />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Billed</label>
+            <input {...editOrderForm.register("billed")} type="text" className="input flex-1" />
           </div>
 
           <div className="flex flex-row items-center gap-3">

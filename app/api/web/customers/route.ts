@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
       {
         ...body,
         customerOf: company[0]._id,
-        addedOn: new Date()
+        addedOn: new Date(),
+        active: 'yes'
       }
     )
 
@@ -45,11 +46,26 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const body = await request.json()
   const { _id, ...rest } = body
+
+  console.log('=====================')
+  console.log(rest)
+  console.log('=====================')
+
+
   try {
     await connectToDatabase()
     await Customer.findByIdAndUpdate(
-      _id, rest
+      _id,
+      {
+        bussinessName: rest.bussinessName,
+        name: rest.name,
+        email: rest.email,
+        mobile: rest.mobile,
+        address: rest.address,
+        active: rest.active,
+      }
     )
+
     return NextResponse.json(
       {
         noResult: false,
@@ -74,7 +90,7 @@ export async function PUT(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const id = url.searchParams.get("id");
-  console.log({ id })
+
   try {
     await connectToDatabase()
     const company = await Companie.find({

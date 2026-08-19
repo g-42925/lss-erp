@@ -7,6 +7,7 @@ const CustomerSchema = new mongoose.Schema({
   addedOn: { type: Date, required: true },
   address: { type: String, required: true },
   mobile: { type: String, required: false },
+  active: { type: String, required: false, default: 'yes' },
   customerOf: { type: mongoose.Schema.Types.ObjectId, required: true }
 });
 

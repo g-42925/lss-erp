@@ -23,6 +23,7 @@ export default function Customers() {
 
   const [customers, setCustomers] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
+  const [statusFilter, setStatusFilter] = useState<'all' | 'yes' | 'no'>('yes')
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
@@ -104,6 +105,8 @@ export default function Customers() {
   async function handleEdit(data: any) {
     const [f] = customers.filter((s) => s._id === data._id)
 
+    console.log(data)
+
     const body = JSON.stringify({ ...data, addedOn: f.addedOn })
 
     await editFn.fn('', body, (result) => {
@@ -141,7 +144,8 @@ export default function Customers() {
       advanceBalance: customer.advanceBalance,
       address: customer.address,
       mobile: customer.mobile,
-      totalSaleDue: customer.totalSaleDue
+      totalSaleDue: customer.totalSaleDue,
+      active: customer.active
     })
 
     editRef.current?.show()
@@ -160,13 +164,17 @@ export default function Customers() {
     if (hasHydrated) {
       if (!loggedIn) {
         router.push('/login')
-      } else if (!isSuperAdmin && (!pages['customers'] || !pages['customers'].includes('view'))) {
+      }
+      else if (!isSuperAdmin && (!pages['/customers'] || !pages['/customers'].includes('view'))) {
         router.push('/dashboard')
       }
     }
   }, [hasHydrated, loggedIn, isSuperAdmin, pages, router])
 
-  if (!hasHydrated || !loggedIn || (!isSuperAdmin && (!pages['customers'] || !pages['customers'].includes('view')))) {
+  const displayedCustomers = customers.filter(c => statusFilter === 'all' || (c.active || 'yes') === statusFilter)
+  const displayedSearchResult = searchResult.filter(c => statusFilter === 'all' || (c.active || 'yes') === statusFilter)
+
+  if (!hasHydrated || !loggedIn || (!isSuperAdmin && (!pages['/customers'] || !pages['/customers'].includes('view')))) {
     return null
   }
 
@@ -176,8 +184,12 @@ export default function Customers() {
         <span className="page-title">Customers <span className="text-sm leading-loose">Manage your customers</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
-            <span className="self-center">All your Customers</span>
-            <button disabled={!isSuperAdmin && !pages['customers']?.includes('create')} onClick={() => modalRef.current?.show()} className="ml-auto">
+            <select className="select select-bordered select-sm self-center ml-4 bg-white border border-gray-300" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+              <option value="all">All Status</option>
+              <option value="yes">Active</option>
+              <option value="no">Inactive</option>
+            </select>
+            <button disabled={!isSuperAdmin && !pages['/customers']?.includes('create')} onClick={() => modalRef.current?.show()} className="ml-auto">
               <HugeiconsIcon
                 icon={AddCircleHalfDotIcon}
                 size={24}
@@ -206,23 +218,24 @@ export default function Customers() {
                       <thead className="text-black">
                         <tr>
                           <th className="w-auto">Name</th>
-                          <th>Email</th>
                           <th>Address</th>
+
+                          <th>Email</th>
                           <th>Phone</th>
                           <th>...</th>
                         </tr>
                       </thead>
                       <tbody>
                         {
-                          customers.map((c) => {
+                          displayedCustomers.map((c) => {
                             return (
                               <tr key={c._id}>
                                 <td className="w-auto">{c.bussinessName}</td>
+                                <td className="w-auto">{c.address} </td>
                                 <td className="w-auto">{c.email} </td>
-                                <td className="max-w-[30ch] truncate">{c.address} </td>
                                 <td className="w-auto">{c.mobile} </td>
                                 <td>
-                                  <button disabled={!isSuperAdmin && !pages['customers']?.includes('edit')} onClick={() => edit(c._id)}>
+                                  <button disabled={!isSuperAdmin && !pages['/customers']?.includes('edit')} onClick={() => edit(c._id)}>
                                     <HugeiconsIcon
                                       icon={Edit03Icon}
                                       size={24}
@@ -252,15 +265,15 @@ export default function Customers() {
                       </thead>
                       <tbody>
                         {
-                          searchResult.map((c) => {
+                          displayedSearchResult.map((c) => {
                             return (
                               <tr key={c._id}>
                                 <td className="w-auto">{c.bussinessName}</td>
-                                <td className="max-w-[30ch] truncate">{c.address} </td>
+                                <td className="w-auto truncate">{c.address} </td>
                                 <td>{c.email} </td>
                                 <td>{c.mobile} </td>
                                 <td>
-                                  <button disabled={!isSuperAdmin && !pages['customers']?.includes('edit')} onClick={() => edit(c._id)}>
+                                  <button disabled={!isSuperAdmin && !pages['/customers']?.includes('edit')} onClick={() => edit(c._id)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
                                       <path strokeLinecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
                                     </svg>
@@ -301,6 +314,13 @@ export default function Customers() {
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...editCustomerForm.register("address")} />
+                </fieldset>
+                <fieldset className="fieldset md:col-span-2">
+                  <legend className="fieldset-legend text-black">Active</legend>
+                  <select className="select w-full bg-white border border-gray-300" {...editCustomerForm.register("active")} >
+                    <option value={'yes'}>yes</option>
+                    <option value={'no'}>no</option>
+                  </select>
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
