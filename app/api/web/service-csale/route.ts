@@ -208,6 +208,8 @@ export async function POST(request: NextRequest) {
       const result = await ServiceOrder.create(obj)
 
       if (obj.contractType === "One Time" && obj.frequency === "Once") {
+        const _r = await Companie.findOne({ masterAccountId: id })
+
         const invoiceCount = await Invoice.countDocuments({
           companyId: _r._id,
         })
