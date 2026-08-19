@@ -13,7 +13,7 @@ import { useRef, useEffect, useState, useMemo } from 'react'
 import { ContractsIcon } from '@hugeicons/core-free-icons'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { PencilIcon } from '@hugeicons/core-free-icons';
+import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
 
 
 import React, { Suspense } from "react";
@@ -571,9 +571,9 @@ function XOrderContent() {
               </div>
 
               <div className={`flex flex-row items-center gap-3 ${(!hidden || isOneTimeMultiMonth) ? '' : 'hidden'}`}>
-                <label className="w-[110px] text-sm font-medium">Due date</label>
+                <label className="w-[110px] text-sm font-medium">termin</label>
                 <label className="input flex-1">
-                  <input {...directOrderForm.register("dueDate")} type="number" placeholder="due date" />
+                  <input {...directOrderForm.register("dueDate")} type="number" placeholder="termin" />
                   <span className="badge badge-neutral badge-xs">Date</span>
                 </label>
               </div>
@@ -675,15 +675,19 @@ function XOrderContent() {
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
         <span className="page-title">Services Order</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+        <div className="bg-white h-fit border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center">All order</span>
             <div className="flex flex-row gap-3 ml-auto">
-              <button onClick={() => setDirectMode(true)} className="btn btn-primary rounded-full">
-                <HugeiconsIcon icon={PencilIcon} />
-              </button>
               <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="toolbar-search" />
-
+              <button onClick={() => setDirectMode(true)} className="bg-black text-white p-3 rounded-full">
+                <HugeiconsIcon
+                  icon={AddCircleHalfDotIcon}
+                  size={24}
+                  color="currentColor"
+                  strokeWidth={1.5}
+                />
+              </button>
             </div>
           </div>
 
