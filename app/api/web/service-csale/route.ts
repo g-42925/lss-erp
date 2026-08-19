@@ -241,6 +241,8 @@ export async function POST(request: NextRequest) {
       }
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
+        const _r = await Companie.findOne({ masterAccountId: id })
+
         const invoiceCount = await Invoice.countDocuments({
           companyId: _r._id,
         })
@@ -248,7 +250,7 @@ export async function POST(request: NextRequest) {
         const now = new Date();
         const shortYear = String(now.getFullYear()).slice(-2);
         const month = String(now.getMonth() + 1).padStart(2, '0');
-        const invoiceNumber = `${r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
+        const invoiceNumber = `${_r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
 
         await Invoice.create({
           invoiceNumber,
