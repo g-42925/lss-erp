@@ -67,7 +67,7 @@ function XOrderContent() {
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
-  const newInvoiceForm = useForm({
+  const newInvoiceForm = useForm<any>({
     defaultValues: {
       date: lastDayOfMonth
     }
