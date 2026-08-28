@@ -27,12 +27,12 @@ export default function WarehouseNew() {
   const router = useRouter()
 
   const getWarehousesFn = useFetch<any[], any>({
-    url: `/api/web/warehouse?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getLocationsFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -53,7 +53,7 @@ export default function WarehouseNew() {
   })
 
   const deleteFn = useFetch<any, any>({
-    url: '/api/web/warehouse?id=xxx',
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)

@@ -1,0 +1,233 @@
+--- app/products/edit/page.tsx	2026-08-20 10:25:58.258959643 +0700
++++ app/products/xedit/page.tsx	2026-08-20 10:25:58.261959670 +0700
+@@ -2,34 +2,35 @@
+ "use client"
+ 
+ import Link from "next/link";
+-import { useSearchParams } from 'next/navigation';
+-import { useEffect, useState } from "react";
+ import useAuth from "@/store/auth";
+ import useFetch from "@/hooks/useFetch";
+-import { useRouter } from 'next/navigation'
++
++import { useEffect, useState } from "react";
++import { useSearchParams } from 'next/navigation';
+ import { useForm } from "react-hook-form"
++import { useRouter } from 'next/navigation'
+ 
+ import React, { Suspense } from "react";
+ 
+-export default function Add() {
++export default function XEdit() {
+   return (
+     <Suspense fallback={<div>Loading...</div>}>
+-      <AddContent />
++      <XEditContent />
+     </Suspense>
+   )
+ }
+ 
+-function AddContent() {
++function XEditContent() {
+   const [file, setFile] = useState<File | null>(null)
+   const [fileName, setFileName] = useState<string>('')
+   const [previewUrl, setPreviewUrl] = useState('')
+   const hasHydrated = useAuth((s) => s._hasHydrated)
+   const masterAccountId = useAuth((state) => state.masterAccountId)
+-  const [categories, setCategories] = useState<{id: string; name: string}[]>([])
+-  const [units, setUnits] = useState<{_id: string; name: string}[]>([])
++  const [categories, setCategories] = useState<any[]>([])
++
++  const productForm = useForm()
+   const searchParams = useSearchParams();
+   const router = useRouter()
+-  const productForm = useForm()
+ 
+   const getProductFn = useFetch<any, any>({
+     url: '',
+@@ -95,46 +96,32 @@
+       const url = `/api/web/categories?id=${masterAccountId}`
+       const url2 = `/api/web/unit?id=${masterAccountId}`
+       const url3 = `/api/web/products?xid=${id}`
+-
+       getCategoriesFn.fn(url, JSON.stringify({}), (r) => {
+         setCategories(r)
+       })
+-      getUnitsFn.fn(url2, JSON.stringify({}), (r) => {
+-        setUnits(r)
+-      })
+-
++      getUnitsFn.fn(url2, JSON.stringify({}), () => { })
+       getProductFn.fn(url3, JSON.stringify({}), (r) => {
+         setPreviewUrl(r.image)
+ 
+         productForm.reset({
+           xId: r._id,
+-          purchaseUnit: r.purchaseUnit,
+           category: r.category,
+-          barcodeType: r.barcodeType,
+           productName: r.productName,
+-          productId: r.productId,
+           description: r.description,
+           applicableTax: r.applicableTax,
+           sellingPriceTaxType: r.sellingPriceTaxType,
+-          conversionRatioX: r.conversionRatioX,
+-          conversionRatioY: r.conversionRatioY,
+-          sellingPrice: r.sellingPrice,
+-          image: r.image,
+-          discountType: r.discountType,
+-          discountValue: r.discountValue
++          image: r.image
+         })
+       })
+     }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [masterAccountId])
+ 
+-  //if(categories.length < 1 || units.length < 1) return; 
+-
+   return (
+     <>
+-      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+-        <span className="page-title">Edit product</span>
+-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x relative">
++      <div className="h-full p-6 flex flex-col gap-3">
++        <span className="page-title">Edit Service</span>
++        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-row p-6 gap-6 divide-x">
+           <form onSubmit={productForm.handleSubmit(handleSubmit)} className="flex flex-1 flex-col gap-3 p-6">
+             {
+               updateProductFn.error
+@@ -147,31 +134,21 @@
+             }
+             <div className="flex flex-row gap-3">
+               <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">Product name</legend>
++                <legend className="fieldset-legend">Service name</legend>
+                 <input {...productForm.register("productName")} type="text" className="input w-full" placeholder="Type here" />
+               </fieldset>
+               <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">Barcode type</legend>
+-                <select {...productForm.register("barcodeType")} className="select w-full">
+-                  <option>UPC</option>
+-                  <option>EAN-13</option>
+-                  <option>EAN-8</option>
+-                  <option>CODE 128</option>
+-                  <option>CODE 39</option>
+-                  <option>ITF</option>
+-                  <option>QR Code</option>
+-                </select>
+-              </fieldset>
+-              <fieldset className="fieldset flex-1">
+                 <legend className="fieldset-legend">Category</legend>
+                 <select {...productForm.register("category")} className="select w-full">
++                  <option disabled selected>Pick a category</option>
+                   {
+                     categories.map((c) => {
+                       return (
+-                        <option key={c.id} value={c.name}>{c.name}</option>
++                        <option key={c._id}>{c.name}</option>
+                       )
+                     })
+                   }
++
+                 </select>
+               </fieldset>
+             </div>
+@@ -192,56 +169,12 @@
+             </div>
+             <div className="flex flex-row gap-3">
+               <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">From</legend>
+-                <select {...productForm.register("conversionRatioX")} className="select w-full">
+-                  {
+-                    units.map((c) => {
+-                      return (
+-                        <option key={c._id}>{c.name}</option>
+-                      )
+-                    })
+-                  }
+-                </select>
+-              </fieldset>
+-              <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">To</legend>
+-                <select {...productForm.register("conversionRatioY")} className="select w-full">
+-                  {
+-                    units.map((c) => {
+-                      return (
+-                        <option key={c._id}>{c.name}</option>
+-                      )
+-                    })
+-                  }
+-                </select>
+-              </fieldset>
+-              <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">Sale unit</legend>
+-                <select {...productForm.register("saleUnit")} className="select w-full">
+-                  {
+-                    units.map((c) => {
+-                      return (
+-                        <option key={c._id}>{c.name}</option>
+-                      )
+-                    })
+-                  }
+-                </select>
+-              </fieldset>
+-              <fieldset className="fieldset flex-1">
+                 <legend className="fieldset-legend">Applicable tax</legend>
+                 <select {...productForm.register("applicableTax")} className="select w-full">
+                   <option>PPN11</option>
+                 </select>
+               </fieldset>
+               <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">Discount type</legend>
+-                <select {...productForm.register("discountType")} className="select w-full">
+-                  <option>fixed</option>
+-                  <option>percentage</option>
+-                  <option>none</option>
+-                </select>
+-              </fieldset>
+-              <fieldset className="fieldset flex-1">
+                 <legend className="fieldset-legend">Selling price tax type</legend>
+                 <select {...productForm.register("sellingPriceTaxType")} className="select w-full">
+                   <option>Excluded</option>
+@@ -252,15 +185,11 @@
+             <div className="flex flex-row gap-3">
+               <fieldset className="fieldset flex-1 hidden">
+                 <legend className="fieldset-legend">Product type</legend>
+-                <input value="good" {...productForm.register("productType")} type="text" className="input w-full" placeholder="Type here" />
++                <input value="service" {...productForm.register("productType")} type="text" className="input w-full" placeholder="Type here" />
+               </fieldset>
+-              <fieldset className="fieldset flex-1">
++              <fieldset className="fieldset flex-1 hidden">
+                 <legend className="fieldset-legend">Price</legend>
+-                <input {...productForm.register("sellingPrice")} type="text" className="input w-full" placeholder="Type here" />
+-              </fieldset>
+-              <fieldset className="fieldset flex-1">
+-                <legend className="fieldset-legend">Discount value</legend>
+-                <input {...productForm.register("discountValue")} type="text" className="input w-full" placeholder="Type here" />
++                <input value="0" {...productForm.register("sellingPrice")} type="text" className="input w-full" placeholder="Type here" />
+               </fieldset>
+             </div>
+             <div className="flex flex-row gap-3">
+@@ -269,16 +198,16 @@
+               </button>
+               <button disabled={updateProductFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
+                 <Link href="/products/list">
+-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
++                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
++                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
++                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                   </svg>
+                 </Link>
+               </button>
+               <button disabled={updateProductFn.loading} type="submit" className="p-3 rounded-full bg-black relative text-white">
+-                <Link href="/products/add/service">
++                <Link href="/products/add/good">
+                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
++                    <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                   </svg>
+                 </Link>
+               </button>

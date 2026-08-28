@@ -2,11 +2,9 @@
 import useFetch from "@/hooks/useFetch";
 import useAuth from "@/store/auth"
 import Sidebar from "@/components/sidebar";
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect, Suspense } from "react"
 import { useForm } from "react-hook-form"
 import { useSearchParams } from 'next/navigation';
-
-import React, { Suspense } from "react";
 
 export default function Rlog() {
   return (
@@ -33,7 +31,7 @@ function RlogContent() {
   const so = searchParams.get('so');
 
   const fetchBatchesFn = useFetch<any[], any>({
-    url: `/api/web/rlog?so=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -138,6 +136,7 @@ function RlogContent() {
                         <th>Edited At</th>
                         <th>Approved By</th>
                         <th>PO Number</th>
+                        <th>Status</th>
                         <th>Product</th>
                         <th>Supplier</th>
                         <th>Location</th>
@@ -156,14 +155,25 @@ function RlogContent() {
                               <td>{p.editedAt ? new Date(p.editedAt).toLocaleString('id-ID') : '-'}</td>
                               <td>{p.approver?.name || '-'}</td>
                               <td>{p.purchaseOrderNumber || '-'}</td>
+                              <td>
+                                <span className={`badge ${p.status === 'QUARANTINE' ? 'badge-warning' : p.status === 'ACTIVE' ? 'badge-success' : 'badge-error'}`}>
+                                  {p.status}
+                                </span>
+                              </td>
                               <td>{p.product?.productName || '-'}</td>
                               <td>{p.supplier?.bussinessName || '-'}</td>
                               <td>{p.location?.name || '-'}</td>
                               <td>{p.qty} ({p.product?.purchaseUnit || '-'})</td>
                               <td>
-                                <button onClick={() => edit(p._id)} className="btn btn-sm btn-outline">
-                                  Edit
-                                </button>
+                                {p.status === 'QUARANTINE' ? (
+                                  <button onClick={() => edit(p._id)} className="btn btn-sm btn-outline">
+                                    Edit
+                                  </button>
+                                ) : (
+                                  <button disabled className="btn btn-sm btn-outline" title="Cannot edit after QC">
+                                    Edit
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           )

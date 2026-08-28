@@ -31,7 +31,7 @@ export default function Suppliers() {
   const router = useRouter();
 
   const getSuppliersFn = useFetch<any[], any>({
-    url: `/api/web/suppliers?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)

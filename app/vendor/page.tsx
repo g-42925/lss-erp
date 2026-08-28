@@ -35,7 +35,7 @@ export default function Vendor() {
   const router = useRouter()
 
   const getVendorsFn = useFetch<any[], any>({
-    url: `/api/web/vendor?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)

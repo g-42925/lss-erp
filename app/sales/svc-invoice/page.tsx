@@ -13,13 +13,16 @@ export default function Invoices() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const name = useAuth((state) => state.name)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
   const modalRef = useRef<HTMLDialogElement>(null)
   const invoiceModalRef = useRef<HTMLDialogElement>(null)
+  const editInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
 
   function openInvoice(invoice: any) {
@@ -27,9 +30,23 @@ export default function Invoices() {
     invoiceModalRef.current?.showModal()
   }
 
+  function openEditInvoice(invoice: any) {
+    setSelectedInvoice(invoice)
+    editInvoiceForm.reset({
+      _id: invoice._id,
+      invoiceNumber: invoice.invoiceNumber,
+      salesOrderNumber: invoice.salesOrderNumber,
+      date: invoice.date ? new Date(invoice.date).toISOString().substring(0, 10) : "",
+      payAmount: invoice.payAmount,
+      missing: invoice.missing,
+      paid: String(invoice.paid)
+    })
+    editInvoiceModalRef.current?.showModal()
+  }
 
 
   const newInvoiceForm = useForm()
+  const editInvoiceForm = useForm()
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
@@ -51,7 +68,7 @@ export default function Invoices() {
   })
 
   const getInvoicesFn = useFetch<any, any>({
-    url: `/api/web/orders?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -59,25 +76,30 @@ export default function Invoices() {
   })
 
   const getBankAccountsFn = useFetch<any, any>({
-    url: `/api/web/bank-accounts?oduid=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getProductsFn = useFetch<any, any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET'
   });
 
   const getCompaniesFn = useFetch<any, any>({
-    url: `/api/web/companies?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
     }
   })
 
+  const getOrdersFn = useFetch<any, any>({
+    url: '',
+    method: 'GET'
+  })
+
   const getTaxesFn = useFetch<any, any>({
-    url: `/api/web/tax?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -94,7 +116,7 @@ export default function Invoices() {
     const [tax] = getTaxesFn.result?.filter((t: any) => t.name === taxName)
 
     if (tax) {
-      return `${tax.value}% (${total * tax.value / 100})`
+      return `${tax.value}%`
     }
     return '0%'
   }
@@ -133,6 +155,33 @@ export default function Invoices() {
     })
   }
 
+  function submitEdit(data: any) {
+    const body = JSON.stringify({
+      ...data,
+      id: masterAccountId,
+      paid: data.paid === 'true',
+      missing: Number(data.missing || 0),
+      payAmount: Number(data.payAmount || 0),
+    })
+    closeInvoiceFn.fn('', body, () => {
+      getInvoicesFn.reset(
+        getInvoicesFn.result?.map((inv: any) =>
+          inv._id === data._id
+            ? { ...inv, date: data.date, missing: Number(data.missing || 0), payAmount: Number(data.payAmount || 0), paid: data.paid === 'true' }
+            : inv
+        )
+      )
+      setSearchResult(
+        searchResult.map((inv: any) =>
+          inv._id === data._id
+            ? { ...inv, date: data.date, missing: Number(data.missing || 0), payAmount: Number(data.payAmount || 0), paid: data.paid === 'true' }
+            : inv
+        )
+      )
+      editInvoiceModalRef.current?.close()
+    })
+  }
+
 
   function fSubtotal(invoice: any) {
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
@@ -165,6 +214,7 @@ export default function Invoices() {
       const url6 = `/api/web/companies?id=${masterAccountId}`
       const url7 = `/api/web/bank-accounts?id=${masterAccountId}`
       const url8 = `/api/web/tax?id=${masterAccountId}`
+      const urlOrder = `/api/web/order?id=${masterAccountId}&type=service`
 
       const body = JSON.stringify({})
 
@@ -172,6 +222,7 @@ export default function Invoices() {
       getBankAccountsFn.fn(url7, body, (result: any) => { setBankAccounts(result) })
       getInvoicesFn.fn(url4, body, (result) => { })
       getCompaniesFn.fn(url6, body, (result: any) => { })
+      getOrdersFn.fn(urlOrder, body, (result: any) => { setOrders(result) })
       getProductsFn.fn(url5, body, (result: any) => {
         setProducts(result)
       })
@@ -180,6 +231,36 @@ export default function Invoices() {
 
   return (
     <>
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 10mm;
+            size: A4;
+            margin-top: 0;
+            margin-bottom: 0;
+          }
+          thead { display: table-header-group !important; }
+          tbody { display: table-row-group !important; }
+          tfoot { display: table-footer-group !important; }
+          tr, .invoice-header, .bank-accounts-section {
+            page-break-inside: avoid !important;
+            page-break-after: auto;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            page-break-inside: auto;
+          }
+          .page-break { page-break-after: always; }
+        }
+        @media screen {
+          .modal-box.invoice-modal {
+            width: 90vw !important;
+            max-width: 90vw !important;
+          }
+        }
+      `}
+      </style>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
         <span className="page-title">Invoices</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
@@ -219,97 +300,102 @@ export default function Invoices() {
                 :
                 <div>
                   <div className="overflow-x-auto w-full">
-                  <table className="table text-center">
-                    <thead>
-                      <tr>
-                        <th>date</th>
-                        <th>invoice number</th>
-                        <th>sales order number</th>
-                        <th>Customer</th>
-                        <th>Product</th>
-                        <th>Value</th>
-                        <th>pay amount</th>
-                        <th>paid</th>
-                        <th>...</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-center">
-                      {
-                        searchResult.length < 1
-                          ? (getInvoicesFn.loading ? <tr><td colSpan={9}><div className="text-center p-3"><span className="loading loading-spinner"></span></div></td></tr> :
-                            getInvoicesFn?.result?.map((s: any, index: number) => {
+                    <table className="table text-center">
+                      <thead>
+                        <tr>
+                          <th>date</th>
+                          <th>invoice number</th>
+                          <th>sales order number</th>
+                          <th>Customer</th>
+                          <th>Product</th>
+                          <th>Value</th>
+                          <th>pay amount</th>
+                          <th>paid</th>
+                          <th>...</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-center">
+                        {
+                          searchResult.length < 1
+                            ? (getInvoicesFn.loading ? <tr><td colSpan={9}><div className="text-center p-3"><span className="loading loading-spinner"></span></div></td></tr> :
+                              getInvoicesFn?.result?.map((s: any, index: number) => {
+                                return (
+                                  <tr key={index}>
+                                    <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
+                                    <td>{s.invoiceNumber}</td>
+                                    <td>{s.salesOrderNumber}</td>
+                                    <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
+                                    <td>{s.order.salesOrderNumber}</td>
+                                    <td>{(s.order.price / s.order.qty) * (s.order.qty - s.missing)}</td>
+                                    <td>{s.payAmount}</td>
+                                    <td>
+                                      <span className={`badge badge-sm ${s.paid ? 'badge-success' : 'badge-warning'}`}>
+                                        {s.paid ? 'paid' : 'unpaid'}
+                                      </span>
+                                    </td>
+                                    <td className="flex flex-row gap-1 justify-center items-center">
+                                      <button onClick={() => openInvoice(s)} title="View Invoice">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                          <path fillRule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 0 0 3 3h.27l-.155 1.705A1.875 1.875 0 0 0 7.232 22.5h9.536a1.875 1.875 0 0 0 1.867-2.045l-.155-1.705h.27a3 3 0 0 0 3-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0 0 18 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM16.5 6.205v-2.83A.375.375 0 0 0 16.125 3h-8.25a.375.375 0 0 0-.375.375v2.83a49.353 49.353 0 0 1 9 0Zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 0 1-.374.409H7.232a.375.375 0 0 1-.374-.409l.526-5.784a.373.373 0 0 1 .333-.337 41.741 41.741 0 0 1 8.566 0Zm.967-3.97a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H18a.75.75 0 0 1-.75-.75V10.5ZM15 9.75a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V10.5a.75.75 0 0 0-.75-.75H15Z" clipRule="evenodd" />
+                                        </svg>
+                                      </button>
+                                      <button onClick={() => openEditInvoice(s)} title="Edit Invoice" className="text-blue-700 hover:text-blue-900">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                        </svg>
+                                      </button>
+                                      {!s.paid && (
+                                        <button
+                                          onClick={() => closeInvoice(s)}
+                                          disabled={closeInvoiceFn.loading}
+                                          title="Close Invoice (Mark as Paid)"
+                                          className="text-green-700 hover:text-green-900"
+                                        >
+                                          {closeInvoiceFn.loading ? (
+                                            <span className="loading loading-spinner loading-xs"></span>
+                                          ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                              <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })
+                            ) :
+                            searchResult.map((s, index) => {
                               return (
                                 <tr key={index}>
                                   <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
                                   <td>{s.invoiceNumber}</td>
-                                  <td>{s.salesOrderNumber}</td>
+                                  <td>{s.order.salesOrderNumber}</td>
                                   <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
                                   <td>{s.order.salesOrderNumber}</td>
-                                  <td>{(s.order.price / s.order.qty) * (s.order.qty - s.missing)}</td>
+                                  <td>{s.order.price}</td>
                                   <td>{s.payAmount}</td>
+                                  <td>{s.paid ? 'yes' : 'no'}</td>
                                   <td>
-                                    <span className={`badge badge-sm ${s.paid ? 'badge-success' : 'badge-warning'}`}>
-                                      {s.paid ? 'paid' : 'unpaid'}
-                                    </span>
-                                  </td>
-                                  <td className="flex flex-row gap-1 justify-center items-center">
-                                    <button onClick={() => openInvoice(s)} title="View Invoice">
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                        <path fillRule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 0 0 3 3h.27l-.155 1.705A1.875 1.875 0 0 0 7.232 22.5h9.536a1.875 1.875 0 0 0 1.867-2.045l-.155-1.705h.27a3 3 0 0 0 3-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0 0 18 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM16.5 6.205v-2.83A.375.375 0 0 0 16.125 3h-8.25a.375.375 0 0 0-.375.375v2.83a49.353 49.353 0 0 1 9 0Zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 0 1-.374.409H7.232a.375.375 0 0 1-.374-.409l.526-5.784a.373.373 0 0 1 .333-.337 41.741 41.741 0 0 1 8.566 0Zm.967-3.97a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H18a.75.75 0 0 1-.75-.75V10.5ZM15 9.75a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V10.5a.75.75 0 0 0-.75-.75H15Z" clipRule="evenodd" />
+                                    <button onClick={() => openEditInvoice(s)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                       </svg>
+                                      Edit
                                     </button>
-                                    {!s.paid && (
-                                      <button
-                                        onClick={() => closeInvoice(s)}
-                                        disabled={closeInvoiceFn.loading}
-                                        title="Close Invoice (Mark as Paid)"
-                                        className="text-green-700 hover:text-green-900"
-                                      >
-                                        {closeInvoiceFn.loading ? (
-                                          <span className="loading loading-spinner loading-xs"></span>
-                                        ) : (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                            <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
-                                          </svg>
-                                        )}
-                                      </button>
-                                    )}
+                                    <button className="btn">
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                      </svg>
+                                      Delete
+                                    </button>
                                   </td>
                                 </tr>
                               )
                             })
-                          ) :
-                          searchResult.map((s, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
-                                <td>{s.invoiceNumber}</td>
-                                <td>{s.order.salesOrderNumber}</td>
-                                <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
-                                <td>{s.order.salesOrderNumber}</td>
-                                <td>{s.order.price}</td>
-                                <td>{s.payAmount}</td>
-                                <td>{s.paid ? 'yes' : 'no'}</td>
-                                <td>
-                                  <button onClick={() => openInvoice(s)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                      }
-                    </tbody>
-                  </table>
+                        }
+                      </tbody>
+                    </table>
                   </div>
                 </div>
           }
@@ -331,7 +417,14 @@ export default function Invoices() {
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Sales Order Number</label>
-            <input {...newInvoiceForm.register("salesOrderNumber")} type="text" className="input flex-1" />
+            <select {...newInvoiceForm.register("salesOrderNumber")} className="select flex-1">
+              <option value="">-- Select Sales Order --</option>
+              {orders && orders.map((o: any, idx: number) => (
+                <option key={idx} value={o.salesOrderNumber}>
+                  {o.salesOrderNumber} - {o.customer?.bussinessName || o.customCustomer?.name} (Rp {Number(o.total || 0).toLocaleString('id-ID')})
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Pay Amount</label>
@@ -363,48 +456,83 @@ export default function Invoices() {
         </form>
       </dialog>
 
-      <dialog ref={invoiceModalRef} className="modal h-full print:block print:opacity-100 print:pointer-events-auto print:visible text-black">
-        <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
-          <div className="flex justify-between items-start border-b pb-4 print:border-b-2 print:border-gray-200">
-            <div className="flex flex-row gap-3 items-center w-full">
-              {getCompaniesFn.result?.[0]?.logo ? (
-                <Image
-                  src={getCompaniesFn.result[0].logo}
-                  className="object-contain"
-                  alt="Logo"
-                  width={65}
-                  height={65}
-                />
-              ) : null}
-              <div>
-                <p className="text-2xl text-gray-500 mt-1 text-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+      <dialog ref={editInvoiceModalRef} id="edit_invoice_modal" className="modal h-full text-black">
+        <form onSubmit={editInvoiceForm.handleSubmit(submitEdit)} className="h-100 modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Edit invoice</h3>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Date</label>
+            <input {...editInvoiceForm.register("date", { required: true })} type="date" className="input flex-1" />
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Pay Amount</label>
+            <label className="input flex-1">
+              <input {...editInvoiceForm.register('payAmount')} type="number" />
+            </label>
+          </div>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[70px]">Missing</label>
+            <label className="input flex-1">
+              <input {...editInvoiceForm.register('missing')} type="number" />
+            </label>
+          </div>
+          <div className="flex flex-row items-center gap-2">
+            <label className="w-[70px]">Paid</label>
+            <select {...editInvoiceForm.register("paid")} className="select flex-1">
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </div>
+          {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+          <div className="flex flex-row gap-3 modal-action">
+            <button type="button" className="btn" onClick={() => editInvoiceModalRef.current?.close()}>Cancel</button>
+            <button disabled={closeInvoiceFn.loading} className="btn bg-blue-900 text-white">
+              {closeInvoiceFn.loading ? <span className="loading loading-spinner"></span> : "Save"}
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog ref={invoiceModalRef} className="modal h-full print:hidden text-black">
+        <div className="modal-box invoice-modal flex flex-col gap-6 w-[98vw] max-w-none px-4 py-6">
+          <div className="flex justify-between items-start border-b pb-4">
+            <div className="grid gap-4 w-full items-start invoice-header" style={{ gridTemplateColumns: '7fr 3fr 4fr' }}>
+              <div className="flex flex-row gap-3">
+                {getCompaniesFn.result?.[0]?.logo ? (
+                  <img
+                    src={getCompaniesFn.result[0].logo}
+                    className="object-contain flex-shrink-0"
+                    alt="Logo"
+                    style={{ width: '55px', height: '55px' }}
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="text-lg text-gray-500 font-bold underline leading-tight">{getCompaniesFn.result?.[0]?.name}</p>
+                  <p className="text-xs text-gray-500 break-words">{getCompaniesFn.result?.[0]?.address}</p>
+                  <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+                  <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+                </div>
               </div>
-              <div className="self-end ml-12 flex flex-col">
-                <span className="text-left text-2xl text-black text-center font-bold">Invoice</span>
+              <div className="flex flex-col">
+                <span className="text-2xl text-black font-bold">Invoice</span>
                 <span className="text-sm text-gray-500">No: {selectedInvoice?.invoiceNumber}</span>
                 <span className="text-sm text-gray-500">Date: {selectedInvoice ? new Date(selectedInvoice.date).toLocaleDateString('id-ID') : ''}</span>
-
                 {
                   selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                    <span className="text-sm text-gray-500">Termin: {selectedInvoice ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : ''}  </span>
+                    <span className="text-xl text-gray-500">Termin: 31-08-2026</span>
                   ) : (
-                    <span className="text-sm text-gray-500">Termin: {`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(selectedInvoice?.order?.dueDate).padStart(2, '0')}`}  </span>
+                    <span className="text-xl text-gray-500">Termin: 31-08-2026</span>
                   )
                 }
-
               </div>
-              <div className="self-center ml-auto flex flex-col">
-                <span className="text-sm text-gray-500">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.name : selectedInvoice?.order?.customer?.bussinessName}</span>
-                <span className="text-sm text-gray-500">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.address : selectedInvoice?.order?.customer?.address}</span>
+              <div className="flex flex-col text-right">
+                <span className="text-sm text-gray-500 break-words">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.name : selectedInvoice?.order?.customer?.bussinessName}</span>
+                <span className="text-sm text-gray-500 break-words">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.address : selectedInvoice?.order?.customer?.address}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4">
-            <table className="w-full text-left border-collapse">
+          <div>
+            <table className="w-full text-left table-fixed">
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="py-2 text-sm text-gray-600 uppercase">No</th>
@@ -414,106 +542,103 @@ export default function Invoices() {
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
                 </tr>
               </thead>
-              <tbody className="border-b border-gray-200">
+              <tbody className="border-gray-200">
                 <tr>
-                  <td className="py-[5px] text-gray-800 text-sm">1</td>
-                  <td className="py-[5px] text-gray-800 text-sm">{selectedInvoice?.order?.product?.productName}</td>
+                  <td className="py-[5px] text-sm text-gray-800">1</td>
+                  <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.order?.product?.productName}</td>
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-gray-800 text-right text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
                     ) : (
-                      <td className="py-[5px] text-gray-800 text-right text-sm">{Number(selectedInvoice?.order?.price / selectedInvoice?.order?.qty).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price / selectedInvoice?.order?.qty).toLocaleString('id-ID')}</td>
                     )
                   }
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-gray-800 text-right text-sm">1</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">1</td>
                     ) : (
-                      <td className="py-[5px] text-gray-800 text-right text-sm">{selectedInvoice?.order?.qty - selectedInvoice?.missing}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{selectedInvoice?.order?.qty - selectedInvoice?.missing}</td>
                     )
                   }
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-gray-800 text-right text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
                     ) : (
-                      <td className="py-[5px] text-gray-800 text-right text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</td>
                     )
                   }
                 </tr>
-                {/* Baris fiktif: memakan ruang di layar, tidak terlihat & tidak muncul saat print */}
-                {[
-                  { name: 'Layanan Konsultasi Teknis', price: '-', qty: 1 },
-                  { name: 'Biaya Administrasi Proyek', price: '-', qty: 1 },
-                  { name: 'Koordinasi Lapangan', price: '-', qty: 1 },
-                  { name: 'Pengawasan & Monitoring', price: '-', qty: 1 },
-                ].map((item, i) => (
-                  <tr key={`filler-${i}`} className="opacity-0 print:hidden select-none" aria-hidden="true">
-                    <td className="py-[5px] text-gray-800 text-sm">{i + 2}</td>
-                    <td className="py-[5px] text-gray-800 text-sm">{item.name}</td>
-                    <td className="py-[5px] text-gray-800 text-right text-sm">{item.price}</td>
-                    <td className="py-[5px] text-gray-800 text-right text-sm">{item.qty}</td>
-                    <td className="py-[5px] text-gray-800 text-right text-sm">{item.price}</td>
+                {/* Filler rows: menjaga tinggi tabel setara 5 baris, invisible di layar & tidak cetak */}
+                {Array.from({ length: 1 }).map((_, i) => (
+                  <tr key={`filler-${i}`} className="opacity-0 select-none" aria-hidden="true">
+                    <td className="py-[5px] text-sm text-gray-800">{i + 2}</td>
+                    <td className="py-[5px] text-sm text-gray-800">-</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">-</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">-</td>
+                    <td className="py-[5px] text-sm text-gray-800 text-right">-</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="flex justify-end mt-4">
-            <div className="w-1/2">
-              {bankAccounts && bankAccounts.length > 0 && (
-                <div className="">
-                  {bankAccounts.map((acc: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between py-1 text-sm text-gray-700">
-                      <span className="text-sm">{acc.bank} · {acc.accountNumber} ({acc.accountName})</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="ml-auto w-1/2 flex flex-col justify-between py-2 print:border-gray-200">
-              <div className="flex flex-row">
-                <span className="text-gray-700 text-sm">Subtotal</span>
-                {
-                  selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
-                  ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
-                  )
-                }
-              </div>
-              {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0
-                ? selectedInvoice.order.taxes.map((t: any, idx: number) => (
-                  <div key={idx} className="flex flex-row">
-                    <span className="text-gray-700 text-sm">{t.taxName}</span>
-                    <span className="text-gray-800 ml-auto text-sm">0</span>
+          <div className="flex justify-end mt-4 break-inside-avoid">
+            <div className="w-full flex flex-row">
+              <div className="w-1/2 flex flex-col justify-center">
+                {bankAccounts && bankAccounts.length > 0 && (
+                  <div>
+                    {bankAccounts.map((acc: any, idx: number) => (
+                      <div key={idx} className="flex flex-col py-1">
+                        <span className="text-sm text-black">Pembayaran melalui transfer ke:</span>
+                        <span className="text-sm text-black">{acc.bank} · {acc.accountNumber}</span>
+                      </div>
+                    ))}
                   </div>
-                ))
-                : (
-                  <></>
-                )
-              }
-              <div className="flex flex-row font-bold">
-                <span className="text-gray-700 text-sm">Total</span>
-                {
-                  selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
-                  ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
-                  )
+                )}
+              </div>
+              <div className="ml-auto w-1/2 flex flex-col justify-between py-2 border-b print:border-gray-200">
+                <div className="flex flex-row">
+                  <span className="text-gray-700 text-sm">Subtotal</span>
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
+                    ) : (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
+                    )
+                  }
+                </div>
+                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0
+                  ? selectedInvoice.order.taxes.map((t: any, idx: number) => (
+                    <div key={idx} className="flex flex-row">
+                      <span className="text-gray-700 text-sm">{t.taxName}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{whatTax(selectedInvoice, t.taxName)}</span>
+                    </div>
+                  ))
+                  : <></>
                 }
+                <div className="flex flex-row font-bold">
+                  <span className="text-gray-700 text-sm">Total</span>
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
+                    ) : (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
+                    )
+                  }
+                </div>
               </div>
             </div>
           </div>
 
           {/* Signature section */}
-          <div className="flex flex-row mt-8 gap-4">
+          <div className="flex flex-row mt-0 gap-4">
             <div className="flex flex-col items-center w-1/2">
-              <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
-              <span className="text-sm text-gray-700">Dibuat Oleh</span>
+              <div className="w-full h-16 mb-2"></div>
+              <span className="text-sm font-semibold text-gray-800">{name || 'Admin'}</span>
+              <span className="text-xs text-gray-500">Dibuat Oleh</span>
             </div>
             <div className="flex flex-col items-center w-1/2">
-              <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
+              <div className="w-full h-16 mb-2"></div>
               <span className="text-sm text-gray-700">Hormat Kami</span>
             </div>
           </div>
@@ -529,6 +654,168 @@ export default function Invoices() {
           </div>
         </div>
       </dialog>
+
+      {/* ========== PRINT-ONLY INVOICE AREA ========== */}
+      <style type="text/css" media="print">
+        {`
+          @page { margin: 0; size: auto; }
+          body { margin: 0; padding: 0; }
+        `}
+      </style>
+      {/* Rendered as a regular div so browsers include it in print (dialog top-layer is excluded) */}
+      <div id="invoice-print-area" className="hidden print:block bg-white text-black w-full p-6">
+        {selectedInvoice && (
+          <>
+            {/* Header */}
+            <div className="grid gap-6 w-full items-start border-b-2 border-gray-200 pb-4 mb-6 invoice-header" style={{ gridTemplateColumns: '5fr 3fr 4fr' }}>
+              <div className="flex flex-row gap-3">
+                <div className="flex flex-row gap-6">
+                  {getCompaniesFn.result?.[0]?.logo && (
+                    <img
+                      src={getCompaniesFn.result[0].logo}
+                      className="object-contain flex-shrink-0"
+                      alt="Logo"
+                      style={{ width: '70px', height: '70px' }}
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-lg text-gray-500 font-bold underline leading-tight">{getCompaniesFn.result?.[0]?.name}</p>
+                    <p className="text-xs text-gray-500 break-words">{getCompaniesFn.result?.[0]?.address}</p>
+                    <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+                    <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+                  </div>
+                </div>
+
+              </div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold">Invoice</span>
+                <span className="text-xl text-gray-500">No: {selectedInvoice?.invoiceNumber}</span>
+                {
+                  selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                    <span className="text-lg text-gray-500">Termin: 31-08-2026</span>
+                  ) : (
+                    <span className="text-lg text-gray-500">Termin: 31-08-2026</span>
+                  )
+                }
+              </div>
+              <div className="flex flex-col gap-1">
+                <div>
+                  <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">To</span>
+                  <p className="text-sm text-gray-700 break-words leading-snug">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.name : selectedInvoice?.order?.customer?.bussinessName}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Address</span>
+                  <p className="text-sm text-gray-700 break-words leading-snug">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.address : selectedInvoice?.order?.customer?.address}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Service table */}
+            <table className="w-full text-left table-fixed">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="py-2 text-sm text-gray-600 uppercase">No</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase">Nama Item</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="py-[5px] text-sm text-gray-800">1</td>
+                  <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.order?.product?.productName}</td>
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
+                    ) : (
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price / selectedInvoice?.order?.qty).toLocaleString('id-ID')}</td>
+                    )
+                  }
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <td className="py-[5px] text-sm text-gray-800 text-right">1</td>
+                    ) : (
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{selectedInvoice?.order?.qty - selectedInvoice?.missing}</td>
+                    )
+                  }
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
+                    ) : (
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</td>
+                    )
+                  }
+                </tr>
+                {/* Filler rows untuk print: menjaga ukuran tabel setara 5 baris */}
+                {Array.from({ length: 0 }).map((_, i) => (
+                  <tr key={`print-filler-${i}`}>
+                    <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
+                    <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
+                    <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
+                    <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
+                    <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Totals + Bank accounts */}
+            <div className="flex flex-row mt-6">
+              <div className="w-1/2 flex flex-col justify-center bank-accounts-section">
+                {bankAccounts && bankAccounts.length > 0 && bankAccounts.map((acc: any, idx: number) => (
+                  <div key={idx} className="py-1">
+                    <p className="text-sm text-black">Pembayaran melalui transfer ke:</p>
+                    <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} A/N {acc.accountName}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="w-1/2 flex flex-col border-b border-gray-200 py-2">
+                <div className="flex flex-row">
+                  <span className="text-gray-700 text-sm">Total</span>
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
+                    ) : (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
+                    )
+                  }
+                </div>
+                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0 && selectedInvoice.order.taxes.map((t: any, idx: number) => (
+                  <div key={idx} className="flex flex-row">
+                    <span className="text-gray-700 text-sm">{t.taxName}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{whatTax(selectedInvoice, t.taxName)}</span>
+                  </div>
+                ))}
+
+                <div className="flex flex-row font-bold">
+                  <span className="text-gray-700 text-sm">Grand Total</span>
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
+                    ) : (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
+                    )
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* Signature section */}
+            <div className="flex flex-row gap-8 justify-center">
+              <div className="flex flex-col items-center w-1/2">
+                <div className="w-full h-16 mb-2"></div>
+                <span className="text-sm font-semibold text-gray-800">{'PT. Leryn Jaya Mas'}</span>
+                <span className="text-xs text-gray-500">Dibuat Oleh</span>
+              </div>
+              <div className="flex flex-col items-center w-1/2">
+                <div className="w-full h-16 mb-2"></div>
+                <span className="text-sm text-gray-700">Hormat Kami</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </>
   )
 }

@@ -40,7 +40,7 @@ export default function Taxes() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/tax?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -48,7 +48,7 @@ export default function Taxes() {
   })
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/tax?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)

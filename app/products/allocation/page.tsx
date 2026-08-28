@@ -124,12 +124,12 @@ export default function Allocation() {
 	}
 
 	const fetchLocationsFn = useFetch<any[], any>({
-		url: `/api/web/location?id=xxx`,
+		url: '',
 		method: 'GET'
 	})
 
 	const fetchProductsFn = useFetch<any[], any>({
-		url: `/api/web/products?id=xxx`,
+		url: '',
 		method: 'GET',
 		onError: (m) => {
 			console.log(m)

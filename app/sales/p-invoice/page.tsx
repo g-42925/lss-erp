@@ -14,7 +14,9 @@ export default function Invoices() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
+  const name = useAuth((state) => state.name)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const [searchQuery, setSearchQuery] = useState('')
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
   const [quotations, setQuotations] = useState<any[]>([])
@@ -57,25 +59,30 @@ export default function Invoices() {
   })
 
   const getBankAccountsFn = useFetch<any, any>({
-    url: `/api/web/bank-accounts?oduid=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getProductsFn = useFetch<any, any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET'
   });
 
   const getInvoicesFn = useFetch<any, any>({
-    url: `/api/web/orders?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
     }
   })
 
+  const getOrdersFn = useFetch<any, any>({
+    url: '',
+    method: 'GET'
+  })
+
   const getCompaniesFn = useFetch<any, any>({
-    url: `/api/web/companies?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -83,7 +90,7 @@ export default function Invoices() {
   })
 
   const getTaxesFn = useFetch<any, any>({
-    url: `/api/web/tax?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -166,7 +173,27 @@ export default function Invoices() {
     return `${taxes[0].value}%`
   }
 
-
+  function search(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value.toLowerCase()
+    setSearchQuery(v)
+    if (v.length < 1) {
+      setSearchResult([])
+      return
+    }
+    if (getInvoicesFn.result) {
+      const filtered = getInvoicesFn.result.filter((s: any) => {
+        const cName = s.order?.customCustomer?.name || s.order?.customer?.bussinessName || ''
+        const pName = s.variousItem ? s.product : s.product?.productName || ''
+        return (
+          s.invoiceNumber?.toLowerCase().includes(v) ||
+          s.salesOrderNumber?.toLowerCase().includes(v) ||
+          cName.toLowerCase().includes(v) ||
+          pName.toLowerCase().includes(v)
+        )
+      })
+      setSearchResult(filtered)
+    }
+  }
 
 
   useEffect(() => {
@@ -176,6 +203,7 @@ export default function Invoices() {
       const url6 = `/api/web/companies?id=${masterAccountId}`
       const url7 = `/api/web/bank-accounts?id=${masterAccountId}`
       const url8 = `/api/web/tax?id=${masterAccountId}`
+      const urlOrder = `/api/web/order?id=${masterAccountId}&type=good`
 
       const body = JSON.stringify({})
 
@@ -183,6 +211,7 @@ export default function Invoices() {
       getBankAccountsFn.fn(url7, body, (result: any) => { setBankAccounts(result) })
       getInvoicesFn.fn(url4, body, (result) => { })
       getCompaniesFn.fn(url6, body, (result: any) => { })
+      getOrdersFn.fn(urlOrder, body, (result: any) => { setOrders(result) })
       getProductsFn.fn(url5, body, (result: any) => {
         setProducts(result)
       })
@@ -214,31 +243,19 @@ export default function Invoices() {
           }
           .page-break { page-break-after: always; }
         }
+        @media screen {
+          .modal-box.invoice-modal {
+            width: 90vw !important;
+            max-width: 90vw !important;
+          }
+        }
       `}
       </style>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
         <span className="page-title">Invoices</span>
-        <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <span className="self-center">All invoices</span>
-            <button disabled onClick={() => modalRef.current?.showModal()} className="btn ml-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add
-            </button>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
-            </div>
-            <input type="search" placeholder="Search" className="toolbar-search" />
+        <div className="bg-white rounded-md h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+          <div className="flex flex-row sm:flex-row gap-2 items-start sm:items-center">
+            <input type="search" placeholder="Search" className="toolbar-search flex-1" value={searchQuery} onChange={search} />
           </div>
           {
             getInvoicesFn.loading
@@ -255,97 +272,72 @@ export default function Invoices() {
                 :
                 <div>
                   <div className="overflow-x-auto w-full">
-                  <table className="table text-center">
-                    <thead>
-                      <tr>
-                        <th>date</th>
-                        <th>invoice number</th>
-                        <th>sales order number</th>
-                        <th>Customer</th>
-                        <th>Product</th>
-                        <th>Value</th>
-                        <th>pay amount</th>
-                        <th>paid</th>
-                        <th>...</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-center">
-                      {
-                        searchResult.length < 1
-                          ?
-                          getInvoicesFn?.result?.map((s: any, index: number) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
-                                <td>{s.invoiceNumber}</td>
-                                <td>{s.salesOrderNumber}</td>
-                                <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
-                                <td>{s.variousItem ? s.product : s.product.productName}</td>
-                                <td>{s.order.total}</td>
-                                <td>{s.payAmount}</td>
-                                <td>
-                                  <span className={`badge badge-sm ${s.paid ? 'badge-success' : 'badge-warning'}`}>
-                                    {s.paid ? 'paid' : 'unpaid'}
-                                  </span>
-                                </td>
-                                <td className="flex flex-row gap-1 justify-center items-center">
-                                  <button onClick={() => openInvoice(s)} title="View Invoice">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                      <path fillRule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 0 0 3 3h.27l-.155 1.705A1.875 1.875 0 0 0 7.232 22.5h9.536a1.875 1.875 0 0 0 1.867-2.045l-.155-1.705h.27a3 3 0 0 0 3-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0 0 18 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM16.5 6.205v-2.83A.375.375 0 0 0 16.125 3h-8.25a.375.375 0 0 0-.375.375v2.83a49.353 49.353 0 0 1 9 0Zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 0 1-.374.409H7.232a.375.375 0 0 1-.374-.409l.526-5.784a.373.373 0 0 1 .333-.337 41.741 41.741 0 0 1 8.566 0Zm.967-3.97a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H18a.75.75 0 0 1-.75-.75V10.5ZM15 9.75a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V10.5a.75.75 0 0 0-.75-.75H15Z" clipRule="evenodd" />
-                                    </svg>
-                                  </button>
-                                  {!s.paid && (
-                                    <button
-                                      onClick={() => closeInvoice(s)}
-                                      disabled={closeInvoiceFn.loading}
-                                      title="Close Invoice (Mark as Paid)"
-                                      className="text-green-700 hover:text-green-900"
-                                    >
-                                      {closeInvoiceFn.loading ? (
-                                        <span className="loading loading-spinner loading-xs"></span>
-                                      ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                          <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
-                                        </svg>
-                                      )}
+                    <table className="table text-center">
+                      <thead>
+                        <tr>
+                          <th>date</th>
+                          <th>invoice number</th>
+                          <th>sales order number</th>
+                          <th>Customer</th>
+                          <th>Product</th>
+                          <th>Value</th>
+                          <th>pay amount</th>
+                          <th>paid</th>
+                          <th>...</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-center">
+                        {
+                          (searchQuery.length > 0 ? searchResult : (getInvoicesFn?.result || [])).length === 0 && searchQuery.length > 0 ? (
+                            <tr>
+                              <td colSpan={9} className="py-4 text-gray-500">No results found</td>
+                            </tr>
+                          ) : (
+                            (searchQuery.length > 0 ? searchResult : (getInvoicesFn?.result || [])).map((s: any, index: number) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
+                                  <td>{s.invoiceNumber}</td>
+                                  <td>{s.salesOrderNumber}</td>
+                                  <td>{s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName}</td>
+                                  <td>{s.variousItem ? s.product : s.product?.productName}</td>
+                                  <td>{s.order?.total}</td>
+                                  <td>{s.payAmount}</td>
+                                  <td>
+                                    <span className={`badge badge-sm ${s.paid ? 'badge-success' : 'badge-warning'}`}>
+                                      {s.paid ? 'paid' : 'unpaid'}
+                                    </span>
+                                  </td>
+                                  <td className="flex flex-row gap-1 justify-center items-center">
+                                    <button onClick={() => openInvoice(s)} title="View Invoice">
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                        <path fillRule="evenodd" d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 0 0 3 3h.27l-.155 1.705A1.875 1.875 0 0 0 7.232 22.5h9.536a1.875 1.875 0 0 0 1.867-2.045l-.155-1.705h.27a3 3 0 0 0 3-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0 0 18 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25ZM16.5 6.205v-2.83A.375.375 0 0 0 16.125 3h-8.25a.375.375 0 0 0-.375.375v2.83a49.353 49.353 0 0 1 9 0Zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 0 1-.374.409H7.232a.375.375 0 0 1-.374-.409l.526-5.784a.373.373 0 0 1 .333-.337 41.741 41.741 0 0 1 8.566 0Zm.967-3.97a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75H18a.75.75 0 0 1-.75-.75V10.5ZM15 9.75a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75V10.5a.75.75 0 0 0-.75-.75H15Z" clipRule="evenodd" />
+                                      </svg>
                                     </button>
-                                  )}
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((s, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(s.date).toLocaleDateString('id-ID')}</td>
-                                <td>{s.invoiceNumber}</td>
-                                <td>{s.salesOrderNumber}</td>
-                                <td>{s.order.customCustomer ? s.order.customCustomer.name : s.order.customer.bussinessName}</td>
-                                <td>{s.variousItem ? s.product : s.product.productName}</td>
-                                <td>{s.order.total}</td>
-                                <td>{s.payAmount}</td>
-                                <td>{s.paid ? 'yes' : 'no'}</td>
-                                <td>
-                                  <button onClick={() => openInvoice(s)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                      }
-                    </tbody>
-                  </table>
+                                    {!s.paid && (
+                                      <button
+                                        onClick={() => closeInvoice(s)}
+                                        disabled={closeInvoiceFn.loading}
+                                        title="Close Invoice (Mark as Paid)"
+                                        className="text-green-700 hover:text-green-900"
+                                      >
+                                        {closeInvoiceFn.loading ? (
+                                          <span className="loading loading-spinner loading-xs"></span>
+                                        ) : (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                            <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          )
+                        }
+                      </tbody>
+                    </table>
                   </div>
                 </div>
           }
@@ -367,7 +359,14 @@ export default function Invoices() {
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Sales Order Number</label>
-            <input {...newInvoiceForm.register("salesOrderNumber")} type="text" className="input flex-1" />
+            <select {...newInvoiceForm.register("salesOrderNumber")} className="select flex-1">
+              <option value="">-- Select Sales Order --</option>
+              {orders && orders.map((o: any, idx: number) => (
+                <option key={idx} value={o.salesOrderNumber}>
+                  {o.salesOrderNumber} - {o.customer?.bussinessName || o.customCustomer?.name} (Rp {Number(o.total || 0).toLocaleString('id-ID')})
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Pay Amount</label>
@@ -394,33 +393,35 @@ export default function Invoices() {
       </dialog>
 
       <dialog ref={invoiceModalRef} className="modal h-full print:hidden">
-        <div className="modal-box w-11/12 max-w-3xl flex flex-col gap-6 print:block print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
+        <div className="modal-box invoice-modal flex flex-col gap-6 print:block print:max-w-full print:w-full print:border-none print:shadow-none print:m-0 print:p-0 print:bg-white print:text-black">
           <div className="flex justify-between items-start border-b pb-4 print:border-b-2 print:border-gray-200">
-            <div className="flex flex-row gap-3 items-center w-full invoice-header">
-              {getCompaniesFn.result?.[0]?.logo ? (
-                <Image
-                  src={getCompaniesFn.result[0].logo}
-                  className="object-contain"
-                  alt="Logo"
-                  width={65}
-                  height={65}
-                />
-              ) : null}
-              <div>
-                <p className="text-2xl text-gray-500 mt-1 text-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+            <div className="grid gap-4 w-full items-start invoice-header" style={{ gridTemplateColumns: '7fr 3fr 4fr' }}>
+              <div className="flex flex-row gap-3">
+                {getCompaniesFn.result?.[0]?.logo ? (
+                  <Image
+                    src={getCompaniesFn.result[0].logo}
+                    className="object-contain flex-shrink-0"
+                    alt="Logo"
+                    width={55}
+                    height={55}
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="text-lg text-gray-500 font-bold underline leading-tight">{getCompaniesFn.result?.[0]?.name}</p>
+                  <p className="text-xs text-gray-500 break-words">{getCompaniesFn.result?.[0]?.address}</p>
+                  <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+                  <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+                </div>
               </div>
-              <div className="self-end ml-12 flex flex-col">
-                <span className="text-left text-2xl text-black text-center font-bold">Invoice</span>
+              <div className="flex flex-col">
+                <span className="text-2xl text-black font-bold">Invoice</span>
                 <span className="text-sm text-gray-500">No: {selectedInvoice?.invoiceNumber}</span>
                 <span className="text-sm text-gray-500">Date: {new Date(selectedInvoice?.date).toLocaleDateString('id-ID')}</span>
                 <span className="text-sm text-gray-500">Termin: {selectedInvoice?.order?.payTerm ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : '-'}</span>
               </div>
-              <div className="self-center ml-auto flex flex-col">
-                <span className="text-sm text-gray-500">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.name : selectedInvoice?.order?.customer?.bussinessName}</span>
-                <span className="text-sm text-gray-500">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.address : selectedInvoice?.order?.customer?.address}</span>
+              <div className="flex flex-col text-right">
+                <span className="text-sm text-gray-500 break-words">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.name : selectedInvoice?.order?.customer?.bussinessName}</span>
+                <span className="text-sm text-gray-500 break-words">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice?.order?.customCustomer?.address : selectedInvoice?.order?.customer?.address}</span>
               </div>
             </div>
           </div>
@@ -509,7 +510,7 @@ export default function Invoices() {
                   {selectedInvoice?.order?.cart?.length === 1 ? (
                     <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</span>
                   ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)) - (999)).toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)).toLocaleString('id-ID')}</span>
                   )}
                 </div>
                 <div className="flex flex-row">
@@ -543,7 +544,8 @@ export default function Invoices() {
           <div className="flex flex-row mt-8 gap-4">
             <div className="flex flex-col items-center w-1/2">
               <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
-              <span className="text-sm text-gray-700">Dibuat Oleh</span>
+              <span className="text-sm font-semibold text-gray-800">{name || 'Admin'}</span>
+              <span className="text-xs text-gray-500">Dibuat Oleh</span>
             </div>
             <div className="flex flex-col items-center w-1/2">
               <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
@@ -569,31 +571,39 @@ export default function Invoices() {
         {selectedInvoice && (
           <>
             {/* Header */}
-            <div className="flex flex-row gap-3 items-start border-b-2 border-gray-200 pb-4 mb-6 invoice-header">
-              {getCompaniesFn.result?.[0]?.logo && (
-                <Image
-                  src={getCompaniesFn.result[0].logo}
-                  className="object-contain"
-                  alt="Logo"
-                  width={65}
-                  height={65}
-                />
-              )}
-              <div>
-                <p className="text-2xl text-gray-500 font-bold underline">{getCompaniesFn.result?.[0]?.name}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.address}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
-                <p className="text-sm text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+            <div className="grid gap-6 w-full items-start border-b-2 border-gray-200 pb-4 mb-6 invoice-header" style={{ gridTemplateColumns: '5fr 3fr 4fr' }}>
+              <div className="flex flex-row gap-3">
+                {getCompaniesFn.result?.[0]?.logo && (
+                  <Image
+                    src={getCompaniesFn.result[0].logo}
+                    className="object-contain flex-shrink-0"
+                    alt="Logo"
+                    width={55}
+                    height={55}
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-lg text-gray-500 font-bold underline leading-tight">{getCompaniesFn.result?.[0]?.name}</p>
+                  <p className="text-xs text-gray-500 break-words">{getCompaniesFn.result?.[0]?.address}</p>
+                  <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.phone}</p>
+                  <p className="text-xs text-gray-500">{getCompaniesFn.result?.[0]?.site}</p>
+                </div>
               </div>
-              <div className="ml-12 flex flex-col">
+              <div className="flex flex-col">
                 <span className="text-2xl font-bold">Invoice</span>
                 <span className="text-sm text-gray-500">No: {selectedInvoice?.invoiceNumber}</span>
                 <span className="text-sm text-gray-500">Date: {selectedInvoice?.date ? new Date(selectedInvoice.date).toLocaleDateString('id-ID') : ''}</span>
                 <span className="text-sm text-gray-500">Termin: {selectedInvoice?.order?.payTerm ? new Date(selectedInvoice.order.payTerm).toLocaleDateString('id-ID') : '-'}</span>
               </div>
-              <div className="ml-auto flex flex-col">
-                <span className="text-sm text-gray-500">To: {selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.name : selectedInvoice?.order?.customer?.bussinessName}</span>
-                <span className="text-sm text-gray-500">Address: {selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.address : selectedInvoice?.order?.customer?.address}</span>
+              <div className="flex flex-col gap-1">
+                <div>
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">To</span>
+                  <p className="text-sm text-gray-700 break-words leading-snug">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.name : selectedInvoice?.order?.customer?.bussinessName}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Address</span>
+                  <p className="text-sm text-gray-700 break-words leading-snug">{selectedInvoice?.order?.customCustomer ? selectedInvoice.order.customCustomer.address : selectedInvoice?.order?.customer?.address}</p>
+                </div>
               </div>
             </div>
 
@@ -675,7 +685,7 @@ export default function Invoices() {
                   {selectedInvoice?.order?.cart?.length === 1 ? (
                     <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</span>
                   ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number((selectedInvoice?.order?.cart?.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)) - 999).toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart?.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)).toLocaleString('id-ID')}</span>
                   )}
                 </div>
                 <div className="flex flex-row">
@@ -703,7 +713,8 @@ export default function Invoices() {
             <div className="flex flex-row mt-10 gap-8">
               <div className="flex flex-col items-center w-1/2">
                 <div className="w-full border-b border-gray-400 h-16 mb-2"></div>
-                <span className="text-sm text-gray-700">Dibuat Oleh</span>
+                <span className="text-sm font-semibold text-gray-800">{name || 'Admin'}</span>
+                <span className="text-xs text-gray-500">Dibuat Oleh</span>
               </div>
               <div className="flex flex-col items-center w-1/2">
                 <div className="w-full border-b border-gray-400 h-16 mb-2"></div>

@@ -9,7 +9,7 @@ import withAuth from "@/hofs/withAuth";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { Cancel02Icon, Edit03Icon, CheckmarkCircle01Icon, MultiplicationSignIcon } from '@hugeicons/core-free-icons';
 
 function Procurement() {
   const user = useAuth((state) => state.userId)
@@ -28,7 +28,7 @@ function Procurement() {
   const [disabled, setDisabled] = useState<boolean>(false)
 
   const bankAccount = useFetch<any[], any>({
-    url: `/api/web/bank-accounts?id=xxx `,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -59,19 +59,19 @@ function Procurement() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/purchases?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getItemsFn = useFetch<any[], any>({
-    url: `/api/web/inv-items?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
 
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/roles?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -131,6 +131,7 @@ function Procurement() {
 
     const edited = JSON.stringify({
       ...data,
+      action: 'edit_pr',
       status: 'requested'
     })
 
@@ -142,6 +143,68 @@ function Procurement() {
     })
   }
 
+  async function _edit(_id: string) {
+    const [target] = pr.filter((r) => r._id === _id)
+    if (!target) return
+
+    editForm.setValue('_id', target._id)
+    editForm.setValue('productId', target.product?._id)
+    editForm.setValue('quantity', target.quantity)
+    editForm.setValue('estimatedPrice', target.estimatedPrice)
+    editForm.setValue('customSupplier', target.customSupplier)
+    _editRef.current?.showModal()
+  }
+
+  async function approve(_id: string) {
+    const payload = JSON.stringify({
+      _id: _id,
+      action: 'approve_pr',
+      userId: user
+    })
+    await editFn.fn('', payload, () => {
+      window.location.reload()
+    })
+  }
+
+  async function reject(_id: string) {
+    if (!confirm("Are you sure you want to reject this requisition?")) return;
+    const payload = JSON.stringify({
+      _id: _id,
+      action: 'reject_pr',
+      userId: user
+    })
+    await editFn.fn('', payload, () => {
+      window.location.reload()
+    })
+  }
+
+  async function orderSubmit(data: any) {
+    if (watchPayAmount === "") {
+      alert("Please enter pay amount");
+      orderForm.setValue("payAmount", 0);
+      return;
+    }
+    const pOrdered = JSON.stringify({
+      ...data,
+      action: 'convert_to_po',
+      status: '_approved',
+      purchaseType: 'procurement',
+      userId: user
+    })
+
+    if (parseInt(data.finalPrice) > parseInt(data.estimatedPrice)) {
+      alert("Final price cannot be higher than estimated price")
+    }
+    else if (parseInt(data.payAmount) > parseInt(data.finalPrice) + parseInt(data.shippingCost || 0) + parseInt(data.taxAmount || 0)) {
+      alert("Pay amount cannot be higher than total landed cost")
+    }
+    else {
+      await editFn.fn('', pOrdered, () => {
+        window.location.reload()
+      })
+    }
+  }
+
   async function editSubmit(data: any) {
     const pOrdered = JSON.stringify({
       ...data,
@@ -150,14 +213,8 @@ function Procurement() {
     })
 
     if (data.editable) {
-      await editFn.fn('', pOrdered, (result) => {
-        const [target] = pr.filter((r) => r._id == result._id)
-        target.finalPrice = result.finalPrice
-        target.payAmount = result.payAmount
-        target.supplier = result.spl
-        target.quantity = result.quantity
-        target.customSupplier = result.customSupplier
-        editRef.current?.close()
+      await editFn.fn('', pOrdered, () => {
+        window.location.reload()
       })
     }
     else {
@@ -165,37 +222,7 @@ function Procurement() {
     }
   }
 
-  async function orderSubmit(data: any) {
-    if (watchPayAmount == "") {
-      alert("Please enter pay amount")
-      orderForm.setValue("payAmount", 0)
-    }
-    else {
-      const pOrdered = JSON.stringify({
-        ...data,
-        status: '_approved',
-        purchaseType: 'procurement'
-      })
 
-      if (parseInt(data.finalPrice) > parseInt(data.estimatedPrice)) {
-        alert("Final price cannot be higher than estimated price")
-      }
-      else if (parseInt(data.payAmount) > parseInt(data.finalPrice)) {
-        alert("Pay amount cannot be higher than final price")
-      }
-      else {
-        await editFn.fn('', pOrdered, (result) => {
-          const [target] = pr.filter((r) => r._id == result._id)
-          target.status = "ordered"
-          target.supplier = result.spl
-          target.finalPrice = result.finalPrice
-          target.customSupplier = result.customSupplier
-          target.payAmount = result.payAmount
-          orderRef.current?.close()
-        })
-      }
-    }
-  }
 
   async function del(_id: string) {
     const url = `/api/web/roles?id=${_id}`
@@ -208,86 +235,8 @@ function Procurement() {
     })
   }
 
-  async function _edit(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
 
-    editForm.reset({
-      _id: filter._id,
-      quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
-      productId: filter.product._id
-    })
 
-    _editRef.current?.showModal()
-  }
-
-  async function edit(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
-
-    editPrForm.reset({
-      _id: filter._id,
-      quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
-      product: filter.product.name,
-      finalPrice: filter.finalPrice,
-      currPayAmt: filter.payAmount,
-      payAmount: filter.payAmount,
-      supplierId: filter.supplierId,
-      customSupplier: filter.customSupplier,
-      editable: filter.editable
-    })
-
-    editRef.current?.showModal()
-  }
-
-  async function order(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
-
-    orderForm.reset({
-      _id: filter._id,
-      quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
-      product: filter.product.name,
-      productId: filter.product._id
-    })
-
-    if (filter.status === 'approved') {
-      setDisabled(false)
-    }
-
-    if (filter.status === 'requested' || filter.status === 'ordered' || filter.status === 'rejected') {
-      setDisabled(true)
-    }
-
-    orderRef.current?.showModal()
-  }
-
-  function makeVoid(purchaseObj: any) {
-    const approvalCode = prompt("Enter approval code")
-
-    if (!approvalCode) {
-      if (approvalCode === "") alert("Please enter approval code")
-      return;
-    }
-    else {
-      const payload = JSON.stringify({
-        _id: purchaseObj._id,
-        status: 'void',
-        approvalCode: approvalCode,
-        voidedBy: user,
-        voidedAt: new Date()
-      })
-
-      editFn.fn('', payload, (result) => {
-        if (result === null) return;
-        const target = pr.find((r) => r._id === purchaseObj._id)
-        if (target) {
-          target.status = "void"
-          setPr([...pr])
-        }
-      })
-    }
-  }
 
   useEffect(() => {
     if (hasHydrated) {
@@ -384,49 +333,23 @@ function Procurement() {
                                   p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
                                 }
                                 <td>{p.status}</td>
-                                {
-                                  p.status === "ordered"
-                                    ?
-                                    <td>
-                                      <button className="cursor" onClick={() => makeVoid(p)}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6 text-red-500">
-                                          <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clipRule="evenodd" />
-                                        </svg>
-                                      </button>
-                                    </td>
-                                    :
-                                    p.status === "completed"
-                                      ?
-                                      <td>
-                                        <button className="cursor text-red-900" onClick={() => edit(p._id)}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                            <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-                                            <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
-                                          </svg>
+                                <td>
+                                  {
+                                    p.status === "requested" && (
+                                      <div className="flex flex-row justify-center gap-2">
+                                        <button className="text-green-600" onClick={() => approve(p._id)} title="Approve">
+                                          <HugeiconsIcon icon={CheckmarkCircle01Icon} size={24} color="currentColor" />
                                         </button>
-                                      </td>
-                                      :
-                                      p.status === "approved"
-                                        ?
-                                        <td>
-                                          <button onClick={() => order(p._id)}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                            </svg>
-                                          </button>
-                                        </td>
-                                        :
-                                        <td>
-                                          <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
-                                            <HugeiconsIcon
-                                              icon={Edit03Icon}
-                                              size={24}
-                                              color="currentColor"
-                                              strokeWidth={1.5}
-                                            />
-                                          </button>
-                                        </td>
-                                }
+                                        <button className="text-red-600" onClick={() => reject(p._id)} title="Reject">
+                                          <HugeiconsIcon icon={MultiplicationSignIcon} size={24} color="currentColor" />
+                                        </button>
+                                        <button className="text-blue-600" onClick={() => _edit(p._id)} title="Edit">
+                                          <HugeiconsIcon icon={Edit03Icon} size={24} color="currentColor" />
+                                        </button>
+                                      </div>
+                                    )
+                                  }
+                                </td>
                               </tr>
                             )
                           })
@@ -436,7 +359,7 @@ function Procurement() {
                               <tr key={index}>
                                 <td>{role.name}</td>
                                 <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
+                                  <button className="btn" onClick={() => _edit(role._id)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                     </svg>
@@ -552,6 +475,14 @@ function Procurement() {
                 <input className="input w-full" {...orderForm.register("finalPrice")} type="text" />
               </fieldset>
               <fieldset className="fieldset">
+                <legend className="fieldset-legend">Shipping Cost</legend>
+                <input className="input w-full" defaultValue={0} {...orderForm.register("shippingCost")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tax Amount</legend>
+                <input className="input w-full" defaultValue={0} {...orderForm.register("taxAmount")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>
                 <input defaultValue={0} className="input w-full" {...orderForm.register("payAmount")} type="text" />
               </fieldset>
@@ -601,6 +532,14 @@ function Procurement() {
                 <input className="input w-full" {...editPrForm.register("finalPrice")} type="text" />
               </fieldset>
               <fieldset className="fieldset">
+                <legend className="fieldset-legend">Shipping Cost</legend>
+                <input className="input w-full" {...editPrForm.register("shippingCost")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tax Amount</legend>
+                <input className="input w-full" {...editPrForm.register("taxAmount")} type="text" />
+              </fieldset>
+              <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay Amount</legend>
                 <input className="input w-full" {...editPrForm.register("payAmount")} type="text" />
               </fieldset>
@@ -614,7 +553,7 @@ function Procurement() {
         </div>
       </dialog>
       <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
-        <Link href="/xpurchases">
+        <Link href="/finance/svc-purchases">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>

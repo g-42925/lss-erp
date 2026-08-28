@@ -14,7 +14,7 @@ const SidebarItem = ({ href, children }: { href: string, children: React.ReactNo
     if (drawerToggle) drawerToggle.checked = false
   }
 
-  // if (!canView(href)) return null;
+  if (!canView(href)) return null;
   return (
     <li>
       <Link href={href} className={pathname === href ? "active" : ""} onClick={closeSidebar}>
@@ -108,6 +108,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <SidebarItem href="/products/catalog">Catalog</SidebarItem>
                 <SidebarItem href="/products/add/good">New</SidebarItem>
                 <SidebarItem href="/products/packaging">UoM</SidebarItem>
+                <SidebarItem href="/products/list">List</SidebarItem>
               </ul>
             </details>
           </li>
@@ -125,6 +126,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <SidebarItem href="/warehouse/new">New</SidebarItem>
                 <SidebarItem href="/warehouse/receiving">Receiving</SidebarItem>
                 <SidebarItem href="/warehouse/rlog">Receiving Log</SidebarItem>
+                <SidebarItem href="/warehouse/qc">Quality Check</SidebarItem>
+                <SidebarItem href="/warehouse/alerts">Stock Alerts</SidebarItem>
               </ul>
             </details>
           </li>
@@ -136,6 +139,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/inventory/items">Items</SidebarItem>
                 <SidebarItem href="/inventory/usage">Usage Logs</SidebarItem>
+                <SidebarItem href="/batches">Batch Management</SidebarItem>
               </ul>
             </details>
           </li>
@@ -147,6 +151,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <ul>
                 <SidebarItem href="/purchases/requisition">Requisition</SidebarItem>
                 <SidebarItem href="/purchases/procurement">Procurement</SidebarItem>
+                <SidebarItem href="/purchases/purchase-return">Purchase Return</SidebarItem>
               </ul>
             </details>
           </li>
@@ -157,8 +162,10 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <summary>Sales</summary>
               <ul>
                 <SidebarItem href="/sales/order">Order</SidebarItem>
+                <SidebarItem href="/sales/svc-order">Service Order</SidebarItem>
                 <SidebarItem href="/sales/refund">Refund Log</SidebarItem>
                 <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
+                <SidebarItem href="/sales/svc-invoice">Service Invoice</SidebarItem>
                 <SidebarItem href="/sales/taxes">Taxes</SidebarItem>
               </ul>
             </details>
@@ -170,20 +177,30 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <summary>Finance</summary>
               <ul>
                 <SidebarItem href="/finance/purchases">Purchases Approval</SidebarItem>
+                <SidebarItem href="/finance/svc-purchases">Service Purchases</SidebarItem>
                 <SidebarItem href="/finance/procurement">Procurement Approval</SidebarItem>
+                <SidebarItem href="/finance/purchase-return">Purchase Return Approval</SidebarItem>
                 <SidebarItem href="/finance/debt">Debts</SidebarItem>
+                <SidebarItem href="/finance/svc-debt">Service Debt</SidebarItem>
                 <SidebarItem href="/finance/receivable">Receivable</SidebarItem>
+                <SidebarItem href="/finance/svc-receivable">Service Receivable</SidebarItem>
                 <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>
                 <SidebarItem href="/finance/bank-voucher">Bank Voucher</SidebarItem>
+                <SidebarItem href="/finance/bank-report">Bank Report</SidebarItem>
+                <SidebarItem href="/finance/log">Finance Log</SidebarItem>
+                <SidebarItem href="/finance/svc-log">Service Log</SidebarItem>
+                <SidebarItem href="/finance/inv-logs">Inventory Logs</SidebarItem>
                 <li>
                   <details>
                     <summary>Accounting</summary>
                     <ul>
+                      <SidebarItem href="/finance/accounting/journal">General Journal</SidebarItem>
+                      <SidebarItem href="/finance/accounting/coa">Master COA</SidebarItem>
                       <li>
                         <details>
-                          <summary>COA</summary>
+                          <summary>Reports</summary>
                           <ul>
-                            <SidebarItem href="/finance/accounting/coa/assets">Assets</SidebarItem>
+                            <SidebarItem href="/finance/accounting/coa/assets">Assets Summary</SidebarItem>
                           </ul>
                         </details>
                       </li>
@@ -209,6 +226,16 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <summary>Asset</summary>
               <ul>
                 <SidebarItem href="/assets">Asset Perusahaan</SidebarItem>
+              </ul>
+            </details>
+          </li>
+
+          {/* Master Data */}
+          <li>
+            <details>
+              <summary>Master Data</summary>
+              <ul>
+                <SidebarItem href="/master">Master Data Config</SidebarItem>
               </ul>
             </details>
           </li>

@@ -1,0 +1,161 @@
+--- app/finance/receivable/page.tsx	2026-08-20 10:25:58.231959401 +0700
++++ app/xreceivable/page.tsx	2026-08-20 10:25:58.502961833 +0700
+@@ -1,12 +1,13 @@
+-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
+ "use client"
++/* eslint-disable @typescript-eslint/no-explicit-any */
++/* eslint-disable @typescript-eslint/no-unused-vars */
++/* eslint-disable react-hooks/exhaustive-deps */
+ 
+ import Link from "next/link";
+ import Image from "next/image"
+ import useAuth from "@/store/auth"
+ import useFetch from "@/hooks/useFetch";
+ import Sidebar from "@/components/sidebar";
+-import { useForm } from "react-hook-form"
+ import { useRef, useState, useEffect } from "react"
+ import { useRouter } from 'next/navigation'
+ 
+@@ -24,18 +25,13 @@
+   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+   const [payAmount, setPayAmount] = useState<number>(0)
+   const [paymentMethod, setPaymentMethod] = useState<string>('Cash')
+-  const [payDate, setPayDate] = useState<Date>(new Date())
+ 
+   const [searchResult, setSearchResult] = useState<any[]>([])
+   const [invoices, setInvoices] = useState<any[]>([])
++  const [products, setProducts] = useState<any[]>([])
+ 
+   const router = useRouter()
+ 
+-  const bankAccountFn = useFetch<any[], any>({
+-    url: `/api/web/bank-accounts?id=${masterAccountId}`,
+-    method: 'GET'
+-  })
+-
+   const putFn = useFetch<any, any>({
+     url: '/api/web/roles',
+     method: 'PUT'
+@@ -54,6 +50,11 @@
+     method: 'GET'
+   })
+ 
++  const getAllProduct = useFetch<any[], any>({
++    url: '',
++    method: 'GET'
++  })
++
+   const deleteFn = useFetch<any[], any>({
+     url: '',
+     method: 'DELETE',
+@@ -71,16 +72,9 @@
+     e.preventDefault()
+     if (!selectedInvoice) return
+ 
+-    const params = {
+-      id: selectedInvoice._id,
+-      payAmount: Number(payAmount),
+-      method: paymentMethod,
+-      date: payDate
+-    }
+-
+-    putFn.fn('/api/web/receivable/product', JSON.stringify(params), () => {
++    putFn.fn('/api/web/receivable/svc', JSON.stringify({ id: selectedInvoice._id, payAmount: Number(payAmount), method: paymentMethod }), () => {
+       payRef.current?.close()
+-      getFn.fn(`/api/web/receivable/product?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
++      getFn.fn(`/api/web/receivable/svc?id=${masterAccountId}&type=service`, JSON.stringify({}), (result) => {
+         setInvoices(result)
+       })
+     })
+@@ -89,14 +83,14 @@
+   async function revertPayment(history: { date: string, method: string, amount: number }) {
+     if (!confirm("Are you sure you want to void this payment? This will deduct the amount from the total paid.")) return;
+ 
+-    putFn.fn('/api/web/receivable/product', JSON.stringify({
++    putFn.fn('/api/web/receivable', JSON.stringify({
+       id: selectedInvoice._id,
+       action: 'revert',
+       historyDate: history.date,
+       historyAmount: history.amount
+     }), () => {
+       historyRef.current?.close()
+-      getFn.fn(`/api/web/receivable/product?id=${masterAccountId}&type=product`, JSON.stringify({}), (result) => {
++      getFn.fn(`/api/web/receivable?id=${masterAccountId}&type=service`, JSON.stringify({}), (result) => {
+         setInvoices(result)
+       })
+     })
+@@ -106,17 +100,17 @@
+ 
+   useEffect(() => {
+     if (hasHydrated) {
+-      const url = `/api/web/receivable/product?id=${masterAccountId}&type=product`
+-      const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
+-
++      const url = `/api/web/receivable/svc?id=${masterAccountId}&type=service`
++      const urlProduct = `/api/web/products?id=${masterAccountId}&type=service`
+       const body = JSON.stringify({})
+ 
+-      bankAccountFn.fn(bankUrl, "{}", (result) => { })
+-
+       getFn.fn(url, body, (result) => {
+-        console.log(result)
+         setInvoices(result)
+       })
++
++      getAllProduct.fn(urlProduct, body, (result) => {
++        setProducts(result)
++      })
+     }
+   }, [masterAccountId])
+ 
+@@ -189,7 +183,7 @@
+                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                                 <td>{p.invoiceNumber}</td>
+                                 <td>{p.order.salesOrderNumber}</td>
+-                                <td>{p.variousItem ? 'various item' : p.product?.productName}</td>
++                                <td>{getAllProduct?.result?.filter((pr) => pr._id === p.order.productId)[0]?.productName}</td>
+                                 <td>{p.order.customCustomer ? p.order.customCustomer.name : p.order.customer?.bussinessName}</td>
+                                 <td>{p.value}</td>
+                                 <td>{p.payAmount}</td>
+@@ -236,7 +230,7 @@
+                 </div>
+           }
+           <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
+-            <Link href="/xreceivable">
++            <Link href="/receivable">
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+               </svg>
+@@ -250,16 +244,6 @@
+           <h3 className="font-bold text-lg mb-4">Pay Receivable</h3>
+           <form onSubmit={payInvoice} className="flex flex-col gap-4">
+             <div>
+-              <label className="label">Pay Date</label>
+-              <input
+-                type="date"
+-                required
+-                className="input input-bordered w-full"
+-                defaultValue={new Date().toISOString().split('T')[0]}
+-                onChange={(e) => setPayDate(new Date(e.target.value))}
+-              />
+-            </div>
+-            <div>
+               <label className="label">Amount to Pay</label>
+               <input
+                 type="number"
+@@ -276,11 +260,10 @@
+               <label className="label">Payment Method</label>
+               <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="select select-bordered w-full">
+                 <option value="Cash">Cash</option>
+-                {
+-                  bankAccountFn.result?.map((bank) => (
+-                    <option key={bank._id} value={`transfer to ${bank.bank}`}>transfer to {bank.bank} ({bank.accountName})</option>
+-                  ))
+-                }
++                <option value="Bank Transfer">Bank Transfer</option>
++                <option value="Credit Card">Credit Card</option>
++                <option value="Debit Card">Debit Card</option>
++                <option value="Other">Other</option>
+               </select>
+             </div>
+             <div className="flex gap-2 justify-end mt-4">

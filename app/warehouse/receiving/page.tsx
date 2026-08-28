@@ -35,12 +35,12 @@ export default function Receiving() {
   const router = useRouter()
 
   const fetchWarehousesFn = useFetch<any[], any>({
-    url: `/api/web/warehouse?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/purchases?id=xxx`,
+    url: '',
     method: 'GET'
   })
 

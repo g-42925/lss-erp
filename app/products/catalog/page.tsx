@@ -18,7 +18,7 @@ export default function ProductCatalog() {
   const [selectedCategory, setSelectedCategory] = useState("All")
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: "GET"
   })
 

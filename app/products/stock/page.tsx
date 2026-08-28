@@ -84,12 +84,12 @@ export default function Stock() {
   })
 
   const fetchWarehousesFn = useFetch<Warehouse[], string>({
-    url: `/api/web/warehouse?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const fetchProductsFn = useFetch<Product[], string>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => { console.log(m) }
   })

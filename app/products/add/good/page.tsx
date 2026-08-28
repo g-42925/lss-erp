@@ -34,8 +34,36 @@ export default function Add() {
   const newUnitForm = useForm()
 
   const conversionType = productForm.watch("conversionType") || "value";
+  const conversionRatioX = productForm.watch("conversionRatioX");
+  const [isStandardConversion, setIsStandardConversion] = useState(false);
+
+  useEffect(() => {
+    if (!conversionRatioX) return;
+    const x = conversionRatioX.toLowerCase();
+    
+    let targetUnit = "";
+    let val = 1;
+    
+    if (x === "kg" || x === "kilogram") {
+      targetUnit = "Gram";
+      val = 1000;
+    } else if (x === "liter" || x === "l" || x === "litre") {
+      targetUnit = "Mililiter";
+      val = 1000;
+    }
+    
+    if (targetUnit) {
+      productForm.setValue("conversionRatioY", targetUnit);
+      productForm.setValue("conversionType", "value");
+      productForm.setValue("conversionValue", val);
+      setIsStandardConversion(true);
+    } else {
+      setIsStandardConversion(false);
+    }
+  }, [conversionRatioX, productForm]);
+
   const getUnitsFn = useFetch<any[], any>({
-    url: `/api/web/unit?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -43,7 +71,7 @@ export default function Add() {
   })
 
   const getCategoriesFn = useFetch<any[], any>({
-    url: `/api/web/categories?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -51,7 +79,7 @@ export default function Add() {
   })
 
   const getPackagingsFn = useFetch<any[], any>({
-    url: `/api/web/packaging?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -161,6 +189,9 @@ export default function Add() {
       })
       getUnitsFn.fn(url2, JSON.stringify({}), (r) => {
         setUnits(r)
+        if (r && r.length > 0 && !productForm.getValues("conversionRatioX")) {
+          productForm.setValue("conversionRatioX", r[0].name)
+        }
       })
       getPackagingsFn.fn(urlPackaging, JSON.stringify({}), (r) => {
         setPackagings(r)
@@ -253,7 +284,7 @@ export default function Add() {
                   </select>
                 </div>
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className={`fieldset flex-1 ${isStandardConversion ? 'hidden' : ''}`}>
                 <legend className="fieldset-legend text-black">To</legend>
                 <div className="flex gap-2 w-full">
                   <select {...productForm.register("conversionRatioY")} className="select flex-1 bg-white">
@@ -285,10 +316,10 @@ export default function Add() {
                   </label>
                 </div>
               </fieldset>
-              {conversionType === "value" && (
+              {conversionType === "value" && !isStandardConversion && (
                 <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend text-black">Conversion Value (Integer)</legend>
-                  <input {...productForm.register("conversionValue", { valueAsNumber: true })} type="number" className="input w-full bg-white" placeholder="e.g. 12" />
+                  <legend className="fieldset-legend text-black">Conversion Value (Multiplier/Weight)</legend>
+                  <input {...productForm.register("conversionValue")} step="any" type="number" className="input w-full bg-white" placeholder="e.g. 1.5" />
                 </fieldset>
               )}
               {conversionType === "packaging" && (
@@ -350,6 +381,35 @@ export default function Add() {
                   <option value={"true"}>Yes</option>
                   <option value={"false"}>No</option>
                 </select>
+              </fieldset>
+            </div>
+            {/* ── Stock Level Alerts (only relevant for physical goods) ── */}
+            <div className="flex flex-row gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend text-black">Reorder Point</legend>
+                <input
+                  {...productForm.register("reorderPoint")}
+                  type="number"
+                  min="0"
+                  step="any"
+                  defaultValue={0}
+                  className="input w-full bg-white"
+                  placeholder="Stok minimum sebelum order ulang"
+                />
+                <p className="text-xs text-amber-700 mt-1">⚠ Peringatan muncul saat stok ≤ nilai ini</p>
+              </fieldset>
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend text-black">Safety Stock</legend>
+                <input
+                  {...productForm.register("safetyStock")}
+                  type="number"
+                  min="0"
+                  step="any"
+                  defaultValue={0}
+                  className="input w-full bg-white"
+                  placeholder="Stok darurat minimum"
+                />
+                <p className="text-xs text-red-700 mt-1">🚨 Peringatan kritis saat stok ≤ nilai ini</p>
               </fieldset>
             </div>
             <div className="flex flex-row sm:flex-row gap-3">

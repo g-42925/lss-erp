@@ -9,9 +9,7 @@ import withAuth from "@/hofs/withAuth";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CoinsDollarIcon } from '@hugeicons/core-free-icons';
-import { Cancel02Icon } from '@hugeicons/core-free-icons';
-import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { CoinsDollarIcon, Edit03Icon } from '@hugeicons/core-free-icons';
 
 function Requisition() {
   const user = useAuth((state) => state.userId)
@@ -30,7 +28,7 @@ function Requisition() {
   const [disabled, setDisabled] = useState<boolean>(false)
 
   const bankAccount = useFetch<any[], any>({
-    url: `/api/web/bank-accounts?id=xxx `,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -61,22 +59,22 @@ function Requisition() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/purchases?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getProductsFn = useFetch<any[], any>({
-    url: `/api/web/product?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getSuppliersFn = useFetch<any[], any>({
-    url: `/api/web/suppliers?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/roles?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)
@@ -127,6 +125,7 @@ function Requisition() {
   async function _editSubmit(data: any) {
     const edited = JSON.stringify({
       ...data,
+      action: 'edit_pr',
       status: 'requested'
     })
 
@@ -135,53 +134,62 @@ function Requisition() {
     })
   }
 
-  async function editSubmit(data: any) {
+  async function orderSubmit(data: any) {
+    const finalPrice = parseFloat(data.finalPrice) || 0;
+    const estimatedPrice = parseFloat(data.estimatedPrice) || 0;
+    const payAmount = parseFloat(data.payAmount) || 0;
+    const shippingCost = parseFloat(data.shippingCost) || 0;
+    const taxAmount = parseFloat(data.taxAmount) || 0;
+    const totalLandedCost = finalPrice + shippingCost + taxAmount;
+
+    if (finalPrice <= 0) {
+      alert("Final price harus lebih dari 0");
+      return;
+    }
+    if (finalPrice > estimatedPrice * 1.5) {
+      if (!confirm(`Final price (${finalPrice.toLocaleString()}) jauh melebihi estimasi (${estimatedPrice.toLocaleString()}). Lanjutkan?`)) return;
+    }
+    if (payAmount > totalLandedCost) {
+      alert(`Pay amount (${payAmount.toLocaleString()}) tidak boleh melebihi total landed cost (${totalLandedCost.toLocaleString()})`);
+      return;
+    }
+
     const pOrdered = JSON.stringify({
       ...data,
-      status: '__approved',
+      finalPrice,
+      shippingCost,
+      taxAmount,
+      payAmount,
+      action: 'convert_to_po',
       purchaseType: 'product',
+      userId: user
+    })
+    await editFn.fn('', pOrdered, () => {
+      window.location.reload()
+    })
+  }
+
+  async function order(_id: string) {
+    const [filter] = pr.filter((p) => p._id == _id)
+
+    orderForm.reset({
+      _id: filter._id,
+      quantity: filter.quantity,
+      estimatedPrice: filter.estimatedPrice,
+      product: filter.product?.productName,
+      productId: filter.product?._id,
+      supplierId: suppliers[0]?._id ?? '',
+      finalPrice: '',
+      shippingCost: 0,
+      taxAmount: 0,
+      payAmount: 0,
+      paymentMethod: 'Cash',
     })
 
-    if (data.editable) {
-      await editFn.fn('', pOrdered, (result) => {
-        const [target] = pr.filter((r) => r._id == result._id)
-        target.finalPrice = result.finalPrice
-        target.payAmount = result.payAmount
-        target.supplier = result.spl
-        target.quantity = result.quantity
-        editRef.current?.close()
-      })
-    }
-    else {
-      alert('this data is not editable anymore')
-    }
+    orderRef.current?.showModal()
   }
 
-  async function orderSubmit(data: any) {
-    if (watchPayAmount == "") {
-      alert("Please enter pay amount")
-      orderForm.setValue("payAmount", 0)
-    }
-    else {
-      const pOrdered = JSON.stringify({
-        ...data,
-        status: '_approved',
-        purchaseType: 'product'
-      })
 
-      if (parseInt(data.finalPrice) > parseInt(data.estimatedPrice)) {
-        alert("Final price cannot be higher than estimated price")
-      }
-      else if (parseInt(data.payAmount) > parseInt(data.finalPrice)) {
-        alert("Pay amount cannot be higher than final price")
-      }
-      else {
-        await editFn.fn('', pOrdered, () => {
-          window.location.href = '/purchases/requisition'
-        })
-      }
-    }
-  }
 
   async function del(_id: string) {
     const url = `/api/web/roles?id=${_id}`
@@ -207,72 +215,8 @@ function Requisition() {
     _editRef.current?.showModal()
   }
 
-  async function edit(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
 
-    editPrForm.reset({
-      _id: filter._id,
-      quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
-      product: filter.product.productName,
-      finalPrice: filter.finalPrice,
-      currPayAmt: filter.payAmount,
-      payAmount: filter.payAmount,
-      supplierId: filter.supplierId,
-      editable: filter.editable
-    })
 
-    editRef.current?.showModal()
-  }
-
-  async function order(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
-
-    orderForm.reset({
-      _id: filter._id,
-      quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
-      product: filter.product.productName,
-      productId: filter.product._id
-    })
-
-    if (filter.status === 'approved') {
-      setDisabled(false)
-    }
-
-    if (filter.status === 'requested' || filter.status === 'ordered' || filter.status === 'rejected') {
-      setDisabled(true)
-    }
-
-    orderRef.current?.showModal()
-  }
-
-  function makeVoid(purchaseObj: any) {
-    const approvalCode = prompt("Enter approval code")
-
-    if (!approvalCode) {
-      if (approvalCode === "") alert("Please enter approval code")
-      return;
-    }
-    else {
-      const payload = JSON.stringify({
-        _id: purchaseObj._id,
-        status: 'void',
-        approvalCode: approvalCode,
-        voidedBy: user,
-        voidedAt: new Date()
-      })
-
-      editFn.fn('', payload, (result) => {
-        if (result === null) return; // Error handled by fetch hook
-        const target = pr.find((r) => r._id === purchaseObj._id)
-        if (target) {
-          target.status = "void"
-          setPr([...pr])
-        }
-      })
-    }
-  }
 
   useEffect(() => {
     if (hasHydrated) {
@@ -331,151 +275,87 @@ function Requisition() {
                 :
                 <div>
                   <div className="overflow-x-auto w-full">
-                  <table className="table text-center">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>P.O Number</th>
-                        <th>Created By</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Final Price</th>
-                        <th>Pay Amount</th>
-                        <th>Status</th>
-                        <th>Supplier</th>
-                        <th>...</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {
-                        searchResult.length < 1
-                          ?
-                          pr.map((p, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                <td>{p.purchaseOrderNumber}</td>
-                                <td>{p?.createdBy?.name}</td>
-                                <td>{p?.product?.productName}</td>
-                                <td>{p.quantity} ({p?.product?.conversionRatioX})</td>
-                                {
-                                  p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
-                                }
-                                {
-                                  p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
-                                }
-                                <td>{p.status}</td>
-                                {
-                                  p.status === "ordered" || p.status === "completed" ? <td>{p?.supplier?.bussinessName}</td> : <td>-</td>
-                                }
-                                {
-                                  p.status === "ordered"
-                                    ?
-                                    <td>
-                                      <button onClick={() => makeVoid(p)}>
-                                        <HugeiconsIcon
-                                          icon={Cancel02Icon}
-                                          size={24}
-                                          color="currentColor"
-                                          strokeWidth={1.5}
-                                        />
-                                      </button>
-                                    </td>
-                                    :
-                                    p.status === "completed"
-                                      ?
-                                      <td>
-                                        <button className="cursor text-red-900" onClick={() => edit(p._id)}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                            <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-                                            <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
-                                          </svg>
+                    <table className="table text-center">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>P.O Number</th>
+                          <th>Created By</th>
+                          <th>Product</th>
+                          <th>Quantity</th>
+                          <th>Final Price</th>
+                          <th>Pay Amount</th>
+                          <th>Status</th>
+                          <th>Supplier</th>
+                          <th>...</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {
+                          searchResult.length < 1
+                            ?
+                            pr.map((p, index) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                                  <td>{p.purchaseOrderNumber}</td>
+                                  <td>{p?.createdBy?.name}</td>
+                                  <td>{p?.product?.productName}</td>
+                                  <td>{p.quantity} ({p?.product?.conversionRatioX})</td>
+                                  {
+                                    p.status === "ordered" || p.status === "completed" ? <td>{p.finalPrice}</td> : <td>-</td>
+                                  }
+                                  {
+                                    p.status === "ordered" || p.status === "completed" ? <td>{p.payAmount}</td> : <td>-</td>
+                                  }
+                                  <td>{p.status}</td>
+                                  {
+                                    p.status === "ordered" || p.status === "completed" ? <td>{p?.supplier?.bussinessName || p?.customSupplier || '-'}</td> : <td>-</td>
+                                  }
+                                  <td>
+                                    {
+                                      p.status === "requested" && (
+                                        <button className="text-blue-600" onClick={() => _edit(p._id)} title="Edit">
+                                          <HugeiconsIcon icon={Edit03Icon} size={24} color="currentColor" />
                                         </button>
-                                      </td>
-                                      :
-                                      p.status === "approved"
-                                        ?
-                                        <td>
-                                          <button onClick={() => order(p._id)}>
-                                            <HugeiconsIcon
-                                              icon={CoinsDollarIcon}
-                                              size={24}
-                                              color="currentColor"
-                                              strokeWidth={1.5}
-                                            />
-                                          </button>
-                                          <button onClick={() => makeVoid(p)}>
-                                            <HugeiconsIcon
-                                              icon={Cancel02Icon}
-                                              size={24}
-                                              color="currentColor"
-                                              strokeWidth={1.5}
-                                            />
-                                          </button>
-                                        </td>
-                                        :
-                                        <td>
-                                          {
-                                            p.status != 'void'
-                                              ?
-                                              <div className="flex flex-col gap-1">
-                                                <button className="cursor text-green-900" onClick={() => makeVoid(p)}>
-                                                  <HugeiconsIcon
-                                                    icon={Cancel02Icon}
-                                                    size={24}
-                                                    color="currentColor"
-                                                    strokeWidth={1.5}
-                                                  />
-                                                </button>
-                                                <button className="cursor text-green-900" onClick={() => _edit(p._id)}>
-                                                  <HugeiconsIcon
-                                                    icon={Edit03Icon}
-                                                    size={24}
-                                                    color="currentColor"
-                                                    strokeWidth={1.5}
-                                                  />
-                                                </button>
-                                              </div>
-                                              :
-                                              <button disabled className="cursor text-green-900" onClick={() => _edit(p._id)}>
-                                                <HugeiconsIcon
-                                                  icon={Edit03Icon}
-                                                  size={24}
-                                                  color="currentColor"
-                                                  strokeWidth={1.5}
-                                                />
-                                              </button>
-                                          }
-                                        </td>
-                                }
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((role, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn" onClick={() => del(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                      }
-                    </tbody>
-                  </table>
+                                      )
+                                    }
+                                    {
+                                      p.status === "approved" && (
+                                        <button className="text-green-700" onClick={() => order(p._id)} title="Create Purchase Order">
+                                          <HugeiconsIcon icon={CoinsDollarIcon} size={24} color="currentColor" />
+                                        </button>
+                                      )
+                                    }
+                                  </td>
+                                </tr>
+                              )
+                            })
+                            :
+                            searchResult.map((role, index) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{role.name}</td>
+                                  <td className="flex flex-row gap-3">
+                                    <button className="btn" onClick={() => edit(role._id)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                      </svg>
+                                      Edit
+                                    </button>
+                                    <button className="btn" onClick={() => del(role._id)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                      </svg>
+                                      Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                        }
+                      </tbody>
+                    </table>
                   </div>
                 </div>
           }
@@ -553,112 +433,80 @@ function Requisition() {
       </dialog>
       <dialog id="my_modal_2" ref={orderRef} className="modal text-black">
         <div className="modal-box w-11/12 max-w-2xl">
-          <div className="flex flex-col ">
-            <span className="page-title">Make purchase order</span>
-            <form onSubmit={orderForm.handleSubmit(orderSubmit)} className="h-146 relative flex flex-col">
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product</legend>
-                <input className="input w-full" {...orderForm.register("product")} type="text" readOnly />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...orderForm.register("quantity")} type="text" readOnly />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Final price</legend>
-                <input className="input w-full" {...orderForm.register("finalPrice")} type="text" />
-              </fieldset>
-              <fieldset className="fieldset hidden">
-                <legend className="fieldset-legend">Pay amount</legend>
-                <input readOnly defaultValue={0} className="input w-full" {...orderForm.register("payAmount")} type="text" />
-              </fieldset>
+          <div className="flex flex-col gap-3">
+            <span className="page-title">Create Purchase Order</span>
+            <form onSubmit={orderForm.handleSubmit(orderSubmit)} className="flex flex-col gap-3 pb-4">
+              <div className="grid grid-cols-2 gap-3">
+                <fieldset className="fieldset col-span-2">
+                  <legend className="fieldset-legend">Product</legend>
+                  <input className="input w-full bg-gray-50" {...orderForm.register("product")} type="text" readOnly />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Quantity</legend>
+                  <input className="input w-full bg-gray-50" {...orderForm.register("quantity")} type="text" readOnly />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Estimated Price</legend>
+                  <input className="input w-full bg-gray-50" {...orderForm.register("estimatedPrice")} type="text" readOnly />
+                </fieldset>
+              </div>
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Supplier</legend>
-                <select {...orderForm.register("supplierId")} className="select w-full">
+                <select {...orderForm.register("supplierId")} className="select w-full" required>
+                  <option value="">-- Pilih Supplier --</option>
                   {
-                    suppliers.map((s) => {
-                      return (
-                        <option key={s._id} value={s._id}>
-                          {s.bussinessName}
-                        </option>
-                      )
-                    })
+                    suppliers.map((s) => (
+                      <option key={s._id} value={s._id}>{s.bussinessName}</option>
+                    ))
                   }
                 </select>
               </fieldset>
-              <fieldset className={`fieldset ${watchPayAmount > 0 ? '' : 'hidden'}`}>
-                <legend className="fieldset-legend">Payment Method</legend>
-                <select {...orderForm.register("paymentMethod")} className="select w-full">
-                  <option value="Cash">Cash</option>
-                  {
-                    bankAccount.result?.map((b) => {
-                      return (
-                        <option value={`transfer from ${b.bank}`} key={b._id}>
-                          transfer from {b.bank} ({b.accountName})
+              <div className="grid grid-cols-3 gap-3">
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Final Price (Rp)</legend>
+                  <input className="input w-full" {...orderForm.register("finalPrice")} type="number" min="0" step="1" required placeholder="0" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Shipping Cost (Rp)</legend>
+                  <input className="input w-full" {...orderForm.register("shippingCost")} type="number" min="0" step="1" placeholder="0" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tax Amount (Rp)</legend>
+                  <input className="input w-full" {...orderForm.register("taxAmount")} type="number" min="0" step="1" placeholder="0" />
+                </fieldset>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Initial Pay Amount (Rp)</legend>
+                  <input className="input w-full" {...orderForm.register("payAmount")} type="number" min="0" step="1" placeholder="0" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Payment Method</legend>
+                  <select {...orderForm.register("paymentMethod")} className="select w-full">
+                    <option value="Cash">Cash</option>
+                    {
+                      bankAccount.result?.map((b: any) => (
+                        <option key={b._id} value={`Transfer - ${b.bank}`}>
+                          Transfer - {b.bank} ({b.accountName})
                         </option>
-                      )
-                    })
-                  }
-                </select>
-              </fieldset>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button disabled={disabled} type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Make
-              </button>
+                      ))
+                    }
+                  </select>
+                </fieldset>
+              </div>
+              {editFn.error ? <p className="text-red-600 text-sm">Terjadi kesalahan, coba lagi.</p> : null}
+              <div className="flex flex-row gap-3 justify-end mt-2">
+                <button type="button" onClick={() => orderRef.current?.close()} className="p-3 rounded-md border border-gray-300 text-gray-700">
+                  Batal
+                </button>
+                <button type="submit" className="p-3 rounded-md text-white bg-blue-900" disabled={editFn.loading}>
+                  {editFn.loading ? 'Processing...' : 'Buat PO'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </dialog>
-      <dialog id="my_modal_3" ref={editRef} className="modal text-black">
-        <div className="modal-box w-11/12 max-w-2xl">
-          <div className="flex flex-col ">
-            <span className="page-title">Edit purchase order</span>
-            <form onSubmit={editPrForm.handleSubmit(editSubmit)} className="flex flex-col gap-3 pb-4">
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product</legend>
-                <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Final Price</legend>
-                <input className="input w-full" {...editPrForm.register("finalPrice")} type="text" />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Pay Amount</legend>
-                <input className="input w-full" {...editPrForm.register("payAmount")} type="text" />
-              </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Supplier</legend>
-                <select {...editPrForm.register("supplierId")} className="select w-full">
-                  {
-                    suppliers.map((s) => {
-                      return (
-                        <option key={s._id} value={s._id}>
-                          {s.bussinessName}
-                        </option>
-                      )
-                    })
-                  }
-                </select>
-              </fieldset>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Edit
-              </button>
-            </form>
-          </div>
-        </div>
-      </dialog>
-      <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
-        <Link href="/xpurchases">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-          </svg>
-        </Link>
-      </button>
     </>
   )
 }

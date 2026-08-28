@@ -33,7 +33,7 @@ export default function Customers() {
   const router = useRouter();
 
   const getCustomersFn = useFetch<any[], any>({
-    url: `/api/web/customers?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)

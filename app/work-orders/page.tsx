@@ -30,7 +30,7 @@ export default function WorkOrders() {
   const newForm = useForm()
 
   const getLogsFn = useFetch<any[], any>({
-    url: `/api/web/work-orders?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -45,7 +45,7 @@ export default function WorkOrders() {
   })
 
   const getEmployeesFn = useAbsensiFetch<any, any>({
-    url: `/emp/xxx`,
+    url: '',
     method: 'GET'
   })
 

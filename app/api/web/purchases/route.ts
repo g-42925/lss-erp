@@ -23,6 +23,52 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { _id, ...rest } = body
 
+    if (rest.action) {
+      switch (rest.action) {
+        case "edit_pr":
+          await Purchase.findByIdAndUpdate(_id, {
+            quantity: rest.quantity,
+            estimatedPrice: rest.estimatedPrice,
+            productId: rest.productId
+          });
+          return NextResponse.json({ noResult: false, message: "PR updated", result: true, error: false });
+        case "approve_pr":
+          await Purchase.findByIdAndUpdate(_id, { status: "approved", approvedBy: rest.userId, approvedAt: new Date() });
+          return NextResponse.json({ noResult: false, message: "PR approved", result: true, error: false });
+        case "reject_pr":
+          await Purchase.findByIdAndUpdate(_id, { status: "rejected" });
+          return NextResponse.json({ noResult: false, message: "PR rejected", result: true, error: false });
+        case "convert_to_po":
+          const updateData: any = {
+            status: "ordered",
+            finalPrice: rest.finalPrice,
+            payAmount: rest.payAmount || 0,
+            quantity: rest.quantity,
+            shippingCost: rest.shippingCost || 0,
+            taxAmount: rest.taxAmount || 0,
+          };
+          if (rest.purchaseType === 'product') {
+            updateData.supplierId = rest.supplierId;
+          } else if (rest.purchaseType === 'procurement') {
+            updateData.customSupplier = rest.customSupplier;
+          }
+          await Purchase.findByIdAndUpdate(_id, updateData);
+
+          if (rest.payAmount && rest.payAmount > 0) {
+            await Log.create({
+              purchaseId: _id,
+              date: new Date(),
+              amount: rest.payAmount,
+              initial: true,
+              paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
+              type: 'payment',
+              paymentMethod: rest.paymentMethod || 'Cash',
+              createdBy: rest.userId,
+            });
+          }
+          return NextResponse.json({ noResult: false, message: "PO created", result: true, error: false });
+      }
+    }
 
     if (rest.status != 'ordered') {
 
@@ -324,6 +370,7 @@ export async function PUT(request: NextRequest) {
 
     if (rest.status === "ordered") {
       const purchase = await Purchase.findById(_id)
+      const landedCost = (purchase.finalPrice || 0) + (purchase.shippingCost || 0) + (purchase.taxAmount || 0);
 
       if (purchase.purchaseType === 'procurement') {
         const received = parseInt(rest.qty);
@@ -371,23 +418,8 @@ export async function PUT(request: NextRequest) {
 
         const product = await Product.findById(purchase.productId)
 
-        if (product.toObject().hasOwnProperty('stockValue')) {
-          const newStockValue = product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty))
 
-          await Product.findByIdAndUpdate(
-            product._id, {
-            stockValue: newStockValue,
-          }
-          )
-        }
-        else {
-          await Product.findByIdAndUpdate(
-            product._id, {
-            stockValue: (purchase.finalPrice / purchase.quantity) * parseInt(rest.qty),
-          }
-          )
-        }
-
+        // stockValue update deferred to QC approval
         const warehouse = await Warehouse.findById(rest.warehouseId)
 
         let resolvedLocationId = warehouse?.locationId || rest.locationId;
@@ -396,9 +428,10 @@ export async function PUT(request: NextRequest) {
           resolvedLocationId = defaultLoc?._id;
         }
 
+
         const batchCreated = await Batche.create({
           ...rest,
-          status: 'ACTIVE',
+          status: 'QUARANTINE',
           batchNumber: `B-${String(Date.now()).slice(-5)}`,
           accumulative: config.ratio * rest.qty,
           reserved: 0,
@@ -420,23 +453,10 @@ export async function PUT(request: NextRequest) {
       }
       else {
         // ─── No Measurement config: handle conversionType "value" or packaging ───
-        const product = await Product.findById(purchase.productId)
+      const product = await Product.findById(purchase.productId)
       const warehouse = await Warehouse.findById(rest.warehouseId)
 
-      if (product.toObject().hasOwnProperty('prevUnitCost')) {
-        await Product.findByIdAndUpdate(
-          product._id, {
-          stockValue: product.stockValue + ((purchase.finalPrice / purchase.quantity) * parseInt(rest.qty)),
-        }
-        )
-      }
-      else {
-        await Product.findByIdAndUpdate(
-          product._id, {
-          stockValue: (purchase.finalPrice / purchase.quantity) * parseInt(rest.qty),
-        }
-        )
-      }
+      // stockValue update deferred to QC approval
 
       let resolvedLocationId = warehouse?.locationId || rest.locationId;
       if (!resolvedLocationId) {
@@ -460,7 +480,7 @@ export async function PUT(request: NextRequest) {
 
       const batchCreated = await Batche.create({
         ...rest,
-        status: 'ACTIVE',
+        status: 'QUARANTINE',
         batchNumber: `B-${String(Date.now()).slice(-5)}`,
         accumulative: accumulativeQty,
         reserved: 0,
@@ -575,7 +595,7 @@ export async function POST(request: NextRequest) {
     const r = {
       ...requested,
       ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: agg?.product }),
-      createdBy: 'xxx'
+      createdBy: agg?.createdBy
     }
 
 

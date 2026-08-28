@@ -44,12 +44,12 @@ export default function Measure() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getSuppliersFn = useFetch<any[], any>({
-    url: `/api/web/supplier?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -63,12 +63,12 @@ export default function Measure() {
 
 
   const getMeasurementsFn = useFetch<any[], any>({
-    url: `/api/web/measure?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getUnitFn = useFetch<any[], any>({
-    url: `/api/web/unit?id=xxx`,
+    url: '',
     method: 'GET'
   })
 

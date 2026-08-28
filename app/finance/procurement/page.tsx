@@ -31,7 +31,7 @@ export default function Procurement() {
   const currentStatus = useWatch({ control: editPrForm.control, name: "currentStatus" });
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/purchases?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)

@@ -22,6 +22,8 @@ const PurchaseSchema = new mongoose.Schema({
   finalPrice: { type: Number, required: false },
   receivedQty: { type: Number, default: 0 },
   payAmount: { type: Number, Default: false },
+  shippingCost: { type: Number, default: 0 },
+  taxAmount: { type: Number, default: 0 },
   editable: { type: Boolean, required: true },
   unitCost: { type: Number, required: false },
   status: {

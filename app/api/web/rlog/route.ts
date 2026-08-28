@@ -151,6 +151,10 @@ export async function PUT(request: NextRequest) {
     if (!batch) {
       throw new Error("Batch not found");
     }
+    
+    if (batch.status !== 'QUARANTINE') {
+      throw new Error(`Batch cannot be edited via Receiving Log because it has already been processed by QC (status: ${batch.status})`);
+    }
 
     const newQty = parseInt(qty);
     if (isNaN(newQty) || newQty <= 0) {
@@ -186,8 +190,9 @@ export async function PUT(request: NextRequest) {
           $inc: { receivedQty: diff }
         });
 
-        if (product && product.stockValue !== undefined) {
-          const unitCost = purchase.finalPrice / purchase.quantity;
+        if (product && product.stockValue !== undefined && batch.status === 'ACTIVE') {
+          const landedCost = (purchase.finalPrice || 0) + (purchase.shippingCost || 0) + (purchase.taxAmount || 0);
+          const unitCost = landedCost / purchase.quantity;
           const valChange = unitCost * diff;
           await Product.findByIdAndUpdate(product._id, {
             $inc: { stockValue: valChange }

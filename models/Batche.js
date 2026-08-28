@@ -11,7 +11,7 @@ const batcheSchema = new mongoose.Schema({
   batchNumber: { type: String, required: true },
   locationId: { type: mongoose.Schema.Types.ObjectId, required: false },
   purchaseOrderNumber: { type: String, required: false },
-  status: { type: String, required: true, enum: ['ACTIVE', 'DEPLETED', 'EXPIRED', 'INACTIVE'] },
+  status: { type: String, required: true, enum: ['ACTIVE', 'DEPLETED', 'EXPIRED', 'INACTIVE', 'QUARANTINE', 'REJECTED'] },
   isOpening: { type: Boolean, required: false },
   createdAt: { type: Date, default: Date.now },
   supplierId: {

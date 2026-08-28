@@ -37,19 +37,23 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const pId = url.searchParams.get("pId")
   const lId = url.searchParams.get("lId")
+  const poNumber = url.searchParams.get("poNumber")
 
   try {
     await connectToDatabase()
 
+    // ── Fetch by purchaseOrderNumber (for purchase return) ────────────────
+    if (poNumber) {
+      const batches = await Batche.find({ purchaseOrderNumber: poNumber }).lean()
+      return NextResponse.json({ noResult: false, message: "", result: batches, error: false })
+    }
+
+    // ── Original: fetch by productId + locationId ─────────────────────────
     let batches = await Batche.aggregate([
       {
         $match: {
-          productId: new ObjectId(
-            pId as string
-          ),
-          locationId: new ObjectId(
-            lId as string
-          )
+          productId: new ObjectId(pId as string),
+          locationId: new ObjectId(lId as string)
         }
       },
       {
@@ -62,28 +66,14 @@ export async function GET(request: NextRequest) {
       },
       {
         $addFields: {
-          remain: {
-            $subtract: ["$accumulative", "$outQty"]
-          }
+          remain: { $subtract: ["$accumulative", "$outQty"] }
         }
       },
     ])
 
-    batches = batches.map((b) => {
-      return {
-        ...b,
-        supplier: b.suppliers[0]
-      }
-    })
+    batches = batches.map((b) => ({ ...b, supplier: b.suppliers[0] }))
 
-    return NextResponse.json(
-      {
-        noResult: false,
-        message: "",
-        result: batches,
-        error: false
-      }
-    )
+    return NextResponse.json({ noResult: false, message: "", result: batches, error: false })
   }
   catch (e: unknown) {
     return NextResponse.json(

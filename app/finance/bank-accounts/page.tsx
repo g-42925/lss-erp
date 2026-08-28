@@ -44,13 +44,13 @@ export default function BankAccounts() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/bank-accounts?id=xxx`,
+    url: '',
     method: "GET",
     onError: (m) => alert(m),
   })
 
   const deleteFn = useFetch<any, any>({
-    url: `/api/web/bank-accounts?id=xxx`,
+    url: '',
     method: "DELETE",
     onError: (m) => alert(m),
   })

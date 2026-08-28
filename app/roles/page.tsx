@@ -58,7 +58,7 @@ function Roles() {
   })
 
   const getFn = useFetch<RoleData[], any>({
-    url: `/api/web/roles?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -68,7 +68,7 @@ function Roles() {
   })
 
   const deleteFn = useFetch<string, any>({
-    url: `/api/web/roles?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)

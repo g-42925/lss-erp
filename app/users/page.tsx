@@ -33,17 +33,17 @@ export default function Users() {
   const editForm = useForm();
 
   const getUsersFn = useFetch<any[], any>({
-    url: `/api/web/users?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getLocationFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getRolesFn = useFetch<any[], any>({
-    url: `/api/web/roles?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -64,7 +64,7 @@ export default function Users() {
   })
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/users?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(deleteFn.message)

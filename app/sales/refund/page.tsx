@@ -38,7 +38,7 @@ export default function RefundLog() {
   const [approvalCode, setApprovalCode] = useState<string>('')
 
   const getRefundsFn = useFetch<RefundEntry[], unknown>({
-    url: `/api/web/refund?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => alert(m)
   })

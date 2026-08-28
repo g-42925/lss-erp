@@ -1,0 +1,33 @@
+--- app/finance/log/page.tsx	2026-08-20 10:25:58.169958845 +0700
++++ app/finance/xlog/page.tsx	2026-08-20 10:25:58.237959455 +0700
+@@ -27,7 +27,7 @@
+   useEffect(() => {
+     if (hasHydrated) {
+       const body = JSON.stringify({})
+-      const url = `/api/web/log?id=${masterAccountId}&type=product`
++      const url = `/api/web/log?id=${masterAccountId}&type=payment`
+ 
+       getFn.fn(url, body, (result) => {
+         setLogs(result)
+@@ -73,8 +73,8 @@
+                         <th>Date</th>
+                         <th>Purchase Order Number</th>
+                         <th>Payment Number</th>
+-                        <th>Product</th>
+-                        <th>Supplier</th>
++                        <th>Description</th>
++                        <th>Vendor</th>
+                         <th>Type</th>
+                         <th>Amount</th>
+                         <th>Reference</th>
+@@ -90,8 +90,8 @@
+                                 <td>{new Date(log.date).toLocaleString('id-ID')}</td>
+                                 <td>{log.purchaseOrderNumber}</td>
+                                 <td>{log.log.paymentNumber}</td>
+-                                <td>{log.product.productName}</td>
+-                                <td>{log.supplier.bussinessName}</td>
++                                <td>{log.description}</td>
++                                <td>{log.vendor.name}</td>
+                                 <td>{log.log.type}</td>
+                                 <td>{log.log.amount}</td>
+                                 <th>{log.log.type === 'adjustment' ? log.log.reference : '-'}</th>

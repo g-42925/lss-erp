@@ -4,11 +4,8 @@ import useAuth from "@/store/auth"
 import Sidebar from "@/components/sidebar";
 import useFetch from "@/hooks/useFetch";
 import { useSearchParams } from 'next/navigation'
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useForm } from "react-hook-form";
-
-
-import React, { Suspense } from "react";
 
 export default function Batches() {
   return (
@@ -68,7 +65,7 @@ function BatchesContent() {
   }
 
   const fetchBatchesFn = useFetch<any, any>({
-    url: '/api/web/batches?pId=xxx',
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert('something went wrong')
@@ -115,12 +112,12 @@ function BatchesContent() {
   })
 
   const fetchLocationsFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const fetchProductsFn = useFetch<any[], any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       console.log(m)

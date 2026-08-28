@@ -44,7 +44,7 @@ export default function Delivery() {
   })
 
   const getOrdersFn = useFetch<any, any>({
-    url: `/api/web/orders?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -52,12 +52,12 @@ export default function Delivery() {
   })
 
   const getDeliveries = useFetch<any, any>({
-    url: `/api/web/delivery?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getOrderDetailsFn = useFetch<any, any>({
-    url: `/api/web/delivery?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
@@ -216,7 +216,7 @@ export default function Delivery() {
           </div>
           <div className="flex flex-row items-center border-b pb-4 print:hidden">
             <span className="text-lg font-semibold">Processed Deliveries</span>
-            <button disabled onClick={() => modalRef.current?.showModal()} className="btn btn-primary ml-auto flex items-center gap-2">
+            <button onClick={() => modalRef.current?.showModal()} className="btn btn-primary ml-auto flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
@@ -465,7 +465,7 @@ export default function Delivery() {
       </dialog>
 
       <button className="btn btn-circle btn-neutral fixed right-12 bottom-12 shadow-2xl print:hidden">
-        <Link href="/xpurchases">
+        <Link href="/finance/svc-purchases">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
           </svg>

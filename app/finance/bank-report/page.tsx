@@ -25,7 +25,7 @@ export default function BankReport() {
   const router = useRouter()
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/finance/reports/bank?id=xxx`,
+    url: '',
     method: "GET",
     onError: (m) => alert(m),
   })

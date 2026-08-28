@@ -5,8 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import mongoose from "mongoose";
 
-import ProductQuotation from '@/models/ProductQuotation'
-import ServiceQuotation from '@/models/ServiceQuotation'
+
 import Order from '@/models/Order'
 import Companie from '@/models/Companie'
 import Invoice from '@/models/Invoice'
@@ -348,195 +347,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    let quotation = await ProductQuotation.findOne({
-      quotationNumber: qNumber
-    })
-
-    if (!quotation) {
-      quotation = await ServiceQuotation.findOne({
-        quotationNumber: qNumber
-      })
-    }
-
-
-    if (!quotation) {
-      return NextResponse.json(
-        {
-          noResult: true,
-          message: "quotation not found",
-          result: null,
-          error: true
-        }
-      )
-    }
-    else {
-      const { ...rest } = quotation._doc
-
-      let total = 0
-      let cart = rest.cart || []
-
-      if (rest.productType === 'service' && !rest.cart) {
-        // Map ServiceQuotation (flattened) to Order structure (cart-based)
-        cart = [{
-          productId: rest.productId,
-          qty: rest.qty,
-          subTotal: rest.price,
-          taxes: rest.taxes || []
-        }]
-        total = rest.price
-      } else {
-        total = rest.cart.reduce((acc: number, item: any) => acc + item.subTotal, 0)
+    return NextResponse.json(
+      {
+        noResult: true,
+        message: "Quotation system has been removed. Please use direct order.",
+        result: null,
+        error: true
       }
-
-      const so = `SO-${String(Date.now()).slice(-5)}`
-
-      const order = {
-        ...rest,
-        cart: cart,
-        salesOrderId: Date.now(),
-        saleDate: new Date(),
-        contract: contractUploadUrl,
-        attachment: attachmentUploadUrl,
-        salesOrderNumber: so,
-        type: 'withQuotation',
-        payTerm,
-        total: total,
-        taxValue: rest.taxValue || 0,
-        createdBy: userId ? new mongoose.Types.ObjectId(userId) : null
-      }
-
-      const _order = await Order.create(order) as any
-
-      // ─── Stock management berdasarkan tipe order ────────────────────
-      if (rest.productType === 'good') {
-        const cartForStock = (rest.cart || []).map((c: any) => ({
-          productId: c.productId,
-          warehouseId: c.warehouseId,
-          qty: c.qty,
-        }))
-
-        if (pickupDateStr) {
-          const pickupDate = new Date(pickupDateStr)
-          const now = new Date()
-          const pickupDay = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate())
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-
-          if (pickupDay > today) {
-            // Order reserved: pickup di masa depan → tandai reserved qty di batch
-            await createReservationsIfNeeded(cartForStock, so, _order._id, pickupDate)
-          } else {
-            // Pickup hari ini → langsung potong stock + catat shipping log
-            await deductStockImmediately(cartForStock, so, _order._id, _order.createdBy ?? null, company._id)
-          }
-        } else {
-          // Tidak ada pickupDate → order biasa, langsung potong stock + catat shipping log
-          await deductStockImmediately(cartForStock, so, _order._id, _order.createdBy ?? null, company._id)
-        }
-      }
-      // ─────────────────────────────────────────────────────────────────
-
-      const orders = await Order.find({
-        companyId: company._id,
-      })
-
-      const [_o] = await Order.aggregate([
-        {
-          $match: { _id: new ObjectId(_order._id) }
-        },
-        {
-          $lookup: {
-            from: "products",
-            let: { productId: { $arrayElemAt: ["$cart.productId", 0] } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $eq: ["$_id", "$$productId"]
-                  }
-                }
-              }
-            ],
-            as: "p"
-          }
-        },
-        {
-          $addFields: {
-            product: {
-              $cond: [
-                { $gt: [{ $size: "$cart" }, 1] },
-                "various items",
-                { $arrayElemAt: ["$p", 0] }
-              ]
-            }
-          }
-        },
-        {
-          $addFields: {
-            variousItem: {
-              $cond: [
-                { $gt: [{ $size: "$cart" }, 1] },
-                true,
-                false
-              ]
-            }
-          }
-        },
-        {
-          $lookup: {
-            from: "customers",
-            localField: "customerId",
-            foreignField: "_id",
-            as: "customer"
-          }
-        },
-        {
-          $unwind: {
-            path: '$customer',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $project: { 'p': 0 }
-        }
-      ])
-
-      const paid = formData.get("debt") === 'yes' ? false : true
-      const payAmtString = formData.get("payAmt") as string
-      const payAmt = parseFloat(payAmtString) || 0
-      const method = formData.get("method") as string
-
-      const now = new Date();
-      const shortYear = String(now.getFullYear()).slice(-2);
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const invoiceNumber = `${company.invoiceCode}${shortYear}${month}${formatNumber(orders.length + 1)}`
-
-      await Invoice.create({
-        companyId: company._id,
-        invoiceNumber: invoiceNumber,
-        invoiceType: rest.productType === "good" ? "product" : "service",
-        salesOrderId: _order._id,
-        salesOrderNumber: so,
-        payAmount: payAmt,
-        paid: paid,
-        date: formData.get("invoiceDate") ? new Date(formData.get("invoiceDate") as string) : new Date(),
-        paymentHistory: payAmt > 0 ? [
-          {
-            amount: payAmt,
-            method: paymentMethod || method || "Cash",
-            date: new Date()
-          }
-        ] : []
-      })
-
-      return NextResponse.json(
-        {
-          noResult: false,
-          message: "",
-          result: _o,
-          error: false
-        }
-      )
-    }
+    )
   }
   catch (e: any) {
     console.log(e)

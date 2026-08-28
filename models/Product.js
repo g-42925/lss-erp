@@ -23,7 +23,9 @@ const ProductSchema = new mongoose.Schema({
   discountValue: { type: Number, required: false },
   conversionType: { type: String, required: false, enum: ["value", "packaging"] },
   conversionValue: { type: Number, required: false },
-  packagingId: { type: String, required: false }
+  packagingId: { type: String, required: false },
+  reorderPoint: { type: Number, required: false, default: 0 },
+  safetyStock: { type: Number, required: false, default: 0 }
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

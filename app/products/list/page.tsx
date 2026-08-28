@@ -37,12 +37,12 @@ export default function List() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/roles?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)

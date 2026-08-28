@@ -29,43 +29,39 @@ export async function PUT(request: NextRequest) {
     const conversionType = formData.get("conversionType") as string;
     const conversionValue = formData.get("conversionValue") as string;
     const packagingId = formData.get("packagingId") as string;
+    const reorderPoint = formData.get("reorderPoint") as string;
+    const safetyStock = formData.get("safetyStock") as string;
 
 
-    if (file) {
-      const fileName = (formData.get("fileName") as string) ?? file.name;
-      const buffer = Buffer.from(await file.arrayBuffer());
+    if (file instanceof File && file.size > 0) {
+      const buffer = await file.arrayBuffer()
+      const r = await Companie.findOne({ masterAccountId: formData.get("id") })
+      const originalFileName = formData.get('fileName') as string || file.name;
+      const fileName = `${crypto.randomUUID()}-${originalFileName}`;
+      const cdnUrl = `https://leryn-ljm-4.b-cdn.net/erp_${r.email.split('@')[0]}/product-images/${fileName}`;
+
+      //const fileName = (formData.get("fileName") as string) ?? file.name;
+
+      //const buffer = Buffer.from(await file.arrayBuffer());
 
       const s3 = new S3Client({
-        region: "us-east-1",
-        endpoint: "https://s3.filebase.com",
+        forcePathStyle: true,
+        region: process.env.S3_REGION!,
+        endpoint: process.env.S3_ENDPOINT!,
         credentials: {
-          accessKeyId: "B8F0135956143AE0685E",
-          secretAccessKey: "gKrbIZJnzLWBXZ0VGQvnlAumvngpBH35PsXN5zUp",
+          accessKeyId: process.env.S3_ACCESS_KEY!,
+          secretAccessKey: process.env.S3_SECRET_KEY!,
         },
       });
 
-      const putCommand = new PutObjectCommand({
-        Bucket: "leryn-storage",
-        Key: fileName,
-        Body: buffer,
-        ContentType: file.type,
-        Metadata: {
-          cid: "true", // 👈 sama seperti PHP
-        },
-      });
-
-      await s3.send(putCommand);
-
-      const head = await s3.send(
-        new HeadObjectCommand({
-          Bucket: "leryn-storage",
-          Key: fileName,
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: process.env.S3_BUCKET!,
+          Key: `erp_${r.email.split("@")[0]}/product-images/${fileName}`,
+          Body: Buffer.from(buffer),
+          ContentType: file.type,
         })
       );
-
-      const cid = head.Metadata?.cid;
-
-      const productImage = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
 
       const newProduct = {
         productName,
@@ -78,20 +74,28 @@ export async function PUT(request: NextRequest) {
         sellingPriceTaxType,
         productType,
         sellingPrice,
-        image: productImage,
+        image: cdnUrl,
         haveExpiredDate,
         discountType,
         discountValue,
         conversionType,
         conversionValue,
         packagingId,
+        reorderPoint: reorderPoint ? Number(reorderPoint) : 0,
+        safetyStock: safetyStock ? Number(safetyStock) : 0,
         smallestUnitPrice: conversionValue && Number(conversionValue) > 0 ? Number(sellingPrice) / Number(conversionValue) : undefined
       }
 
+      console.log("========================== new one =============================")
+
       const product = await Product.findByIdAndUpdate(
         _id,
-        newProduct
+        newProduct,
+        { new: true }
       )
+
+      console.log("========================== new one =============================")
+
 
       return NextResponse.json({
         noResult: false,
@@ -118,13 +122,20 @@ export async function PUT(request: NextRequest) {
         conversionType,
         conversionValue,
         packagingId,
+        reorderPoint: reorderPoint ? Number(reorderPoint) : 0,
+        safetyStock: safetyStock ? Number(safetyStock) : 0,
         smallestUnitPrice: conversionValue && Number(conversionValue) > 0 ? Number(sellingPrice) / Number(conversionValue) : undefined
       }
+
+      console.log("==========================  old one =============================")
 
       const product = await Product.findByIdAndUpdate(
         _id,
         newProduct
       )
+
+      console.log("========================== old one =============================")
+
 
       return NextResponse.json({
         noResult: false,
@@ -168,6 +179,8 @@ export async function POST(request: NextRequest) {
         const conversionType = formData.get("conversionType") as string;
         const conversionValue = formData.get("conversionValue") as string;
         const packagingId = formData.get("packagingId") as string;
+        const reorderPoint = formData.get("reorderPoint") as string;
+        const safetyStock = formData.get("safetyStock") as string;
 
 
         if (!file) {
@@ -183,7 +196,7 @@ export async function POST(request: NextRequest) {
         const buffer = await file.arrayBuffer()
         const r = await Companie.findOne({ masterAccountId: formData.get("id") })
         const fileName = (formData.get("fileName") as string) ?? file.name;
-        const cdnUrl = `https://leryn-ljm-3.b-cdn.net/erp_${r.email.split('@')[0]}/product-images/${fileName}`;
+        const cdnUrl = `https://leryn-ljm-4.b-cdn.net/erp_${r.email.split('@')[0]}/product-images/${fileName}`;
 
         const s3 = new S3Client({
           forcePathStyle: true,
@@ -224,6 +237,8 @@ export async function POST(request: NextRequest) {
           conversionType,
           conversionValue,
           packagingId,
+          reorderPoint: reorderPoint ? Number(reorderPoint) : 0,
+          safetyStock: safetyStock ? Number(safetyStock) : 0,
           smallestUnitPrice: conversionValue && Number(conversionValue) > 0 ? Number(sellingPrice) / Number(conversionValue) : undefined
         }
 

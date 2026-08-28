@@ -320,6 +320,39 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { _id, taxes } = body;
+
+    if (!_id || !Array.isArray(taxes)) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Invalid request: _id and taxes array required",
+        result: null,
+        error: true,
+      }, { status: 400 });
+    }
+
+    await ServiceOrder.findByIdAndUpdate(_id, { taxes });
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Taxes applied successfully",
+      result: {},
+      error: false,
+    });
+  } catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: (e as Error).message,
+      result: null,
+      error: true,
+    });
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();

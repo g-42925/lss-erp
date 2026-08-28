@@ -38,12 +38,12 @@ export default function Location() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const deleteFn = useFetch<any[], any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'DELETE',
     onError: (m) => {
       alert(m)

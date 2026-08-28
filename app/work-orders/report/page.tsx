@@ -20,12 +20,12 @@ export default function WorkOrderReport() {
   const [filterEmp, setFilterEmp] = useState("All")
 
   const getLogsFn = useFetch<any[], any>({
-    url: `/api/web/work-orders?id=xxx`,
+    url: '',
     method: 'GET'
   })
 
   const getEmployeesFn = useAbsensiFetch<any, any>({
-    url: `/emp/xxx`,
+    url: '',
     method: 'GET'
   })
 

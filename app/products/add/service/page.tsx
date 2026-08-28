@@ -23,7 +23,7 @@ export default function Add() {
   const newCategoryForm = useForm()
 
   const getCategoriesFn = useFetch<any[], any>({
-    url: `/api/web/categories?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)

@@ -55,12 +55,12 @@ export default function BankVoucherPage() {
   const [customers, setCustomers] = useState<any[]>([]);
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/bank-accounts?id=xxx`,
+    url: '',
     method: "GET",
   });
 
   const getCustomersFn = useFetch<any[], any>({
-    url: `/api/web/customers?id=xxx`,
+    url: '',
     method: "GET",
   });
 

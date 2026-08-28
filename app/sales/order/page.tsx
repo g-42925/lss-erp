@@ -9,14 +9,13 @@ import Swal from "sweetalert2";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useEffect, useState, useMemo, Suspense } from 'react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons'
 import { Delete01Icon } from '@hugeicons/core-free-icons';
 import { Edit03Icon } from '@hugeicons/core-free-icons';
 import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
 import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
-import React, { Suspense } from "react";
 
 export default function Order() {
   return (
@@ -206,7 +205,7 @@ function OrderContent() {
   })
 
   const getRefundsFn = useFetch<any[], any>({
-    url: `/api/web/refund?id=xxx`,
+    url: '',
     method: 'GET',
     onError: () => { }
   })
@@ -511,14 +510,14 @@ function OrderContent() {
     }
   })
   const getLocationsFn = useFetch<any, any>({
-    url: `/api/web/location?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
     }
   })
   const getOrdersFn = useFetch<any, any>({
-    url: `/api/web/orders?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -526,7 +525,7 @@ function OrderContent() {
   })
 
   const getProductsFn = useFetch<any, any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -547,7 +546,7 @@ function OrderContent() {
   }, [watchProduct, getProductsFn?.result])
 
   const getTaxesFn = useFetch<any[], any>({
-    url: `/api/web/tax?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -562,7 +561,7 @@ function OrderContent() {
     }
   })
   const bankAccountFn = useFetch<any, any>({
-    url: `/api/web/bank-accounts?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -1331,7 +1330,7 @@ function OrderContent() {
                   />
                 </button>
                 <button className="bg-black text-white rounded-full p-3">
-                  <Link href="/sales/xorder">
+                  <Link href="/sales/svc-order">
                     <HugeiconsIcon icon={ArrowLeftRightIcon} color="white" size={24} />
                   </Link>
                 </button>
@@ -1526,34 +1525,7 @@ function OrderContent() {
             </button>
           </div>
         </div>
-        <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
-          <form onSubmit={newOrderForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
-            <h3 className="text-lg font-bold">Make order</h3>
-            <div className="flex flex-row items-center gap-3">
-              <label className="w-[70px]">Quotation Number</label>
-              <input {...newOrderForm.register("qNumber")} type="text" className="input flex-1" />
-            </div>
-            <div className="flex flex-row items-center gap-3">
-              <label className="w-[70px]">Pay term</label>
-              <label className="input flex-1">
-                <input {...newOrderForm.register('payTerm')} type="text" placeholder="pay term" />
-                <span className="badge badge-neutral badge-xs">Days</span>
-              </label>
-            </div>
-            <div className="flex flex-row items-center gap-3">
-              <label className="w-[90px]">Contract Document</label>
-              <input onChange={(e) => contractSubmit(e)} type="file" className="file-input flex-1" />
-            </div>
-            <div className="flex flex-row items-center gap-3">
-              <label className="w-[90px]">Attachment</label>
-              <input type="file" onChange={(e) => attachmentSubmit(e)} className="file-input flex-1" />
-            </div>
-            {addOrderFn.noResult || addOrderFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-            <div className="flex flex-row gap-3 modal-action">
-              <button className="btn bg-red-900 text-white">Submit</button>
-            </div>
-          </form>
-        </dialog>
+
         <dialog id="my_modal_3" ref={cartRef} className="modal text-black">
           <div className="modal-box flex flex-col gap-3">
             <h3 className="text-lg font-bold">Cart!</h3>

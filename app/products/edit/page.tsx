@@ -2,14 +2,12 @@
 "use client"
 
 import Link from "next/link";
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from "react";
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
-import { useRouter } from 'next/navigation'
 import { useForm } from "react-hook-form"
 
-import React, { Suspense } from "react";
 
 export default function Add() {
   return (
@@ -25,14 +23,43 @@ function AddContent() {
   const [previewUrl, setPreviewUrl] = useState('')
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  const [categories, setCategories] = useState<{id: string; name: string}[]>([])
-  const [units, setUnits] = useState<{_id: string; name: string}[]>([])
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [units, setUnits] = useState<{ _id: string; name: string }[]>([])
+  const [packagings, setPackagings] = useState<any[]>([])
   const searchParams = useSearchParams();
   const router = useRouter()
   const productForm = useForm()
+  const conversionType = productForm.watch("conversionType")
+  const conversionRatioX = productForm.watch("conversionRatioX");
+  const [isStandardConversion, setIsStandardConversion] = useState(false);
+
+  useEffect(() => {
+    if (!conversionRatioX) return;
+    const x = conversionRatioX.toLowerCase();
+
+    let targetUnit = "";
+    let val = 1;
+
+    if (x === "kg" || x === "kilogram") {
+      targetUnit = "Gram";
+      val = 1000;
+    } else if (x === "liter" || x === "l" || x === "litre") {
+      targetUnit = "Mililiter";
+      val = 1000;
+    }
+
+    if (targetUnit) {
+      productForm.setValue("conversionRatioY", targetUnit);
+      productForm.setValue("conversionType", "value");
+      productForm.setValue("conversionValue", val);
+      setIsStandardConversion(true);
+    } else {
+      setIsStandardConversion(false);
+    }
+  }, [conversionRatioX, productForm]);
 
   const getProductFn = useFetch<any, any>({
-    url: `/api/web/products?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -40,7 +67,15 @@ function AddContent() {
   })
 
   const getUnitsFn = useFetch<any[], any>({
-    url: `/api/web/unit?id=xxx`,
+    url: '',
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getPackagingsFn = useFetch<any[], any>({
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -48,7 +83,7 @@ function AddContent() {
   })
 
   const getCategoriesFn = useFetch<any[], any>({
-    url: `/api/web/categories?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -95,12 +130,16 @@ function AddContent() {
       const url = `/api/web/categories?id=${masterAccountId}`
       const url2 = `/api/web/unit?id=${masterAccountId}`
       const url3 = `/api/web/products?xid=${id}`
+      const urlPackaging = `/api/web/packaging?id=${masterAccountId}`
 
       getCategoriesFn.fn(url, JSON.stringify({}), (r) => {
         setCategories(r)
       })
       getUnitsFn.fn(url2, JSON.stringify({}), (r) => {
         setUnits(r)
+      })
+      getPackagingsFn.fn(urlPackaging, JSON.stringify({}), (r) => {
+        setPackagings(r)
       })
 
       getProductFn.fn(url3, JSON.stringify({}), (r) => {
@@ -116,12 +155,17 @@ function AddContent() {
           description: r.description,
           applicableTax: r.applicableTax,
           sellingPriceTaxType: r.sellingPriceTaxType,
+          conversionType: r.conversionType || 'value',
+          conversionValue: r.conversionValue,
+          packagingId: r.packagingId,
           conversionRatioX: r.conversionRatioX,
           conversionRatioY: r.conversionRatioY,
           sellingPrice: r.sellingPrice,
           image: r.image,
           discountType: r.discountType,
-          discountValue: r.discountValue
+          discountValue: r.discountValue,
+          reorderPoint: r.reorderPoint ?? 0,
+          safetyStock: r.safetyStock ?? 0,
         })
       })
     }
@@ -150,7 +194,7 @@ function AddContent() {
                 <legend className="fieldset-legend">Product name</legend>
                 <input {...productForm.register("productName")} type="text" className="input w-full" placeholder="Type here" />
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Barcode type</legend>
                 <select {...productForm.register("barcodeType")} className="select w-full">
                   <option>UPC</option>
@@ -203,7 +247,7 @@ function AddContent() {
                   }
                 </select>
               </fieldset>
-              <fieldset className="fieldset flex-1">
+              <fieldset className={`fieldset flex-1 ${isStandardConversion ? 'hidden' : ''}`}>
                 <legend className="fieldset-legend">To</legend>
                 <select {...productForm.register("conversionRatioY")} className="select w-full">
                   {
@@ -215,7 +259,45 @@ function AddContent() {
                   }
                 </select>
               </fieldset>
+            </div>
+            <div className="flex flex-col lg:flex-row gap-3">
               <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Conversion Type</legend>
+                <div className="flex gap-2 w-full mt-2 items-center">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-md border text-black text-sm">
+                    <input {...productForm.register("conversionType")} type="radio" value="value" className="radio radio-sm" />
+                    Conversion Value
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 rounded-md border text-black text-sm">
+                    <input {...productForm.register("conversionType")} type="radio" value="packaging" className="radio radio-sm" />
+                    Packaging Options
+                  </label>
+                </div>
+              </fieldset>
+              {conversionType === "value" && !isStandardConversion && (
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Conversion Value (Multiplier/Weight)</legend>
+                  <input {...productForm.register("conversionValue")} step="any" type="number" className="input w-full" placeholder="e.g. 1.5" />
+                </fieldset>
+              )}
+              {conversionType === "packaging" && (
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">Select Packaging</legend>
+                  <select {...productForm.register("packagingId")} className="select w-full">
+                    <option value="">Select an option...</option>
+                    {
+                      packagings.map((p) => {
+                        return (
+                          <option key={p._id} value={p._id}>{p.name} (Qty: {p.qty})</option>
+                        )
+                      })
+                    }
+                  </select>
+                </fieldset>
+              )}
+            </div>
+            <div className="flex flex-row gap-3">
+              <fieldset className="fieldset flex-1 hidden">
                 <legend className="fieldset-legend">Sale unit</legend>
                 <select {...productForm.register("saleUnit")} className="select w-full">
                   {
@@ -261,6 +343,33 @@ function AddContent() {
               <fieldset className="fieldset flex-1">
                 <legend className="fieldset-legend">Discount value</legend>
                 <input {...productForm.register("discountValue")} type="text" className="input w-full" placeholder="Type here" />
+              </fieldset>
+            </div>
+            {/* ── Stock Level Alerts ── */}
+            <div className="flex flex-row gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Reorder Point</legend>
+                <input
+                  {...productForm.register("reorderPoint")}
+                  type="number"
+                  min="0"
+                  step="any"
+                  className="input w-full"
+                  placeholder="Stok minimum sebelum order ulang"
+                />
+                <p className="text-xs text-amber-700 mt-1">⚠ Peringatan muncul saat stok ≤ nilai ini</p>
+              </fieldset>
+              <fieldset className="fieldset flex-1">
+                <legend className="fieldset-legend">Safety Stock</legend>
+                <input
+                  {...productForm.register("safetyStock")}
+                  type="number"
+                  min="0"
+                  step="any"
+                  className="input w-full"
+                  placeholder="Stok darurat minimum"
+                />
+                <p className="text-xs text-red-700 mt-1">🚨 Peringatan kritis saat stok ≤ nilai ini</p>
               </fieldset>
             </div>
             <div className="flex flex-row gap-3">

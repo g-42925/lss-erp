@@ -9,7 +9,8 @@ import { useForm, useWatch } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, CheckmarkCircle01Icon, MultiplicationSignIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 
 export default function Purchases() {
   const user = useAuth((state) => state.userId)
@@ -31,7 +32,7 @@ export default function Purchases() {
   const currentStatus = useWatch({ control: editPrForm.control, name: "currentStatus" });
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/purchases?id=xxx`,
+    url: '',
     method: 'GET',
     onError: (m) => {
       alert(m)
@@ -127,6 +128,29 @@ export default function Purchases() {
     })
   }
 
+  async function approve(_id: string) {
+    const payload = JSON.stringify({
+      _id: _id,
+      action: 'approve_pr',
+      userId: user
+    })
+    await editFn.fn('', payload, () => {
+      window.location.reload()
+    })
+  }
+
+  async function reject(_id: string) {
+    if (!confirm("Yakin ingin menolak permintaan ini?")) return;
+    const payload = JSON.stringify({
+      _id: _id,
+      action: 'reject_pr',
+      userId: user
+    })
+    await editFn.fn('', payload, () => {
+      window.location.reload()
+    })
+  }
+
   async function _edit(_id: string) {
     const [filter] = pr.filter((p) => p._id == _id)
 
@@ -193,6 +217,16 @@ export default function Purchases() {
               Entries
             </div>
             <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search" />
+            <button className="bg-black text-white rounded-full p-3">
+              <Link href="">
+                <HugeiconsIcon
+                  icon={ArrowLeftRightIcon}
+                  size={24}
+                  color="currentColor"
+                  strokeWidth={1.5}
+                />
+              </Link>
+            </button>
           </div>
           {
             getFn.loading
@@ -209,117 +243,115 @@ export default function Purchases() {
                 :
                 <div>
                   <div className="overflow-x-auto w-full">
-                  <table className="table text-center">
-                    <thead>
-                      <tr>
-                        <th>Date</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Estimated price</th>
-                        <th>Final price</th>
-                        <th>Suppplier</th>
-                        <th>Received</th>
-                        <th>Status</th>
-                        <th>Approval</th>
-                        <th>Voidment</th>
-                        <th>...</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {
-                        searchResult.length < 1
-                          ?
-                          pr.map((p, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                <td>{p.product?.productName || '-'}</td>
-                                <td>{p.quantity} ({p.product?.conversionRatioX || '-'})</td>
-                                <td>{p.estimatedPrice}</td>
-                                <td>
-                                  {
-                                    p.status === "ordered" || p.status === "completed"
-                                      ?
-                                      p.finalPrice
-                                      :
-                                      0
-                                  }
-                                </td>
-                                <td>
-                                  {
-                                    p.status === "ordered" || p.status === "completed"
-                                      ?
-                                      p.supplier?.bussinessName || "-"
-                                      :
-                                      "-"
-                                  }
-                                </td>
-                                <td>{p.receivedQty} ({p.product?.conversionRatioX || '-'})</td>
-                                <td>{p.status}</td>
-                                <td>
-                                  <span>{p.approvedBy?.name ?? "-"} ({p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('id-ID') : "-"})</span>
-                                </td>
-                                <td>
-                                  <span>{p.voidedBy?.name ?? "-"} ({p.voidedAt ? new Date(p.voidedAt).toLocaleDateString('id-ID') : "-"})</span>
-                                </td>
-                                <td className="flex flex-row gap-3">
-                                  {
-                                    p.status != "ordered"
-                                      ?
-                                      <button disabled={p.status === "void"} onClick={() => edit(p._id)}>
-                                        <HugeiconsIcon
-                                          icon={Edit03Icon}
-                                          size={24}
-                                          color="currentColor"
-                                          strokeWidth={1.5}
-                                        />
-                                      </button>
-                                      :
-                                      <></>
-                                  }
-                                  {
-                                    p.status === "ordered"
-                                      ?
-                                      <button>
-                                        <HugeiconsIcon
-                                          icon={Edit03Icon}
-                                          size={24}
-                                          color="currentColor"
-                                          strokeWidth={1.5}
-                                        />
-                                      </button>
-                                      :
-                                      <></>
-                                  }
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((role, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{role.name}</td>
-                                <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(role._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                      }
-                    </tbody>
-                  </table>
+                    <table className="table text-center">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Product</th>
+                          <th>Quantity</th>
+                          <th>Estimated price</th>
+                          <th>Final price</th>
+                          <th>Suppplier</th>
+                          <th>Received</th>
+                          <th>Status</th>
+                          <th>Approval</th>
+                          <th>Voidment</th>
+                          <th>...</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {
+                          searchResult.length < 1
+                            ?
+                            pr.map((p, index) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                                  <td>{p.product?.productName || '-'}</td>
+                                  <td>{p.quantity} ({p.product?.conversionRatioX || '-'})</td>
+                                  <td>{p.estimatedPrice}</td>
+                                  <td>
+                                    {
+                                      p.status === "ordered" || p.status === "completed"
+                                        ?
+                                        p.finalPrice
+                                        :
+                                        0
+                                    }
+                                  </td>
+                                  <td>
+                                    {
+                                      p.status === "ordered" || p.status === "completed"
+                                        ?
+                                        p.supplier?.bussinessName || "-"
+                                        :
+                                        "-"
+                                    }
+                                  </td>
+                                  <td>{p.receivedQty} ({p.product?.conversionRatioX || '-'})</td>
+                                  <td>{p.status}</td>
+                                  <td>
+                                    <span>{p.approvedBy?.name ?? "-"} ({p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('id-ID') : "-"})</span>
+                                  </td>
+                                  <td>
+                                    <span>{p.voidedBy?.name ?? "-"} ({p.voidedAt ? new Date(p.voidedAt).toLocaleDateString('id-ID') : "-"})</span>
+                                  </td>
+                                  <td className="flex flex-row gap-2 justify-center">
+                                    {
+                                      p.status === "requested" && (
+                                        <>
+                                          <button className="text-green-600" onClick={() => approve(p._id)} title="Approve">
+                                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} color="currentColor" />
+                                          </button>
+                                          <button className="text-red-600" onClick={() => reject(p._id)} title="Reject">
+                                            <HugeiconsIcon icon={MultiplicationSignIcon} size={22} color="currentColor" />
+                                          </button>
+                                        </>
+                                      )
+                                    }
+                                    {
+                                      p.status !== "ordered" && p.status !== "requested" && (
+                                        <button disabled={p.status === "void"} onClick={() => edit(p._id)}>
+                                          <HugeiconsIcon icon={Edit03Icon} size={22} color="currentColor" strokeWidth={1.5} />
+                                        </button>
+                                      )
+                                    }
+                                    {
+                                      p.status === "ordered" && (
+                                        <button onClick={() => _edit(p._id)}>
+                                          <HugeiconsIcon icon={Edit03Icon} size={22} color="currentColor" strokeWidth={1.5} />
+                                        </button>
+                                      )
+                                    }
+                                  </td>
+                                </tr>
+                              )
+                            })
+                            :
+                            searchResult.map((role, index) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{role.name}</td>
+                                  <td className="flex flex-row gap-3">
+                                    <button className="btn" onClick={() => edit(role._id)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                      </svg>
+                                      Edit
+                                    </button>
+                                    <button className="btn">
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                      </svg>
+                                      Delete
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                        }
+                      </tbody>
+                    </table>
                   </div>
                 </div>
           }
@@ -424,13 +456,6 @@ export default function Purchases() {
           </div>
         </div>
       </dialog>
-      <button className="bg-black text-white rounded-full p-3 absolute right-12 bottom-12">
-        <Link href="/finance/xpurchases">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-          </svg>
-        </Link>
-      </button>
     </>
   )
 }

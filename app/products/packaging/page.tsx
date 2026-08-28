@@ -30,7 +30,7 @@ export default function Packaging() {
   })
 
   const getFn = useFetch<any[], any>({
-    url: `/api/web/packaging?id=xxx`,
+    url: '',
     method: 'GET'
   })
 

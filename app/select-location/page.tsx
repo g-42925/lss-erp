@@ -18,7 +18,7 @@ export default function SelectLocation() {
     const [locationId, setLocalLocationId] = useState("");
 
     const getLocationFn = useFetch<any[], any>({
-        url: `/api/web/location?id=xxx`,
+        url: '',
         method: "GET"
     })
 
