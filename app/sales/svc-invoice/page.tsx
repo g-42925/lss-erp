@@ -156,16 +156,18 @@ export default function Invoices() {
       return rowData;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData, { origin: "A3" });
-
-    XLSX.utils.sheet_add_aoa(worksheet, [
+    const headerRows = [
       [
         `LAPORAN PENJUALAN - ${monthName.toUpperCase()} ${new Date().getFullYear()}`,
         "", "",
         "GRAND TOTAL:",
         `${Number(grandTotalDPP).toLocaleString('id-ID')}`
-      ]
-    ], { origin: "A1" });
+      ],
+      []
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(headerRows);
+    XLSX.utils.sheet_add_json(worksheet, excelData, { origin: "A3", skipHeader: false });
 
     const workbook = XLSX.utils.book_new();
     const sheetName = `Laporan ${monthName} ${new Date().getFullYear()}`.substring(0, 31);
