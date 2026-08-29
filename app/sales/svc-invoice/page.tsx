@@ -161,7 +161,7 @@ export default function Invoices() {
         `LAPORAN PENJUALAN - ${monthName.toUpperCase()} ${new Date().getFullYear()} `,
         "", "",
         "GRAND TOTAL:",
-        `${Number(grandTotalDPP).toLocaleString('id-ID')} `
+        `Rp ${grandTotalDPP.toLocaleString('id-ID')}`
       ],
       []
     ];
@@ -292,12 +292,12 @@ export default function Invoices() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `/ api / web / invoice / svc ? id = ${masterAccountId}& type=service`
-      const url5 = `/ api / web / products ? id = ${masterAccountId}& type=service`
-      const url6 = `/ api / web / companies ? id = ${masterAccountId} `
-      const url7 = `/ api / web / bank - accounts ? id = ${masterAccountId} `
-      const url8 = `/ api / web / tax ? id = ${masterAccountId} `
-      const urlOrder = `/ api / web / order ? id = ${masterAccountId}& type=service`
+      const url4 = `/api/web/invoice/svc?id=${masterAccountId}&type=service`
+      const url5 = `/api/web/products?id=${masterAccountId}&type=service`
+      const url6 = `/api/web/companies?id=${masterAccountId}`
+      const url7 = `/api/web/bank-accounts?id=${masterAccountId}`
+      const url8 = `/api/web/tax?id=${masterAccountId}`
+      const urlOrder = `/api/web/order?id=${masterAccountId}&type=service`
 
       const body = JSON.stringify({})
 
