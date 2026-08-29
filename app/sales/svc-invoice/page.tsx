@@ -128,8 +128,8 @@ export default function Invoices() {
   }
 
   function handleExportExcel() {
-    const monthNames = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-    const monthName = selectedMonth ? monthNames[Number(selectedMonth)] : "Semua";
+    const monthAbbr = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+    const monthName = selectedMonth ? monthAbbr[Number(selectedMonth)] : "Semua";
 
     const allTaxes = getTaxesFn.result || [];
 
@@ -156,9 +156,10 @@ export default function Invoices() {
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Laporan Penjualan`);
+    const sheetName = `Laporan ${monthName} ${new Date().getFullYear()}`.substring(0, 31);
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-    XLSX.writeFile(workbook, `format laporan penjualan ${monthName}.xlsx`);
+    XLSX.writeFile(workbook, `Laporan Penjualan Periode ${monthName} ${new Date().getFullYear()}.xlsx`);
   }
 
   function whatTax(invoice: any, taxName: string) {
@@ -635,7 +636,7 @@ export default function Invoices() {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
                       <td className="py-[5px] text-sm text-gray-800 text-right">1</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{selectedInvoice?.order?.qty - selectedInvoice?.missing}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{(selectedInvoice?.order?.qty || 1) - (selectedInvoice?.missing || 0)}</td>
                     )
                   }
                   {
