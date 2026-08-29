@@ -132,9 +132,11 @@ export default function Invoices() {
     const monthName = selectedMonth ? monthAbbr[Number(selectedMonth)] : "Semua";
 
     const allTaxes = getTaxesFn.result || [];
+    let grandTotalDPP = 0;
 
     const excelData = filteredInvoices.map((s: any, index: number) => {
       const dpp = fSubtotal(s) || 0;
+      grandTotalDPP += dpp;
 
       const rowData: any = {
         "NO": index + 1,
@@ -154,7 +156,17 @@ export default function Invoices() {
       return rowData;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const worksheet = XLSX.utils.json_to_sheet(excelData, { origin: "A3" });
+
+    XLSX.utils.sheet_add_aoa(worksheet, [
+      [
+        `LAPORAN PENJUALAN - ${monthName.toUpperCase()} ${new Date().getFullYear()}`,
+        "", "",
+        "GRAND TOTAL:",
+        `${Number(grandTotalDPP).toLocaleString('id-ID')}`
+      ]
+    ], { origin: "A1" });
+
     const workbook = XLSX.utils.book_new();
     const sheetName = `Laporan ${monthName} ${new Date().getFullYear()}`.substring(0, 31);
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
