@@ -169,17 +169,19 @@ export default function Invoices() {
     const worksheet = XLSX.utils.aoa_to_sheet(headerRows);
     XLSX.utils.sheet_add_json(worksheet, excelData, { origin: "A3", skipHeader: false });
 
-    for (let row = 3; row <= excelData.length + 2; row++) {
-      const cell = worksheet[`G${row} `];
+    for (let row = 4; row <= excelData.length + 3; row++) {
+      const cell = worksheet[`G${row}`]; // ✅ Rapat tanpa spasi
 
       if (cell) {
-        cell.z = '"Rp" #,##0';
+        cell.t = 'n'; // Pastikan tipe data Number
+        cell.v = Number(cell.v);
+        cell.z = '#,##0'; // Format ribuan (2,600,000 / 2.600.000 tergantung locale aplikasi)
       }
     }
 
-    // Format Grand Total
+    // Format Grand Total jika diperlukan (misal di sel E1)
     if (worksheet["E1"]) {
-      worksheet["E1"].z = '"Rp" #,##0';
+      worksheet["E1"].z = '"Rp "#,##0';
     }
 
     const workbook = XLSX.utils.book_new();
