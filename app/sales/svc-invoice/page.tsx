@@ -145,12 +145,12 @@ export default function Invoices() {
         "TGL PENJUALAN": s.date ? new Date(s.date).toLocaleDateString('id-ID') : "-",
         "NAMA CUSTOMER": s.order?.customCustomer ? s.order.customCustomer.name : (s.order?.customer?.bussinessName || "-"),
         "DESKRIPSI": s.order?.product?.productName || "-",
-        "DPP": `${Number(dpp)}`,
+        "DPP": dpp,
       };
 
       allTaxes.forEach((tax: any) => {
         const hasTax = s.order?.taxes?.find((t: any) => t.taxName === tax.name);
-        rowData[tax.name] = hasTax ? `${tax.value}%` : "0%";
+        rowData[tax.name] = hasTax ? `${tax.value}% ` : "0%";
       });
 
       return rowData;
@@ -158,10 +158,10 @@ export default function Invoices() {
 
     const headerRows = [
       [
-        `LAPORAN PENJUALAN - ${monthName.toUpperCase()} ${new Date().getFullYear()}`,
+        `LAPORAN PENJUALAN - ${monthName.toUpperCase()} ${new Date().getFullYear()} `,
         "", "",
         "GRAND TOTAL:",
-        `${Number(grandTotalDPP).toLocaleString('id-ID')}`
+        `${Number(grandTotalDPP).toLocaleString('id-ID')} `
       ],
       []
     ];
@@ -170,7 +170,7 @@ export default function Invoices() {
     XLSX.utils.sheet_add_json(worksheet, excelData, { origin: "A3", skipHeader: false });
 
     for (let row = 3; row <= excelData.length + 2; row++) {
-      const cell = worksheet[`G${row}`];
+      const cell = worksheet[`G${row} `];
 
       if (cell) {
         cell.z = '"Rp" #,##0';
@@ -183,7 +183,7 @@ export default function Invoices() {
     }
 
     const workbook = XLSX.utils.book_new();
-    const sheetName = `Laporan ${monthName} ${new Date().getFullYear()}`.substring(0, 31);
+    const sheetName = `Laporan ${monthName} ${new Date().getFullYear()} `.substring(0, 31);
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     XLSX.writeFile(workbook, `Laporan Penjualan Periode ${monthName} ${new Date().getFullYear()}.xlsx`);
@@ -199,7 +199,7 @@ export default function Invoices() {
     const [tax] = getTaxesFn.result?.filter((t: any) => t.name === taxName)
 
     if (tax) {
-      return `${tax.value}%`
+      return `${tax.value}% `
     }
     return '0%'
   }
@@ -292,12 +292,12 @@ export default function Invoices() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url4 = `/api/web/invoice/svc?id=${masterAccountId}&type=service`
-      const url5 = `/api/web/products?id=${masterAccountId}&type=service`
-      const url6 = `/api/web/companies?id=${masterAccountId}`
-      const url7 = `/api/web/bank-accounts?id=${masterAccountId}`
-      const url8 = `/api/web/tax?id=${masterAccountId}`
-      const urlOrder = `/api/web/order?id=${masterAccountId}&type=service`
+      const url4 = `/ api / web / invoice / svc ? id = ${masterAccountId}& type=service`
+      const url5 = `/ api / web / products ? id = ${masterAccountId}& type=service`
+      const url6 = `/ api / web / companies ? id = ${masterAccountId} `
+      const url7 = `/ api / web / bank - accounts ? id = ${masterAccountId} `
+      const url8 = `/ api / web / tax ? id = ${masterAccountId} `
+      const urlOrder = `/ api / web / order ? id = ${masterAccountId}& type=service`
 
       const body = JSON.stringify({})
 
@@ -315,34 +315,34 @@ export default function Invoices() {
   return (
     <>
       <style jsx global>{`
-        @media print {
-          @page {
-            margin: 10mm;
-            size: A4;
-            margin-top: 0;
-            margin-bottom: 0;
-          }
-          thead { display: table-header-group !important; }
-          tbody { display: table-row-group !important; }
-          tfoot { display: table-footer-group !important; }
-          tr, .invoice-header, .bank-accounts-section {
-            page-break-inside: avoid !important;
-            page-break-after: auto;
-          }
+      @media print {
+        @page {
+          margin: 10mm;
+          size: A4;
+          margin - top: 0;
+          margin - bottom: 0;
+        }
+          thead { display: table - header - group!important; }
+          tbody { display: table - row - group!important; }
+          tfoot { display: table - footer - group!important; }
+        tr, .invoice - header, .bank - accounts - section {
+          page -break-inside: avoid!important;
+          page -break-after: auto;
+        }
           table {
-            width: 100%;
-            border-collapse: collapse;
-            page-break-inside: auto;
-          }
-          .page-break { page-break-after: always; }
+          width: 100 %;
+          border - collapse: collapse;
+          page -break-inside: auto;
         }
-        @media screen {
-          .modal-box.invoice-modal {
-            width: 90vw !important;
-            max-width: 90vw !important;
-          }
-        }
-      `}
+          .page -break { page -break-after: always; }
+  }
+  @media screen {
+          .modal - box.invoice - modal {
+      width: 90vw!important;
+      max - width: 90vw!important;
+    }
+  }
+  `}
       </style>
       <div className="h-full p-6 flex flex-col gap-3 print:hidden text-black">
         <span className="page-title">Invoices</span>
@@ -464,7 +464,7 @@ export default function Invoices() {
                                   <td>{((s.order?.price || 0) / (s.order?.qty || 1)) * ((s.order?.qty || 1) - (s.missing || 0))}</td>
                                   <td>{s.payAmount}</td>
                                   <td>
-                                    <span className={`badge badge-sm ${s.paid ? 'badge-success' : 'badge-warning'}`}>
+                                    <span className={`badge badge - sm ${s.paid ? 'badge-success' : 'badge-warning'} `}>
                                       {s.paid ? 'paid' : 'unpaid'}
                                     </span>
                                   </td>
@@ -676,7 +676,7 @@ export default function Invoices() {
                 </tr>
                 {/* Filler rows: menjaga tinggi tabel setara 5 baris, invisible di layar & tidak cetak */}
                 {Array.from({ length: 1 }).map((_, i) => (
-                  <tr key={`filler-${i}`} className="opacity-0 select-none" aria-hidden="true">
+                  <tr key={`filler - ${i} `} className="opacity-0 select-none" aria-hidden="true">
                     <td className="py-[5px] text-sm text-gray-800">{i + 2}</td>
                     <td className="py-[5px] text-sm text-gray-800">-</td>
                     <td className="py-[5px] text-sm text-gray-800 text-right">-</td>
@@ -768,14 +768,14 @@ export default function Invoices() {
       {/* ========== PRINT-ONLY INVOICE AREA ========== */}
       <style type="text/css" media="print">
         {`
-          @page { margin: 0; size: auto; }
+  @page { margin: 0; size: auto; }
           body { margin: 0; padding: 0; }
-        `}
+  `}
       </style>
       {/* Rendered as a regular div so browsers include it in print (dialog top-layer is excluded) */}
       <div id="invoice-print-area" className="hidden print:block bg-white text-black w-full">
         {invoicesToPrint.map((invoiceToPrint, invoiceIdx) => (
-          <div key={invoiceIdx} className={`w-full p-6 ${invoiceIdx < invoicesToPrint.length - 1 ? 'page-break' : ''}`}>
+          <div key={invoiceIdx} className={`w - full p - 6 ${invoiceIdx < invoicesToPrint.length - 1 ? 'page-break' : ''} `}>
             {/* Header */}
             <div className="grid gap-6 w-full items-start border-b-2 border-gray-200 pb-4 mb-6 invoice-header" style={{ gridTemplateColumns: '5fr 3fr 4fr' }}>
               <div className="flex flex-row gap-3">
@@ -859,7 +859,7 @@ export default function Invoices() {
                 </tr>
                 {/* Filler rows untuk print: menjaga ukuran tabel setara 5 baris */}
                 {Array.from({ length: 0 }).map((_, i) => (
-                  <tr key={`print-filler-${i}`}>
+                  <tr key={`print - filler - ${i} `}>
                     <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
                     <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
                     <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
