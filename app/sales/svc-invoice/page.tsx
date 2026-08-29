@@ -145,7 +145,7 @@ export default function Invoices() {
         "TGL PENJUALAN": s.date ? new Date(s.date).toLocaleDateString('id-ID') : "-",
         "NAMA CUSTOMER": s.order?.customCustomer ? s.order.customCustomer.name : (s.order?.customer?.bussinessName || "-"),
         "DESKRIPSI": s.order?.product?.productName || "-",
-        "DPP": `${Number(dpp).toLocaleString('id-ID')}`,
+        "DPP": `${Number(dpp)}`,
       };
 
       allTaxes.forEach((tax: any) => {
@@ -168,6 +168,19 @@ export default function Invoices() {
 
     const worksheet = XLSX.utils.aoa_to_sheet(headerRows);
     XLSX.utils.sheet_add_json(worksheet, excelData, { origin: "A3", skipHeader: false });
+
+    for (let row = 3; row <= excelData.length + 2; row++) {
+      const cell = worksheet[`G${row}`];
+
+      if (cell) {
+        cell.z = '"Rp" #,##0';
+      }
+    }
+
+    // Format Grand Total
+    if (worksheet["E1"]) {
+      worksheet["E1"].z = '"Rp" #,##0';
+    }
 
     const workbook = XLSX.utils.book_new();
     const sheetName = `Laporan ${monthName} ${new Date().getFullYear()}`.substring(0, 31);
