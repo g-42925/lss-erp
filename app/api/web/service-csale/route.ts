@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
       const result = await ServiceOrder.create(obj)
 
       let pphDeduction = 0;
-      if (obj.taxes && obj.taxes.length > 0) {
+      if (Array.isArray(obj.taxes) && obj.taxes.length > 0) {
         obj.taxes.forEach((t: any) => {
           if (t.isPPh) {
             pphDeduction += t.taxValue;
