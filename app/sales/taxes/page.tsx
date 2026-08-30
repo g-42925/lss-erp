@@ -137,6 +137,7 @@ export default function Taxes() {
       name: filter.name,
       value: filter.value,
       isPPh: filter.isPPh || false,
+      isLiability: filter.isLiability || false,
     })
 
     editRef.current?.showModal()
@@ -247,29 +248,51 @@ export default function Taxes() {
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
         <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="page-title">Edit Tax</span>
-            <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="flex flex-col gap-3 pb-4">
-              <input {...editTaxForm.register("name")} type="text" placeholder="tax name" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <input {...editTaxForm.register("value", { valueAsNumber: true })} type="number" step="0.01" placeholder="tax value in % (e.g. 11)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <div className="flex items-center gap-2 mb-3">
-                <input {...editTaxForm.register("isPPh")} type="checkbox" id="edit-isPPh" className="checkbox checkbox-primary" />
-                <label htmlFor="edit-isPPh">Is this PPh?</label>
+            <h3 className="text-lg font-bold">Edit Tax</h3>
+            <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="flex flex-col gap-4">
+              <input type="hidden" {...editTaxForm.register("_id")} />
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tax Name</legend>
+                <input
+                  {...editTaxForm.register("name", { required: true })}
+                  type="text"
+                  placeholder="e.g. PPN 11%"
+                  className="input w-full"
+                />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Value (%)</legend>
+                <input
+                  {...editTaxForm.register("value", { valueAsNumber: true, required: true })}
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 11"
+                  className="input w-full"
+                />
+              </fieldset>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input {...editTaxForm.register("isPPh")} type="checkbox" id="edit-isPPh" className="checkbox checkbox-primary" />
+                  <span className="text-sm font-medium">Is this PPh?</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input {...editTaxForm.register("isLiability")} type="checkbox" id="edit-isLiability" className="checkbox checkbox-primary" />
+                  <span className="text-sm font-medium">Is this Liability?</span>
+                </label>
               </div>
-              <div className="flex items-center gap-2 mb-3">
-                <input {...editTaxForm.register("isLiability")} type="checkbox" id="edit-isLiability" className="checkbox checkbox-primary" />
-                <label htmlFor="edit-isLiability">Is this Liability?</label>
+              {putFn.noResult || putFn.error ? <p className="text-red-600 text-sm">Terjadi kesalahan. Silakan coba lagi.</p> : null}
+              <div className="flex flex-row gap-3 modal-action mt-2">
+                <button
+                  type="button"
+                  className="btn flex-1"
+                  onClick={() => editRef.current?.close()}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={putFn.loading} className="btn bg-blue-900 text-white flex-1">
+                  {putFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Save Changes'}
+                </button>
               </div>
-              {putFn.noResult || putFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <div className="modal-action">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                    Cancel
-                  </button>
-                </form>
-              </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Edit
-              </button>
             </form>
           </div>
         </div>
@@ -277,29 +300,50 @@ export default function Taxes() {
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
         <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col gap-3">
-            <span className="page-title">Add Tax</span>
-            <form onSubmit={newTaxForm.handleSubmit(submit)} className="flex flex-col gap-3 pb-4">
-              <input {...newTaxForm.register("name")} type="text" placeholder="tax name (e.g. PPN 11%)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <input {...newTaxForm.register("value", { valueAsNumber: true })} type="number" step="0.01" placeholder="tax value in % (e.g. 11)" className="mb-3 w-full p-3 rounded-md border-1 border-black" />
-              <div className="flex items-center gap-2 mb-3">
-                <input {...newTaxForm.register("isPPh")} type="checkbox" id="isPPh" className="checkbox checkbox-primary" />
-                <label htmlFor="isPPh">Is this PPh?</label>
+            <h3 className="text-lg font-bold">Add Tax</h3>
+            <form onSubmit={newTaxForm.handleSubmit(submit)} className="flex flex-col gap-4">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tax Name</legend>
+                <input
+                  {...newTaxForm.register("name", { required: true })}
+                  type="text"
+                  placeholder="e.g. PPN 11%"
+                  className="input w-full"
+                />
+              </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Value (%)</legend>
+                <input
+                  {...newTaxForm.register("value", { valueAsNumber: true, required: true })}
+                  type="number"
+                  step="0.01"
+                  placeholder="e.g. 11"
+                  className="input w-full"
+                />
+              </fieldset>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input {...newTaxForm.register("isPPh")} type="checkbox" id="isPPh" className="checkbox checkbox-primary" />
+                  <span className="text-sm font-medium">Is this PPh?</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input {...newTaxForm.register("isLiability")} type="checkbox" id="isLiability" className="checkbox checkbox-primary" />
+                  <span className="text-sm font-medium">Is this Liability?</span>
+                </label>
               </div>
-              <div className="flex items-center gap-2 mb-3">
-                <input {...newTaxForm.register("isLiability")} type="checkbox" id="isLiability" className="checkbox checkbox-primary" />
-                <label htmlFor="isLiability">Is this Liability?</label>
+              {addFn.noResult || addFn.error ? <p className="text-red-600 text-sm">Terjadi kesalahan. Silakan coba lagi.</p> : null}
+              <div className="flex flex-row gap-3 modal-action mt-2">
+                <button
+                  type="button"
+                  className="btn flex-1"
+                  onClick={() => modalRef.current?.close()}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={addFn.loading} className="btn bg-blue-900 text-white flex-1">
+                  {addFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Add Tax'}
+                </button>
               </div>
-              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <div className="modal-action">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                    Cancel
-                  </button>
-                </form>
-              </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Add
-              </button>
             </form>
           </div>
         </div>
