@@ -28,7 +28,7 @@ export default function Invoices() {
   const [selectedMonth, setSelectedMonth] = useState<string>("")
   const [selectedInvoicesToPrint, setSelectedInvoicesToPrint] = useState<string[]>([])
   const [invoicesToPrint, setInvoicesToPrint] = useState<any[]>([])
-
+  const [searchQuery, setSearchQuery] = useState<string>("")
 
   function openInvoice(invoice: any) {
     setSelectedInvoice(invoice)
@@ -113,6 +113,13 @@ export default function Invoices() {
 
   const sourceInvoices = searchResult.length > 0 ? searchResult : (getInvoicesFn.result || []);
   const filteredInvoices = sourceInvoices.filter((s: any) => {
+    if (searchQuery) {
+      const customerName = s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName;
+      if (!customerName || !customerName.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+    }
+
     if (!selectedMonth) return true;
     if (!s.date) return false;
     const d = new Date(s.date);
@@ -369,7 +376,13 @@ export default function Invoices() {
               </select>
               Entries
             </div>
-            <input type="search" placeholder="Search" className="toolbar-search" />
+            <input 
+              type="search" 
+              placeholder="Search by customer name..." 
+              className="toolbar-search" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
             <div className="flex flex-row gap-2 items-center ml-auto">
               <span>Bulan:</span>
               <select className="select select-sm select-bordered w-32" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
