@@ -51,6 +51,7 @@ function XOrderContent() {
   const editRef = useRef<HTMLDialogElement>(null)
   const invoiceModalRef = useRef<HTMLDialogElement>(null)
   const applyTaxModalRef = useRef<HTMLDialogElement>(null)
+  const closeConfirmRef = useRef<HTMLDialogElement>(null)
 
   const [applyTaxOrder, setApplyTaxOrder] = useState<any>(null)
   const [applyTaxSelected, setApplyTaxSelected] = useState<any[]>([])
@@ -59,6 +60,8 @@ function XOrderContent() {
   const [payTerm, setPayTerm] = useState<string>(new Date().toISOString().split('T')[0])
   const [debt, setDebt] = useState<string>('no')
   const [hidden, setHidden] = useState<boolean>(false)
+  const [statusFilter, setStatusFilter] = useState<'active' | 'closed' | 'all'>('active')
+  const [closeTargetOrder, setCloseTargetOrder] = useState<any>(null)
 
   const [qProduct, setQProduct] = useState<string>('')
 
@@ -218,6 +221,35 @@ function XOrderContent() {
 
   const [applyTaxLoading, setApplyTaxLoading] = useState(false)
   const [applyTaxError, setApplyTaxError] = useState(false)
+
+  const closeOrderFn = useFetch<any, any>({
+    url: '/api/web/service-csale',
+    method: 'PATCH',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  function openCloseConfirm(order: any) {
+    setCloseTargetOrder(order)
+    closeConfirmRef.current?.showModal()
+  }
+
+  async function confirmCloseOrder() {
+    if (!closeTargetOrder) return
+    const action = closeTargetOrder.status === 'closed' ? 'reopen' : 'close'
+    closeOrderFn.fn('', JSON.stringify({ _id: closeTargetOrder._id, action }), () => {
+      setLocalOrders(prev =>
+        prev.map(o =>
+          o._id === closeTargetOrder._id
+            ? { ...o, status: action === 'close' ? 'closed' : 'active' }
+            : o
+        )
+      )
+      closeConfirmRef.current?.close()
+      setCloseTargetOrder(null)
+    })
+  }
 
 
   function submitInvoice(data: any) {
@@ -520,9 +552,14 @@ function XOrderContent() {
         (order.date?.toLowerCase().includes(searchLower)) ||
         (new Date(order.date).toISOString().split('T')[0].includes(searchLower));
 
-      return matchSearch;
+      const orderStatus = order.status || 'active';
+      const matchStatus =
+        statusFilter === 'all' ||
+        orderStatus === statusFilter;
+
+      return matchSearch && matchStatus;
     });
-  }, [localOrders, getServiceOrdersFn.result, searchTerm]);
+  }, [localOrders, getServiceOrdersFn.result, searchTerm, statusFilter]);
 
   function onCustomerChange(e: any) {
     const customer = customers.find((c: any) => c.bussinessName === e.target.value)
@@ -761,7 +798,27 @@ function XOrderContent() {
         <span className="page-title">Services Order</span>
         <div className="min-h-screen bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <span className="self-center">All order</span>
+            <span className="self-center font-semibold">Service Orders</span>
+            {/* Status filter tabs */}
+            <div className="flex flex-row gap-1 rounded-full border border-gray-200 bg-gray-100 p-1">
+              {(['active', 'closed', 'all'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setStatusFilter(f)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium capitalize transition-all ${
+                    statusFilter === f
+                      ? f === 'active'
+                        ? 'bg-blue-900 text-white shadow'
+                        : f === 'closed'
+                        ? 'bg-red-700 text-white shadow'
+                        : 'bg-gray-800 text-white shadow'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-row gap-3 ml-auto">
               <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search" className="toolbar-search" />
               <button onClick={() => setDirectMode(true)} className="bg-black text-white p-3 rounded-full">
@@ -812,6 +869,7 @@ function XOrderContent() {
                           <th>Frequency</th>
                           <th>Price</th>
                           <th>Billed</th>
+                          <th>Status</th>
                           <th>...</th>
                         </tr>
                       </thead>
@@ -821,9 +879,9 @@ function XOrderContent() {
                             ?
                             filteredOrders?.map((s: any, index: number) => {
                               return (
-                                <tr key={index}>
+                                <tr key={index} className={s.status === 'closed' ? 'opacity-60' : ''}>
                                   <td>{s.salesOrderNumber}</td>
-                                  <td>{products.filter(p => p._id === s.productId)[0].productName}</td>
+                                  <td>{products.filter(p => p._id === s.productId)[0]?.productName ?? '-'}</td>
                                   <td>{new Date(s.date).toLocaleDateString()}</td>
                                   <td>{s.contractType}</td>
                                   <td>{s.customCustomer ? s.customCustomer.name : s.customerId}</td>
@@ -831,6 +889,15 @@ function XOrderContent() {
                                   <td>{s.frequency}</td>
                                   <td>{new Intl.NumberFormat('id-ID').format(s.price)}</td>
                                   <td>{s.billed}</td>
+                                  <td>
+                                    <span className={`badge badge-sm ${
+                                      (s.status || 'active') === 'active'
+                                        ? 'badge-success'
+                                        : 'badge-error'
+                                    }`}>
+                                      {s.status || 'active'}
+                                    </span>
+                                  </td>
                                   <td className="flex flex-row gap-1 justify-center">
                                     {
                                       s.contract ?
@@ -903,10 +970,25 @@ function XOrderContent() {
                                         </span>
                                       )}
                                     </button>
-                                    <button onClick={() => openEditModal(s)} className="text-gray-900">
+                                    <button onClick={() => openEditModal(s)} className="text-gray-900" title="Edit Order">
                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                       </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => openCloseConfirm(s)}
+                                      title={(s.status || 'active') === 'closed' ? 'Reopen Order' : 'Close Order'}
+                                      className={(s.status || 'active') === 'closed' ? 'text-green-600' : 'text-red-600'}
+                                    >
+                                      {(s.status || 'active') === 'closed' ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                        </svg>
+                                      )}
                                     </button>
                                   </td>
                                 </tr>
@@ -1170,6 +1252,52 @@ function XOrderContent() {
             </button>
           </div>
         </form>
+      </dialog>
+
+      {/* Close Order Confirmation Modal */}
+      <dialog ref={closeConfirmRef} className="modal h-full text-black">
+        <div className="modal-box flex flex-col gap-4 max-w-sm">
+          <h3 className="text-lg font-bold">
+            {closeTargetOrder?.status === 'closed' ? 'Reopen Order?' : 'Close Order?'}
+          </h3>
+          {closeTargetOrder && (
+            <div className="bg-slate-50 rounded-lg p-3 text-sm flex flex-col gap-1">
+              <span className="font-semibold text-slate-700">{closeTargetOrder.salesOrderNumber}</span>
+              <span className="text-slate-500">{closeTargetOrder.customCustomer?.name || closeTargetOrder.customerId}</span>
+            </div>
+          )}
+          <p className="text-sm text-slate-600">
+            {closeTargetOrder?.status === 'closed'
+              ? 'Order ini akan dibuka kembali dan menjadi aktif.'
+              : 'Order yang ditutup tidak akan muncul di daftar aktif. Anda masih bisa melihatnya di filter "Closed".'}
+          </p>
+          {closeOrderFn.error && (
+            <p className="text-red-600 text-sm">Terjadi kesalahan. Silakan coba lagi.</p>
+          )}
+          <div className="flex flex-row gap-3 modal-action mt-0">
+            <button
+              type="button"
+              className="btn flex-1"
+              onClick={() => {
+                closeConfirmRef.current?.close()
+                setCloseTargetOrder(null)
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={closeOrderFn.loading}
+              onClick={confirmCloseOrder}
+              className={`btn flex-1 text-white ${closeTargetOrder?.status === 'closed' ? 'bg-green-700' : 'bg-red-700'}`}
+            >
+              {closeOrderFn.loading
+                ? <span className="loading loading-spinner loading-sm"></span>
+                : closeTargetOrder?.status === 'closed' ? 'Buka Kembali' : 'Tutup Order'
+              }
+            </button>
+          </div>
+        </div>
       </dialog>
     </>
   )

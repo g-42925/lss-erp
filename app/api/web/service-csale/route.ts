@@ -324,12 +324,43 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { _id, taxes } = body;
+    const { _id, taxes, action } = body;
 
-    if (!_id || !Array.isArray(taxes)) {
+    if (!_id) {
       return NextResponse.json({
         noResult: true,
-        message: "Invalid request: _id and taxes array required",
+        message: "Invalid request: _id required",
+        result: null,
+        error: true,
+      }, { status: 400 });
+    }
+
+    // Handle close / reopen action
+    if (action === 'close') {
+      await ServiceOrder.findByIdAndUpdate(_id, { status: 'closed' });
+      return NextResponse.json({
+        noResult: false,
+        message: "Order closed successfully",
+        result: {},
+        error: false,
+      });
+    }
+
+    if (action === 'reopen') {
+      await ServiceOrder.findByIdAndUpdate(_id, { status: 'active' });
+      return NextResponse.json({
+        noResult: false,
+        message: "Order reopened successfully",
+        result: {},
+        error: false,
+      });
+    }
+
+    // Handle taxes update (original logic)
+    if (!Array.isArray(taxes)) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Invalid request: taxes array required",
         result: null,
         error: true,
       }, { status: 400 });

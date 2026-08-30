@@ -24,6 +24,7 @@ const orderSchema = new mongoose.Schema({
       taxValue: { type: Number }
     }
   ],
+  status: { type: String, enum: ['active', 'closed'], default: 'active' },
   customCustomer: {
     name: { type: String, required: true },
     address: { type: String, required: true },
