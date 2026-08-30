@@ -517,13 +517,17 @@ export default function Invoices() {
                   <span className="text-gray-700 text-sm">Discount</span>
                   <span className="text-gray-800 ml-auto text-sm">{Number(countDiscount(selectedInvoice))?.toLocaleString('id-ID')}</span>
                 </div>
-                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0
-                  ? selectedInvoice.order.taxes.map((t: any, idx: number) => (
-                    <div key={idx} className="flex flex-row">
-                      <span className="text-gray-700 text-sm">{t.taxName}</span>
-                      <span className="text-gray-800 ml-auto text-sm">{`${Number(selectedInvoice?.order?.taxValue)?.toLocaleString('id-ID')} (${whatTax(t.taxName)})`}</span>
-                    </div>
-                  ))
+                {getTaxesFn.result && getTaxesFn.result.length > 0
+                  ? getTaxesFn.result.map((tax: any, idx: number) => {
+                    const isApplied = selectedInvoice?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
+                    const taxVal = isApplied ? (isApplied.taxValue || selectedInvoice?.order?.taxValue || 0) : 0;
+                    return (
+                      <div key={idx} className="flex flex-row">
+                        <span className="text-gray-700 text-sm">{tax.name}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${Number(taxVal).toLocaleString('id-ID')} (${isApplied ? tax.value : 0}%)`}</span>
+                      </div>
+                    )
+                  })
                   : (
                     <></>
                   )
@@ -692,12 +696,19 @@ export default function Invoices() {
                   <span className="text-gray-700 text-sm">Discount</span>
                   <span className="text-gray-800 ml-auto text-sm">{Number(countDiscount(selectedInvoice))?.toLocaleString('id-ID')}</span>
                 </div>
-                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0 && selectedInvoice.order.taxes.map((t: any, idx: number) => (
-                  <div key={idx} className="flex flex-row">
-                    <span className="text-gray-700 text-sm">{t.taxName}</span>
-                    <span className="text-gray-800 ml-auto text-sm">{`${Number(selectedInvoice?.order?.taxValue)?.toLocaleString('id-ID')} (${whatTax(t.taxName)})`}</span>
-                  </div>
-                ))}
+                {getTaxesFn.result && getTaxesFn.result.length > 0
+                  ? getTaxesFn.result.map((tax: any, idx: number) => {
+                    const isApplied = selectedInvoice?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
+                    const taxVal = isApplied ? (isApplied.taxValue || selectedInvoice?.order?.taxValue || 0) : 0;
+                    return (
+                      <div key={idx} className="flex flex-row">
+                        <span className="text-gray-700 text-sm">{tax.name}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${Number(taxVal).toLocaleString('id-ID')} (${isApplied ? tax.value : 0}%)`}</span>
+                      </div>
+                    )
+                  })
+                  : <></>
+                }
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Refund credit</span>
                   <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.refundCredit)?.toLocaleString('id-ID')}</span>

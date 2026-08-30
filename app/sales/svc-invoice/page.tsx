@@ -270,25 +270,26 @@ export default function Invoices() {
 
   function fSubtotal(invoice: any) {
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
-    const total = isOneTimeService ? invoice?.order?.price : invoice?.order?.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
-    return total
+    const baseTotal = isOneTimeService ? invoice?.order?.price : invoice?.order?.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    const deduction = invoice?.pphDeduction || 0;
+    return baseTotal - deduction;
   }
 
   function fTotal(invoice: any) {
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
-    const total = isOneTimeService ? invoice?.order?.price : invoice?.order?.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
-    // hitung total setelah ditambah pajak
-    const taxes = getTaxesFn.result?.filter((t: any) => t)
-    let totalWithTax = total
-    taxes?.forEach((tax: any) => {
-      if (tax.isPPh) {
-        totalWithTax -= total * tax.value / 100
-      }
-      else {
-        totalWithTax += total * tax.value / 100
-      }
-    })
-    return totalWithTax
+    const baseTotal = isOneTimeService ? invoice?.order?.price : invoice?.order?.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    // hitung total setelah ditambah pajak non-PPh dan dikurangi PPh
+    let totalWithTax = baseTotal;
+    if (invoice?.order?.taxes) {
+      invoice.order.taxes.forEach((tax: any) => {
+        if (tax.isPPh) {
+          totalWithTax -= tax.taxValue;
+        } else {
+          totalWithTax += tax.taxValue;
+        }
+      });
+    }
+    return totalWithTax;
   }
 
 
@@ -463,8 +464,8 @@ export default function Invoices() {
                                   <td>{s.salesOrderNumber}</td>
                                   <td>{s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName}</td>
                                   <td>{s.order?.salesOrderNumber}</td>
-                                  <td>{((s.order?.price || 0) / (s.order?.qty || 1)) * ((s.order?.qty || 1) - (s.missing || 0))}</td>
-                                  <td>{s.payAmount}</td>
+                                  <td>{Math.floor(Number(fSubtotal(s))).toLocaleString('id-ID')}</td>
+                                  <td>{Math.floor(Number(s.payAmount || 0)).toLocaleString('id-ID')}</td>
                                   <td>
                                     <span className={`badge badge - sm ${s.paid ? 'badge-success' : 'badge-warning'} `}>
                                       {s.paid ? 'paid' : 'unpaid'}
@@ -707,31 +708,32 @@ export default function Invoices() {
               <div className="ml-auto w-1/2 flex flex-col justify-between py-2 border-b print:border-gray-200">
                 <div className="flex flex-row">
                   <span className="text-gray-700 text-sm">Subtotal</span>
-                  {
-                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
-                    ) : (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
-                    )
-                  }
+                    {
+                      selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                        <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
+                      ) : (
+                        <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice) + (selectedInvoice?.pphDeduction || 0)).toLocaleString('id-ID')}</span>
+                      )
+                    }
                 </div>
-                {selectedInvoice?.order?.taxes && selectedInvoice.order.taxes.length > 0
-                  ? selectedInvoice.order.taxes.map((t: any, idx: number) => (
-                    <div key={idx} className="flex flex-row">
-                      <span className="text-gray-700 text-sm">{t.taxName}</span>
-                      <span className="text-gray-800 ml-auto text-sm">{whatTax(selectedInvoice, t.taxName)}</span>
-                    </div>
-                  ))
+                {getTaxesFn.result && getTaxesFn.result.length > 0
+                  ? getTaxesFn.result.map((tax: any, idx: number) => {
+                    const appliedTax = selectedInvoice?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
+                    const taxVal = appliedTax ? appliedTax.taxValue : 0;
+                    const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
+                    return (
+                      <div key={idx} className="flex flex-row">
+                        <span className="text-gray-700 text-sm">{tax.name}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${Number(taxVal).toLocaleString('id-ID')} (${appliedTax ? tax.value : 0}%)`}</span>
+                      </div>
+                    )
+                  })
                   : <></>
                 }
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Total</span>
                   {
-                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
-                    ) : (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</span>
-                    )
+                    <span className="text-gray-800 ml-auto text-sm">{Number(fTotal(selectedInvoice)).toLocaleString('id-ID')}</span>
                   }
                 </div>
               </div>
@@ -893,12 +895,20 @@ export default function Invoices() {
                     )
                   }
                 </div>
-                {invoiceToPrint?.order?.taxes && invoiceToPrint.order.taxes.length > 0 && invoiceToPrint.order.taxes.map((t: any, idx: number) => (
-                  <div key={idx} className="flex flex-row">
-                    <span className="text-gray-700 text-sm">{t.taxName}</span>
-                    <span className="text-gray-800 ml-auto text-sm">{whatTax(invoiceToPrint, t.taxName)}</span>
-                  </div>
-                ))}
+                {getTaxesFn.result && getTaxesFn.result.length > 0
+                  ? getTaxesFn.result.map((tax: any, idx: number) => {
+                    const appliedTax = invoiceToPrint?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
+                    const taxVal = appliedTax ? appliedTax.taxValue : 0;
+                    const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
+                    return (
+                      <div key={idx} className="flex flex-row">
+                        <span className="text-gray-700 text-sm">{tax.name}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${Number(taxVal).toLocaleString('id-ID')} (${appliedTax ? tax.value : 0}%)`}</span>
+                      </div>
+                    )
+                  })
+                  : <></>
+                }
 
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Grand Total</span>

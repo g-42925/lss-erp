@@ -112,8 +112,16 @@ export async function POST(request: NextRequest) {
       if (contractType === "One Time" && frequency === "Once") {
         delete obj.dueDate
       }
-
       const result = await ServiceOrder.create(obj)
+
+      let pphDeduction = 0;
+      if (obj.taxes && obj.taxes.length > 0) {
+        obj.taxes.forEach((t: any) => {
+          if (t.isPPh) {
+            pphDeduction += t.taxValue;
+          }
+        });
+      }
 
       if (obj.contractType === "One Time" && obj.frequency === "Once") {
         await Invoice.create({
@@ -133,7 +141,8 @@ export async function POST(request: NextRequest) {
               date: Date.now(),
               method: obj.paymentMethod,
             }
-          ]
+          ],
+          pphDeduction: pphDeduction
         })
       }
 
@@ -155,7 +164,8 @@ export async function POST(request: NextRequest) {
               date: Date.now(),
               method: obj.paymentMethod,
             }
-          ]
+          ],
+          pphDeduction: pphDeduction
         })
       }
 
@@ -204,8 +214,16 @@ export async function POST(request: NextRequest) {
         delete obj.dueDate
       }
 
-
       const result = await ServiceOrder.create(obj)
+
+      let pphDeduction = 0;
+      if (obj.taxes && obj.taxes.length > 0) {
+        obj.taxes.forEach((t: any) => {
+          if (t.isPPh) {
+            pphDeduction += t.taxValue;
+          }
+        });
+      }
 
       if (obj.contractType === "One Time" && obj.frequency === "Once") {
         const _r = await Companie.findOne({ masterAccountId: id })
@@ -236,7 +254,8 @@ export async function POST(request: NextRequest) {
               date: Date.now(),
               method: obj.paymentMethod,
             }
-          ]
+          ],
+          pphDeduction: pphDeduction
         })
       }
 
@@ -269,7 +288,8 @@ export async function POST(request: NextRequest) {
               date: Date.now(),
               method: obj.paymentMethod,
             }
-          ]
+          ],
+          pphDeduction: pphDeduction
         })
       }
 

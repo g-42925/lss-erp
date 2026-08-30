@@ -179,6 +179,15 @@ export async function PUT(request: NextRequest) {
         }
       )
 
+      let pphDeduction = 0;
+      if (so.taxes && so.taxes.length > 0) {
+        so.taxes.forEach((t: any) => {
+          if (t.isPPh) {
+            pphDeduction += t.taxValue;
+          }
+        });
+      }
+
       const newInvoice = await Invoice.create({
         companyId: company._id,
         salesOrderId: so._id,
@@ -196,7 +205,8 @@ export async function PUT(request: NextRequest) {
             method: 'Cash',
             date: new Date()
           }
-        ] : []
+        ] : [],
+        pphDeduction: pphDeduction
       })
 
       return NextResponse.json({

@@ -926,7 +926,7 @@ function XOrderContent() {
                                     {
                                       s.contractType === "One Time" && s.frequency === "Once" ?
                                         (
-                                          <button disabled={activateInvoiceFn.loading} onClick={() => submitInvoice({ salesOrderNumber: s.salesOrderNumber, missing: 0 })} className="text-gray-900">
+                                          <button disabled={activateInvoiceFn.loading || Number(s.range) === Number(s.billed)} onClick={() => submitInvoice({ salesOrderNumber: s.salesOrderNumber, missing: 0 })} className={Number(s.range) === Number(s.billed) ? "text-gray-400 cursor-not-allowed" : "text-gray-900"} title={Number(s.range) === Number(s.billed) ? "Fully billed" : "Make Invoice"}>
                                             {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon
                                               icon={AddInvoiceIcon}
                                               size={24}
@@ -937,7 +937,7 @@ function XOrderContent() {
                                         )
                                         :
                                         (
-                                          <button disabled={activateInvoiceFn.loading} onClick={() => makeInvoice(s.salesOrderNumber, s._id)} className="text-gray-900">
+                                          <button disabled={activateInvoiceFn.loading || Number(s.range) === Number(s.billed)} onClick={() => makeInvoice(s.salesOrderNumber, s._id)} className={Number(s.range) === Number(s.billed) ? "text-gray-400 cursor-not-allowed" : "text-gray-900"} title={Number(s.range) === Number(s.billed) ? "Fully billed" : "Make Invoice"}>
                                             {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon
                                               icon={AddInvoiceIcon}
                                               size={24}

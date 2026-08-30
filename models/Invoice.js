@@ -80,6 +80,10 @@ const invoiceSchema = new mongoose.Schema({
       }
     ],
   },
+  pphDeduction: {
+    type: Number,
+    default: 0
+  },
   unavailable: {
     type: Number,
     min: 0

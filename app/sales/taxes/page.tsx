@@ -246,50 +246,51 @@ export default function Taxes() {
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box w-11/12 max-w-2xl">
+        <div className="modal-box w-11/12 max-w-lg bg-white">
           <div className="flex flex-col gap-3">
-            <h3 className="text-lg font-bold">Edit Tax</h3>
-            <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="flex flex-col gap-4">
+            <span className="page-title">Edit Tax</span>
+            <form onSubmit={editTaxForm.handleSubmit(editSubmit)} className="flex flex-col gap-3">
               <input type="hidden" {...editTaxForm.register("_id")} />
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Tax Name</legend>
+                <legend className="fieldset-legend text-black">Tax Name</legend>
                 <input
                   {...editTaxForm.register("name", { required: true })}
                   type="text"
                   placeholder="e.g. PPN 11%"
-                  className="input w-full"
+                  className="input w-full bg-white border border-gray-300"
                 />
               </fieldset>
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Value (%)</legend>
+                <legend className="fieldset-legend text-black">Value (%)</legend>
                 <input
                   {...editTaxForm.register("value", { valueAsNumber: true, required: true })}
                   type="number"
                   step="0.01"
                   placeholder="e.g. 11"
-                  className="input w-full"
+                  className="input w-full bg-white border border-gray-300"
                 />
               </fieldset>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-2">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input {...editTaxForm.register("isPPh")} type="checkbox" id="edit-isPPh" className="checkbox checkbox-primary" />
+                  <input {...editTaxForm.register("isPPh")} type="checkbox" id="edit-isPPh" className="checkbox checkbox-primary bg-white border border-gray-300" />
                   <span className="text-sm font-medium">Is this PPh?</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input {...editTaxForm.register("isLiability")} type="checkbox" id="edit-isLiability" className="checkbox checkbox-primary" />
+                  <input {...editTaxForm.register("isLiability")} type="checkbox" id="edit-isLiability" className="checkbox checkbox-primary bg-white border border-gray-300" />
                   <span className="text-sm font-medium">Is this Liability?</span>
                 </label>
               </div>
-              {putFn.noResult || putFn.error ? <p className="text-red-600 text-sm">Terjadi kesalahan. Silakan coba lagi.</p> : null}
-              <div className="flex flex-row gap-3 modal-action mt-2">
+              {putFn.noResult || putFn.error ? <label className="input-validator text-red-900">Terjadi kesalahan. Silakan coba lagi.</label> : null}
+              
+              <div className="modal-action flex justify-end gap-3 mt-4 w-full">
                 <button
                   type="button"
-                  className="btn flex-1"
+                  className="btn rounded-md text-white bg-gray-400 border-none hover:bg-gray-500"
                   onClick={() => editRef.current?.close()}
                 >
                   Cancel
                 </button>
-                <button type="submit" disabled={putFn.loading} className="btn bg-blue-900 text-white flex-1">
+                <button type="submit" disabled={putFn.loading} className="btn rounded-md text-white bg-blue-900 border-none hover:bg-blue-800">
                   {putFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Save Changes'}
                 </button>
               </div>
@@ -298,49 +299,50 @@ export default function Taxes() {
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box w-11/12 max-w-2xl">
+        <div className="modal-box w-11/12 max-w-lg bg-white">
           <div className="flex flex-col gap-3">
-            <h3 className="text-lg font-bold">Add Tax</h3>
-            <form onSubmit={newTaxForm.handleSubmit(submit)} className="flex flex-col gap-4">
+            <span className="page-title">Add Tax</span>
+            <form onSubmit={newTaxForm.handleSubmit(submit)} className="flex flex-col gap-3">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Tax Name</legend>
+                <legend className="fieldset-legend text-black">Tax Name</legend>
                 <input
                   {...newTaxForm.register("name", { required: true })}
                   type="text"
                   placeholder="e.g. PPN 11%"
-                  className="input w-full"
+                  className="input w-full bg-white border border-gray-300"
                 />
               </fieldset>
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Value (%)</legend>
+                <legend className="fieldset-legend text-black">Value (%)</legend>
                 <input
                   {...newTaxForm.register("value", { valueAsNumber: true, required: true })}
                   type="number"
                   step="0.01"
                   placeholder="e.g. 11"
-                  className="input w-full"
+                  className="input w-full bg-white border border-gray-300"
                 />
               </fieldset>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-2">
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input {...newTaxForm.register("isPPh")} type="checkbox" id="isPPh" className="checkbox checkbox-primary" />
+                  <input {...newTaxForm.register("isPPh")} type="checkbox" id="isPPh" className="checkbox checkbox-primary bg-white border border-gray-300" />
                   <span className="text-sm font-medium">Is this PPh?</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
-                  <input {...newTaxForm.register("isLiability")} type="checkbox" id="isLiability" className="checkbox checkbox-primary" />
+                  <input {...newTaxForm.register("isLiability")} type="checkbox" id="isLiability" className="checkbox checkbox-primary bg-white border border-gray-300" />
                   <span className="text-sm font-medium">Is this Liability?</span>
                 </label>
               </div>
-              {addFn.noResult || addFn.error ? <p className="text-red-600 text-sm">Terjadi kesalahan. Silakan coba lagi.</p> : null}
-              <div className="flex flex-row gap-3 modal-action mt-2">
+              {addFn.noResult || addFn.error ? <label className="input-validator text-red-900">Terjadi kesalahan. Silakan coba lagi.</label> : null}
+              
+              <div className="modal-action flex justify-end gap-3 mt-4 w-full">
                 <button
                   type="button"
-                  className="btn flex-1"
+                  className="btn rounded-md text-white bg-gray-400 border-none hover:bg-gray-500"
                   onClick={() => modalRef.current?.close()}
                 >
                   Cancel
                 </button>
-                <button type="submit" disabled={addFn.loading} className="btn bg-blue-900 text-white flex-1">
+                <button type="submit" disabled={addFn.loading} className="btn rounded-md text-white bg-blue-900 border-none hover:bg-blue-800">
                   {addFn.loading ? <span className="loading loading-spinner loading-sm"></span> : 'Add Tax'}
                 </button>
               </div>
