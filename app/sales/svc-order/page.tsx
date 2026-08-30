@@ -303,7 +303,8 @@ function XOrderContent() {
 
       taxes.push({
         taxName: tax.name,
-        taxValue: value
+        taxValue: value,
+        isPPh: tax.isPPh
       })
     })
 
@@ -356,7 +357,8 @@ function XOrderContent() {
     const currentSelected = applyTaxSelectedRef.current
     const taxes = currentSelected.map(tax => ({
       taxName: tax.name,
-      taxValue: applyTaxOrder.price * (tax.value / 100)
+      taxValue: applyTaxOrder.price * (tax.value / 100),
+      isPPh: tax.isPPh
     }))
 
     console.log('[ApplyTax] selected:', currentSelected.map(t => t.name))
@@ -1098,8 +1100,8 @@ function XOrderContent() {
                   >
                     <span>{tax.name} — {tax.value}%</span>
                     {applyTaxOrder && (
-                      <span className="text-xs opacity-70">
-                        +{new Intl.NumberFormat('id-ID').format(taxAmount)}
+                      <span className={`text-xs opacity-70 ${tax.isPPh ? 'text-red-500' : ''}`}>
+                        {tax.isPPh ? '-' : '+'}{new Intl.NumberFormat('id-ID').format(taxAmount)}
                       </span>
                     )}
                   </button>
@@ -1112,16 +1114,19 @@ function XOrderContent() {
             <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm">
               <p className="font-medium text-indigo-800 mb-1">Summary</p>
               {applyTaxSelected.map((t: any) => (
-                <div key={t._id || t.id} className="flex justify-between text-indigo-700">
+                <div key={t._id || t.id} className={`flex justify-between ${t.isPPh ? 'text-red-600' : 'text-indigo-700'}`}>
                   <span>{t.name} ({t.value}%)</span>
-                  <span>+{new Intl.NumberFormat('id-ID').format(applyTaxOrder.price * (t.value / 100))}</span>
+                  <span>{t.isPPh ? '-' : '+'}{new Intl.NumberFormat('id-ID').format(applyTaxOrder.price * (t.value / 100))}</span>
                 </div>
               ))}
               <div className="flex justify-between font-bold text-indigo-900 border-t border-indigo-200 mt-2 pt-2">
                 <span>Total after tax</span>
                 <span>
                   {new Intl.NumberFormat('id-ID').format(
-                    applyTaxOrder.price + applyTaxSelected.reduce((acc: number, t: any) => acc + applyTaxOrder.price * (t.value / 100), 0)
+                    applyTaxOrder.price + applyTaxSelected.reduce((acc: number, t: any) => {
+                      const amount = applyTaxOrder.price * (t.value / 100);
+                      return t.isPPh ? acc - amount : acc + amount;
+                    }, 0)
                   )}
                 </span>
               </div>

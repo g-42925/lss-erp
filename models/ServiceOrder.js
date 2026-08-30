@@ -21,7 +21,8 @@ const orderSchema = new mongoose.Schema({
   taxes: [
     {
       taxName: { type: String },
-      taxValue: { type: Number }
+      taxValue: { type: Number },
+      isPPh: { type: Boolean }
     }
   ],
   status: { type: String, enum: ['active', 'closed'], default: 'active' },
