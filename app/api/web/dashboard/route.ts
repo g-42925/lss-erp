@@ -7,6 +7,7 @@ import Batche from '@/models/Batche'
 import Product from '@/models/Product'
 import Customer from '@/models/Customer'
 import Companie from '@/models/Companie'
+import Invoice from '@/models/Invoice'
 
 export async function GET(req: NextRequest) {
   try {
@@ -85,28 +86,39 @@ export async function GET(req: NextRequest) {
       ])
     ])
 
-    const [outstandingInvoices] = await Order.aggregate([
+    const [outstandingInvoices] = await Invoice.aggregate([
       {
         $match: {
-          companyId: cid
+          companyId: cid,
+          paid: false,
+          status: 'active'
         }
       },
       {
         $lookup: {
-          from: 'invoices',
-          localField: 'salesOrderNumber',
-          foreignField: 'salesOrderNumber',
-          as: 'invoice'
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
         }
       },
       {
-        $unwind: '$invoice'
+        $lookup: {
+          from: 'serviceorders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'serviceOrder'
+        }
       },
       {
-        $match: {
-          $expr: {
-            $lt: ["$invoice.payAmount", "$total"]
-          }
+        $addFields: {
+          orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
+          serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
+        }
+      },
+      {
+        $addFields: {
+          invoiceTotal: { $add: ['$orderTotal', '$serviceTotal'] }
         }
       },
       {
@@ -114,9 +126,9 @@ export async function GET(req: NextRequest) {
           _id: null,
           total: {
             $sum: {
-              $subtract: ["$total", "$invoice.payAmount"]
+              $subtract: ['$invoiceTotal', '$payAmount']
             }
-          },
+          }
         }
       }
     ])
