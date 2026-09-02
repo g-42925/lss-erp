@@ -242,7 +242,7 @@ export default function ProductSellReportPage() {
   function toExcel() {
     if (unifiedData.length === 0) return alert('Tidak ada data untuk diexport')
 
-    let data;
+    let data: any[];
     if (productTypeFilter === 'Service') {
       let totalDpp = 0;
       data = unifiedData.map((row, i) => {
