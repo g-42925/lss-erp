@@ -425,6 +425,11 @@ export async function PUT(request: NextRequest) {
     const formData = await request.formData();
 
     const _id = formData.get("_id") as string;
+    const order = await ServiceOrder.findById(_id);
+    if (!order) throw new Error("Order not found");
+    const company = await Companie.findById(order.companyId);
+    if (!company) throw new Error("Company not found");
+
     const productId = formData.get("productId") as string;
     const contractType = formData.get("contractType") as string;
     const customer = JSON.parse(formData.get("customer") as string);
