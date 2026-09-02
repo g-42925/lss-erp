@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: true, message: "Company not found", noResult: true, result: null });
     }
 
-    const orders = await Order.find({ companyId: company._id })
+    const orders = await Order.find({ companyId: company._id, void: { $ne: true } })
       .populate('customerId', 'customerName')
       .populate('cart.productId', 'productName')
       .sort({ saleDate: -1 });

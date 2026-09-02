@@ -2,6 +2,7 @@
 import Invoice from '@/models/Invoice'
 import ServiceOrder from "@/models/ServiceOrder"
 import Companie from '@/models/Companie'
+import Customer from '@/models/Customer'
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
@@ -34,17 +35,25 @@ export async function POST(request: NextRequest) {
     const payAmount = formData.get("payAmount")
     const contract = formData.get("contract") as File
     const taxes = formData.get("taxes") as string
+    const periodStart = formData.get("periodStart") as string
+    const periodEnd = formData.get("periodEnd") as string
+    const taxNumberForm = formData.get("taxNumber") as string
+    
+    const company = await Companie.findOne({ masterAccountId: id })
+    const customer = await Customer.findOne({ bussinessName: customerName, customerOf: company._id })
+    const taxNumberToUse = taxNumberForm || (customer && customer.taxNumber ? `${customer.taxType ? customer.taxType + ' ' : ''}${customer.taxNumber}`.trim() : '');
 
     const customCustomer = {
       name: customerName,
       address: address,
+      taxNumber: taxNumberToUse
     }
 
     const rangeNum = range ? parseInt(range as string) : 0;
 
     if (contract) {
       const fileName = (formData.get("fileName") as string) ?? contract.name;
-      const r = await Companie.findOne({ masterAccountId: id })
+      const r = company;
 
       const cdnUrl = `https://leryn-ljm-3.b-cdn.net/erp_${r.email.split('@')[0]}/contracts/${fileName}`;
       const buffer = Buffer.from(await contract.arrayBuffer());
@@ -95,6 +104,9 @@ export async function POST(request: NextRequest) {
         date: Date.now(),
         productType: "service",
         salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+        periodStart: periodStart ? new Date(periodStart) : undefined,
+        periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+        taxNumber: taxNumberToUse,
         taxes: taxes ? JSON.parse(taxes) : []
       }
 
@@ -177,7 +189,7 @@ export async function POST(request: NextRequest) {
       })
     }
     else {
-      const _r = await Companie.findOne({ masterAccountId: id })
+      const _r = company;
 
       const obj: Record<string, unknown> = {
         companyId: _r._id,
@@ -196,6 +208,9 @@ export async function POST(request: NextRequest) {
         date: Date.now(),
         productType: "service",
         salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+        periodStart: periodStart ? new Date(periodStart) : undefined,
+        periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+        taxNumber: taxNumberToUse,
         taxes: JSON.parse(taxes)
       }
 
@@ -420,23 +435,26 @@ export async function PUT(request: NextRequest) {
     const billed = formData.get("billed") as string;
 
     const contract = formData.get("contract") as File | null;
-    const id = formData.get("id") as string;
+    const taxNumber = formData.get("taxNumber") as string;
+    const periodStart = formData.get("periodStart") as string;
+    const periodEnd = formData.get("periodEnd") as string;
+    customer.taxNumber = taxNumber;
 
     const updateData: any = {
       productId,
       contractType,
       customCustomer: customer,
+      taxNumber: taxNumber,
       range: parseInt(range as string) || 1,
       frequency,
       price: parseFloat(price) || 0,
       qty: parseInt(qty as string) || 1,
+      periodStart: periodStart ? new Date(periodStart) : undefined,
+      periodEnd: periodEnd ? new Date(periodEnd) : undefined,
       billed: billed
     };
 
     if (contract) {
-      const company = await Companie.findOne({
-        masterAccountId: id
-      });
       const fileName = contract.name;
       const buffer = Buffer.from(await contract.arrayBuffer());
 

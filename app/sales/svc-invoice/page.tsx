@@ -5,7 +5,7 @@ import useFetch from '@/hooks/useFetch'
 import Sidebar from '@/components/sidebar'
 import Image from "next/image"
 import Link from "next/link";
-import * as XLSX from "xlsx";
+
 
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState } from 'react'
@@ -134,69 +134,7 @@ export default function Invoices() {
     setTimeout(() => window.print(), 100);
   }
 
-  function handleExportExcel() {
-    const monthAbbr = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
-    const monthName = selectedMonth ? monthAbbr[Number(selectedMonth)] : "Semua";
 
-    const allTaxes = getTaxesFn.result || [];
-    let grandTotalDPP = 0;
-
-    const excelData = filteredInvoices.map((s: any, index: number) => {
-      const dpp = fSubtotal(s) || 0;
-      grandTotalDPP += dpp;
-
-      const rowData: any = {
-        "NO": index + 1,
-        "NO TRANSAKSI": s.invoiceNumber,
-        "NPWP": s.order?.taxNumber || "-",
-        "TGL PENJUALAN": s.date ? new Date(s.date).toLocaleDateString('id-ID') : "-",
-        "NAMA CUSTOMER": s.order?.customCustomer ? s.order.customCustomer.name : (s.order?.customer?.bussinessName || "-"),
-        "DESKRIPSI": s.order?.product?.productName || "-",
-        "DPP": dpp,
-      };
-
-      allTaxes.forEach((tax: any) => {
-        const hasTax = s.order?.taxes?.find((t: any) => t.taxName === tax.name);
-        rowData[tax.name] = hasTax ? `${tax.value}% ` : "0%";
-      });
-
-      return rowData;
-    });
-
-    const headerRows = [
-      [
-        `LAPORAN PENJUALAN - ${monthName.toUpperCase()} ${new Date().getFullYear()} `,
-        "", "",
-        "GRAND TOTAL:",
-        `Rp ${grandTotalDPP.toLocaleString('id-ID')}`
-      ],
-      []
-    ];
-
-    const worksheet = XLSX.utils.aoa_to_sheet(headerRows);
-    XLSX.utils.sheet_add_json(worksheet, excelData, { origin: "A3", skipHeader: false });
-
-    for (let row = 4; row <= excelData.length + 3; row++) {
-      const cell = worksheet[`G${row}`]; // ✅ Rapat tanpa spasi
-
-      if (cell) {
-        cell.t = 'n'; // Pastikan tipe data Number
-        cell.v = Number(cell.v);
-        cell.z = '#,##0'; // Format ribuan (2,600,000 / 2.600.000 tergantung locale aplikasi)
-      }
-    }
-
-    // Format Grand Total jika diperlukan (misal di sel E1)
-    if (worksheet["E1"]) {
-      worksheet["E1"].z = '"Rp "#,##0';
-    }
-
-    const workbook = XLSX.utils.book_new();
-    const sheetName = `Laporan ${monthName} ${new Date().getFullYear()} `.substring(0, 31);
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-
-    XLSX.writeFile(workbook, `Laporan Penjualan Periode ${monthName} ${new Date().getFullYear()}.xlsx`);
-  }
 
   function whatTax(invoice: any, taxName: string) {
     const isOneTimeService = invoice.order.contractType === "One Time" && invoice.order.frequency === "Once"
@@ -376,10 +314,10 @@ export default function Invoices() {
               </select>
               Entries
             </div>
-            <input 
-              type="search" 
-              placeholder="Search by customer name..." 
-              className="toolbar-search" 
+            <input
+              type="search"
+              placeholder="Search by customer name..."
+              className="toolbar-search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -403,9 +341,7 @@ export default function Invoices() {
               <button className="btn btn-sm bg-black text-white hover:bg-gray-800" onClick={handlePrintSelected} disabled={selectedInvoicesToPrint.length === 0}>
                 Print Selected ({selectedInvoicesToPrint.length})
               </button>
-              <button className="btn btn-sm bg-green-700 text-white hover:bg-green-800" onClick={handleExportExcel} disabled={filteredInvoices.length === 0}>
-                Export Excel
-              </button>
+
             </div>
           </div>
           {
@@ -477,8 +413,8 @@ export default function Invoices() {
                                   <td>{s.salesOrderNumber}</td>
                                   <td>{s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName}</td>
                                   <td>{s.order?.salesOrderNumber}</td>
-                                  <td>{Math.floor(Number(fSubtotal(s))).toLocaleString('id-ID')}</td>
-                                  <td>{Math.floor(Number(s.payAmount || 0)).toLocaleString('id-ID')}</td>
+                                  <td>{Math.floor(Number(fSubtotal(s))).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                                  <td>{Math.floor(Number(s.payAmount || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                                   <td>
                                     <span className={`badge badge - sm ${s.paid ? 'badge-success' : 'badge-warning'} `}>
                                       {s.paid ? 'paid' : 'unpaid'}
@@ -543,7 +479,7 @@ export default function Invoices() {
               <option value="">-- Select Sales Order --</option>
               {orders && orders.map((o: any, idx: number) => (
                 <option key={idx} value={o.salesOrderNumber}>
-                  {o.salesOrderNumber} - {o.customer?.bussinessName || o.customCustomer?.name} (Rp {Number(o.total || 0).toLocaleString('id-ID')})
+                  {o.salesOrderNumber} - {o.customer?.bussinessName || o.customCustomer?.name} (Rp {Number(o.total || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })})
                 </option>
               ))}
             </select>
@@ -670,9 +606,9 @@ export default function Invoices() {
                   <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.order?.product?.productName}</td>
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price / selectedInvoice?.order?.qty).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price / selectedInvoice?.order?.qty).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
                   }
                   {
@@ -684,9 +620,9 @@ export default function Invoices() {
                   }
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
                   }
                 </tr>
@@ -721,13 +657,13 @@ export default function Invoices() {
               <div className="ml-auto w-1/2 flex flex-col justify-between py-2 border-b print:border-gray-200">
                 <div className="flex flex-row">
                   <span className="text-gray-700 text-sm">Subtotal</span>
-                    {
-                      selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                        <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID')}</span>
-                      ) : (
-                        <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice) + (selectedInvoice?.pphDeduction || 0)).toLocaleString('id-ID')}</span>
-                      )
-                    }
+                  {
+                    selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                    ) : (
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice) + (selectedInvoice?.pphDeduction || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                    )
+                  }
                 </div>
                 {getTaxesFn.result && getTaxesFn.result.length > 0
                   ? getTaxesFn.result.map((tax: any, idx: number) => {
@@ -737,7 +673,7 @@ export default function Invoices() {
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${Number(taxVal).toLocaleString('id-ID')} (${appliedTax ? tax.value : 0}%)`}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${Number(taxVal).toLocaleString('id-ID', { maximumFractionDigits: 0 })} (${appliedTax ? tax.value : 0}%)`}</span>
                       </div>
                     )
                   })
@@ -746,7 +682,7 @@ export default function Invoices() {
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Total</span>
                   {
-                    <span className="text-gray-800 ml-auto text-sm">{Number(fTotal(selectedInvoice)).toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number(fTotal(selectedInvoice)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                   }
                 </div>
               </div>
@@ -792,17 +728,17 @@ export default function Invoices() {
       {/* Rendered as a regular div so browsers include it in print (dialog top-layer is excluded) */}
       <div id="invoice-print-area" className="hidden print:block bg-white text-black w-full">
         {invoicesToPrint.map((invoiceToPrint, invoiceIdx) => (
-          <div key={invoiceIdx} className={`w - full p - 6 ${invoiceIdx < invoicesToPrint.length - 1 ? 'page-break' : ''} `}>
+          <div key={invoiceIdx} className={`w-full px-16 py-10 ${invoiceIdx < invoicesToPrint.length - 1 ? 'page-break' : ''}`}>
             {/* Header */}
-            <div className="grid gap-6 w-full items-start border-b-2 border-gray-200 pb-4 mb-6 invoice-header" style={{ gridTemplateColumns: '5fr 3fr 4fr' }}>
+            <div className="grid gap-4 w-full items-start border-b-2 border-gray-200 pb-2 mb-3 invoice-header" style={{ gridTemplateColumns: '5fr 3fr 4fr' }}>
               <div className="flex flex-row gap-3">
-                <div className="flex flex-row gap-6">
+                <div className="flex flex-row gap-4">
                   {getCompaniesFn.result?.[0]?.logo && (
                     <img
                       src={getCompaniesFn.result[0].logo}
                       className="object-contain flex-shrink-0"
                       alt="Logo"
-                      style={{ width: '70px', height: '70px' }}
+                      style={{ width: '60px', height: '60px' }}
                     />
                   )}
                   <div className="min-w-0">
@@ -827,12 +763,12 @@ export default function Invoices() {
               </div>
               <div className="flex flex-col gap-1">
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">To</span>
-                  <p className="text-sm text-gray-700 break-words leading-snug">{invoiceToPrint?.order?.customCustomer ? invoiceToPrint.order.customCustomer.name : invoiceToPrint?.order?.customer?.bussinessName}</p>
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">To</span>
+                  <p className="text-xs text-gray-700 break-words leading-tight">{invoiceToPrint?.order?.customCustomer ? invoiceToPrint.order.customCustomer.name : invoiceToPrint?.order?.customer?.bussinessName}</p>
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Address</span>
-                  <p className="text-sm text-gray-700 break-words leading-snug">{invoiceToPrint?.order?.customCustomer ? invoiceToPrint.order.customCustomer.address : invoiceToPrint?.order?.customer?.address}</p>
+                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Address</span>
+                  <p className="text-xs text-gray-700 break-words leading-tight">{invoiceToPrint?.order?.customCustomer ? invoiceToPrint.order.customCustomer.address : invoiceToPrint?.order?.customer?.address}</p>
                 </div>
               </div>
             </div>
@@ -841,11 +777,11 @@ export default function Invoices() {
             <table className="w-full text-left table-fixed">
               <thead>
                 <tr className="border-b-2 border-gray-200">
-                  <th className="py-2 text-sm text-gray-600 uppercase">No</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase">Nama Item</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase w-[5%]">No</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase w-[35%]">Nama Item</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right w-[25%]">Price</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right w-[10%]">Qty</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase text-right w-[25%]">Amount</th>
                 </tr>
               </thead>
               <tbody>
@@ -854,9 +790,9 @@ export default function Invoices() {
                   <td className="py-[5px] text-sm text-gray-800">{invoiceToPrint?.order?.product?.productName}</td>
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number((invoiceToPrint?.order?.price || 0) / (invoiceToPrint?.order?.qty || 1)).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number((invoiceToPrint?.order?.price || 0) / (invoiceToPrint?.order?.qty || 1)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
                   }
                   {
@@ -868,15 +804,15 @@ export default function Invoices() {
                   }
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID')}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
                   }
                 </tr>
                 {/* Filler rows untuk print: menjaga ukuran tabel setara 5 baris */}
                 {Array.from({ length: 0 }).map((_, i) => (
-                  <tr key={`print - filler - ${i} `}>
+                  <tr key={`print-filler-${i}`}>
                     <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
                     <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
                     <td className="py-[5px] text-sm text-gray-800">&nbsp;</td>
@@ -888,8 +824,8 @@ export default function Invoices() {
             </table>
 
             {/* Totals + Bank accounts */}
-            <div className="flex flex-row mt-6">
-              <div className="w-1/2 flex flex-col justify-center bank-accounts-section">
+            <div className="flex flex-row mt-3">
+              <div className="w-7/12 flex flex-col justify-center bank-accounts-section pr-4">
                 {bankAccounts && bankAccounts.length > 0 && bankAccounts.map((acc: any, idx: number) => (
                   <div key={idx} className="py-1">
                     <p className="text-sm text-black">Pembayaran melalui transfer ke:</p>
@@ -897,14 +833,14 @@ export default function Invoices() {
                   </div>
                 ))}
               </div>
-              <div className="w-1/2 flex flex-col border-b border-gray-200 py-2">
+              <div className="w-5/12 flex flex-col border-b border-gray-200 py-2">
                 <div className="flex flex-row">
-                  <span className="text-gray-700 text-sm">Total</span>
+                  <span className="text-gray-700 text-sm">Subtotal</span>
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID')}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     ) : (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID')}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(invoiceToPrint) + (invoiceToPrint?.pphDeduction || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     )
                   }
                 </div>
@@ -916,7 +852,7 @@ export default function Invoices() {
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${Number(taxVal).toLocaleString('id-ID')} (${appliedTax ? tax.value : 0}%)`}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
                       </div>
                     )
                   })
@@ -927,9 +863,9 @@ export default function Invoices() {
                   <span className="text-gray-700 text-sm">Grand Total</span>
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID')}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     ) : (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID')}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     )
                   }
                 </div>
@@ -937,14 +873,14 @@ export default function Invoices() {
             </div>
 
             {/* Signature section */}
-            <div className="flex flex-row gap-8 justify-center mt-6">
+            <div className="flex flex-row gap-8 justify-center mt-3 break-inside-avoid">
               <div className="flex flex-col items-center w-1/2">
-                <div className="w-full h-16 mb-2"></div>
+                <div className="w-full h-10 mb-1"></div>
                 <span className="text-sm font-semibold text-gray-800">{'PT. Leryn Jaya Mas'}</span>
                 <span className="text-xs text-gray-500">Dibuat Oleh</span>
               </div>
               <div className="flex flex-col items-center w-1/2">
-                <div className="w-full h-16 mb-2"></div>
+                <div className="w-full h-10 mb-1"></div>
                 <span className="text-sm text-gray-700">Hormat Kami</span>
               </div>
             </div>

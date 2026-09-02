@@ -18,6 +18,8 @@ const orderSchema = new mongoose.Schema({
   productType: { type: String, enum: ['service'] },
   qty: { type: Number, required: true },
   dueDate: { type: Number },
+  periodStart: { type: Date },
+  periodEnd: { type: Date },
   taxes: [
     {
       taxName: { type: String },
@@ -29,6 +31,7 @@ const orderSchema = new mongoose.Schema({
   customCustomer: {
     name: { type: String, required: true },
     address: { type: String, required: true },
+    taxNumber: { type: String, required: false },
   }
 });
 

@@ -137,6 +137,7 @@ export default function Customers() {
       bussinessName: customer.bussinessName,
       name: customer.name,
       email: customer.email,
+      taxType: customer.taxType,
       taxNumber: customer.taxNumber,
       creditLimit: customer.creditLimit,
       payTerm: customer.payTerm,
@@ -223,7 +224,6 @@ export default function Customers() {
                       <tr>
                         <th className="w-auto">Name</th>
                         <th>Address</th>
-                        <th>Email</th>
                         <th>Phone</th>
                         <th>...</th>
                       </tr>
@@ -235,7 +235,6 @@ export default function Customers() {
                             <tr key={c._id}>
                               <td className="w-auto">{c.bussinessName}</td>
                               <td className="w-auto">{c.address}</td>
-                              <td className="w-auto">{c.email}</td>
                               <td className="w-auto">{c.mobile}</td>
                               <td>
                                 <button disabled={!isSuperAdmin && !pages['/customers']?.includes('edit')} onClick={() => edit(c._id)}>
@@ -272,17 +271,20 @@ export default function Customers() {
                   <legend className="fieldset-legend text-black">Bussiness Name</legend>
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...editCustomerForm.register("bussinessName")} />
                 </fieldset>
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-black">Email</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("email")} type="text" />
-                </fieldset>
-                <fieldset className="fieldset">
+                <fieldset className="fieldset col-span-full">
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset md:col-span-2 hidden">
-                  <legend className="fieldset-legend text-black">Tax Number</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("taxNumber")} type="text" />
+                <fieldset className="fieldset md:col-span-2">
+                  <legend className="fieldset-legend text-black">Tax Info</legend>
+                  <div className="grid grid-cols-3 w-full gap-2">
+                    <select className="select bg-white border border-gray-300 col-span-1" {...editCustomerForm.register("taxType")}>
+                      <option value="">Select Type</option>
+                      <option value="KTP">KTP</option>
+                      <option value="NPWP">NPWP</option>
+                    </select>
+                    <input className="input bg-white border border-gray-300 col-span-2" {...editCustomerForm.register("taxNumber")} type="text" placeholder="Tax Number (KTP/NPWP)" />
+                  </div>
                 </fieldset>
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>
@@ -321,17 +323,20 @@ export default function Customers() {
                   <legend className="fieldset-legend text-black">Bussiness Name</legend>
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...newCustomerForm.register("bussinessName")} />
                 </fieldset>
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend text-black">Email</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("email")} type="text" />
-                </fieldset>
-                <fieldset className="fieldset">
+                <fieldset className="fieldset col-span-full">
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
                 </fieldset>
-                <fieldset className="fieldset md:col-span-2 hidden">
-                  <legend className="fieldset-legend text-black">Tax Number</legend>
-                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("taxNumber")} type="text" />
+                <fieldset className="fieldset md:col-span-2">
+                  <legend className="fieldset-legend text-black">Tax Info</legend>
+                  <div className="grid grid-cols-3 w-full gap-2">
+                    <select className="select bg-white border border-gray-300 col-span-1" {...newCustomerForm.register("taxType")}>
+                      <option value="">Select Type</option>
+                      <option value="KTP">KTP</option>
+                      <option value="NPWP">NPWP</option>
+                    </select>
+                    <input className="input bg-white border border-gray-300 col-span-2" {...newCustomerForm.register("taxNumber")} type="text" placeholder="Tax Number (KTP/NPWP)" />
+                  </div>
                 </fieldset>
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>

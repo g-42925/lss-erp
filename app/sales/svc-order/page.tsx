@@ -80,6 +80,7 @@ function XOrderContent() {
     defaultValues: {
       customerName: "",
       address: "",
+      taxNumber: "",
       productId: "",
       price: 0,
       contractType: "Full",
@@ -91,6 +92,8 @@ function XOrderContent() {
       dueDate: 0,
       paymentMethod: "Cash",
       payAmount: 0,
+      periodStart: new Date().toISOString().split("T")[0],
+      periodEnd: new Date().toISOString().split("T")[0],
     }
   })
 
@@ -113,6 +116,31 @@ function XOrderContent() {
       directOrderForm.setValue("range", 1)
     }
   }, [isOneTimeOnce, directOrderForm])
+
+  const watchPeriodStart = directOrderForm.watch("periodStart");
+  const watchPeriodEnd = directOrderForm.watch("periodEnd");
+  const watchEditPeriodStart = editOrderForm.watch("periodStart");
+  const watchEditPeriodEnd = editOrderForm.watch("periodEnd");
+
+  useEffect(() => {
+    if (watchPeriodStart && watchPeriodEnd) {
+      const start = new Date(watchPeriodStart);
+      const end = new Date(watchPeriodEnd);
+      let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+      if (months < 1) months = 1;
+      directOrderForm.setValue("range", months);
+    }
+  }, [watchPeriodStart, watchPeriodEnd, directOrderForm]);
+
+  useEffect(() => {
+    if (watchEditPeriodStart && watchEditPeriodEnd) {
+      const start = new Date(watchEditPeriodStart);
+      const end = new Date(watchEditPeriodEnd);
+      let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+      if (months < 1) months = 1;
+      editOrderForm.setValue("range", months);
+    }
+  }, [watchEditPeriodStart, watchEditPeriodEnd, editOrderForm]);
 
   useEffect(() => {
     if (isOneTimeMonthOneRangeDebt || isOneTimeOnceDebtNo) {
@@ -397,6 +425,7 @@ function XOrderContent() {
       _id: order._id,
       customerName: order.customCustomer?.name || order.customerId || "",
       address: order.customCustomer?.address || "",
+      taxNumber: order.taxNumber || order.customCustomer?.taxNumber || "",
       productId: order.productId,
       price: order.price,
       contractType: order.contractType,
@@ -404,6 +433,8 @@ function XOrderContent() {
       qty: order.qty,
       range: order.range,
       billed: order.billed,
+      periodStart: order.periodStart ? new Date(order.periodStart).toISOString().split('T')[0] : "",
+      periodEnd: order.periodEnd ? new Date(order.periodEnd).toISOString().split('T')[0] : "",
     })
     editRef.current?.showModal()
   }
@@ -416,6 +447,7 @@ function XOrderContent() {
       name: data.customerName,
       address: data.address
     }))
+    formData.append("taxNumber", data.taxNumber || "")
     formData.append("productId", data.productId)
     formData.append("price", data.price)
     formData.append("contractType", data.contractType)
@@ -423,6 +455,8 @@ function XOrderContent() {
     formData.append("qty", data.qty)
     formData.append("range", data.range)
     formData.append("billed", data.billed)
+    formData.append("periodStart", data.periodStart || "")
+    formData.append("periodEnd", data.periodEnd || "")
 
     if (editContract) {
       formData.append("contract", editContract as any)
@@ -482,6 +516,8 @@ function XOrderContent() {
               paymentMethod: "Cash",
               payAmount: 0,
               ppn: ppnSelection.length > 0 ? ppnSelection : ["no"],
+              periodStart: "",
+              periodEnd: "",
             })
           }
         })
@@ -565,7 +601,10 @@ function XOrderContent() {
 
   function onCustomerChange(e: any) {
     const customer = customers.find((c: any) => c.bussinessName === e.target.value)
-    if (customer) directOrderForm.setValue("address", customer.address)
+    if (customer) {
+      directOrderForm.setValue("address", customer.address)
+      directOrderForm.setValue("taxNumber", customer.taxNumber || "")
+    }
   }
 
   // Direct Service Order Mode
@@ -575,7 +614,7 @@ function XOrderContent() {
         <div className="h-full p-6 flex flex-col gap-3">
           <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative overflow-y-auto">
             <div className="flex flex-row items-center gap-3">
-              <span className="text-lg font-bold">New Direct Service Order</span>
+              <span className="text-lg font-bold">New Service Order</span>
               <button onClick={() => setDirectMode(false)} className="btn btn-sm ml-auto">← Back</button>
             </div>
 
@@ -610,7 +649,11 @@ function XOrderContent() {
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[110px] text-sm font-medium">Address</label>
                 <input {...directOrderForm.register("address")} type="text" className="input flex-1" required />
+              </div>
 
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[110px] text-sm font-medium">Tax Number</label>
+                <input {...directOrderForm.register("taxNumber")} type="text" className="input flex-1" placeholder="Tax Number (KTP/NPWP)" />
               </div>
 
               {/* Product */}
@@ -646,6 +689,26 @@ function XOrderContent() {
                 </select>
               </div>
 
+              {/* Period Start */}
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[110px] text-sm font-medium">Period Start</label>
+                <input
+                  {...directOrderForm.register("periodStart")}
+                  type="date"
+                  className="input flex-1"
+                />
+              </div>
+
+              {/* Period End */}
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[110px] text-sm font-medium">Period End</label>
+                <input
+                  {...directOrderForm.register("periodEnd")}
+                  type="date"
+                  className="input flex-1"
+                />
+              </div>
+
               {/* Frequency */}
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[110px] text-sm font-medium">Frequency</label>
@@ -667,12 +730,7 @@ function XOrderContent() {
                 />
               </div>
 
-              <div className={`flex flex-row items-center gap-3 ${isOneTimeOnce ? 'hidden' : ''}`}>
-                <label className="w-[110px] text-sm font-medium">Range</label>
-                <label className="input flex-1">
-                  <input {...directOrderForm.register("range")} type="number" placeholder="duration" />
-                </label>
-              </div>
+              <input type="hidden" {...directOrderForm.register("range")} />
 
               <div className={`flex flex-row items-center gap-3 ${(hidden && !isOneTimeMultiMonth) ? '' : 'hidden'}`}>
                 <label className="w-[110px] text-sm font-medium ">Debt</label>
@@ -747,25 +805,7 @@ function XOrderContent() {
                   :
                   <></>
               }
-              <div className="flex flex-row items-center gap-3 flex-wrap">
-                <label className="w-[110px] text-sm font-medium">Tax</label>
-                {getTaxesFn.result?.map(tax => {
-                  const isSelected = selectedTaxes.some(t => (t._id || t.id) === (tax._id || tax.id));
-                  return (
-                    <button
-                      key={tax._id || tax.id}
-                      type="button"
-                      onClick={() => toggleTax(tax)}
-                      className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${isSelected
-                        ? 'bg-purple-100 border-purple-500 text-purple-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-purple-300'
-                        }`}
-                    >
-                      {tax.name} ({tax.value}%)
-                    </button>
-                  );
-                })}
-              </div>
+
               <div className="flex flex-row gap-3 mt-4">
                 <button type="submit" disabled={addDirectServiceOrderFn.loading} className="btn bg-blue-900 text-white flex-1">
                   {
@@ -797,7 +837,6 @@ function XOrderContent() {
   return (
     <>
       <div className="p-3 md:p-6 flex flex-col gap-3 text-black">
-        <span className="page-title">Services Order</span>
         <div className="min-h-screen bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center font-semibold">Service Orders</span>
@@ -807,15 +846,14 @@ function XOrderContent() {
                 <button
                   key={f}
                   onClick={() => setStatusFilter(f)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium capitalize transition-all ${
-                    statusFilter === f
-                      ? f === 'active'
-                        ? 'bg-blue-900 text-white shadow'
-                        : f === 'closed'
+                  className={`px-3 py-1 rounded-full text-sm font-medium capitalize transition-all ${statusFilter === f
+                    ? f === 'active'
+                      ? 'bg-blue-900 text-white shadow'
+                      : f === 'closed'
                         ? 'bg-red-700 text-white shadow'
                         : 'bg-gray-800 text-white shadow'
-                      : 'text-gray-500 hover:text-gray-800'
-                  }`}
+                    : 'text-gray-500 hover:text-gray-800'
+                    }`}
                 >
                   {f}
                 </button>
@@ -892,11 +930,10 @@ function XOrderContent() {
                                   <td>{new Intl.NumberFormat('id-ID').format(s.price)}</td>
                                   <td>{s.billed}</td>
                                   <td>
-                                    <span className={`badge badge-sm ${
-                                      (s.status || 'active') === 'active'
-                                        ? 'badge-success'
-                                        : 'badge-error'
-                                    }`}>
+                                    <span className={`badge badge-sm ${(s.status || 'active') === 'active'
+                                      ? 'badge-success'
+                                      : 'badge-error'
+                                      }`}>
                                       {s.status || 'active'}
                                     </span>
                                   </td>
@@ -949,11 +986,10 @@ function XOrderContent() {
                                     }
                                     <button
                                       onClick={() => openApplyTaxModal(s)}
-                                      className={`relative transition-colors ${
-                                        s.taxes && s.taxes.length > 0
-                                          ? 'text-emerald-600 hover:text-emerald-700'
-                                          : 'text-gray-400 hover:text-gray-600'
-                                      }`}
+                                      className={`relative transition-colors ${s.taxes && s.taxes.length > 0
+                                        ? 'text-emerald-600 hover:text-emerald-700'
+                                        : 'text-gray-400 hover:text-gray-600'
+                                        }`}
                                       title={
                                         s.taxes && s.taxes.length > 0
                                           ? `Taxes applied: ${s.taxes.map((t: any) => t.taxName).join(', ')}`
@@ -1092,11 +1128,10 @@ function XOrderContent() {
                     key={tax._id || tax.id}
                     type="button"
                     onClick={() => toggleApplyTax(tax)}
-                    className={`flex flex-col items-start px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                      isSelected
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
-                    }`}
+                    className={`flex flex-col items-start px-4 py-2 rounded-xl border text-sm font-medium transition-all ${isSelected
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                      }`}
                   >
                     <span>{tax.name} — {tax.value}%</span>
                     {applyTaxOrder && (
@@ -1193,6 +1228,11 @@ function XOrderContent() {
           </div>
 
           <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Tax Number</label>
+            <input {...editOrderForm.register("taxNumber")} type="text" className="input flex-1" placeholder="Tax Number (KTP/NPWP)" />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Product</label>
             <select {...editOrderForm.register("productId")} className="select flex-1" required>
               <option value="">Select Product</option>
@@ -1212,6 +1252,16 @@ function XOrderContent() {
           </div>
 
           <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Period Start</label>
+            <input {...editOrderForm.register("periodStart")} type="date" className="input flex-1" />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Period End</label>
+            <input {...editOrderForm.register("periodEnd")} type="date" className="input flex-1" />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Frequency</label>
             <select {...editOrderForm.register("frequency")} className="select flex-1">
               <option value="Month">Month</option>
@@ -1224,10 +1274,7 @@ function XOrderContent() {
             <input {...editOrderForm.register("qty")} type="number" className="input flex-1" />
           </div>
 
-          <div className="flex flex-row items-center gap-3">
-            <label className="w-[110px] text-sm font-medium">Range</label>
-            <input {...editOrderForm.register("range")} type="number" className="input flex-1" />
-          </div>
+          <input type="hidden" {...editOrderForm.register("range")} />
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Price</label>

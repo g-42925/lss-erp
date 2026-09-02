@@ -63,6 +63,8 @@ export async function PUT(request: NextRequest) {
         mobile: rest.mobile,
         address: rest.address,
         active: rest.active,
+        taxType: rest.taxType,
+        taxNumber: rest.taxNumber,
       }
     )
 
