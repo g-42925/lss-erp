@@ -197,7 +197,7 @@ export default function ProductSellReportPage() {
       const deduction = row.pphDeduction || 0;
       const fSubtotal = baseTotal - deduction;
 
-      const taxes = row.order.taxes.filter(t => !t.isPPh && t.taxName != 'ppn')
+      const taxes = row.order.taxes.filter((t: { taxName: string; isPPh: boolean }) => !t.isPPh && t.taxName != 'ppn')
       const _taxes = taxes.length < 1 ? [{ taxName: 'PPN', taxValue: 0 }] : taxes
 
       return {
