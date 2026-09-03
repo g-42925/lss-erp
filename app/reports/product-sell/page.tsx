@@ -197,6 +197,9 @@ export default function ProductSellReportPage() {
       const deduction = row.pphDeduction || 0;
       const fSubtotal = baseTotal - deduction;
 
+      const taxes = row.order.taxes.filter(t => !t.isPPh && t.taxName != 'ppn')
+      const _taxes = taxes.length < 1 ? [{ taxName: 'PPN', taxValue: 0 }] : taxes
+
       return {
         id: row._id,
         date: row.date,
@@ -210,8 +213,11 @@ export default function ProductSellReportPage() {
         value: fSubtotal,
         payAmount: row.payAmount || 0,
         paid: row.paid,
+        void: row.void || 0,
         type: 'Service',
-        qty: row.order?.qty || 1
+        qty: row.order?.qty || 1,
+        pphDeduction: row.pphDeduction ?? 0,
+        taxes: _taxes
       }
     })
     unifiedData = [...unifiedData, ...serviceData]
@@ -246,7 +252,17 @@ export default function ProductSellReportPage() {
     if (productTypeFilter === 'Service') {
       let totalDpp = 0;
       data = unifiedData.map((row, i) => {
-        totalDpp += (row.dpp || 0);
+        if (!row.void) {
+          totalDpp += (row.dpp || 0);
+        }
+
+        const taxes: Record<string, number> = {}
+
+        row.taxes.forEach(t => {
+          taxes[t.taxName] = t.taxValue
+        })
+
+
         return {
           'NO': i + 1,
           'NO. TRANSAKSI': row.invoiceNumber || '-',
@@ -254,7 +270,9 @@ export default function ProductSellReportPage() {
           'TGL PENJUALAN': fmtDate(row.date),
           'NAMA CUSTOMER': row.customCustomerName || '-',
           'DESKRIPSI': row.productName || '-',
-          'DPP': row.dpp || 0
+          'DPP': row.void ? 0 : row.dpp || 0,
+          'PPH': row.void ? 0 : row.pphDeduction || 0,
+          ...taxes
         }
       });
       data.push({
@@ -266,7 +284,8 @@ export default function ProductSellReportPage() {
         'DESKRIPSI': 'GRAND TOTAL',
         'DPP': totalDpp
       });
-    } else {
+    }
+    else {
       data = unifiedData.map(row => ({
         'Date': fmtDate(row.date),
         'Invoice Number': row.invoiceNumber,
@@ -285,10 +304,10 @@ export default function ProductSellReportPage() {
     const titleText = `LAPORAN PENJUALAN PERIODE ${month.toUpperCase()} ${year}`
 
     const worksheet = XLSX.utils.json_to_sheet([])
-    
+
     // Add title
     XLSX.utils.sheet_add_aoa(worksheet, [[titleText]], { origin: "A1" })
-    
+
     // Add data table starting at row 3 (skip row 2)
     XLSX.utils.sheet_add_json(worksheet, data, { origin: "A3" })
 
@@ -310,12 +329,12 @@ export default function ProductSellReportPage() {
 
     // Style title
     if (worksheet['A1']) {
-      worksheet['A1'].s = { 
-        alignment: { horizontal: 'center', vertical: 'center' }, 
-        font: { bold: true, sz: 16 } 
+      worksheet['A1'].s = {
+        alignment: { horizontal: 'center', vertical: 'center' },
+        font: { bold: true, sz: 16 }
       }
     }
-    
+
     // Set row height for the title
     worksheet['!rows'] = [
       { hpt: 30 } // Set height of first row to 30 points
@@ -497,14 +516,14 @@ export default function ProductSellReportPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {unifiedData.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{fmtDate(row.date)}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs text-slate-600">{row.invoiceNumber}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs text-slate-600">{row.salesOrderNumber}</td>
-                    <td className="px-4 py-3.5 text-slate-800 font-medium truncate text-xs">{row.customerName}</td>
-                    <td className="px-4 py-3.5 text-slate-700 text-xs font-medium">{row.productName}</td>
-                    <td className="px-4 py-3.5 font-mono font-bold text-emerald-600 text-xs">{fmtMoney(row.value)}</td>
-                    <td className="px-4 py-3.5 font-mono text-slate-600 text-xs">{fmtMoney(row.payAmount)}</td>
+                  <tr key={row.id} className={row.void > 0 ? `text-red-900` : ``}>
+                    <td className="px-4 py-3.5 text-xs whitespace-nowrap">{fmtDate(row.date)}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs">{row.invoiceNumber}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs">{row.salesOrderNumber}</td>
+                    <td className="px-4 py-3.5 font-medium truncate text-xs">{row.customerName}</td>
+                    <td className="px-4 py-3.5 text-xs font-medium">{row.productName}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs">{fmtMoney(row.value)}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs">{fmtMoney(row.payAmount)}</td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={`px-2 py-0.5 rounded text-white text-[10px] uppercase font-bold tracking-wide ${row.paid ? 'bg-emerald-500' : 'bg-amber-500'}`}>
                         {row.paid ? 'Paid' : 'Unpaid'}

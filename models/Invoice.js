@@ -87,6 +87,10 @@ const invoiceSchema = new mongoose.Schema({
   unavailable: {
     type: Number,
     min: 0
+  },
+  void: {
+    type: Boolean,
+    default: false,
   }
 });
 
