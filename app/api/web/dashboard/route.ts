@@ -62,6 +62,90 @@ export async function GET(req: NextRequest) {
       ])
     ])
 
+    // ── 2.5 Invoice Revenue ──
+    const [invoiceRevenueThisMonth, invoiceRevenueLastMonth] = await Promise.all([
+      Invoice.aggregate([
+        {
+          $match: {
+            companyId: cid,
+            date: { $gte: startOfMonth, $lte: endOfMonth },
+            status: 'active'
+          }
+        },
+        {
+          $lookup: {
+            from: 'orders',
+            localField: 'salesOrderId',
+            foreignField: '_id',
+            as: 'order'
+          }
+        },
+        {
+          $lookup: {
+            from: 'serviceorders',
+            localField: 'salesOrderId',
+            foreignField: '_id',
+            as: 'serviceOrder'
+          }
+        },
+        {
+          $addFields: {
+            orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
+            serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: { $add: ['$orderTotal', '$serviceTotal'] }
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ]),
+      Invoice.aggregate([
+        {
+          $match: {
+            companyId: cid,
+            date: { $gte: startOfLastMonth, $lte: endOfLastMonth },
+            status: 'active'
+          }
+        },
+        {
+          $lookup: {
+            from: 'orders',
+            localField: 'salesOrderId',
+            foreignField: '_id',
+            as: 'order'
+          }
+        },
+        {
+          $lookup: {
+            from: 'serviceorders',
+            localField: 'salesOrderId',
+            foreignField: '_id',
+            as: 'serviceOrder'
+          }
+        },
+        {
+          $addFields: {
+            orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
+            serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: {
+              $sum: { $add: ['$orderTotal', '$serviceTotal'] }
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    ])
+
     // ── 3. Purchase Spend ──
     const [purchasesThisMonth, purchasesLastMonth] = await Promise.all([
       Purchase.aggregate([
@@ -188,16 +272,46 @@ export async function GET(req: NextRequest) {
       { $group: { _id: null, count: { $sum: 1 }, totalQty: { $sum: '$qty' } } }
     ])
 
-    // ── 8. Today Revenue & Orders ──
-    const [todaySales, todayService] = await Promise.all([
-      Order.aggregate([
-        { $match: { companyId: cid, saleDate: { $gte: startOfToday, $lte: endOfToday } } },
-        { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
-      ]),
-      ServiceOrder.aggregate([
-        { $match: { companyId: cid, date: { $gte: startOfToday, $lte: endOfToday } } },
-        { $group: { _id: null, total: { $sum: '$price' }, count: { $sum: 1 } } }
-      ])
+    // ── 8. Today Revenue & Orders (from Invoices) ──
+    const [todayInvoiceData] = await Invoice.aggregate([
+      {
+        $match: {
+          companyId: cid,
+          date: { $gte: startOfToday, $lte: endOfToday },
+          status: 'active'
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      {
+        $lookup: {
+          from: 'serviceorders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'serviceOrder'
+        }
+      },
+      {
+        $addFields: {
+          orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
+          serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: { $add: ['$orderTotal', '$serviceTotal'] }
+          },
+          count: { $sum: 1 }
+        }
+      }
     ])
 
     // ── 9. Purchase status breakdown this month ──
@@ -355,17 +469,63 @@ export async function GET(req: NextRequest) {
     ])
 
 
+    // ── 15. Total Invoice Count (all-time) ──
+    const totalInvoiceCount = await Invoice.countDocuments({
+      companyId: cid,
+      status: 'active'
+    })
+
+    // ── 16. Total Revenue (all-time, from Invoices) ──
+    const [totalRevenueData] = await Invoice.aggregate([
+      {
+        $match: {
+          companyId: cid,
+          status: 'active'
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      {
+        $lookup: {
+          from: 'serviceorders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'serviceOrder'
+        }
+      },
+      {
+        $addFields: {
+          orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
+          serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: { $add: ['$orderTotal', '$serviceTotal'] }
+          }
+        }
+      }
+    ])
+
     // ── Build response ──
-    const revenueThisMonth = (salesThisMonth[0]?.total ?? 0) + (serviceThisMonth[0]?.total ?? 0)
-    const revenueLastMonth = (salesLastMonth[0]?.total ?? 0) + (serviceLastMonth[0]?.total ?? 0)
+    const revenueThisMonth = invoiceRevenueThisMonth[0]?.total ?? 0
+    const revenueLastMonth = invoiceRevenueLastMonth[0]?.total ?? 0
     const revenueChange = revenueLastMonth === 0 ? 100 : ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100
 
     const purchaseSpendThisMonth = purchasesThisMonth[0]?.total ?? 0
     const purchaseSpendLastMonth = purchasesLastMonth[0]?.total ?? 0
     const purchaseChange = purchaseSpendLastMonth === 0 ? 0 : ((purchaseSpendThisMonth - purchaseSpendLastMonth) / purchaseSpendLastMonth) * 100
 
-    const orderCountThisMonth = (salesThisMonth[0]?.count ?? 0) + (serviceThisMonth[0]?.count ?? 0)
-    const orderCountLastMonth = (salesLastMonth[0]?.count ?? 0) + (serviceLastMonth[0]?.count ?? 0)
+    const orderCountThisMonth = invoiceRevenueThisMonth[0]?.count ?? 0
+    const orderCountLastMonth = invoiceRevenueLastMonth[0]?.count ?? 0
     const orderCountChange = orderCountLastMonth === 0 ? 100 : ((orderCountThisMonth - orderCountLastMonth) / orderCountLastMonth) * 100
 
     return NextResponse.json({
@@ -384,8 +544,8 @@ export async function GET(req: NextRequest) {
         outstandingReceivableCount: outstandingInvoices?.total ?? 0,
         totalDebt: totalDebts?.total ?? 0,
         totalDebtCount: totalDebts?.total ?? 0,
-        todayRevenue: (todaySales[0]?.total ?? 0) + (todayService[0]?.total ?? 0),
-        todayOrders: (todaySales[0]?.count ?? 0) + (todayService[0]?.count ?? 0),
+        todayRevenue: todayInvoiceData?.total ?? 0,
+        todayOrders: todayInvoiceData?.count ?? 0,
         expiringCount: expiringBatches[0]?.count ?? 0,
         expiringQty: expiringBatches[0]?.totalQty ?? 0,
         expiredCount: expiredBatches[0]?.count ?? 0,
@@ -395,6 +555,8 @@ export async function GET(req: NextRequest) {
         totalCustomers,
         totalProducts,
         pendingPurchases,
+        totalInvoiceCount,
+        totalRevenue: totalRevenueData?.total ?? 0,
         purchaseStatusBreakdown,
         monthlyTrend,
         monthlyServiceTrend,
