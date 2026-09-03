@@ -258,7 +258,7 @@ export default function ProductSellReportPage() {
 
         const taxes: Record<string, number> = {}
 
-        row.taxes.forEach(t => {
+        row.taxes.forEach((t: { taxName: string; taxValue: number }) => {
           taxes[t.taxName] = t.taxValue
         })
 
