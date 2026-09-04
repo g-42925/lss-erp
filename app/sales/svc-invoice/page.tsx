@@ -240,6 +240,21 @@ export default function Invoices() {
   }
 
 
+  function fTermin(invoice: any) {
+    const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once";
+    if (isOneTimeService) {
+      return invoice?.order?.payTerm ? new Date(invoice.order.payTerm).toLocaleDateString('id-ID') : '-';
+    } else {
+      if (!invoice?.order?.dueDate) return '-';
+      const d = invoice.date ? new Date(invoice.date) : new Date();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      const day = String(invoice.order.dueDate).padStart(2, '0');
+      return `${day}-${month}-${year}`;
+    }
+  }
+
+
   useEffect(() => {
     if (hasHydrated) {
       const url4 = `/api/web/invoice/svc?id=${masterAccountId}&type=service`
@@ -558,9 +573,9 @@ export default function Invoices() {
                 <span className="text-sm text-gray-500">Date: {selectedInvoice ? new Date(selectedInvoice.date).toLocaleDateString('id-ID') : ''}</span>
                 {
                   selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                    <span className="text-xl text-gray-500">Termin: 31-08-2026</span>
+                    <span className="text-xl text-gray-500">Termin: {fTermin(selectedInvoice)}</span>
                   ) : (
-                    <span className="text-xl text-gray-500">Termin: 31-08-2026</span>
+                    <span className="text-xl text-gray-500">Termin: {fTermin(selectedInvoice)}</span>
                   )
                 }
               </div>
@@ -675,7 +690,7 @@ export default function Invoices() {
           <div className="flex flex-row mt-0 gap-4">
             <div className="flex flex-col items-center w-1/2">
               <div className="w-full h-16 mb-2"></div>
-              <span className="text-sm font-semibold text-gray-800">{'PT. Leryn Jaya Mas'}</span>
+              <span className="text-sm font-semibold text-gray-800">{getCompaniesFn.result?.[0]?.name}</span>
               <span className="text-xs text-gray-500">Dibuat Oleh</span>
             </div>
             <div className="flex flex-col items-center w-1/2">
@@ -737,9 +752,9 @@ export default function Invoices() {
                 <span className="text-xl text-gray-500">No: {invoiceToPrint?.invoiceNumber}</span>
                 {
                   invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                    <span className="text-lg text-gray-500">Termin: 31-08-2026</span>
+                    <span className="text-lg text-gray-500">Termin: {fTermin(invoiceToPrint)}</span>
                   ) : (
-                    <span className="text-lg text-gray-500">Termin: 31-08-2026</span>
+                    <span className="text-lg text-gray-500">Termin: {fTermin(invoiceToPrint)}</span>
                   )
                 }
               </div>
@@ -852,7 +867,7 @@ export default function Invoices() {
             <div className="flex flex-row gap-8 justify-center mt-3 break-inside-avoid">
               <div className="flex flex-col items-center w-1/2">
                 <div className="w-full h-10 mb-1"></div>
-                <span className="text-sm font-semibold text-gray-800">{'PT. Leryn Jaya Mas'}</span>
+                <span className="text-sm font-semibold text-gray-800">{getCompaniesFn.result?.[0]?.name}</span>
                 <span className="text-xs text-gray-500">Dibuat Oleh</span>
               </div>
               <div className="flex flex-col items-center w-1/2">
