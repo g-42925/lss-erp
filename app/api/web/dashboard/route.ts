@@ -229,22 +229,27 @@ export async function GET(req: NextRequest) {
             ]
           },
           svcTaxTotal: {
-            $reduce: {
-              input: { $ifNull: ['$svcOrderDoc.taxes', []] },
-              initialValue: 0,
-              in: {
-                $add: [
-                  '$$value',
-                  {
-                    $cond: [
-                      { $eq: ['$$this.isPPh', true] },
-                      { $multiply: ['$$this.taxValue', -1] },
-                      '$$this.taxValue'
+            $subtract: [
+              {
+                $reduce: {
+                  input: { $ifNull: ['$svcOrderDoc.taxes', []] },
+                  initialValue: 0,
+                  in: {
+                    $add: [
+                      '$$value',
+                      {
+                        $cond: [
+                          { $eq: ['$$this.isPPh', false] },
+                          '$$this.taxValue',
+                          0
+                        ]
+                      }
                     ]
                   }
-                ]
-              }
-            }
+                }
+              },
+              { $ifNull: ['$pphDeduction', 0] }
+            ]
           }
         }
       },
