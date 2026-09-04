@@ -62,88 +62,85 @@ export async function GET(req: NextRequest) {
       ])
     ])
 
-    // ── 2.5 Invoice Revenue ──
+    // ── 2.5 Invoice Revenue (base price only: tanpa PPN, tanpa potongan PPh) ──
+    // Untuk service: harga dasar setelah dikurangi missing qty
+    // Untuk produk: order.total
+    const baseRevenuePipeline = (dateMatch: object) => Invoice.aggregate([
+      { $match: { companyId: cid, ...dateMatch, status: 'active' } },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      {
+        $lookup: {
+          from: 'serviceorders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'serviceOrder'
+        }
+      },
+      {
+        $addFields: {
+          orderDoc: { $arrayElemAt: ['$order', 0] },
+          svcOrderDoc: { $arrayElemAt: ['$serviceOrder', 0] }
+        }
+      },
+      {
+        $addFields: {
+          orderTotal: { $ifNull: ['$orderDoc.total', 0] },
+          isOneTimeService: {
+            $and: [
+              { $eq: ['$svcOrderDoc.contractType', 'One Time'] },
+              { $eq: ['$svcOrderDoc.frequency', 'Once'] }
+            ]
+          },
+          svcPrice: { $ifNull: ['$svcOrderDoc.price', 0] },
+          svcQty: { $ifNull: ['$svcOrderDoc.qty', 1] }
+        }
+      },
+      {
+        $addFields: {
+          missingQty: { $ifNull: ['$missing', 0] },
+          svcUnitPrice: {
+            $divide: ['$svcPrice', { $cond: [{ $eq: ['$svcQty', 0] }, 1, '$svcQty'] }]
+          }
+        }
+      },
+      {
+        $addFields: {
+          // harga dasar service: price - (price/qty * missing), tanpa pajak apapun
+          svcBaseTotal: {
+            $cond: [
+              '$isOneTimeService',
+              '$svcPrice',
+              { $subtract: ['$svcPrice', { $multiply: ['$svcUnitPrice', '$missingQty'] }] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          serviceTotal: {
+            $cond: [{ $ne: ['$svcOrderDoc', null] }, '$svcBaseTotal', 0]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $add: ['$orderTotal', '$serviceTotal'] } },
+          count: { $sum: 1 }
+        }
+      }
+    ])
+
     const [invoiceRevenueThisMonth, invoiceRevenueLastMonth] = await Promise.all([
-      Invoice.aggregate([
-        {
-          $match: {
-            companyId: cid,
-            date: { $gte: startOfMonth, $lte: endOfMonth },
-            status: 'active'
-          }
-        },
-        {
-          $lookup: {
-            from: 'orders',
-            localField: 'salesOrderId',
-            foreignField: '_id',
-            as: 'order'
-          }
-        },
-        {
-          $lookup: {
-            from: 'serviceorders',
-            localField: 'salesOrderId',
-            foreignField: '_id',
-            as: 'serviceOrder'
-          }
-        },
-        {
-          $addFields: {
-            orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
-            serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: {
-              $sum: { $add: ['$orderTotal', '$serviceTotal'] }
-            },
-            count: { $sum: 1 }
-          }
-        }
-      ]),
-      Invoice.aggregate([
-        {
-          $match: {
-            companyId: cid,
-            date: { $gte: startOfLastMonth, $lte: endOfLastMonth },
-            status: 'active'
-          }
-        },
-        {
-          $lookup: {
-            from: 'orders',
-            localField: 'salesOrderId',
-            foreignField: '_id',
-            as: 'order'
-          }
-        },
-        {
-          $lookup: {
-            from: 'serviceorders',
-            localField: 'salesOrderId',
-            foreignField: '_id',
-            as: 'serviceOrder'
-          }
-        },
-        {
-          $addFields: {
-            orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
-            serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
-          }
-        },
-        {
-          $group: {
-            _id: null,
-            total: {
-              $sum: { $add: ['$orderTotal', '$serviceTotal'] }
-            },
-            count: { $sum: 1 }
-          }
-        }
-      ])
+      baseRevenuePipeline({ date: { $gte: startOfMonth, $lte: endOfMonth } }),
+      baseRevenuePipeline({ date: { $gte: startOfLastMonth, $lte: endOfLastMonth } }),
     ])
 
     // ── 3. Purchase Spend ──
@@ -539,45 +536,8 @@ export async function GET(req: NextRequest) {
       status: 'active'
     })
 
-    // ── 16. Total Revenue (all-time, from Invoices) ──
-    const [totalRevenueData] = await Invoice.aggregate([
-      {
-        $match: {
-          companyId: cid,
-          status: 'active'
-        }
-      },
-      {
-        $lookup: {
-          from: 'orders',
-          localField: 'salesOrderId',
-          foreignField: '_id',
-          as: 'order'
-        }
-      },
-      {
-        $lookup: {
-          from: 'serviceorders',
-          localField: 'salesOrderId',
-          foreignField: '_id',
-          as: 'serviceOrder'
-        }
-      },
-      {
-        $addFields: {
-          orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
-          serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: {
-            $sum: { $add: ['$orderTotal', '$serviceTotal'] }
-          }
-        }
-      }
-    ])
+    // ── 16. Total Revenue (all-time) - base price only: tanpa PPN, tanpa potongan PPh ──
+    const [totalRevenueData] = await baseRevenuePipeline({})
 
     // ── Build response ──
     const revenueThisMonth = invoiceRevenueThisMonth[0]?.total ?? 0

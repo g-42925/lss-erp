@@ -244,7 +244,8 @@ export default function Invoices() {
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once";
     if (isOneTimeService) {
       return invoice?.order?.payTerm ? new Date(invoice.order.payTerm).toLocaleDateString('id-ID') : '-';
-    } else {
+    }
+    else {
       if (!invoice?.order?.dueDate) return '-';
       const d = invoice.date ? new Date(invoice.date) : new Date();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -410,7 +411,7 @@ export default function Invoices() {
                                   <td>{s.salesOrderNumber}</td>
                                   <td>{s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName}</td>
                                   <td>{s.order?.salesOrderNumber}</td>
-                                  <td>{Math.floor(Number(fSubtotal(s))).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                                  <td>{Math.floor(Number(fTotal(s))).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                                   <td>{Math.floor(Number(s.payAmount || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                                   <td>
                                     <span className={`badge badge - sm ${s.paid ? 'badge-success' : 'badge-warning'} `}>
