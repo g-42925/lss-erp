@@ -576,7 +576,7 @@ export default function Invoices() {
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="py-2 text-sm text-gray-600 uppercase">No</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase">Nama Item</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
@@ -630,7 +630,7 @@ export default function Invoices() {
                     {bankAccounts.map((acc: any, idx: number) => (
                       <div key={idx} className="flex flex-col py-1">
                         <span className="text-sm text-black">Pembayaran melalui transfer ke:</span>
-                        <span className="text-sm text-black">{acc.bank} · {acc.accountNumber}</span>
+                        <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} A/N {acc.accountName}</span>
                       </div>
                     ))}
                   </div>
@@ -655,14 +655,14 @@ export default function Invoices() {
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${Number(taxVal).toLocaleString('id-ID', { maximumFractionDigits: 0 })} (${appliedTax ? tax.value : 0}%)`}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
                       </div>
                     )
                   })
                   : <></>
                 }
                 <div className="flex flex-row font-bold">
-                  <span className="text-gray-700 text-sm">Total</span>
+                  <span className="text-gray-700 text-sm">Grand Total</span>
                   {
                     <span className="text-gray-800 ml-auto text-sm">{Number(fTotal(selectedInvoice)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                   }
@@ -675,7 +675,7 @@ export default function Invoices() {
           <div className="flex flex-row mt-0 gap-4">
             <div className="flex flex-col items-center w-1/2">
               <div className="w-full h-16 mb-2"></div>
-              <span className="text-sm font-semibold text-gray-800">{name || 'Admin'}</span>
+              <span className="text-sm font-semibold text-gray-800">{'PT. Leryn Jaya Mas'}</span>
               <span className="text-xs text-gray-500">Dibuat Oleh</span>
             </div>
             <div className="flex flex-col items-center w-1/2">
@@ -834,7 +834,7 @@ export default function Invoices() {
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${appliedTax ? tax.value : 0}%`}</span>
                       </div>
                     )
                   })
@@ -843,13 +843,7 @@ export default function Invoices() {
 
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Grand Total</span>
-                  {
-                    invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
-                    ) : (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
-                    )
-                  }
+                  <span className="text-gray-800 ml-auto text-sm">{Number(fTotal(invoiceToPrint)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                 </div>
               </div>
             </div>
