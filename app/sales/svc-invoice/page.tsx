@@ -294,7 +294,7 @@ export default function Invoices() {
   }
   `}
       </style>
-      <div className="h-fit h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+      <div className="h-fit h-full p-3 md:p-6 flex flex-col gap-3 text-black print:hidden">
         <div className="bg-white border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <input
@@ -441,7 +441,7 @@ export default function Invoices() {
           }
         </div>
       </div>
-      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black">
+      <dialog ref={modalRef} id="my_modal_1" className="modal h-full text-black print:hidden">
         <form onSubmit={newInvoiceForm.handleSubmit(submit)} className="h-100 modal-box flex flex-col gap-3">
           <h3 className="text-lg font-bold">Make invoice</h3>
           <div className="flex flex-row items-center gap-3">
@@ -489,7 +489,7 @@ export default function Invoices() {
         </form>
       </dialog>
 
-      <dialog ref={editInvoiceModalRef} id="edit_invoice_modal" className="modal h-full text-black">
+      <dialog ref={editInvoiceModalRef} id="edit_invoice_modal" className="modal h-full text-black print:hidden">
         <form onSubmit={editInvoiceForm.handleSubmit(submitEdit)} className="h-[480px] modal-box flex flex-col gap-3 overflow-y-auto">
           <h3 className="text-lg font-bold">Edit invoice</h3>
           <div className="flex flex-row items-center gap-3">

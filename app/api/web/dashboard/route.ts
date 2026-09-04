@@ -196,8 +196,67 @@ export async function GET(req: NextRequest) {
       },
       {
         $addFields: {
-          orderTotal: { $ifNull: [{ $arrayElemAt: ['$order.total', 0] }, 0] },
-          serviceTotal: { $ifNull: [{ $arrayElemAt: ['$serviceOrder.price', 0] }, 0] }
+          orderDoc: { $arrayElemAt: ['$order', 0] },
+          svcOrderDoc: { $arrayElemAt: ['$serviceOrder', 0] }
+        }
+      },
+      {
+        $addFields: {
+          orderTotal: { $ifNull: ['$orderDoc.total', 0] },
+          isOneTimeService: {
+            $and: [
+              { $eq: ['$svcOrderDoc.contractType', 'One Time'] },
+              { $eq: ['$svcOrderDoc.frequency', 'Once'] }
+            ]
+          },
+          svcPrice: { $ifNull: ['$svcOrderDoc.price', 0] },
+          svcQty: { $ifNull: ['$svcOrderDoc.qty', 1] }
+        }
+      },
+      {
+        $addFields: {
+          missingQty: { $ifNull: ['$missing', 0] },
+          svcUnitPrice: { $divide: ['$svcPrice', { $cond: [{ $eq: ['$svcQty', 0] }, 1, '$svcQty'] }] }
+        }
+      },
+      {
+        $addFields: {
+          svcBaseTotal: {
+            $cond: [
+              '$isOneTimeService',
+              '$svcPrice',
+              { $subtract: ['$svcPrice', { $multiply: ['$svcUnitPrice', '$missingQty'] }] }
+            ]
+          },
+          svcTaxTotal: {
+            $reduce: {
+              input: { $ifNull: ['$svcOrderDoc.taxes', []] },
+              initialValue: 0,
+              in: {
+                $add: [
+                  '$$value',
+                  {
+                    $cond: [
+                      { $eq: ['$$this.isPPh', true] },
+                      { $multiply: ['$$this.taxValue', -1] },
+                      '$$this.taxValue'
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          serviceTotal: {
+            $cond: [
+              { $ne: ['$svcOrderDoc', null] },
+              { $add: ['$svcBaseTotal', '$svcTaxTotal'] },
+              0
+            ]
+          }
         }
       },
       {
@@ -210,7 +269,7 @@ export async function GET(req: NextRequest) {
           _id: null,
           total: {
             $sum: {
-              $subtract: ['$invoiceTotal', '$payAmount']
+              $subtract: ['$invoiceTotal', { $ifNull: ['$payAmount', 0] }]
             }
           }
         }
