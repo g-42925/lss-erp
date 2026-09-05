@@ -207,7 +207,6 @@ export default function PrintQuotation({ params }: { params: Promise<{ id: strin
 
               {quotation.disclaimers && quotation.disclaimers.length > 0 && (
                 <div className="mt-4">
-                  <p>Biaya tersebut diatas meliputi :</p>
                   <ol className="list-decimal pl-6 mt-1 space-y-1 text-justify">
                     {quotation.disclaimers.map((disc: string, idx: number) => (
                       <li key={idx}>{disc}</li>
