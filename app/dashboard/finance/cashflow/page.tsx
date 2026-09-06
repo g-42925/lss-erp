@@ -197,7 +197,7 @@ export default function CashflowReportPage() {
 	function toExcel() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport')
 		const data = transactions.map(t => ({
-			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }),
 			'Dari': t.from || '-',
 			'Kepada': t.to || '-',
 			'Sumber': t.source,
