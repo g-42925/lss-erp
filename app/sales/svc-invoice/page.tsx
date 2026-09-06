@@ -25,6 +25,8 @@ export default function Invoices() {
   const invoiceModalRef = useRef<HTMLDialogElement>(null)
   const editInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const closeInvoiceModalRef = useRef<HTMLDialogElement>(null)
+  const paymentHistoryModalRef = useRef<HTMLDialogElement>(null)
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>("")
   const [selectedInvoicesToPrint, setSelectedInvoicesToPrint] = useState<string[]>([])
@@ -59,6 +61,40 @@ export default function Invoices() {
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
   const closeInvoiceForm = useForm()
+  const editPaymentForm = useForm()
+
+  function openPaymentHistory(invoice: any) {
+    setSelectedInvoice(invoice)
+    setEditingPaymentId(null)
+    paymentHistoryModalRef.current?.showModal()
+  }
+
+  function submitEditPayment(data: any) {
+    const params = {
+      action: 'editPayment',
+      _id: selectedInvoice._id,
+      paymentHistoryId: editingPaymentId,
+      newAmount: Number(data.amount),
+      newDate: data.date,
+      newMethod: data.method
+    }
+    
+    closeInvoiceFn.fn('', JSON.stringify(params), (res) => {
+      const updatedInvoice = res;
+      getInvoicesFn.reset(
+        getInvoicesFn.result?.map((inv: any) =>
+          inv._id === updatedInvoice._id ? { ...inv, payAmount: updatedInvoice.payAmount, paymentHistory: updatedInvoice.paymentHistory } : inv
+        )
+      )
+      setSearchResult(
+        searchResult.map((inv: any) =>
+          inv._id === updatedInvoice._id ? { ...inv, payAmount: updatedInvoice.payAmount, paymentHistory: updatedInvoice.paymentHistory } : inv
+        )
+      )
+      setSelectedInvoice({ ...selectedInvoice, payAmount: updatedInvoice.payAmount, paymentHistory: updatedInvoice.paymentHistory })
+      setEditingPaymentId(null)
+    })
+  }
 
   const addInvoiceFn = useFetch<any, any>({
     url: '/api/web/invoice/product',
@@ -485,6 +521,13 @@ export default function Invoices() {
                                         )}
                                       </button>
                                     )}
+                                    {s.paymentHistory && s.paymentHistory.length > 0 && (
+                                      <button className="text-indigo-700 hover:text-indigo-900" onClick={() => openPaymentHistory(s)} title="Payment History">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                      </button>
+                                    )}
                                   </td>
                                 </tr>
                               )
@@ -630,6 +673,76 @@ export default function Invoices() {
             </button>
           </div>
         </form>
+      </dialog>
+
+      <dialog ref={paymentHistoryModalRef} id="payment_history_modal" className="modal h-full text-black print:hidden">
+        <div className="modal-box max-w-3xl flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Payment History</h3>
+          <p className="text-sm">Invoice: {selectedInvoice?.invoiceNumber}</p>
+          <div className="overflow-x-auto w-full">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedInvoice?.paymentHistory?.filter((ph: any) => !ph.reverted).map((ph: any, idx: number) => (
+                  <tr key={idx}>
+                    {editingPaymentId === ph._id ? (
+                      <td colSpan={4} className="p-2 bg-slate-50">
+                        <form onSubmit={editPaymentForm.handleSubmit(submitEditPayment)} className="flex flex-row gap-2 items-center">
+                          <input type="date" {...editPaymentForm.register("date", { required: true })} className="input input-sm flex-1 border-slate-300" />
+                          <input type="number" {...editPaymentForm.register("amount", { required: true })} className="input input-sm flex-1 border-slate-300" />
+                          <select {...editPaymentForm.register("method")} className="select select-sm flex-1 border-slate-300">
+                            <option value="Cash">Cash</option>
+                            {bankAccounts.map((b: any, i: number) => (
+                              <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
+                            ))}
+                          </select>
+                          <button type="submit" className="btn btn-sm bg-blue-900 text-white" disabled={closeInvoiceFn.loading}>Save</button>
+                          <button type="button" className="btn btn-sm" onClick={() => setEditingPaymentId(null)}>Cancel</button>
+                        </form>
+                      </td>
+                    ) : (
+                      <>
+                        <td>{new Date(ph.date).toLocaleDateString('id-ID')}</td>
+                        <td>{Number(ph.amount).toLocaleString('id-ID')}</td>
+                        <td>{ph.method}</td>
+                        <td>
+                          <button 
+                            className="btn btn-xs bg-slate-200" 
+                            onClick={() => {
+                              setEditingPaymentId(ph._id);
+                              editPaymentForm.reset({
+                                amount: ph.amount,
+                                date: new Date(ph.date).toISOString().substring(0, 10),
+                                method: ph.method || 'Cash'
+                              });
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+                {!selectedInvoice?.paymentHistory?.filter((ph: any) => !ph.reverted).length && (
+                  <tr>
+                    <td colSpan={4} className="text-center">No payment history found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-row gap-3 modal-action">
+            <button type="button" className="btn" onClick={() => paymentHistoryModalRef.current?.close()}>Close</button>
+          </div>
+        </div>
       </dialog>
 
       <dialog ref={invoiceModalRef} className="modal h-full print:hidden text-black">

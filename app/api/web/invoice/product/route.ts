@@ -250,6 +250,43 @@ export async function PUT(request: NextRequest) {
 
     let updateQuery: any = { $set: safeParams }
 
+    if (params.action === 'editPayment' && params.paymentHistoryId) {
+      const mongoose = (await import('mongoose')).default;
+      const paymentHistoryId = new mongoose.Types.ObjectId(params.paymentHistoryId);
+      
+      const invoice = await Invoice.findOne(filter);
+      if (!invoice) throw new Error("Invoice not found");
+      
+      let totalPayAmount = 0;
+      let paymentFound = false;
+      
+      invoice.paymentHistory = invoice.paymentHistory.map((ph: any) => {
+        if (ph._id && ph._id.toString() === paymentHistoryId.toString()) {
+          paymentFound = true;
+          if (params.newAmount !== undefined) ph.amount = Number(params.newAmount);
+          if (params.newDate) ph.date = new Date(params.newDate);
+          if (params.newMethod) ph.method = params.newMethod;
+        }
+        if (!ph.reverted) {
+          totalPayAmount += ph.amount;
+        }
+        return ph;
+      });
+      
+      if (paymentFound) {
+        invoice.payAmount = totalPayAmount;
+        await invoice.save();
+        return NextResponse.json({
+          noResult: false,
+          message: "Payment history updated",
+          result: invoice,
+          error: false
+        });
+      } else {
+        throw new Error("Payment history item not found");
+      }
+    }
+
     // If marking as paid and paymentMethod is provided, record it in paymentHistory
     if (safeParams.paid === true && safeParams.paymentMethod && safeParams.payAmount > 0) {
       updateQuery.$push = {
