@@ -7,6 +7,8 @@ import Purchase from "@/models/Purchase";
 import Log from "@/models/Log";
 import Cashflow from "@/models/Cashflow";
 import Order from "@/models/Order";
+import ServiceOrder from "@/models/ServiceOrder";
+import Customer from "@/models/Customer";
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -86,20 +88,35 @@ export async function GET(request: NextRequest) {
         };
         const invoices = await Invoice.find(invoiceQuery).populate('salesOrderId').lean();
 
-        invoices.forEach(async (inv) => {
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            inv.paymentHistory?.forEach(async (payment: any) => {
-                if (payment.reverted) return;
+        for (const inv of invoices) {
+            if (!inv.paymentHistory) continue;
+            
+            for (const payment of inv.paymentHistory) {
+                if (payment.reverted) continue;
 
                 // search related order
-                const order = await Order.findOne({ salesOrderNumber: inv.salesOrderNumber });
+                let order = await Order.findOne({ salesOrderNumber: inv.salesOrderNumber });
+                if (!order) {
+                    order = await ServiceOrder.findOne({ salesOrderNumber: inv.salesOrderNumber });
+                }
+
+                let fromName = 'Customer';
+                if (order) {
+                    if (order.customCustomer?.name) {
+                        fromName = order.customCustomer.name;
+                    } else if (order.customerId) {
+                        const customer = await Customer.findById(order.customerId);
+                        if (customer) {
+                            fromName = customer.bussinessName || customer.name || fromName;
+                        }
+                    }
+                }
 
                 // Apply date filter
                 const paymentDate = new Date(payment.date);
                 if (dateFilter && Object.keys(dateFilter).length > 0) {
-                    if (dateFilter.$gte && paymentDate < dateFilter.$gte) return;
-                    if (dateFilter.$lte && paymentDate > dateFilter.$lte) return;
+                    if (dateFilter.$gte && paymentDate < dateFilter.$gte) continue;
+                    if (dateFilter.$lte && paymentDate > dateFilter.$lte) continue;
                 }
 
                 let include = false;
@@ -125,11 +142,11 @@ export async function GET(request: NextRequest) {
                         reference: inv.invoiceNumber,
                         source: 'Sales Invoice',
                         type: 'in',
-                        from: order.customCustomer.name
+                        from: fromName
                     });
                 }
-            });
-        });
+            }
+        }
 
         // 2. Fetch Logs for Purchases (Money OUT)
         const purchases = await Purchase.find({ companyId: company._id }).select('_id purchaseOrderNumber').lean();

@@ -24,11 +24,13 @@ export default function Invoices() {
   const modalRef = useRef<HTMLDialogElement>(null)
   const invoiceModalRef = useRef<HTMLDialogElement>(null)
   const editInvoiceModalRef = useRef<HTMLDialogElement>(null)
+  const closeInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>("")
   const [selectedInvoicesToPrint, setSelectedInvoicesToPrint] = useState<string[]>([])
   const [invoicesToPrint, setInvoicesToPrint] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState<string>("")
+  const [filterStatus, setFilterStatus] = useState<string>("unpaid")
 
   function openInvoice(invoice: any) {
     setSelectedInvoice(invoice)
@@ -56,6 +58,7 @@ export default function Invoices() {
   const newQuotationForm = useForm()
   const editQuotationForm = useForm()
   const newOrderForm = useForm()
+  const closeInvoiceForm = useForm()
 
   const addInvoiceFn = useFetch<any, any>({
     url: '/api/web/invoice/product',
@@ -114,6 +117,15 @@ export default function Invoices() {
 
   const sourceInvoices = searchResult.length > 0 ? searchResult : (getInvoicesFn.result || []);
   const filteredInvoices = sourceInvoices.filter((s: any) => {
+    if (filterStatus !== "all") {
+      const isVoid = Boolean(s.void);
+      const isPaid = Boolean(s.paid);
+
+      if (filterStatus === "paid" && (!isPaid || isVoid)) return false;
+      if (filterStatus === "unpaid" && (isPaid || isVoid)) return false;
+      if (filterStatus === "void" && !isVoid) return false;
+    }
+
     if (searchQuery) {
       const customerName = s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName;
       if (!customerName || !customerName.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -167,22 +179,41 @@ export default function Invoices() {
     })
   }
 
-  function closeInvoice(invoice: any) {
-    if (!confirm('Mark this invoice as fully paid?')) return
-    const total = invoice.order.price
-    const params = {
+  function openCloseInvoice(invoice: any) {
+    setSelectedInvoice(invoice)
+    const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
+    const total = isOneTimeService ? invoice.order.price : invoice.order.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    closeInvoiceForm.reset({
       salesOrderNumber: invoice.salesOrderNumber,
+      payAmount: total,
+      paymentMethod: 'Cash'
+    })
+    closeInvoiceModalRef.current?.showModal()
+  }
+
+  function submitCloseInvoice(data: any) {
+    const params = {
+      salesOrderNumber: data.salesOrderNumber,
       paid: true,
-      payAmount: total
+      payAmount: Number(data.payAmount),
+      paymentMethod: data.paymentMethod
     }
     closeInvoiceFn.fn('', JSON.stringify(params), () => {
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
-          inv.salesOrderNumber === invoice.salesOrderNumber
-            ? { ...inv, paid: true, payAmount: total }
+          inv.salesOrderNumber === data.salesOrderNumber
+            ? { ...inv, paid: true, payAmount: Number(data.payAmount) }
             : inv
         )
       )
+      setSearchResult(
+        searchResult.map((inv: any) =>
+          inv.salesOrderNumber === data.salesOrderNumber
+            ? { ...inv, paid: true, payAmount: Number(data.payAmount) }
+            : inv
+        )
+      )
+      closeInvoiceModalRef.current?.close()
     })
   }
 
@@ -194,6 +225,7 @@ export default function Invoices() {
       void: data.void === 'true',
       missing: Number(data.missing || 0),
       payAmount: Number(data.payAmount || 0),
+      paymentMethod: data.paymentMethod,
     })
     closeInvoiceFn.fn('', body, () => {
       getInvoicesFn.reset(
@@ -321,6 +353,12 @@ export default function Invoices() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <div className="flex flex-row gap-2 items-center ml-auto">
+              <select className="select select-sm select-bordered w-32" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                <option value="all">Semua Status</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="paid">Paid</option>
+                <option value="void">Void</option>
+              </select>
               <select className="select select-sm select-bordered w-32" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
                 <option value="">Semua</option>
                 <option value="1">Januari</option>
@@ -431,7 +469,7 @@ export default function Invoices() {
                                     </button>
                                     {!s.paid && (
                                       <button
-                                        onClick={() => closeInvoice(s)}
+                                        onClick={() => openCloseInvoice(s)}
                                         disabled={closeInvoiceFn.loading}
                                         title="Close Invoice (Mark as Paid)"
                                         className="text-green-700 hover:text-green-900"
@@ -531,6 +569,17 @@ export default function Invoices() {
               <option value="true">true</option>
             </select>
           </div>
+          {editInvoiceForm.watch("paid") === 'true' && (
+            <div className="flex flex-row items-center gap-2">
+              <label className="w-[70px]">Payment</label>
+              <select {...editInvoiceForm.register("paymentMethod")} className="select flex-1">
+                <option value="Cash">Cash</option>
+                {bankAccounts.map((b: any, i: number) => (
+                  <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex flex-row items-center gap-2">
             <label className="w-[70px]">Void</label>
             <select {...editInvoiceForm.register("void")} className="select flex-1">
@@ -543,6 +592,35 @@ export default function Invoices() {
             <button type="button" className="btn" onClick={() => editInvoiceModalRef.current?.close()}>Cancel</button>
             <button disabled={closeInvoiceFn.loading} className="btn bg-blue-900 text-white">
               {closeInvoiceFn.loading ? <span className="loading loading-spinner"></span> : "Save"}
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog ref={closeInvoiceModalRef} id="close_invoice_modal" className="modal h-full text-black print:hidden">
+        <form onSubmit={closeInvoiceForm.handleSubmit(submitCloseInvoice)} className="modal-box flex flex-col gap-3">
+          <h3 className="text-lg font-bold">Close Invoice</h3>
+          <p className="text-sm">Are you sure you want to mark this invoice as fully paid?</p>
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[120px]">Pay Amount</label>
+            <label className="input flex-1">
+              <input {...closeInvoiceForm.register('payAmount')} type="number" step="0.01" />
+            </label>
+          </div>
+          <div className="flex flex-row items-center gap-2">
+            <label className="w-[120px]">Payment Method</label>
+            <select {...closeInvoiceForm.register("paymentMethod")} className="select flex-1">
+              <option value="Cash">Cash</option>
+              {bankAccounts.map((b: any, i: number) => (
+                <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
+              ))}
+            </select>
+          </div>
+          {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+          <div className="flex flex-row gap-3 modal-action">
+            <button type="button" className="btn" onClick={() => closeInvoiceModalRef.current?.close()}>Cancel</button>
+            <button disabled={closeInvoiceFn.loading} className="btn bg-green-700 text-white hover:bg-green-800">
+              {closeInvoiceFn.loading ? <span className="loading loading-spinner"></span> : "Confirm Payment"}
             </button>
           </div>
         </form>

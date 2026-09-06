@@ -56,18 +56,18 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
       const quoData = await quoRes.json()
       if (!quoData.error && quoData.result) {
         const quo = quoData.result
-        
+
         if (quo.customCustomer) {
           setCustomCustomer({
             name: quo.customCustomer.name || '',
             address: quo.customCustomer.address || ''
           })
         }
-        
+
         if (quo.productId) {
           setProductId(typeof quo.productId === 'object' ? quo.productId._id : quo.productId)
         }
-        
+
         if (quo.specifications && quo.specifications.length > 0) {
           setSpecifications(quo.specifications)
         }
@@ -216,7 +216,7 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
             </select>
           </div>
         </div>
-        
+
         {/* Status */}
         <div className="form-control w-full border-b pb-6">
           <h2 className="text-xl font-semibold mb-2">Status</h2>
@@ -267,15 +267,15 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
             <button type="button" onClick={addPriceOption} className="btn btn-sm btn-primary">Add Price Option</button>
           </div>
           {priceOptions.map((opt, i) => (
-            <div key={i} className="flex gap-2 items-center flex-wrap md:flex-nowrap">
-              <input type="number" placeholder="Qty" className="input input-bordered w-24" value={opt.qty} onChange={e => updatePriceOption(i, 'qty', parseInt(e.target.value) || 0)} />
-              <select className="select select-bordered flex-1" value={opt.frequency} onChange={e => updatePriceOption(i, 'frequency', e.target.value)}>
+            <div key={i} className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center mb-2">
+              <input type="number" placeholder="Qty" className="input input-bordered w-full" value={opt.qty} onChange={e => updatePriceOption(i, 'qty', parseInt(e.target.value) || 0)} />
+              <select className="select select-bordered w-full" value={opt.frequency} onChange={e => updatePriceOption(i, 'frequency', e.target.value)}>
                 <option value="Once">Once</option>
                 <option value="Week">Week</option>
                 <option value="Month">Month</option>
                 <option value="Year">Year</option>
               </select>
-              <input type="number" placeholder="Price" className="input input-bordered flex-1" value={opt.price} onChange={e => updatePriceOption(i, 'price', parseFloat(e.target.value) || 0)} />
+              <input type="number" placeholder="Price" className="input input-bordered w-full" value={opt.price} onChange={e => updatePriceOption(i, 'price', parseFloat(e.target.value) || 0)} />
               <button type="button" onClick={() => removePriceOption(i)} className="btn btn-error btn-square btn-sm text-white">X</button>
             </div>
           ))}
@@ -296,12 +296,12 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
         {/* Disclaimers */}
         <div className="space-y-4 pb-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Disclaimers</h2>
-            <button type="button" onClick={addDisclaimer} className="btn btn-sm btn-primary">Add Disclaimer</button>
+            <h2 className="text-xl font-semibold">Benefit</h2>
+            <button type="button" onClick={addDisclaimer} className="btn btn-sm btn-primary">Add Benefit</button>
           </div>
           {disclaimers.map((disc, i) => (
             <div key={i} className="flex gap-2 items-center">
-              <input type="text" placeholder={`Disclaimer ${i + 1}`} className="input input-bordered w-full" value={disc} onChange={e => updateDisclaimer(i, e.target.value)} />
+              <input type="text" placeholder={`Benefit ${i + 1}`} className="input input-bordered w-full" value={disc} onChange={e => updateDisclaimer(i, e.target.value)} />
               <button type="button" onClick={() => removeDisclaimer(i)} className="btn btn-error btn-square btn-sm text-white">X</button>
             </div>
           ))}

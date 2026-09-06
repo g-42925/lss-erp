@@ -248,11 +248,23 @@ export async function PUT(request: NextRequest) {
     delete safeParams._id
     delete safeParams.invoiceNumber
 
+    let updateQuery: any = { $set: safeParams }
+
+    // If marking as paid and paymentMethod is provided, record it in paymentHistory
+    if (safeParams.paid === true && safeParams.paymentMethod && safeParams.payAmount > 0) {
+      updateQuery.$push = {
+        paymentHistory: {
+          amount: safeParams.payAmount,
+          method: safeParams.paymentMethod,
+          date: new Date()
+        }
+      }
+      delete safeParams.paymentMethod // Remove so it's not saved at root level
+    }
+
     const result = await Invoice.updateOne(
       filter,
-      {
-        $set: safeParams
-      }
+      updateQuery
     )
 
     // If financial correction values are provided (from adjustment flow),
