@@ -116,8 +116,9 @@ export default function CashflowReportPage() {
 	const handleAddSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		try {
-
-			const additional = modalData.type === 'out' ? { to: modalData.to } : { from: modalData.from };
+			const isInitial = modalData.type === 'initial';
+			const additional: any = isInitial ? {} : (modalData.type === 'out' ? { to: modalData.to } : { from: modalData.from });
+			const reference = isInitial && !modalData.reference ? 'Saldo Awal' : modalData.reference;
 
 			const res = await fetch('/api/web/finance/reports/cashflow', {
 				method: 'POST',
@@ -128,7 +129,7 @@ export default function CashflowReportPage() {
 					bankAccountId: modalData.accountType === 'bank' ? modalData.bankAccountId : null,
 					type: modalData.type,
 					amount: Number(modalData.amount),
-					reference: modalData.reference,
+					reference: reference,
 					date: modalData.date,
 					recordedBy: null,
 					additional
@@ -410,20 +411,22 @@ export default function CashflowReportPage() {
 									</select>
 								</div>
 								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tujuan/Sumber</label>
-										<select
-											required
-											value={modalData.accountType}
-											onChange={(e) => setModalData({ ...modalData, accountType: e.target.value })}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-										>
-											<option value="cash">Kas Tunai</option>
-											<option value="bank">Rekening Bank</option>
-										</select>
-									</div>
-									{modalData.accountType === 'bank' && (
+									{modalData.type !== 'initial' && (
 										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tujuan/Sumber</label>
+											<select
+												required={modalData.type !== 'initial'}
+												value={modalData.accountType}
+												onChange={(e) => setModalData({ ...modalData, accountType: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+											>
+												<option value="cash">Kas Tunai</option>
+												<option value="bank">Rekening Bank</option>
+											</select>
+										</div>
+									)}
+									{modalData.accountType === 'bank' && (
+										<div className={modalData.type === 'initial' ? 'col-span-2' : ''}>
 											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Pilih Bank</label>
 											<select
 												required
@@ -453,17 +456,19 @@ export default function CashflowReportPage() {
 									/>
 								</div>
 
-								<div>
-									<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Referensi / Keterangan</label>
-									<input
-										type="text"
-										required
-										value={modalData.reference}
-										onChange={(e) => setModalData({ ...modalData, reference: e.target.value })}
-										className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-										placeholder="Contoh: Bayar Listrik Bulan Ini"
-									/>
-								</div>
+								{modalData.type !== 'initial' && (
+									<div>
+										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Referensi / Keterangan</label>
+										<input
+											type="text"
+											required={modalData.type !== 'initial'}
+											value={modalData.reference}
+											onChange={(e) => setModalData({ ...modalData, reference: e.target.value })}
+											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+											placeholder="Contoh: Bayar Listrik Bulan Ini"
+										/>
+									</div>
+								)}
 
 								<div>
 									<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tanggal</label>
@@ -477,28 +482,30 @@ export default function CashflowReportPage() {
 								</div>
 
 								{
-									isCashOut ? (
-										<div>
-											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
-											<input
-												type="text"
-												value={modalData.to}
-												onChange={(e) => setModalData({ ...modalData, to: e.target.value })}
-												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-												placeholder="Contoh: Ke Siapa"
-											/>
-										</div>
-									) : (
-										<div>
-											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
-											<input
-												type="text"
-												value={modalData.from}
-												onChange={(e) => setModalData({ ...modalData, from: e.target.value })}
-												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-												placeholder="Contoh: Dari Siapa"
-											/>
-										</div>
+									modalData.type !== 'initial' && (
+										isCashOut ? (
+											<div>
+												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
+												<input
+													type="text"
+													value={modalData.to}
+													onChange={(e) => setModalData({ ...modalData, to: e.target.value })}
+													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													placeholder="Contoh: Ke Siapa"
+												/>
+											</div>
+										) : (
+											<div>
+												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
+												<input
+													type="text"
+													value={modalData.from}
+													onChange={(e) => setModalData({ ...modalData, from: e.target.value })}
+													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													placeholder="Contoh: Dari Siapa"
+												/>
+											</div>
+										)
 									)
 								}
 
