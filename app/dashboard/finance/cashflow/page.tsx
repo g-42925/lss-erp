@@ -345,7 +345,7 @@ export default function CashflowReportPage() {
 									transactions.map((t, idx) => (
 										<tr key={t._id + idx} className="hover:bg-slate-50/50 transition-colors">
 											<td className="p-4 whitespace-nowrap font-medium text-slate-700">
-												{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+												{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}
 											</td>
 											<td className="p-4 whitespace-nowrap">
 												{t.from || t.from === '' ? t.from : '-'}
