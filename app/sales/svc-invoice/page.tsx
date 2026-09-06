@@ -186,7 +186,8 @@ export default function Invoices() {
     closeInvoiceForm.reset({
       salesOrderNumber: invoice.salesOrderNumber,
       payAmount: total,
-      paymentMethod: 'Cash'
+      paymentMethod: 'Cash',
+      paymentDate: new Date().toISOString().substring(0, 10)
     })
     closeInvoiceModalRef.current?.showModal()
   }
@@ -196,7 +197,8 @@ export default function Invoices() {
       salesOrderNumber: data.salesOrderNumber,
       paid: true,
       payAmount: Number(data.payAmount),
-      paymentMethod: data.paymentMethod
+      paymentMethod: data.paymentMethod,
+      paymentDate: data.paymentDate
     }
     closeInvoiceFn.fn('', JSON.stringify(params), () => {
       getInvoicesFn.reset(
@@ -615,6 +617,10 @@ export default function Invoices() {
                 <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
               ))}
             </select>
+          </div>
+          <div className="flex flex-row items-center gap-2 mt-2">
+            <label className="w-[120px]">Payment Date</label>
+            <input {...closeInvoiceForm.register("paymentDate")} type="date" className="input flex-1" defaultValue={new Date().toISOString().substring(0, 10)} />
           </div>
           {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
           <div className="flex flex-row gap-3 modal-action">

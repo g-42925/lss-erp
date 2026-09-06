@@ -256,10 +256,11 @@ export async function PUT(request: NextRequest) {
         paymentHistory: {
           amount: safeParams.payAmount,
           method: safeParams.paymentMethod,
-          date: new Date()
+          date: safeParams.paymentDate ? new Date(safeParams.paymentDate) : new Date()
         }
       }
       delete safeParams.paymentMethod // Remove so it's not saved at root level
+      delete safeParams.paymentDate // Remove so it's not saved at root level
     }
 
     const result = await Invoice.updateOne(
