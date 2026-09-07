@@ -442,6 +442,7 @@ function XOrderContent() {
   }
 
   function submitEditOrder(data: any) {
+    console.log('[EditOrder] data from form:', data)
     const formData = new FormData()
     formData.append("_id", data._id)
     formData.append("id", masterAccountId)
@@ -464,9 +465,38 @@ function XOrderContent() {
       formData.append("contract", editContract as any)
     }
 
-    updateDirectServiceOrderFn.fn('', formData, (r) => {
+    // Update optimis — langsung merge data form ke localOrders
+    // Jika API gagal, onError dari useFetch akan memunculkan alert
+    const optimisticUpdate = (prev: any[]) => {
+      const source = prev.length > 0 ? prev : (getServiceOrdersFn.result as any[] ?? [])
+      return source.map((o: any) => {
+        if (o._id !== data._id) return o
+        return {
+          ...o,
+          customCustomer: {
+            ...(o.customCustomer || {}),
+            name: data.customerName,
+            address: data.address,
+            taxNumber: data.taxNumber,
+          },
+          taxNumber: data.taxNumber,
+          productId: data.productId,
+          price: Number(data.price),
+          contractType: data.contractType,
+          frequency: data.frequency,
+          qty: Number(data.qty),
+          range: Number(data.range),
+          billed: data.billed,
+          periodStart: data.periodStart,
+          periodEnd: data.periodEnd,
+        }
+      })
+    }
+
+    updateDirectServiceOrderFn.fn('', formData, () => {
+      console.log('[EditOrder] API success, updating localOrders')
+      setLocalOrders(optimisticUpdate)
       editRef.current?.close()
-      window.location.reload()
     })
   }
 
@@ -836,38 +866,6 @@ function XOrderContent() {
     link.click()
   }
 
-  const renderDateDropdowns = (field: "periodStart" | "periodEnd", watchValue: string) => {
-    const parts = watchValue ? watchValue.split('-') : ["", "", ""];
-    const yVal = parts[0] ? parseInt(parts[0]) : "";
-    const mVal = parts[1] ? parseInt(parts[1]) : "";
-    const dVal = parts[2] ? parseInt(parts[2]) : "";
-
-    const handleChange = (type: 'y' | 'm' | 'd', val: string) => {
-      let [y, m, d] = watchValue ? watchValue.split('-') : new Date().toISOString().split('T')[0].split('-');
-      if (type === 'y') y = val;
-      if (type === 'm') m = val.padStart(2, '0');
-      if (type === 'd') d = val.padStart(2, '0');
-      editOrderForm.setValue(field, `${y}-${m}-${d}`);
-    };
-
-    const monthsIndo = ["Jan", "Des"];
-
-    return (
-      <div className="flex flex-row flex-1 gap-1">
-        <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={dVal} onChange={(e) => handleChange('d', e.target.value)}>
-          <option value="" disabled>Hari</option>
-          {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={mVal} onChange={(e) => handleChange('m', e.target.value)}>
-          <option value="" disabled>Bulan</option>
-          {monthsIndo.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-        </select>
-        <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={yVal} onChange={(e) => handleChange('y', e.target.value)}>
-          {Array.from({ length: 1 }, (_, i) => new Date().getFullYear() - 1 + 1).map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -1292,12 +1290,12 @@ function XOrderContent() {
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Period Start</label>
-            {renderDateDropdowns("periodStart", watchEditPeriodStart)}
+            <input onClick={(e) => (e.target as HTMLInputElement).showPicker()} {...editOrderForm.register("periodStart")} type="date" className="input flex-1 cursor-pointer" />
           </div>
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Period End</label>
-            {renderDateDropdowns("periodEnd", watchEditPeriodEnd)}
+            <input onClick={(e) => (e.target as HTMLInputElement).showPicker()} {...editOrderForm.register("periodEnd")} type="date" className="input flex-1 cursor-pointer" />
           </div>
 
           <div className="flex flex-row items-center gap-3">
