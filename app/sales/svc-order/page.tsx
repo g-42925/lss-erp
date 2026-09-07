@@ -842,7 +842,7 @@ function XOrderContent() {
     const mVal = parts[1] ? parseInt(parts[1]) : "";
     const dVal = parts[2] ? parseInt(parts[2]) : "";
 
-    const handleChange = (type: 'y'|'m'|'d', val: string) => {
+    const handleChange = (type: 'y' | 'm' | 'd', val: string) => {
       let [y, m, d] = watchValue ? watchValue.split('-') : new Date().toISOString().split('T')[0].split('-');
       if (type === 'y') y = val;
       if (type === 'm') m = val.padStart(2, '0');
@@ -850,21 +850,20 @@ function XOrderContent() {
       editOrderForm.setValue(field, `${y}-${m}-${d}`);
     };
 
-    const monthsIndo = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+    const monthsIndo = ["Jan", "Des"];
 
     return (
       <div className="flex flex-row flex-1 gap-1">
         <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={dVal} onChange={(e) => handleChange('d', e.target.value)}>
           <option value="" disabled>Hari</option>
-          {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+          {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={mVal} onChange={(e) => handleChange('m', e.target.value)}>
           <option value="" disabled>Bulan</option>
-          {monthsIndo.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+          {monthsIndo.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
         </select>
         <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={yVal} onChange={(e) => handleChange('y', e.target.value)}>
-          <option value="" disabled>Tahun</option>
-          {Array.from({length: 20}, (_, i) => new Date().getFullYear() - 10 + i).map(y => <option key={y} value={y}>{y}</option>)}
+          {Array.from({ length: 1 }, (_, i) => new Date().getFullYear() - 1 + 1).map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
     );
