@@ -142,6 +142,8 @@ function XOrderContent() {
     }
   }, [watchEditPeriodStart, watchEditPeriodEnd, editOrderForm]);
 
+
+
   useEffect(() => {
     if (isOneTimeMonthOneRangeDebt || isOneTimeOnceDebtNo) {
       directOrderForm.setValue("payAmount", watchPrice)
@@ -834,6 +836,40 @@ function XOrderContent() {
     link.click()
   }
 
+  const renderDateDropdowns = (field: "periodStart" | "periodEnd", watchValue: string) => {
+    const parts = watchValue ? watchValue.split('-') : ["", "", ""];
+    const yVal = parts[0] ? parseInt(parts[0]) : "";
+    const mVal = parts[1] ? parseInt(parts[1]) : "";
+    const dVal = parts[2] ? parseInt(parts[2]) : "";
+
+    const handleChange = (type: 'y'|'m'|'d', val: string) => {
+      let [y, m, d] = watchValue ? watchValue.split('-') : new Date().toISOString().split('T')[0].split('-');
+      if (type === 'y') y = val;
+      if (type === 'm') m = val.padStart(2, '0');
+      if (type === 'd') d = val.padStart(2, '0');
+      editOrderForm.setValue(field, `${y}-${m}-${d}`);
+    };
+
+    const monthsIndo = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+
+    return (
+      <div className="flex flex-row flex-1 gap-1">
+        <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={dVal} onChange={(e) => handleChange('d', e.target.value)}>
+          <option value="" disabled>Hari</option>
+          {Array.from({length: 31}, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={mVal} onChange={(e) => handleChange('m', e.target.value)}>
+          <option value="" disabled>Bulan</option>
+          {monthsIndo.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+        </select>
+        <select className="select select-bordered select-sm flex-1 px-1 min-w-0" value={yVal} onChange={(e) => handleChange('y', e.target.value)}>
+          <option value="" disabled>Tahun</option>
+          {Array.from({length: 20}, (_, i) => new Date().getFullYear() - 10 + i).map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="p-3 md:p-6 flex flex-col gap-3 text-black">
@@ -1257,12 +1293,12 @@ function XOrderContent() {
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Period Start</label>
-            <input {...editOrderForm.register("periodStart")} type="date" className="input flex-1" />
+            {renderDateDropdowns("periodStart", watchEditPeriodStart)}
           </div>
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Period End</label>
-            <input {...editOrderForm.register("periodEnd")} type="date" className="input flex-1" />
+            {renderDateDropdowns("periodEnd", watchEditPeriodEnd)}
           </div>
 
           <div className="flex flex-row items-center gap-3">
