@@ -69,20 +69,27 @@ export default function PayrollPage() {
   const hasHydrated = useAuth((s) => s._hasHydrated);
   const masterAccountId = useAuth((s) => s.masterAccountId);
 
+  const currentYear = new Date().getFullYear();
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+
   const [payroll, setPayroll] = useState<PayrollData | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+  const [filterYear, setFilterYear] = useState<string>(String(currentYear));
+  const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const payrollFetch = useAbsensiFetch<PayrollData, null>({
-    url: `/payroll/${masterAccountId || ""}`,
+    url: `/payroll/${masterAccountId || ""}/${currentYear}/${currentMonth}`,
     method: "GET",
   });
 
+  // Fetch on mount
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
       payrollFetch.fn(
-        `/payroll/${masterAccountId}`,
+        `/payroll/${masterAccountId}/${filterYear}/${filterMonth}`,
         null as any,
         (data) => {
           setPayroll(data);
@@ -93,6 +100,22 @@ export default function PayrollPage() {
       );
     }
   }, [hasHydrated, masterAccountId]);
+
+  // Refetch when year or month filter changes
+  useEffect(() => {
+    if (hasHydrated && masterAccountId) {
+      payrollFetch.fn(
+        `/payroll/${masterAccountId}/${filterYear}/${filterMonth}`,
+        null as any,
+        (data) => {
+          setPayroll(data);
+          if (data?.months?.length) {
+            setSelectedMonth(data.months[0].key);
+          }
+        }
+      );
+    }
+  }, [filterYear, filterMonth]);
 
   const filteredEmployees = useMemo(() => {
     if (!payroll?.employees) return [];
@@ -241,11 +264,28 @@ export default function PayrollPage() {
       <div className="bg-white border-t-4 border-blue-900 rounded-b-xl shadow-sm flex flex-col flex-1">
         {/* Toolbar */}
         <div className="p-5 flex flex-col sm:flex-row gap-3 border-b border-gray-100">
+          {/* Year filter */}
+          <select
+            value={selectedYear}
+            onChange={(e) => {
+              setSelectedYear(e.target.value);
+              setFilterYear(e.target.value);
+            }}
+            className="select select-bordered select-sm text-black bg-white w-full sm:w-32"
+          >
+            {Array.from({ length: 11 }, (_, i) => currentYear - 5 + i).map((y) => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+
           {/* Month filter */}
           {payroll?.months?.length ? (
             <select
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              onChange={(e) => {
+                setSelectedMonth(e.target.value);
+                setFilterMonth(e.target.value);
+              }}
               className="select select-bordered select-sm text-black bg-white w-full sm:w-56"
             >
               {payroll.months.map((m) => (
