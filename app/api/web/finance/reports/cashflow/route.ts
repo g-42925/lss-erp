@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
         });
 
         // 4. Sort and Calculate Summaries
-        allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         let totalIn = 0;
         let totalOut = 0;

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, memo, useCallback } from "react";
 import useAbsensiFetch from "@/hooks/useAbsensiFetch";
 import useAuth from "@/store/auth";
 
@@ -63,7 +63,286 @@ function genderLabel(g: string) {
   return g === "L" ? "Laki-laki" : g === "P" ? "Perempuan" : g || "-";
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Sub-components (stable, defined outside PayrollPage) ─────────────────────
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-gray-800 font-medium truncate">{value}</span>
+    </div>
+  );
+}
+
+function SummaryCard({ title, value, icon, color }: { title: string; value: string; icon: React.ReactNode; color: "blue" | "green" | "purple" }) {
+  const colorMap = {
+    blue: "bg-blue-50 text-blue-900 border-blue-200",
+    green: "bg-green-50 text-green-900 border-green-200",
+    purple: "bg-purple-50 text-purple-900 border-purple-200",
+  };
+  const iconMap = {
+    blue: "bg-blue-100 text-blue-700",
+    green: "bg-green-100 text-green-700",
+    purple: "bg-purple-100 text-purple-700",
+  };
+  return (
+    <div className={`flex items-center gap-4 p-4 rounded-xl border ${colorMap[color]}`}>
+      <div className={`size-11 rounded-xl flex items-center justify-center flex-shrink-0 ${iconMap[color]}`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs opacity-70 font-medium">{title}</p>
+        <p className="text-lg font-bold leading-tight">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── EmployeeDetailModal (stable memo — outside PayrollPage) ──────────────────
+
+const EmployeeDetailModal = memo(function EmployeeDetailModal({
+  employee,
+  onClose,
+}: {
+  employee: Employee;
+  onClose: () => void;
+}) {
+  const e = employee;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white text-black rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4"
+        onClick={(ev) => ev.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 rounded-t-2xl flex items-center gap-4">
+          <div className="size-16 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold uppercase flex-shrink-0">
+            {e.nama_pegawai?.charAt(0) || "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xl font-bold truncate">{e.nama_pegawai}</p>
+            <p className="text-blue-200 text-sm">{e.nomor_pegawai} · {e.nik}</p>
+            <span className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${e.status_pegawai === "active" ? "bg-green-500/30 text-green-200" : "bg-red-500/30 text-red-200"}`}>
+              {e.status_pegawai}
+            </span>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 flex flex-col gap-5">
+          {/* Personal Info */}
+          <section>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Data Diri</h3>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <InfoRow label="Jenis Kelamin" value={genderLabel(e.jenis_kelamin)} />
+              <InfoRow label="Email" value={e.email_pegawai || "-"} />
+              <InfoRow label="Mulai Kerja" value={e.tanggal_mulai_kerja ? new Date(e.tanggal_mulai_kerja).toLocaleDateString("id-ID") : "-"} />
+              <InfoRow label="Status" value={e.status_pegawai || "-"} />
+              <InfoRow label="Kontrak Mulai" value={e.contract_start_date ? new Date(e.contract_start_date).toLocaleDateString("id-ID") : "-"} />
+              <InfoRow label="Kontrak Selesai" value={e.contract_end_date ? new Date(e.contract_end_date).toLocaleDateString("id-ID") : "-"} />
+              <InfoRow label="Status Nikah" value={e.married ? "Menikah" : "Belum Menikah"} />
+              <InfoRow label="Training" value={e.on_training ? "Ya" : "Tidak"} />
+            </div>
+          </section>
+
+          <hr />
+
+          {/* Salary Breakdown */}
+          <section>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Rincian Gaji</h3>
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Gaji Pokok</span>
+                <span className="font-medium">{formatRp(e.salary)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Income</span>
+                <span className="font-medium">{formatRp(e.income)}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Additions */}
+          {e.plus?.length > 0 && (
+            <section>
+              <h3 className="text-xs font-semibold text-green-700 uppercase tracking-widest mb-2">Penambahan (+)</h3>
+              <div className="flex flex-col gap-1 text-sm">
+                {e.plus.map((p, i) => (
+                  <div key={i} className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-700">{p.name}</span>
+                    <span className="font-medium text-green-700">+{formatRp(p.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-1 font-semibold text-green-700">
+                  <span>Total Penambahan</span>
+                  <span>+{formatRp(e.totalPlus)}</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Deductions */}
+          {e.minus?.length > 0 && (
+            <section>
+              <h3 className="text-xs font-semibold text-red-700 uppercase tracking-widest mb-2">Potongan (-)</h3>
+              <div className="flex flex-col gap-1 text-sm">
+                {e.minus.map((m, i) => (
+                  <div key={i} className="flex justify-between py-1 border-b border-gray-100">
+                    <span className="text-gray-700">{m.name}</span>
+                    <span className="font-medium text-red-700">-{formatRp(m.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-1 font-semibold text-red-700">
+                  <span>Total Potongan</span>
+                  <span>-{formatRp(e.totalMinus)}</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          <hr />
+
+          {/* THP */}
+          <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4">
+            <span className="font-bold text-blue-900 text-base">Take Home Pay (THP)</span>
+            <span className="font-bold text-blue-900 text-lg">{formatRp(e.thp)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ─── PayrollDataSection (memoized — only re-renders when data/search changes) ──
+
+const PayrollDataSection = memo(function PayrollDataSection({
+  payroll,
+  filteredEmployees,
+  onSelectEmployee,
+}: {
+  payroll: PayrollData;
+  filteredEmployees: Employee[];
+  onSelectEmployee: (emp: Employee) => void;
+}) {
+  return (
+    <>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 border-b border-gray-100">
+        <SummaryCard
+          title="Total Karyawan"
+          value={String(filteredEmployees.length)}
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+            </svg>
+          }
+          color="blue"
+        />
+        <SummaryCard
+          title="Total THP"
+          value={formatRp(payroll.thpGrandTotal)}
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+            </svg>
+          }
+          color="green"
+        />
+        <SummaryCard
+          title="Rata-rata THP"
+          value={formatRp(filteredEmployees.length ? (payroll.thpGrandTotal / filteredEmployees.length) : 0)}
+          icon={
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+            </svg>
+          }
+          color="purple"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="table table-zebra text-black w-full text-sm">
+          <thead className="bg-gray-50 text-gray-700">
+            <tr>
+              <th className="w-10">#</th>
+              <th>Karyawan</th>
+              <th>NIK / No. Karyawan</th>
+              <th className="text-right">Gaji Pokok</th>
+              <th className="text-right text-green-700">+ Penambahan</th>
+              <th className="text-right text-red-700">- Potongan</th>
+              <th className="text-right font-semibold text-blue-900">THP</th>
+              <th className="text-center">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredEmployees.length === 0 && (
+              <tr>
+                <td colSpan={9} className="text-center py-10 text-gray-400">
+                  Tidak ada data karyawan.
+                </td>
+              </tr>
+            )}
+            {filteredEmployees.map((emp, idx) => (
+              <tr key={emp.pegawai_id || idx} className="hover cursor-pointer" onClick={() => onSelectEmployee(emp)}>
+                <td className="text-gray-400">{idx + 1}</td>
+                <td>
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm uppercase flex-shrink-0">
+                      {emp.nama_pegawai?.charAt(0) || "?"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{emp.nama_pegawai}</p>
+                      <p className="text-gray-400 text-xs truncate">{emp.email_pegawai}</p>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <p className="text-xs text-gray-600">{emp.nik || "-"}</p>
+                  <p className="text-xs text-gray-400">{emp.nomor_pegawai || "-"}</p>
+                </td>
+                <td className="text-right">{formatRp(emp.salary)}</td>
+                <td className="text-right text-green-700 font-medium">
+                  {emp.totalPlus ? `+${formatRp(emp.totalPlus)}` : "-"}
+                </td>
+                <td className="text-right text-red-700 font-medium">
+                  {emp.totalMinus ? `-${formatRp(emp.totalMinus)}` : "-"}
+                </td>
+                <td className="text-right font-bold text-blue-900">
+                  {formatRp(emp.thp)}
+                </td>
+                <td className="text-center">
+                  <span className={`badge badge-sm ${emp.status_pegawai === "active" ? "badge-success" : "badge-ghost"}`}>
+                    {emp.status_pegawai || "-"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {filteredEmployees.length > 0 && (
+            <tfoot>
+              <tr className="bg-blue-50 font-bold text-blue-900">
+                <td colSpan={6} className="text-right">Grand Total THP</td>
+                <td className="text-right">{formatRp(payroll.thpGrandTotal)}</td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </>
+  );
+});
+
+// ─── Main Page Component ───────────────────────────────────────────────────────
 
 export default function PayrollPage() {
   const hasHydrated = useAuth((s) => s._hasHydrated);
@@ -79,6 +358,16 @@ export default function PayrollPage() {
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+
+  // Stable callbacks — prevent PayrollDataSection & EmployeeDetailModal from re-rendering
+  // unnecessarily when only unrelated state (e.g. selectedEmployee) changes in PayrollPage.
+  const handleSelectEmployee = useCallback((emp: Employee) => {
+    setSelectedEmployee(emp);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setSelectedEmployee(null);
+  }, []);
 
   const payrollFetch = useAbsensiFetch<PayrollData, null>({
     url: `/payroll/${masterAccountId || ""}/${currentYear}/${currentMonth}`,
@@ -130,123 +419,6 @@ export default function PayrollPage() {
   }, [payroll, search]);
 
   if (!hasHydrated) return null;
-
-  // ─── Detail Modal ────────────────────────────────────────────────────────────
-
-  const EmployeeDetailModal = () => {
-    if (!selectedEmployee) return null;
-    const e = selectedEmployee;
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        onClick={() => setSelectedEmployee(null)}
-      >
-        <div
-          className="bg-white text-black rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4"
-          onClick={(ev) => ev.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 rounded-t-2xl flex items-center gap-4">
-            <div className="size-16 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold uppercase flex-shrink-0">
-              {e.nama_pegawai?.charAt(0) || "?"}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xl font-bold truncate">{e.nama_pegawai}</p>
-              <p className="text-blue-200 text-sm">{e.nomor_pegawai} · {e.nik}</p>
-              <span className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${e.status_pegawai === "active" ? "bg-green-500/30 text-green-200" : "bg-red-500/30 text-red-200"}`}>
-                {e.status_pegawai}
-              </span>
-            </div>
-            <button onClick={() => setSelectedEmployee(null)} className="text-white/70 hover:text-white transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="p-6 flex flex-col gap-5">
-            {/* Personal Info */}
-            <section>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Data Diri</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <InfoRow label="Jenis Kelamin" value={genderLabel(e.jenis_kelamin)} />
-                <InfoRow label="Email" value={e.email_pegawai || "-"} />
-                <InfoRow label="Mulai Kerja" value={e.tanggal_mulai_kerja ? new Date(e.tanggal_mulai_kerja).toLocaleDateString("id-ID") : "-"} />
-                <InfoRow label="Status" value={e.status_pegawai || "-"} />
-                <InfoRow label="Kontrak Mulai" value={e.contract_start_date ? new Date(e.contract_start_date).toLocaleDateString("id-ID") : "-"} />
-                <InfoRow label="Kontrak Selesai" value={e.contract_end_date ? new Date(e.contract_end_date).toLocaleDateString("id-ID") : "-"} />
-                <InfoRow label="Status Nikah" value={e.married ? "Menikah" : "Belum Menikah"} />
-                <InfoRow label="Training" value={e.on_training ? "Ya" : "Tidak"} />
-              </div>
-            </section>
-
-            <hr />
-
-            {/* Salary Breakdown */}
-            <section>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Rincian Gaji</h3>
-              <div className="flex flex-col gap-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Gaji Pokok</span>
-                  <span className="font-medium">{formatRp(e.salary)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Income</span>
-                  <span className="font-medium">{formatRp(e.income)}</span>
-                </div>
-              </div>
-            </section>
-
-            {/* Additions */}
-            {e.plus?.length > 0 && (
-              <section>
-                <h3 className="text-xs font-semibold text-green-700 uppercase tracking-widest mb-2">Penambahan (+)</h3>
-                <div className="flex flex-col gap-1 text-sm">
-                  {e.plus.map((p, i) => (
-                    <div key={i} className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-700">{p.name}</span>
-                      <span className="font-medium text-green-700">+{formatRp(p.value)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between pt-1 font-semibold text-green-700">
-                    <span>Total Penambahan</span>
-                    <span>+{formatRp(e.totalPlus)}</span>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Deductions */}
-            {e.minus?.length > 0 && (
-              <section>
-                <h3 className="text-xs font-semibold text-red-700 uppercase tracking-widest mb-2">Potongan (-)</h3>
-                <div className="flex flex-col gap-1 text-sm">
-                  {e.minus.map((m, i) => (
-                    <div key={i} className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-700">{m.name}</span>
-                      <span className="font-medium text-red-700">-{formatRp(m.value)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between pt-1 font-semibold text-red-700">
-                    <span>Total Potongan</span>
-                    <span>-{formatRp(e.totalMinus)}</span>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            <hr />
-
-            {/* THP */}
-            <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4">
-              <span className="font-bold text-blue-900 text-base">Take Home Pay (THP)</span>
-              <span className="font-bold text-blue-900 text-lg">{formatRp(e.thp)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // ─── Main Render ─────────────────────────────────────────────────────────────
 
@@ -331,154 +503,24 @@ export default function PayrollPage() {
           </div>
         )}
 
-        {/* Summary Cards */}
+        {/* Data Section — hanya re-render saat filteredEmployees atau payroll berubah */}
         {!payrollFetch.loading && payroll && (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 border-b border-gray-100">
-              <SummaryCard
-                title="Total Karyawan"
-                value={String(filteredEmployees.length)}
-                icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                  </svg>
-                }
-                color="blue"
-              />
-              <SummaryCard
-                title="Total THP"
-                value={formatRp(payroll.thpGrandTotal)}
-                icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                  </svg>
-                }
-                color="green"
-              />
-              <SummaryCard
-                title="Rata-rata THP"
-                value={formatRp(filteredEmployees.length ? (payroll.thpGrandTotal / filteredEmployees.length) : 0)}
-                icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-                  </svg>
-                }
-                color="purple"
-              />
-            </div>
-
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="table table-zebra text-black w-full text-sm">
-                <thead className="bg-gray-50 text-gray-700">
-                  <tr>
-                    <th className="w-10">#</th>
-                    <th>Karyawan</th>
-                    <th>NIK / No. Karyawan</th>
-                    <th className="text-right">Gaji Pokok</th>
-                    <th className="text-right text-green-700">+ Penambahan</th>
-                    <th className="text-right text-red-700">- Potongan</th>
-                    <th className="text-right font-semibold text-blue-900">THP</th>
-                    <th className="text-center">Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEmployees.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="text-center py-10 text-gray-400">
-                        Tidak ada data karyawan.
-                      </td>
-                    </tr>
-                  )}
-                  {filteredEmployees.map((emp, idx) => (
-                    <tr key={emp.pegawai_id || idx} className="hover cursor-pointer" onClick={() => setSelectedEmployee(emp)}>
-                      <td className="text-gray-400">{idx + 1}</td>
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <div className="size-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm uppercase flex-shrink-0">
-                            {emp.nama_pegawai?.charAt(0) || "?"}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{emp.nama_pegawai}</p>
-                            <p className="text-gray-400 text-xs truncate">{emp.email_pegawai}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <p className="text-xs text-gray-600">{emp.nik || "-"}</p>
-                        <p className="text-xs text-gray-400">{emp.nomor_pegawai || "-"}</p>
-                      </td>
-                      <td className="text-right">{formatRp(emp.salary)}</td>
-                      <td className="text-right text-green-700 font-medium">
-                        {emp.totalPlus ? `+${formatRp(emp.totalPlus)}` : "-"}
-                      </td>
-                      <td className="text-right text-red-700 font-medium">
-                        {emp.totalMinus ? `-${formatRp(emp.totalMinus)}` : "-"}
-                      </td>
-                      <td className="text-right font-bold text-blue-900">
-                        {formatRp(emp.thp)}
-                      </td>
-                      <td className="text-center">
-                        <span className={`badge badge-sm ${emp.status_pegawai === "active" ? "badge-success" : "badge-ghost"}`}>
-                          {emp.status_pegawai || "-"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {filteredEmployees.length > 0 && (
-                  <tfoot>
-                    <tr className="bg-blue-50 font-bold text-blue-900">
-                      <td colSpan={6} className="text-right">Grand Total THP</td>
-                      <td className="text-right">{formatRp(payroll.thpGrandTotal)}</td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-          </>
+          <PayrollDataSection
+            payroll={payroll}
+            filteredEmployees={filteredEmployees}
+            onSelectEmployee={handleSelectEmployee}
+          />
         )}
       </div>
 
       {/* Employee Detail Modal */}
-      {selectedEmployee && <EmployeeDetailModal />}
+      {selectedEmployee && (
+        <EmployeeDetailModal
+          employee={selectedEmployee}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-gray-400">{label}</span>
-      <span className="text-gray-800 font-medium truncate">{value}</span>
-    </div>
-  );
-}
-
-function SummaryCard({ title, value, icon, color }: { title: string; value: string; icon: React.ReactNode; color: "blue" | "green" | "purple" }) {
-  const colorMap = {
-    blue: "bg-blue-50 text-blue-900 border-blue-200",
-    green: "bg-green-50 text-green-900 border-green-200",
-    purple: "bg-purple-50 text-purple-900 border-purple-200",
-  };
-  const iconMap = {
-    blue: "bg-blue-100 text-blue-700",
-    green: "bg-green-100 text-green-700",
-    purple: "bg-purple-100 text-purple-700",
-  };
-  return (
-    <div className={`flex items-center gap-4 p-4 rounded-xl border ${colorMap[color]}`}>
-      <div className={`size-11 rounded-xl flex items-center justify-center flex-shrink-0 ${iconMap[color]}`}>
-        {icon}
-      </div>
-      <div>
-        <p className="text-xs opacity-70 font-medium">{title}</p>
-        <p className="text-lg font-bold leading-tight">{value}</p>
-      </div>
-    </div>
-  );
-}

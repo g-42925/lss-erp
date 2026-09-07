@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use client"
 
+import { NumericFormat } from "react-number-format";
 import { useState, useEffect, useCallback } from "react";
 import useAuth from "@/store/auth";
 import * as XLSX from 'xlsx';
@@ -54,6 +55,7 @@ export default function CashflowReportPage() {
 	const [error, setError] = useState('');
 
 	const [isCashOut, setIsCashOut] = useState(false);
+	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
 	// Modal state
 	const [showModal, setShowModal] = useState(false);
@@ -96,7 +98,29 @@ export default function CashflowReportPage() {
 			if (json.error) {
 				setError(json.message);
 			} else {
-				setTransactions(json.result?.transactions || []);
+				const txs = json.result?.transactions || [];
+				// Sort ascending first to calculate running balance correctly
+				txs.sort((a: any, b: any) => {
+					const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+					if (dateDiff === 0) {
+						if (a.type === 'initial') return -1;
+						if (b.type === 'initial') return 1;
+						return 0;
+					}
+					return dateDiff;
+				});
+
+				let currentBalance = 0;
+				const txsWithBalance = txs.map((t: any) => {
+					if (t.type === 'in' || t.type === 'initial') {
+						currentBalance += t.amount;
+					} else {
+						currentBalance -= t.amount;
+					}
+					return { ...t, balance: currentBalance };
+				});
+
+				setTransactions(txsWithBalance);
 				setSummary(json.result?.summary || { totalIn: 0, totalOut: 0, initialBalance: 0, netCashflow: 0, finalBalance: 0 });
 			}
 		} catch (e: any) {
@@ -154,44 +178,6 @@ export default function CashflowReportPage() {
 		}
 		else {
 			setIsCashOut(false);
-		}
-	}
-
-	function countFinalBalance(index: number, current: { amount: number, type: string }, prev: { amount: number }) {
-		if (index === 0) return current.amount
-
-		if (index > 0 && index < 2) {
-			if (current.type === 'in' || current.type === 'initial') {
-				return prev.amount + current.amount
-			}
-			else {
-				return prev.amount - current.amount
-			}
-		}
-
-		if (index > 1) {
-			if (current.type === 'in' || current.type === 'initial') {
-				const x = transactions[index - 1];
-				const y = transactions[index - 2];
-
-				if (y.type === 'in' || y.type === 'initial') {
-					return (y.amount + x.amount) + current.amount
-				}
-				else {
-					return (y.amount - x.amount) + current.amount
-				}
-			}
-			else {
-				const x = transactions[index - 1];
-				const y = transactions[index - 2];
-
-				if (y.type === 'in' || y.type === 'initial') {
-					return (y.amount + x.amount) - current.amount
-				}
-				else {
-					return (y.amount - x.amount) - current.amount
-				}
-			}
 		}
 	}
 
@@ -286,6 +272,15 @@ export default function CashflowReportPage() {
 						{loading ? 'Memuat...' : 'Terapkan Filter'}
 					</button>
 					<button
+						onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+						className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+							<path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+						</svg>
+						{sortOrder === 'asc' ? 'Terlama di Atas' : 'Terbaru di Atas'}
+					</button>
+					<button
 						onClick={toExcel}
 						disabled={loading || transactions.length === 0}
 						className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-70 flex items-center gap-2"
@@ -343,7 +338,7 @@ export default function CashflowReportPage() {
 										<td colSpan={6} className="p-8 text-center text-slate-400">Belum ada transaksi pada periode ini.</td>
 									</tr>
 								) : (
-									transactions.map((t, idx) => (
+									(sortOrder === 'desc' ? [...transactions].reverse() : transactions).map((t: any, idx: number) => (
 										<tr key={t._id + idx} className="hover:bg-slate-50/50 transition-colors">
 											<td className="p-4 whitespace-nowrap font-medium text-slate-700">
 												{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}
@@ -367,10 +362,10 @@ export default function CashflowReportPage() {
 												{t.type === 'initial' && <span className="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">INITIAL</span>}
 											</td>
 											<td className={`p-4 font-extrabold text-right whitespace-nowrap ${t.type === 'in' ? 'text-emerald-600' : t.type === 'out' ? 'text-rose-600' : 'text-sky-600'}`}>
-												{t.amount}
+												{t.amount.toLocaleString('id-ID')}
 											</td>
 											<td className={`p-4 font-extrabold text-right whitespace-nowrap`}>
-												{countFinalBalance(idx, transactions[idx], transactions[idx - 1])}
+												{(t.balance || 0).toLocaleString('id-ID')}
 											</td>
 										</tr>
 									))
@@ -445,12 +440,14 @@ export default function CashflowReportPage() {
 
 								<div>
 									<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nominal (Rp)</label>
-									<input
-										type="number"
-										required
-										min="0"
+									<NumericFormat
+										thousandSeparator="."
+										decimalSeparator=","
+										decimalScale={2}
+										fixedDecimalScale
+										allowNegative={false}
 										value={modalData.amount}
-										onChange={(e) => setModalData({ ...modalData, amount: e.target.value })}
+										onValueChange={(values) => setModalData({ ...modalData, amount: values.floatValue ?? "" })}
 										className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-indigo-500 bg-slate-50"
 										placeholder="Contoh: 150000"
 									/>

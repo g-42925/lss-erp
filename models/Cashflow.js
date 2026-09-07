@@ -29,7 +29,7 @@ const cashflowSchema = new mongoose.Schema({
   },
   reference: {
     type: String,
-    required: true
+    required: false
   },
   date: {
     type: Date,
