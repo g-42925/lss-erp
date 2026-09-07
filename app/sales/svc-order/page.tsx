@@ -984,7 +984,6 @@ function XOrderContent() {
                         <tr>
                           <th>Order Number</th>
                           <th>Product</th>
-                          <th>Date</th>
                           <th>Contract Type</th>
                           <th>Customer</th>
                           <th>Contract Start</th>
@@ -1005,7 +1004,6 @@ function XOrderContent() {
                                 <tr key={index} className={s.status === 'closed' ? 'opacity-60' : ''}>
                                   <td>{s.salesOrderNumber}</td>
                                   <td>{products.filter(p => p._id === s.productId)[0]?.productName ?? '-'}</td>
-                                  <td>{new Date(s.date).toLocaleDateString()}</td>
                                   <td>{s.contractType}</td>
                                   <td>{s.customCustomer ? s.customCustomer.name : s.customerId}</td>
                                   <td>{new Date(s.periodStart).toLocaleDateString()}</td>
@@ -1021,97 +1019,83 @@ function XOrderContent() {
                                       {s.status || 'active'}
                                     </span>
                                   </td>
-                                  <td className="flex flex-row gap-1 justify-center">
-                                    {
-                                      s.contract ?
-                                        <button>
-                                          <HugeiconsIcon
-                                            icon={ContractsIcon}
-                                            size={24}
-                                            color="currentColor"
-                                            strokeWidth={1.5}
-                                            onClick={() => downloadContract(s.contract)}
-                                          />
-                                        </button>
-                                        :
-                                        <button disabled className="text-gray-900">
-                                          <HugeiconsIcon
-                                            icon={ContractsIcon}
-                                            size={24}
-                                            color="currentColor"
-                                            strokeWidth={1.5}
-                                          />
-                                        </button>
-                                    }
-
-                                    {
-                                      s.contractType === "One Time" && s.frequency === "Once" ?
-                                        (
-                                          <button disabled={activateInvoiceFn.loading || Number(s.range) === Number(s.billed)} onClick={() => submitInvoice({ salesOrderNumber: s.salesOrderNumber, missing: 0 })} className={Number(s.range) === Number(s.billed) ? "text-gray-400 cursor-not-allowed" : "text-gray-900"} title={Number(s.range) === Number(s.billed) ? "Fully billed" : "Make Invoice"}>
-                                            {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon
-                                              icon={AddInvoiceIcon}
-                                              size={24}
-                                              color="currentColor"
-                                              strokeWidth={1.5}
-                                            />}
-                                          </button>
-                                        )
-                                        :
-                                        (
-                                          <button disabled={activateInvoiceFn.loading || Number(s.range) === Number(s.billed)} onClick={() => makeInvoice(s.salesOrderNumber, s._id)} className={Number(s.range) === Number(s.billed) ? "text-gray-400 cursor-not-allowed" : "text-gray-900"} title={Number(s.range) === Number(s.billed) ? "Fully billed" : "Make Invoice"}>
-                                            {activateInvoiceFn.loading ? <span className="loading loading-spinner loading-xs"></span> : <HugeiconsIcon
-                                              icon={AddInvoiceIcon}
-                                              size={24}
-                                              color="currentColor"
-                                              strokeWidth={1.5}
-                                            />}
-                                          </button>
-                                        )
-                                    }
-                                    <button
-                                      onClick={() => openApplyTaxModal(s)}
-                                      className={`relative transition-colors ${s.taxes && s.taxes.length > 0
-                                        ? 'text-emerald-600 hover:text-emerald-700'
-                                        : 'text-gray-400 hover:text-gray-600'
-                                        }`}
-                                      title={
-                                        s.taxes && s.taxes.length > 0
-                                          ? `Taxes applied: ${s.taxes.map((t: any) => t.taxName).join(', ')}`
-                                          : 'Apply Tax'
-                                      }
-                                    >
-                                      <HugeiconsIcon
-                                        icon={PercentCircleIcon}
-                                        size={24}
-                                        color="currentColor"
-                                        strokeWidth={1.5}
-                                      />
-                                      {s.taxes && s.taxes.length > 0 && (
-                                        <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[9px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none">
-                                          {s.taxes.length}
-                                        </span>
-                                      )}
-                                    </button>
-                                    <button onClick={() => openEditModal(s)} className="text-gray-900" title="Edit Order">
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                      </svg>
-                                    </button>
-                                    <button
-                                      onClick={() => openCloseConfirm(s)}
-                                      title={(s.status || 'active') === 'closed' ? 'Reopen Order' : 'Close Order'}
-                                      className={(s.status || 'active') === 'closed' ? 'text-green-600' : 'text-red-600'}
-                                    >
-                                      {(s.status || 'active') === 'closed' ? (
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                  <td>
+                                    <div className="dropdown dropdown-left dropdown-end">
+                                      <div tabIndex={0} role="button" className="btn btn-ghost btn-sm px-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                                         </svg>
-                                      ) : (
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                        </svg>
-                                      )}
-                                    </button>
+                                      </div>
+                                      <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-white border border-gray-200 rounded-box w-48 text-left">
+                                        <li>
+                                          <button
+                                            onClick={() => s.contract && downloadContract(s.contract)}
+                                            className={`flex items-center gap-2 ${!s.contract ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                          >
+                                            <HugeiconsIcon icon={ContractsIcon} size={18} /> Download Contract
+                                          </button>
+                                        </li>
+                                        <li>
+                                          {
+                                            s.contractType === "One Time" && s.frequency === "Once" ?
+                                              (
+                                                <button disabled={activateInvoiceFn.loading || Number(s.range) === Number(s.billed)} onClick={() => submitInvoice({ salesOrderNumber: s.salesOrderNumber, missing: 0 })} className={`flex items-center gap-2 ${Number(s.range) === Number(s.billed) ? "text-gray-400 cursor-not-allowed" : "text-gray-900"}`}>
+                                                  <HugeiconsIcon icon={AddInvoiceIcon} size={18} /> Invoice
+                                                </button>
+                                              )
+                                              :
+                                              (
+                                                <button disabled={activateInvoiceFn.loading || Number(s.range) === Number(s.billed)} onClick={() => makeInvoice(s.salesOrderNumber, s._id)} className={`flex items-center gap-2 ${Number(s.range) === Number(s.billed) ? "text-gray-400 cursor-not-allowed" : "text-gray-900"}`}>
+                                                  <HugeiconsIcon icon={AddInvoiceIcon} size={18} /> Invoice
+                                                </button>
+                                              )
+                                          }
+                                        </li>
+                                        <li>
+                                          <button
+                                            onClick={() => openApplyTaxModal(s)}
+                                            className={`flex items-center gap-2 ${s.taxes && s.taxes.length > 0 ? 'text-emerald-600' : 'text-gray-900'}`}
+                                          >
+                                            <HugeiconsIcon icon={PercentCircleIcon} size={18} /> Apply Tax
+                                            {s.taxes && s.taxes.length > 0 && (
+                                              <span className="bg-emerald-500 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                                                {s.taxes.length}
+                                              </span>
+                                            )}
+                                          </button>
+                                        </li>
+                                        <li>
+                                          <button onClick={() => openEditModal(s)} className="text-gray-900 flex items-center gap-2">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                            </svg>
+                                            Edit Order
+                                          </button>
+                                        </li>
+                                        <li>
+                                          <button
+                                            onClick={() => openCloseConfirm(s)}
+                                            className={`flex items-center gap-2 ${(s.status || 'active') === 'closed' ? 'text-green-600' : 'text-red-600'}`}
+                                          >
+                                            {(s.status || 'active') === 'closed' ? (
+                                              <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                                </svg>
+                                                Reopen
+                                              </>
+                                            ) : (
+                                              <>
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                                </svg>
+                                                Close
+                                              </>
+                                            )}
+                                          </button>
+                                        </li>
+                                      </ul>
+                                    </div>
                                   </td>
                                 </tr>
                               )
