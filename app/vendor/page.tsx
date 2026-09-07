@@ -141,6 +141,7 @@ export default function Vendor() {
       email: vendor.email,
       address: vendor.address,
       mobile: vendor.mobile,
+      taxNumber: vendor.taxNumber || "",
       _id: vendor._id
     })
 
@@ -271,8 +272,8 @@ export default function Vendor() {
         </div>
       </div>
       <dialog id="my_modal_2" ref={editRef} className="modal text-black">
-        <div className="modal-box bg-white">
-          <div className="flex flex-col gap-3">
+        <div className="modal-box w-11/12 max-w-4xl bg-white">
+          <div className="flex flex-col gap-3 w-[450px]">
             <span className="page-title">Edit Vendor</span>
             <form onSubmit={editVendorForm.handleSubmit(handleEdit)} className="h-90 flex flex-col gap-3 relative">
               <fieldset className="fieldset">
@@ -291,24 +292,26 @@ export default function Vendor() {
                 <legend className="fieldset-legend text-black">Mobile</legend>
                 <input className="input w-full bg-white" {...editVendorForm.register("mobile")} type="text" />
               </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend text-black">Tax Number</legend>
+                <input className="input w-full bg-white" {...editVendorForm.register("taxNumber")} type="text" placeholder="NPWP / KTP" />
+              </fieldset>
               {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
-              <div className="modal-action">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                    Cancel
-                  </button>
-                </form>
+              <div className="flex justify-end gap-2 mt-4">
+                <button type="button" onClick={() => editRef.current?.close()} className="btn px-4 py-2 rounded-md text-white bg-gray-400 hover:bg-gray-500">
+                  Cancel
+                </button>
+                <button type="submit" className="btn px-4 py-2 rounded-md text-white bg-blue-900 hover:bg-blue-800">
+                  Edit
+                </button>
               </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Edit
-              </button>
             </form>
           </div>
         </div>
       </dialog>
       <dialog id="my_modal_1" ref={modalRef} className="modal text-black">
-        <div className="modal-box w-11/12 max-w-2xl bg-white">
-          <div className="flex flex-col gap-3">
+        <div className="modal-box w-11/12 max-w-4xl bg-white">
+          <div className="flex flex-col gap-3 w-[450px]">
             <span className="page-title">Add Vendor</span>
             <form onSubmit={newVendorForm.handleSubmit(submit)} className="h-90 flex flex-col gap-3 relative">
               <fieldset className="fieldset">
@@ -327,21 +330,23 @@ export default function Vendor() {
                 <legend className="fieldset-legend text-black">Mobile</legend>
                 <input className="input w-full bg-white" {...newVendorForm.register("mobile")} type="text" />
               </fieldset>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend text-black">Tax Number</legend>
+                <input className="input w-full bg-white" {...newVendorForm.register("taxNumber")} type="text" placeholder="NPWP / KTP" />
+              </fieldset>
               <fieldset className="fieldset hidden">
                 <legend className="fieldset-legend text-black">Vendor ID</legend>
                 <input className="input w-full bg-white" {...newVendorForm.register("vendorId")} value={`vnd-${uuidv4().split('-')[1]}`} placeholder="vendor id" />
               </fieldset>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
-              <div className="modal-action">
-                <form method="dialog">
-                  <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                    Cancel
-                  </button>
-                </form>
+              <div className="flex justify-end gap-2 mt-4">
+                <button type="button" onClick={() => modalRef.current?.close()} className="btn px-4 py-2 rounded-md text-white bg-gray-400 hover:bg-gray-500">
+                  Cancel
+                </button>
+                <button type="submit" className="btn px-4 py-2 rounded-md text-white bg-blue-900 hover:bg-blue-800">
+                  Add
+                </button>
               </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Add
-              </button>
             </form>
           </div>
         </div>

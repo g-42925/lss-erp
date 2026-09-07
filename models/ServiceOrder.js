@@ -9,6 +9,8 @@ const orderSchema = new mongoose.Schema({
   contractType: { type: String, enum: ['Full', 'Trial', 'One Time'] },
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
+  handledBy: { type: String, enum: ['internal', 'vendor'], default: 'internal' },
+  vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' },
   salesOrderNumber: { type: String, required: true },
   price: { type: Number, required: true },
   range: { type: Number },

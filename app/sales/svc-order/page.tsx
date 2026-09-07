@@ -32,6 +32,7 @@ function XOrderContent() {
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
+  const [vendors, setVendors] = useState<any[]>([])
   const [quotations, setQuotations] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [contract, setContract] = useState<File | null>(null)
@@ -94,8 +95,13 @@ function XOrderContent() {
       payAmount: 0,
       periodStart: new Date().toISOString().split("T")[0],
       periodEnd: new Date().toISOString().split("T")[0],
+      handledBy: "internal",
+      vendorId: "",
     }
   })
+
+  const watchHandledBy = directOrderForm.watch("handledBy")
+  const watchEditHandledBy = editOrderForm.watch("handledBy")
 
   const watchContractType = directOrderForm.watch("contractType")
   const watchFrequency = directOrderForm.watch("frequency")
@@ -218,6 +224,14 @@ function XOrderContent() {
   })
 
   const getCustomersFn = useFetch<any, any>({
+    url: '',
+    method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getVendorsFn = useFetch<any, any>({
     url: '',
     method: 'GET',
     onError: (m) => {
@@ -437,6 +451,8 @@ function XOrderContent() {
       billed: order.billed,
       periodStart: order.periodStart ? new Date(order.periodStart).toISOString().split('T')[0] : "",
       periodEnd: order.periodEnd ? new Date(order.periodEnd).toISOString().split('T')[0] : "",
+      handledBy: order.handledBy || "internal",
+      vendorId: order.vendorId || "",
     })
     editRef.current?.showModal()
   }
@@ -460,6 +476,10 @@ function XOrderContent() {
     formData.append("billed", data.billed)
     formData.append("periodStart", data.periodStart || "")
     formData.append("periodEnd", data.periodEnd || "")
+    formData.append("handledBy", data.handledBy || "internal")
+    if (data.handledBy === "vendor") {
+      formData.append("vendorId", data.vendorId || "")
+    }
 
     if (editContract) {
       formData.append("contract", editContract as any)
@@ -489,6 +509,8 @@ function XOrderContent() {
           billed: data.billed,
           periodStart: data.periodStart,
           periodEnd: data.periodEnd,
+          handledBy: data.handledBy,
+          vendorId: data.handledBy === "vendor" ? data.vendorId : undefined,
         }
       })
     }
@@ -564,6 +586,7 @@ function XOrderContent() {
       const url3 = `/api/web/tax?id=${masterAccountId}`
       const url5 = `/api/web/service-csale?id=${masterAccountId}`
       const url6 = `/api/web/bank-accounts?id=${masterAccountId}`
+      const urlVendors = `/api/web/vendor?id=${masterAccountId}`
 
       const body = JSON.stringify({})
 
@@ -578,6 +601,10 @@ function XOrderContent() {
 
       getProductsFn.fn(urlProducts, body, (result) => {
         setProducts(result)
+      })
+
+      getVendorsFn.fn(urlVendors, body, (result) => {
+        setVendors(result)
       })
 
       getTaxesFn.fn(url3, body, (_) => { })
@@ -710,6 +737,28 @@ function XOrderContent() {
                   required
                 />
               </div>
+
+              {/* Handled By */}
+              <div className="flex flex-row items-center gap-3">
+                <label className="w-[110px] text-sm font-medium">Handled By</label>
+                <select {...directOrderForm.register("handledBy")} className="select flex-1">
+                  <option value="internal">Internal</option>
+                  <option value="vendor">Vendor</option>
+                </select>
+              </div>
+
+              {/* Vendor Selection */}
+              {watchHandledBy === "vendor" && (
+                <div className="flex flex-row items-center gap-3">
+                  <label className="w-[110px] text-sm font-medium">Select Vendor</label>
+                  <select {...directOrderForm.register("vendorId")} className="select flex-1" required>
+                    <option value="">Select Vendor</option>
+                    {vendors.map((v) => (
+                      <option key={v._id} value={v._id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Contract Type */}
               <div className="flex flex-row items-center gap-3">
@@ -1276,6 +1325,28 @@ function XOrderContent() {
               ))}
             </select>
           </div>
+
+          {/* Handled By */}
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Handled By</label>
+            <select {...editOrderForm.register("handledBy")} className="select flex-1">
+              <option value="internal">Internal</option>
+              <option value="vendor">Vendor</option>
+            </select>
+          </div>
+
+          {/* Vendor Selection */}
+          {watchEditHandledBy === "vendor" && (
+            <div className="flex flex-row items-center gap-3">
+              <label className="w-[110px] text-sm font-medium">Select Vendor</label>
+              <select {...editOrderForm.register("vendorId")} className="select flex-1" required>
+                <option value="">Select Vendor</option>
+                {vendors.map((v) => (
+                  <option key={v._id} value={v._id}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Contract Type</label>

@@ -6,6 +6,7 @@ const vendorSchema = new mongoose.Schema({
   email:{type:String,required:true},
   address:{type:String,required:true},
   mobile:{type:String,required:true},
+  taxNumber:{type:String,default:''},
   vendorOf:{type:mongoose.Schema.Types.ObjectId, required:true}
 });
 
