@@ -905,6 +905,8 @@ function XOrderContent() {
                           <th>Date</th>
                           <th>Contract Type</th>
                           <th>Customer</th>
+                          <th>Contract Start</th>
+                          <th>Contract End</th>
                           <th>Range</th>
                           <th>Frequency</th>
                           <th>Price</th>
@@ -925,6 +927,8 @@ function XOrderContent() {
                                   <td>{new Date(s.date).toLocaleDateString()}</td>
                                   <td>{s.contractType}</td>
                                   <td>{s.customCustomer ? s.customCustomer.name : s.customerId}</td>
+                                  <td>{new Date(s.periodStart).toLocaleDateString()}</td>
+                                  <td>{new Date(s.periodEnd).toLocaleDateString()}</td>
                                   <td>{s.range}</td>
                                   <td>{s.frequency}</td>
                                   <td>{new Intl.NumberFormat('id-ID').format(s.price)}</td>
