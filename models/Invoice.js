@@ -91,6 +91,10 @@ const invoiceSchema = new mongoose.Schema({
   void: {
     type: Boolean,
     default: false,
+  },
+  vendorPaid: {
+    type: Number,
+    default: 0
   }
 });
 

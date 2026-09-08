@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
-const { connectToDatabase } = require('./lib/mongodb');
-const User = require('./models/User').default || require('./models/User');
 
-async function main() {
-  await connectToDatabase();
-  const users = await User.find({ isSuperAdmin: false }).limit(2).lean();
-  console.log("Non-superadmin users:", JSON.stringify(users, null, 2));
+async function run() {
+  await mongoose.connect('mongodb+srv://new-user-31:Yntktsx1@cluster0.qwxmz.mongodb.net/erp');
+  const ServiceOrder = mongoose.connection.collection('serviceorders');
+  const orders = await ServiceOrder.find({ salesOrderNumber: { $in: ['SO-17932', 'SO-23908'] } }).toArray();
+  console.log(JSON.stringify(orders, null, 2));
   process.exit(0);
 }
-main().catch(console.error);
+run();

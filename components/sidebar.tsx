@@ -182,7 +182,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <SidebarItem href="/finance/procurement">Procurement Approval</SidebarItem>
                 <SidebarItem href="/finance/purchase-return">Purchase Return Approval</SidebarItem>
                 <SidebarItem href="/finance/debt">Debts</SidebarItem>
-                <SidebarItem href="/finance/svc-debt">Service Debt</SidebarItem>
                 <SidebarItem href="/finance/receivable">Receivable</SidebarItem>
                 <SidebarItem href="/finance/svc-receivable">Service Receivable</SidebarItem>
                 <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>

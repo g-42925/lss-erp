@@ -3,6 +3,7 @@ import Invoice from '@/models/Invoice'
 import ServiceOrder from "@/models/ServiceOrder"
 import Companie from '@/models/Companie'
 import Customer from '@/models/Customer'
+import Purchase from '@/models/Purchase'
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
@@ -38,10 +39,13 @@ export async function POST(request: NextRequest) {
     const periodStart = formData.get("periodStart") as string
     const periodEnd = formData.get("periodEnd") as string
     const taxNumberForm = formData.get("taxNumber") as string
-    
+
     const company = await Companie.findOne({ masterAccountId: id })
     const customer = await Customer.findOne({ bussinessName: customerName, customerOf: company._id })
     const taxNumberToUse = taxNumberForm || (customer && customer.taxNumber ? `${customer.taxType ? customer.taxType + ' ' : ''}${customer.taxNumber}`.trim() : '');
+
+    const handledBy = formData.get("handledBy") as string
+    const vendorId = formData.get("vendorId") as string
 
     const customCustomer = {
       name: customerName,
@@ -107,7 +111,9 @@ export async function POST(request: NextRequest) {
         periodStart: periodStart ? new Date(periodStart) : undefined,
         periodEnd: periodEnd ? new Date(periodEnd) : undefined,
         taxNumber: taxNumberToUse,
-        taxes: taxes ? JSON.parse(taxes) : []
+        taxes: taxes ? JSON.parse(taxes) : [],
+        handledBy: handledBy,
+        vendorId: vendorId,
       }
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
@@ -157,6 +163,8 @@ export async function POST(request: NextRequest) {
           pphDeduction: pphDeduction
         })
       }
+
+      // Vendor debt is now tracked dynamically via Invoice.vendorPaid
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
         await Invoice.create({
@@ -211,7 +219,9 @@ export async function POST(request: NextRequest) {
         periodStart: periodStart ? new Date(periodStart) : undefined,
         periodEnd: periodEnd ? new Date(periodEnd) : undefined,
         taxNumber: taxNumberToUse,
-        taxes: JSON.parse(taxes)
+        taxes: JSON.parse(taxes),
+        handledBy: handledBy,
+        vendorId: vendorId,
       }
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
@@ -273,6 +283,8 @@ export async function POST(request: NextRequest) {
           pphDeduction: pphDeduction
         })
       }
+
+      // Vendor debt is now tracked dynamically via Invoice.vendorPaid
 
       if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
         const _r = await Companie.findOne({ masterAccountId: id })
@@ -445,6 +457,9 @@ export async function PUT(request: NextRequest) {
     const periodEnd = formData.get("periodEnd") as string;
     customer.taxNumber = taxNumber;
 
+    const handledBy = formData.get("handledBy") as string
+    const vendorId = formData.get("vendorId") as string
+
     const updateData: any = {
       productId,
       contractType,
@@ -456,7 +471,9 @@ export async function PUT(request: NextRequest) {
       qty: parseInt(qty as string) || 1,
       periodStart: periodStart ? new Date(periodStart) : undefined,
       periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-      billed: billed
+      billed: billed,
+      handledBy: handledBy,
+      vendorId: vendorId,
     };
 
     if (contract) {

@@ -194,7 +194,7 @@ export async function PUT(request: NextRequest) {
 
         const amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
 
-        if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement') {
+        if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement' || rest.purchaseType === 'service') {
 
           await Log.create({
             purchaseId: _id,

@@ -101,7 +101,7 @@ export default function XPurchases() {
       status: 'requested',
       id: masterAccountId,
       date: new Date(),
-      purchaseType: 'payment',
+      purchaseType: 'service',
       createdBy: user
     })
 
@@ -146,7 +146,7 @@ export default function XPurchases() {
       ...data,
       action: 'convert_to_po',
       status: '_approved',
-      purchaseType: 'payment',
+      purchaseType: 'service',
       userId: user
     })
 
@@ -222,7 +222,7 @@ export default function XPurchases() {
     const pOrdered = JSON.stringify({
       ...data,
       status: '__approved',
-      purchaseType: 'payment',
+      purchaseType: 'service',
     })
 
     if (data.editable) {
@@ -290,7 +290,7 @@ export default function XPurchases() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=payment`
+      const url = `/api/web/purchases?id=${masterAccountId}&f=requested&type=service`
       const url2 = `/api/web/products?id=${masterAccountId}&type=service`
       const url4 = `/api/web/vendor?id=${masterAccountId}`
       const url3 = `/api/web/suppliers?id=${masterAccountId}`
