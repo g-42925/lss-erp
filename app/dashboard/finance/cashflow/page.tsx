@@ -447,7 +447,7 @@ export default function CashflowReportPage() {
 										fixedDecimalScale
 										allowNegative={false}
 										value={modalData.amount}
-										onValueChange={(values) => setModalData({ ...modalData, amount: values.floatValue ?? "" })}
+										onValueChange={(values) => setModalData({ ...modalData, amount: values.floatValue?.toString() ?? "" })}
 										className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-indigo-500 bg-slate-50"
 										placeholder="Contoh: 150000"
 									/>
