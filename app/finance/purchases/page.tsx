@@ -12,10 +12,9 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Edit03Icon, CheckmarkCircle01Icon, MultiplicationSignIcon } from '@hugeicons/core-free-icons';
 import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 
-export default function Purchases() {
+export default function PurchasesApproval() {
   const user = useAuth((state) => state.userId)
   const loggedIn = useAuth((state) => state.loggedIn)
-  const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const editRef = useRef<HTMLDialogElement>(null)
@@ -23,7 +22,7 @@ export default function Purchases() {
 
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [pr, setPr] = useState<any[]>([])
-
+  const [filterType, setFilterType] = useState<string>("product")
 
   const editPrForm = useForm()
   const router = useRouter()
@@ -49,27 +48,14 @@ export default function Purchases() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      // var result = roles.filter((r) => {
-      //   return r.name.includes(v)
-      // })
-
-      // if(result.length > 0){
-      //   setSearchResult(
-      //     [
-      //       ...result
-      //     ]
-      //   )
-      // }
-      // else{
-      //   setSearchResult(
-      //     []
-      //   )
-      // }
+      const result = pr.filter((r) => {
+        const name = filterType === 'service' ? r.description : r.product?.productName || r.product?.name;
+        return name?.toLowerCase().includes(v.toLowerCase())
+      })
+      setSearchResult(result)
     }
     else {
-      setSearchResult(
-        []
-      )
+      setSearchResult([])
     }
   }
 
@@ -80,7 +66,7 @@ export default function Purchases() {
     const pOrdered = JSON.stringify({
       ...data,
       status: '___approved',
-      purchaseType: 'product',
+      purchaseType: filterType,
       newPayAmt: amount,
       userId: user,
     })
@@ -88,9 +74,8 @@ export default function Purchases() {
     if (parseInt(data.payAmount) > data.finalPrice || data.payAmount < data.currPayAmt) {
       if (data.type === "adjustment") {
         await editFn.fn('', pOrdered, (result) => {
-          const [target] = pr.filter((r) => r._id == result._id)
-
-          target.payAmount = result.payAmount
+          const target = pr.find((r) => r._id == result._id)
+          if (target) target.payAmount = result.payAmount
           _editRef.current?.close()
         })
       }
@@ -100,9 +85,8 @@ export default function Purchases() {
     }
     else {
       await editFn.fn('', pOrdered, (result) => {
-        const [target] = pr.filter((r) => r._id == result._id)
-
-        target.payAmount = result.payAmount
+        const target = pr.find((r) => r._id == result._id)
+        if (target) target.payAmount = result.payAmount
         _editRef.current?.close()
       })
     }
@@ -124,7 +108,7 @@ export default function Purchases() {
 
 
     await editFn.fn('', makeParam(data), (result) => {
-      window.location.href = '/finance/purchases'
+      window.location.reload()
     })
   }
 
@@ -152,31 +136,35 @@ export default function Purchases() {
   }
 
   async function _edit(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
+    const filter = pr.find((p) => p._id == _id)
+    if (!filter) return;
 
     editPrForm.reset({
       _id: filter._id,
       quantity: filter.quantity,
       estimatedPrice: filter.estimatedPrice,
-      product: filter.product?.productName || 'Unknown Product',
+      product: filterType === 'service' ? filter.description : filter.product?.productName || filter.product?.name || 'Unknown Product',
       finalPrice: filter.finalPrice,
       currPayAmt: filter.payAmount,
       payAmount: filter.payAmount,
       supplierId: filter.supplierId,
+      vendorId: filter.vendorId,
       type: 'payment',
       payDate: new Date().toISOString().split('T')[0],
     })
 
     _editRef.current?.showModal()
   }
+
   async function edit(_id: string) {
-    const [filter] = pr.filter((p) => p._id == _id)
+    const filter = pr.find((p) => p._id == _id)
+    if (!filter) return;
 
     editPrForm.reset({
       _id: filter._id,
       quantity: filter.quantity,
       estimatedPrice: filter.estimatedPrice,
-      product: filter.product?.productName || 'Unknown Product',
+      product: filterType === 'service' ? filter.description : filter.product?.productName || filter.product?.name || 'Unknown Product',
       status: filter.status,
       currentStatus: filter.status
     })
@@ -186,38 +174,48 @@ export default function Purchases() {
 
   useEffect(() => {
     if (hasHydrated) {
-      const url = `/api/web/purchases?id=${masterAccountId}&type=product`
+      setSearchResult([]);
+      const url = `/api/web/purchases?id=${masterAccountId}&type=${filterType}`
 
       getFn.fn(url, JSON.stringify({}), (result) => {
         setPr(result)
       })
-
-
     }
-  }, [masterAccountId])
+  }, [masterAccountId, filterType])
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
-  // if (!isSuperAdmin) router.push('/dashboard')
 
 
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
-        <span className="page-title">Purchases</span>
+        <span className="page-title">Purchases Approval</span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <div className="flex flex-row gap-2 items-center">
-              Show
-              <select className="select w-16">
-                <option>20</option>
-                <option>30</option>
-                <option>40</option>
-              </select>
-              Entries
+              <button 
+                onClick={() => setFilterType('product')} 
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 ${filterType === 'product' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                Barang
+              </button>
+              <button 
+                onClick={() => setFilterType('service')} 
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 ${filterType === 'service' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                Jasa
+              </button>
+              <button 
+                onClick={() => setFilterType('procurement')} 
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 ${filterType === 'procurement' ? 'bg-blue-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+              >
+                Procurement
+              </button>
             </div>
-            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search" />
-            <button className="bg-black text-white rounded-full p-3">
+
+            <input onKeyUp={(e) => search((e.target as HTMLInputElement).value)} type="search" placeholder="Search" className="toolbar-search ml-auto" />
+            <button className="bg-black text-white rounded-full p-3 ml-2">
               <Link href="">
                 <HugeiconsIcon
                   icon={ArrowLeftRightIcon}
@@ -247,108 +245,91 @@ export default function Purchases() {
                       <thead>
                         <tr>
                           <th>Date</th>
-                          <th>Product</th>
+                          <th>Product/Service</th>
                           <th>Quantity</th>
                           <th>Estimated price</th>
                           <th>Final price</th>
-                          <th>Suppplier</th>
+                          <th>Supplier/Vendor</th>
                           <th>Received</th>
                           <th>Status</th>
-                          <th>Approval</th>
-                          <th>Voidment</th>
+                          {filterType !== 'service' && <th>Approval</th>}
+                          {filterType !== 'service' && <th>Voidment</th>}
                           <th>...</th>
                         </tr>
                       </thead>
                       <tbody>
                         {
-                          searchResult.length < 1
-                            ?
-                            pr.map((p, index) => {
-                              return (
-                                <tr key={index}>
-                                  <td>{new Date(p.date).toLocaleString('id-ID')}</td>
-                                  <td>{p.product?.productName || '-'}</td>
-                                  <td>{p.quantity} ({p.product?.conversionRatioX || '-'})</td>
-                                  <td>{p.estimatedPrice}</td>
-                                  <td>
-                                    {
-                                      p.status === "ordered" || p.status === "completed"
-                                        ?
-                                        p.finalPrice
-                                        :
-                                        0
-                                    }
-                                  </td>
-                                  <td>
-                                    {
-                                      p.status === "ordered" || p.status === "completed"
-                                        ?
-                                        p.supplier?.bussinessName || "-"
-                                        :
-                                        "-"
-                                    }
-                                  </td>
-                                  <td>{p.receivedQty} ({p.product?.conversionRatioX || '-'})</td>
-                                  <td>{p.status}</td>
+                          (searchResult.length > 0 ? searchResult : pr).map((p, index) => {
+                            const itemName = filterType === 'service' ? p.description : p.product?.productName || p.product?.name || '-';
+                            const unit = filterType === 'procurement' ? p.product?.unit : p.product?.conversionRatioX;
+                            const suppName = filterType === 'service' ? p.vendor?.name : p.supplier?.bussinessName || "-";
+                            return (
+                              <tr key={index}>
+                                <td>{new Date(p.date).toLocaleString('id-ID')}</td>
+                                <td>{itemName}</td>
+                                <td>{filterType === 'service' ? '-' : `${p.quantity} (${unit || '-'})`}</td>
+                                <td>{p.estimatedPrice}</td>
+                                <td>
+                                  {
+                                    p.status === "ordered" || p.status === "completed"
+                                      ?
+                                      p.finalPrice
+                                      :
+                                      0
+                                  }
+                                </td>
+                                <td>
+                                  {
+                                    p.status === "ordered" || p.status === "completed"
+                                      ?
+                                      suppName
+                                      :
+                                      "-"
+                                  }
+                                </td>
+                                <td>{filterType === 'service' ? '-' : `${p.receivedQty || 0} (${unit || '-'})`}</td>
+                                <td>{p.status}</td>
+                                {filterType !== 'service' && (
                                   <td>
                                     <span>{p.approvedBy?.name ?? "-"} ({p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('id-ID') : "-"})</span>
                                   </td>
+                                )}
+                                {filterType !== 'service' && (
                                   <td>
                                     <span>{p.voidedBy?.name ?? "-"} ({p.voidedAt ? new Date(p.voidedAt).toLocaleDateString('id-ID') : "-"})</span>
                                   </td>
-                                  <td className="flex flex-row gap-2 justify-center">
-                                    {
-                                      p.status === "requested" && (
-                                        <>
-                                          <button className="text-green-600" onClick={() => approve(p._id)} title="Approve">
-                                            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} color="currentColor" />
-                                          </button>
-                                          <button className="text-red-600" onClick={() => reject(p._id)} title="Reject">
-                                            <HugeiconsIcon icon={MultiplicationSignIcon} size={22} color="currentColor" />
-                                          </button>
-                                        </>
-                                      )
-                                    }
-                                    {
-                                      p.status !== "ordered" && p.status !== "requested" && (
-                                        <button disabled={p.status === "void"} onClick={() => edit(p._id)}>
-                                          <HugeiconsIcon icon={Edit03Icon} size={22} color="currentColor" strokeWidth={1.5} />
+                                )}
+                                <td className="flex flex-row gap-2 justify-center">
+                                  {
+                                    p.status === "requested" && (
+                                      <>
+                                        <button className="text-green-600" onClick={() => approve(p._id)} title="Approve">
+                                          <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} color="currentColor" />
                                         </button>
-                                      )
-                                    }
-                                    {
-                                      p.status === "ordered" && (
-                                        <button onClick={() => _edit(p._id)}>
-                                          <HugeiconsIcon icon={Edit03Icon} size={22} color="currentColor" strokeWidth={1.5} />
+                                        <button className="text-red-600" onClick={() => reject(p._id)} title="Reject">
+                                          <HugeiconsIcon icon={MultiplicationSignIcon} size={22} color="currentColor" />
                                         </button>
-                                      )
-                                    }
-                                  </td>
-                                </tr>
-                              )
-                            })
-                            :
-                            searchResult.map((role, index) => {
-                              return (
-                                <tr key={index}>
-                                  <td>{role.name}</td>
-                                  <td className="flex flex-row gap-3">
-                                    <button className="btn" onClick={() => edit(role._id)}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                      </svg>
-                                      Edit
-                                    </button>
-                                    <button className="btn">
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                      </svg>
-                                      Delete
-                                    </button>
-                                  </td>
-                                </tr>
-                              )
-                            })
+                                      </>
+                                    )
+                                  }
+                                  {
+                                    p.status !== "ordered" && p.status !== "requested" && (
+                                      <button disabled={p.status === "void"} onClick={() => edit(p._id)}>
+                                        <HugeiconsIcon icon={Edit03Icon} size={22} color="currentColor" strokeWidth={1.5} />
+                                      </button>
+                                    )
+                                  }
+                                  {
+                                    p.status === "ordered" && (
+                                      <button onClick={() => _edit(p._id)}>
+                                        <HugeiconsIcon icon={Edit03Icon} size={22} color="currentColor" strokeWidth={1.5} />
+                                      </button>
+                                    )
+                                  }
+                                </td>
+                              </tr>
+                            )
+                          })
                         }
                       </tbody>
                     </table>
@@ -363,13 +344,15 @@ export default function Purchases() {
             <span className="page-title">Edit purchase order</span>
             <form onSubmit={(e) => { void editPrForm.handleSubmit(editSubmit)(e); }} className="flex flex-col gap-3 pb-4">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product</legend>
+                <legend className="fieldset-legend">Product/Service</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
               </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
-              </fieldset>
+              {filterType !== 'service' && (
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Quantity</legend>
+                  <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
+                </fieldset>
+              )}
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Estimated price</legend>
                 <input className="input w-full" {...editPrForm.register("estimatedPrice")} type="text" readOnly />
@@ -384,19 +367,13 @@ export default function Purchases() {
                 </select>
               </fieldset>
               <div className="modal-action">
-                {
-                  /*
-                    <form method="dialog">
-                      <button className="btn p-3 rounded-md absolute bottom-0 right-16 text-white bg-gray-400">
-                        Cancel
-                      </button>		
-                    </form>
-                  */
-                }
+                <button type="button" onClick={() => editRef.current?.close()} className="btn p-3 rounded-md mr-2 text-black bg-gray-200">
+                  Cancel
+                </button>
+                <button type="submit" className="p-3 rounded-md text-white bg-blue-900">
+                  Save
+                </button>
               </div>
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Save
-              </button>
             </form>
           </div>
         </div>
@@ -404,16 +381,18 @@ export default function Purchases() {
       <dialog id="my_modal_3" ref={_editRef} className="modal text-black">
         <div className="modal-box w-11/12 max-w-2xl">
           <div className="flex flex-col ">
-            <span className="page-title">Edit purchase order</span>
+            <span className="page-title">Edit purchase order payment</span>
             <form onSubmit={(e) => { void editPrForm.handleSubmit(_editSubmit)(e); }} className="flex flex-col gap-3 pb-4">
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product</legend>
+                <legend className="fieldset-legend">Product/Service</legend>
                 <input className="input w-full" {...editPrForm.register("product")} type="text" readOnly />
               </fieldset>
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Quantity</legend>
-                <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
-              </fieldset>
+              {filterType !== 'service' && (
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Quantity</legend>
+                  <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
+                </fieldset>
+              )}
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Tanggal Pembayaran</legend>
                 <input className="input w-full" {...editPrForm.register("payDate")} type="date" required />
@@ -449,17 +428,18 @@ export default function Purchases() {
                   <></>
               }
               {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
-              <button type="submit" className="mt-auto ml-auto p-3 rounded-md text-white bg-blue-900">
-                Edit
-              </button>
+              <div className="mt-auto ml-auto flex gap-2">
+                <button type="button" onClick={() => _editRef.current?.close()} className="p-3 rounded-md text-black bg-gray-200">
+                  Cancel
+                </button>
+                <button type="submit" className="p-3 rounded-md text-white bg-blue-900">
+                  Save
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </dialog>
     </>
   )
-}
-
-type Failed = {
-  message: string
 }
