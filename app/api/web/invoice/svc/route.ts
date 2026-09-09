@@ -82,6 +82,39 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+
+  try {
+    await connectToDatabase()
+    const params = await request.json()
+
+    const invoice = await Invoice.findOne({
+      _id: params._id
+    })
+
+    if (!invoice) throw new Error("Invoice not found")
+
+    invoice.bankVoucher = params.bankVoucher
+
+    await invoice.save()
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Invoice updated",
+      result: invoice,
+      error: false
+    })
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: e instanceof Error ? e.message : 'Unknown error',
+      result: null,
+      error: true
+    })
+  }
+}
+
 export async function PUT(request: NextRequest) {
 
   function formatNumber(x: number) {

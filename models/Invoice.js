@@ -95,6 +95,10 @@ const invoiceSchema = new mongoose.Schema({
   vendorPaid: {
     type: Number,
     default: 0
+  },
+  bankVoucher: {
+    type: String,
+    required: false
   }
 });
 

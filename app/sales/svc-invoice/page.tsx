@@ -19,6 +19,7 @@ export default function Invoices() {
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
+  const [bankVouchers, setBankVouchers] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const modalRef = useRef<HTMLDialogElement>(null)
@@ -26,6 +27,7 @@ export default function Invoices() {
   const editInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const closeInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const paymentHistoryModalRef = useRef<HTMLDialogElement>(null)
+  const voucherModalRef = useRef<HTMLDialogElement>(null)
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>("")
@@ -33,6 +35,7 @@ export default function Invoices() {
   const [invoicesToPrint, setInvoicesToPrint] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [filterStatus, setFilterStatus] = useState<string>("unpaid")
+  const [voucherSearch, setVoucherSearch] = useState<string>("")
 
   function openInvoice(invoice: any) {
     setSelectedInvoice(invoice)
@@ -146,6 +149,19 @@ export default function Invoices() {
   const getTaxesFn = useFetch<any, any>({
     url: '',
     method: 'GET',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  const getBankVouchersFn = useFetch<any, any>({
+    url: '',
+    method: 'GET'
+  })
+
+  const setVoucherFn = useFetch<any, any>({
+    url: '/api/web/invoice/svc',
+    method: 'PATCH',
     onError: (m) => {
       alert(m)
     }
@@ -325,6 +341,42 @@ export default function Invoices() {
     }
   }
 
+
+  function openVoucherModal(invoice: any) {
+    setSelectedInvoice(invoice)
+    setVoucherSearch('')
+    const urlVoucher = `/api/web/bank-voucher?id=${masterAccountId}`
+    getBankVouchersFn.fn(urlVoucher, JSON.stringify({}), (result: any) => {
+      setBankVouchers(result || [])
+    })
+    voucherModalRef.current?.showModal()
+  }
+
+  function assignVoucher(voucher: any) {
+    const body = JSON.stringify({
+      _id: selectedInvoice._id,
+      voucherNumber: voucher.voucherNumber
+    })
+    setVoucherFn.fn('', body, () => {
+      const updated = { ...selectedInvoice, voucherNumber: voucher.voucherNumber }
+      getInvoicesFn.reset(
+        getInvoicesFn.result?.map((inv: any) =>
+          inv._id === selectedInvoice._id ? updated : inv
+        )
+      )
+      setSearchResult(
+        searchResult.map((inv: any) =>
+          inv._id === selectedInvoice._id ? updated : inv
+        )
+      )
+      setSelectedInvoice(updated)
+      voucherModalRef.current?.close()
+    })
+  }
+
+  function fDate(date: Date) {
+    return new Date(date).toLocaleDateString('id-ID')
+  }
 
   useEffect(() => {
     if (hasHydrated) {
@@ -528,6 +580,15 @@ export default function Invoices() {
                                         </svg>
                                       </button>
                                     )}
+                                    <button
+                                      className={s.voucherNumber ? 'text-emerald-600 hover:text-emerald-800' : 'text-gray-400 hover:text-blue-700'}
+                                      onClick={() => openVoucherModal(s)}
+                                      title={s.voucherNumber ? `Voucher: ${s.voucherNumber}` : 'Assign Bank Voucher'}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                                      </svg>
+                                    </button>
                                   </td>
                                 </tr>
                               )
@@ -909,6 +970,41 @@ export default function Invoices() {
               Print
             </button>
             <button type="button" onClick={() => invoiceModalRef.current?.close()} className="btn">Close</button>
+          </div>
+        </div>
+      </dialog>
+
+      {/* Voucher modal invoice */}
+      <dialog ref={voucherModalRef} className="modal h-full text-black print:hidden">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Assign Bank Voucher</h3>
+          <div className="py-4">
+            <input type="text" placeholder="Search voucher number" className="input input-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 w-full text-black" value={voucherSearch} onChange={(e) => setVoucherSearch(e.target.value)} />
+            <div className="mt-4 max-h-[400px] overflow-y-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Voucher Number</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>...</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bankVouchers.map((voucher: any) => (
+                    <tr key={voucher._id}>
+                      <td>{voucher.voucherNumber}</td>
+                      <td>{fDate(voucher.date)}</td>
+                      <td>{Number(voucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td><button className="btn btn-sm" onClick={() => assignVoucher(voucher)}>Assign</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="modal-action">
+            <button className="btn" onClick={() => voucherModalRef.current?.close()}>Close</button>
           </div>
         </div>
       </dialog>
