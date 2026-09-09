@@ -47,7 +47,7 @@ const cashflowSchema = new mongoose.Schema({
   to: {
     type: String,
     required: false
-  }
+  },
 }, { timestamps: true });
 
 // prevent Next.js HMR reload issues

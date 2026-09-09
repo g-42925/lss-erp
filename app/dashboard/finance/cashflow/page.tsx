@@ -57,6 +57,8 @@ export default function CashflowReportPage() {
 	const [isCashOut, setIsCashOut] = useState(false);
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+	const [selectedReference, setSelectedReference] = useState('')
+
 	// Modal state
 	const [showModal, setShowModal] = useState(false);
 	const [modalData, setModalData] = useState({
@@ -97,8 +99,10 @@ export default function CashflowReportPage() {
 
 			if (json.error) {
 				setError(json.message);
-			} else {
+			}
+			else {
 				const txs = json.result?.transactions || [];
+				console.log(JSON.stringify(txs))
 				// Sort ascending first to calculate running balance correctly
 				txs.sort((a: any, b: any) => {
 					const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -114,7 +118,8 @@ export default function CashflowReportPage() {
 				const txsWithBalance = txs.map((t: any) => {
 					if (t.type === 'in' || t.type === 'initial') {
 						currentBalance += t.amount;
-					} else {
+					}
+					else {
 						currentBalance -= t.amount;
 					}
 					return { ...t, balance: currentBalance };
@@ -142,7 +147,7 @@ export default function CashflowReportPage() {
 		try {
 			const isInitial = modalData.type === 'initial';
 			const additional: any = isInitial ? {} : (modalData.type === 'out' ? { to: modalData.to } : { from: modalData.from });
-			const reference = isInitial && !modalData.reference ? 'Saldo Awal' : modalData.reference;
+			const reference = isInitial && !modalData.reference ? `Saldo Awal-${selectedReference}` : modalData.reference;
 
 			const res = await fetch('/api/web/finance/reports/cashflow', {
 				method: 'POST',
@@ -197,6 +202,10 @@ export default function CashflowReportPage() {
 		const workbook = XLSX.utils.book_new()
 		XLSX.utils.book_append_sheet(workbook, worksheet, `Cashflow ${mode.charAt(0).toUpperCase() + mode.slice(1)}`)
 		XLSX.writeFile(workbook, `cashflow-${mode}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+	}
+
+	function isInitial(bankAccountId: string) {
+		return bankAccountId
 	}
 
 	if (!hasHydrated || !loggedIn) return null;
@@ -354,8 +363,11 @@ export default function CashflowReportPage() {
 													{t.source}
 												</span>
 											</td>
-											<td className="p-4 truncate max-w-[200px] text-slate-700" title={t.reference}>{t.reference}</td>
-											<td className="p-4 font-medium text-slate-600 capitalize">{t.method}</td>
+											{t.type === "initial" && <td>{t.reference.split('-')[0]}</td>}
+											{t.type != "initial" && <td>{t.reference}</td>}
+
+											{t.type === 'initial' && <td className="p-4 font-medium text-slate-600 capitalize">{t.method} - {t.reference.split('-')[1]}</td>}
+											{t.type !== 'initial' && <td className="p-4 font-medium text-slate-600 capitalize">{t.method}</td>}
 											<td className="p-4 whitespace-nowrap">
 												{t.type === 'in' && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">IN</span>}
 												{t.type === 'out' && <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">OUT</span>}
@@ -423,15 +435,15 @@ export default function CashflowReportPage() {
 									{modalData.accountType === 'bank' && (
 										<div className={modalData.type === 'initial' ? 'col-span-2' : ''}>
 											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Pilih Bank</label>
-											<select
-												required
-												value={modalData.bankAccountId}
-												onChange={(e) => setModalData({ ...modalData, bankAccountId: e.target.value })}
+											<select required onChange={(e) => {
+												setModalData({ ...modalData, bankAccountId: e.target.value.split('-')[0] })
+												if (modalData.type === 'initial') setSelectedReference(e.target.value.split('-')[1])
+											}}
 												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
 											>
 												<option value="">-- Pilih Bank --</option>
 												{bankAccounts.map(b => (
-													<option key={b._id} value={b._id}>{b.bank} - {b.accountName}</option>
+													<option key={b._id} value={`${b._id}-${b.accountNumber}`}>{b.accountName}</option>
 												))}
 											</select>
 										</div>
