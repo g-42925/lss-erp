@@ -992,7 +992,6 @@ function XOrderContent() {
                           <th>Price</th>
                           <th>Billed</th>
                           <th>Status</th>
-                          <th>Range</th>
                           <th>...</th>
                         </tr>
                       </thead>
@@ -1019,9 +1018,6 @@ function XOrderContent() {
                                       }`}>
                                       {s.status || 'active'}
                                     </span>
-                                  </td>
-                                  <td>
-                                    {s.range}
                                   </td>
                                   <td>
                                     <div className="dropdown dropdown-left dropdown-end">
