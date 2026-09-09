@@ -383,7 +383,7 @@ export async function GET(req: NextRequest) {
           date: { $gte: startOfMonth, $lte: endOfMonth }
         }
       },
-      { $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: '$estimatedPrice' } } }
+      { $group: { _id: '$status', count: { $sum: 1 }, total: { $sum: { $ifNull: ['$finalPrice', '$estimatedPrice'] } } } }
     ])
 
     // ── 10. Monthly revenue trend (last 6 months) ──

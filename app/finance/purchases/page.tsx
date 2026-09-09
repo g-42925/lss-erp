@@ -142,9 +142,8 @@ export default function PurchasesApproval() {
     editPrForm.reset({
       _id: filter._id,
       quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
-      product: filterType === 'service' ? filter.description : filter.product?.productName || filter.product?.name || 'Unknown Product',
       finalPrice: filter.finalPrice,
+      product: filterType === 'service' ? filter.description : filter.product?.productName || filter.product?.name || 'Unknown Product',
       currPayAmt: filter.payAmount,
       payAmount: filter.payAmount,
       supplierId: filter.supplierId,
@@ -162,8 +161,8 @@ export default function PurchasesApproval() {
 
     editPrForm.reset({
       _id: filter._id,
-      quantity: filter.quantity,
-      estimatedPrice: filter.estimatedPrice,
+      description: filter.description,
+      finalPrice: filter.finalPrice,
       product: filterType === 'service' ? filter.description : filter.product?.productName || filter.product?.name || 'Unknown Product',
       status: filter.status,
       currentStatus: filter.status
@@ -247,8 +246,8 @@ export default function PurchasesApproval() {
                           <th>Date</th>
                           <th>Product/Service</th>
                           <th>Quantity</th>
-                          <th>Estimated price</th>
-                          <th>Final price</th>
+                          <th>Price</th>
+                          <th>Pay Amount</th>
                           <th>Supplier/Vendor</th>
                           <th>Received</th>
                           <th>Status</th>
@@ -268,16 +267,8 @@ export default function PurchasesApproval() {
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
                                 <td>{itemName}</td>
                                 <td>{filterType === 'service' ? '-' : `${p.quantity} (${unit || '-'})`}</td>
-                                <td>{p.estimatedPrice}</td>
-                                <td>
-                                  {
-                                    p.status === "ordered" || p.status === "completed"
-                                      ?
-                                      p.finalPrice
-                                      :
-                                      0
-                                  }
-                                </td>
+                                <td>{p.finalPrice}</td>
+                                <td>{p.payAmount}</td>
                                 <td>
                                   {
                                     p.status === "ordered" || p.status === "completed"
@@ -353,9 +344,9 @@ export default function PurchasesApproval() {
                   <input className="input w-full" {...editPrForm.register("quantity")} type="text" readOnly />
                 </fieldset>
               )}
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Estimated price</legend>
-                <input className="input w-full" {...editPrForm.register("estimatedPrice")} type="text" readOnly />
+              <fieldset className="fieldset col-span-2">
+                <legend className="fieldset-legend">Price (Rp)</legend>
+                <input className="input w-full" {...editPrForm.register("finalPrice")} type="text" readOnly />
               </fieldset>
               <input type="hidden" {...editPrForm.register("currentStatus")} />
               <fieldset className="fieldset">

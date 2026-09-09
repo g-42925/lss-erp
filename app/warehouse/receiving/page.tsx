@@ -80,7 +80,7 @@ export default function Receiving() {
 
 
   async function editSubmit(data: any) {
-    const { max, product, estimatedPrice, supplier, finalPrice, locationId, ...rest } = data
+    const { max, product, supplier, finalPrice, locationId, ...rest } = data
     const qty = parseInt(data.receivedQty)
 
     if (!qty || qty <= 0) {

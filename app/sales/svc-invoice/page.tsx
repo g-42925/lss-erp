@@ -78,7 +78,7 @@ export default function Invoices() {
       newDate: data.date,
       newMethod: data.method
     }
-    
+
     closeInvoiceFn.fn('', JSON.stringify(params), (res) => {
       const updatedInvoice = res;
       getInvoicesFn.reset(
@@ -657,7 +657,7 @@ export default function Invoices() {
             <select {...closeInvoiceForm.register("paymentMethod")} className="select flex-1">
               <option value="Cash">Cash</option>
               {bankAccounts.map((b: any, i: number) => (
-                <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
+                <option key={i} value={`${b.bank} - ${b.accountNumber}`}>{b.bank} - {b.accountNumber}</option>
               ))}
             </select>
           </div>
@@ -713,8 +713,8 @@ export default function Invoices() {
                         <td>{Number(ph.amount).toLocaleString('id-ID')}</td>
                         <td>{ph.method}</td>
                         <td>
-                          <button 
-                            className="btn btn-xs bg-slate-200" 
+                          <button
+                            className="btn btn-xs bg-slate-200"
                             onClick={() => {
                               setEditingPaymentId(ph._id);
                               editPaymentForm.reset({

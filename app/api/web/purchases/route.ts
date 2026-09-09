@@ -28,10 +28,20 @@ export async function PUT(request: NextRequest) {
         case "edit_pr":
           await Purchase.findByIdAndUpdate(_id, {
             quantity: rest.quantity,
-            estimatedPrice: rest.estimatedPrice,
+            finalPrice: rest.finalPrice,
             productId: rest.productId
           });
           return NextResponse.json({ noResult: false, message: "PR updated", result: true, error: false });
+        case "apply_pph_tax":
+          await Purchase.findByIdAndUpdate(_id, {
+            finalPrice: rest.finalPrice,
+            grossFinalPrice: rest.grossFinalPrice,
+            pphTaxId: rest.pphTaxId,
+            pphTaxName: rest.pphTaxName,
+            pphTaxRate: rest.pphTaxRate,
+            pphDeduction: rest.pphDeduction,
+          });
+          return NextResponse.json({ noResult: false, message: "PPh tax applied", result: true, error: false });
         case "approve_pr":
           await Purchase.findByIdAndUpdate(_id, { status: "approved", approvedBy: rest.userId, approvedAt: new Date() });
           return NextResponse.json({ noResult: false, message: "PR approved", result: true, error: false });
