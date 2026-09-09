@@ -355,7 +355,7 @@ export default function CashflowReportPage() {
 												</span>
 											</td>
 											<td className="p-4 truncate max-w-[200px] text-slate-700" title={t.reference}>{t.reference}</td>
-											<td className="p-4 font-medium text-slate-600 capitalize">xxx</td>
+											<td className="p-4 font-medium text-slate-600 capitalize">{t.method}</td>
 											<td className="p-4 whitespace-nowrap">
 												{t.type === 'in' && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">IN</span>}
 												{t.type === 'out' && <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">OUT</span>}
