@@ -265,6 +265,7 @@ export default function CashflowReportPage() {
 
 					{mode === 'bank' && (
 						<select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50">
+							<option value="">-- Semua Bank --</option>
 							{bankAccounts.map(b => (
 								<option key={b._id} value={b._id}>
 									{b.bank} - {b.accountName}

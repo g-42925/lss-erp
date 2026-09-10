@@ -53,17 +53,35 @@ export async function GET(request: NextRequest) {
             return m.includes('cash') || m === 'tunai';
         };
 
-        const isBankMethod = (method: string, targetBankName?: string) => {
-            if (!method) return false;
-            const m = method.toLowerCase();
-            if (targetBankName) {
-                return m.includes(targetBankName.toLowerCase());
-            }
-
-            // If no specific bank, check against all banks or if it starts with transfer
-            if (m.startsWith('transfer')) return true;
-            return bankAccounts.some(b => m.includes(b.bank.toLowerCase()));
+        /**
+         * For non-initial transactions, method field has format: "BankName - AccountNumber"
+         * Extract account number by splitting on " - " and taking index 1.
+         * If a specific bankAccountId is selected, match by account number.
+         * If no specific bank (Semua Bank), just check that method contains " - " pattern (bank format).
+         */
+        const extractAccountNumberFromMethod = (method: string): string => {
+            if (!method) return '';
+            const parts = method.split(' - ');
+            return parts.length > 1 ? parts[1].trim() : '';
         };
+
+        const isBankMethod = (method: string, targetAccountNumber?: string) => {
+            if (!method) return false;
+            if (targetAccountNumber) {
+                // Match by account number extracted from method
+                const extracted = extractAccountNumberFromMethod(method);
+                return extracted === targetAccountNumber;
+            }
+            // Semua Bank: method must have the "bank - accountNumber" format
+            return method.includes(' - ');
+        };
+
+        // Pre-resolve target bank's account number once
+        let targetAccountNumber: string | undefined = undefined;
+        if (mode === 'bank' && bankAccountId) {
+            const targetBank = bankAccounts.find(b => b._id.toString() === bankAccountId);
+            targetAccountNumber = targetBank?.accountNumber;
+        }
 
         // Date filtering if provided
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,12 +143,8 @@ export async function GET(request: NextRequest) {
                 if (mode === 'cash') {
                     include = isCashMethod(pMethod);
                 } else {
-                    if (bankAccountId) {
-                        const targetBank = bankAccounts.find(b => b._id.toString() === bankAccountId);
-                        include = isBankMethod(pMethod, targetBank?.bank);
-                    } else {
-                        include = isBankMethod(pMethod);
-                    }
+                    // Non-initial: filter by account number extracted from method (format: "bank - accountNumber")
+                    include = isBankMethod(pMethod, targetAccountNumber);
                 }
 
                 if (include) {
@@ -167,12 +181,8 @@ export async function GET(request: NextRequest) {
             if (mode === 'cash') {
                 include = isCashMethod(pMethod);
             } else {
-                if (bankAccountId) {
-                    const targetBank = bankAccounts.find(b => b._id.toString() === bankAccountId);
-                    include = isBankMethod(pMethod, targetBank?.bank);
-                } else {
-                    include = isBankMethod(pMethod);
-                }
+                // Non-initial: filter by account number extracted from method (format: "bank - accountNumber")
+                include = isBankMethod(pMethod, targetAccountNumber);
             }
 
             if (include) {
