@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
   billed: { type: Number, default: 0 },
+  vendorPrice: { type: Number, default: 0 },
   taxNumber: { type: String, default: '' },
   cardIdNumber: { type: String, default: '' },
   frequency: { type: String, enum: ['Week', 'Month', 'Once'] },

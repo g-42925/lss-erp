@@ -6,6 +6,8 @@ import useFetch from "@/hooks/useFetch";
 import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import { NumericFormat } from "react-number-format";
+
 
 
 type FilterType = 'barang' | 'jasa' | 'vendor'
@@ -259,11 +261,10 @@ export default function Debt() {
               <button
                 key={tab.key}
                 onClick={() => handleFilterChange(tab.key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                  filterType === tab.key
-                    ? 'bg-blue-900 text-white border-blue-900'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-900'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${filterType === tab.key
+                  ? 'bg-blue-900 text-white border-blue-900'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-900'
+                  }`}
               >
                 {tab.label}
               </button>
@@ -333,7 +334,7 @@ export default function Debt() {
                             </td>
                             <td>
                               {(filterType === 'vendor'
-                                ? d.totalVendorAmount
+                                ? d.serviceOrder.vendorPrice
                                 : d.finalPrice)?.toLocaleString('id-ID')}
                             </td>
                             <td>

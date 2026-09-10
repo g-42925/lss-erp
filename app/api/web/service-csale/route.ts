@@ -371,7 +371,7 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { _id, taxes, action } = body;
+    const { _id, taxes, action, vendorPrice } = body;
 
     if (!_id) {
       return NextResponse.json({
@@ -398,6 +398,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({
         noResult: false,
         message: "Order reopened successfully",
+        result: {},
+        error: false,
+      });
+    }
+
+    // Handle vendorPrice update
+    if (typeof vendorPrice === 'number') {
+      await ServiceOrder.findByIdAndUpdate(_id, { vendorPrice });
+      return NextResponse.json({
+        noResult: false,
+        message: "Vendor price updated successfully",
         result: {},
         error: false,
       });

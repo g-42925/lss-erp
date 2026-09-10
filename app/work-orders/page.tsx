@@ -9,6 +9,7 @@ import Link from "next/link";
 import useFetch from "@/hooks/useFetch";
 import useAbsensiFetch from "@/hooks/useAbsensiFetch";
 import useAuth from "@/store/auth";
+import { formatDate } from "@/lib/utils";
 
 export default function WorkOrders() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
@@ -188,7 +189,7 @@ export default function WorkOrders() {
                 </thead>
                 <tbody>
                   {workOrders.map((wo, index) => {
-                    const validDate = wo.addedOn ? new Date(wo.addedOn).toLocaleDateString() : '';
+                    const validDate = wo.addedOn ? formatDate(wo.addedOn) : '';
                     const emp = employees.find(e => e.pegawai_id === wo.assignedTo || e.pegawaid_id === wo.assignedTo);
                     const employeeName = emp ? emp.nama_pegawai : wo.assignedTo;
                     return (
@@ -312,8 +313,8 @@ export default function WorkOrders() {
             <div className="grid grid-cols-2 gap-y-4 text-lg">
               <div><strong className="w-32 inline-block">Task Name</strong> : {selectedWoForPrint.taskName}</div>
               <div><strong className="w-32 inline-block">Status</strong> : <span className="uppercase font-semibold">{selectedWoForPrint.status}</span></div>
-              <div><strong className="w-32 inline-block">Start Date</strong> : {new Date(selectedWoForPrint.startTime).toLocaleDateString()}</div>
-              <div><strong className="w-32 inline-block">End Date</strong> : {new Date(selectedWoForPrint.endTime).toLocaleDateString()}</div>
+              <div><strong className="w-32 inline-block">Start Date</strong> : {formatDate(selectedWoForPrint.startTime)}</div>
+              <div><strong className="w-32 inline-block">End Date</strong> : {formatDate(selectedWoForPrint.endTime)}</div>
 
               <div className="col-span-2 mt-4">
                 <strong>Description :</strong>
@@ -321,7 +322,7 @@ export default function WorkOrders() {
               </div>
 
               <div className="mt-4"><strong className="w-32 inline-block">Requested By</strong> : {selectedWoForPrint.requestedBy}</div>
-              <div className="mt-4"><strong className="w-32 inline-block">Date Created</strong> : {new Date(selectedWoForPrint.addedOn).toLocaleDateString()}</div>
+              <div className="mt-4"><strong className="w-32 inline-block">Date Created</strong> : {formatDate(selectedWoForPrint.addedOn)}</div>
             </div>
 
             <div className="mt-20 flex justify-between px-10">

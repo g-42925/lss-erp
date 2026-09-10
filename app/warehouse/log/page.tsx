@@ -192,12 +192,12 @@ export default function Delivery() {
   })
 
   const printDate = new Date().toLocaleDateString('id-ID', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit'
   })
 
   const formatDateRange = () => {
-    const f = new Date(dateFrom).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
-    const t = new Date(dateTo).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+    const f = new Date(dateFrom).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const t = new Date(dateTo).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })
     return dateFrom === dateTo ? f : `${f} – ${t}`
   }
 

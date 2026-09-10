@@ -35,7 +35,7 @@ function fmtDate(d: string | null | undefined) {
   if (!d) return "—"
   return new Date(d).toLocaleDateString("id-ID", {
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
   })
 }
@@ -44,7 +44,7 @@ function fmtDateTime(d: string | null | undefined) {
   if (!d) return "—"
   return new Date(d).toLocaleString("id-ID", {
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import useFetch from "@/hooks/useFetch";
 import useAbsensiFetch from "@/hooks/useAbsensiFetch";
 import useAuth from "@/store/auth";
+import { formatDate } from "@/lib/utils";
 
 export default function WorkOrderReport() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
@@ -146,7 +147,7 @@ export default function WorkOrderReport() {
                 </thead>
                 <tbody>
                   {filteredWorkOrders.map((wo, index) => {
-                    const validDate = wo.addedOn ? new Date(wo.addedOn).toLocaleDateString() : '';
+                    const validDate = wo.addedOn ? formatDate(wo.addedOn) : '';
                     const emp = employees.find(e => e.pegawai_id === wo.assignedTo || e.pegawaid_id === wo.assignedTo);
                     const employeeName = emp ? emp.nama_pegawai : wo.assignedTo;
                     return (
@@ -154,8 +155,8 @@ export default function WorkOrderReport() {
                         <td>{validDate}</td>
                         <td className="font-semibold">{wo.taskName}</td>
                         <td>{employeeName}</td>
-                        <td>{new Date(wo.startTime).toLocaleDateString()}</td>
-                        <td>{new Date(wo.endTime).toLocaleDateString()}</td>
+                        <td>{formatDate(wo.startTime)}</td>
+                        <td>{formatDate(wo.endTime)}</td>
                         <td>
                           <span className={`badge ${wo.status === 'Pending' ? 'badge-warning' : wo.status === 'Completed' ? 'badge-success' : 'badge-neutral'}`}>
                             {wo.status}
@@ -196,7 +197,7 @@ export default function WorkOrderReport() {
             <div key={index} className="grid grid-cols-4 py-2 border-b border-gray-200">
               <div className="pr-2 pl-2 font-medium">{wo.taskName}</div>
               <div className="pr-2">{employeeName}</div>
-              <div className="text-sm pr-2">{new Date(wo.startTime).toLocaleDateString()} - {new Date(wo.endTime).toLocaleDateString()}</div>
+              <div className="text-sm pr-2">{formatDate(wo.startTime)} - {formatDate(wo.endTime)}</div>
               <div>{wo.status}</div>
             </div>
           )

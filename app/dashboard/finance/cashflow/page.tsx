@@ -102,7 +102,6 @@ export default function CashflowReportPage() {
 			}
 			else {
 				const txs = json.result?.transactions || [];
-				console.log(JSON.stringify(txs))
 				// Sort ascending first to calculate running balance correctly
 				txs.sort((a: any, b: any) => {
 					const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -189,7 +188,7 @@ export default function CashflowReportPage() {
 	function toExcel() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport')
 		const data = transactions.map(t => ({
-			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }),
+			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
 			'Dari': t.from || '-',
 			'Kepada': t.to || '-',
 			'Sumber': t.source,
@@ -351,13 +350,13 @@ export default function CashflowReportPage() {
 									(sortOrder === 'desc' ? [...transactions].reverse() : transactions).map((t: any, idx: number) => (
 										<tr key={t._id + idx} className="hover:bg-slate-50/50 transition-colors">
 											<td className="p-4 whitespace-nowrap font-medium text-slate-700">
-												{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}
+												{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })}
 											</td>
-											<td className="p-4 whitespace-nowrap">
-												{t.from || t.from === '' ? t.from : '-'}
+											<td className="p-4 whitespace-nowrap text-slate-600">
+												{t.from || <span className="text-slate-300">-</span>}
 											</td>
-											<td className="p-4 whitespace-nowrap">
-												{t.to || t.to == '' ? t.to : '-'}
+											<td className="p-4 whitespace-nowrap text-slate-600">
+												{t.to || <span className="text-slate-300">-</span>}
 											</td>
 											<td className="p-4 whitespace-nowrap">
 												<span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md">

@@ -276,7 +276,7 @@ export default function FinanceInvLogsPage() {
                       <td className="px-6 py-4 text-slate-400 text-xs max-w-[140px] truncate">{log.note || "—"}</td>
                       <td className="px-6 py-4 text-slate-400 text-xs whitespace-nowrap">
                         {new Date(log.created_at).toLocaleDateString("id-ID", {
-                          day: "2-digit", month: "short", year: "numeric"
+                          day: "2-digit", month: "2-digit", year: "numeric"
                         })}
                       </td>
                       <td className="px-6 py-4 text-center">{statusBadge(log.finance_status)}</td>

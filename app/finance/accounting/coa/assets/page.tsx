@@ -144,7 +144,7 @@ export default function AssetsReport() {
                       <tbody>
                         {data?.cash.logs.map((log: any, i: number) => (
                           <tr key={i} className="hover:bg-blue-50/30 transition-colors">
-                            <td className="py-4 font-medium text-slate-600">{new Date(log.date).toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                            <td className="py-4 font-medium text-slate-600">{new Date(log.date).toLocaleDateString("id-ID", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                             <td className="py-4"><span className="badge badge-ghost font-mono">{log.invoiceNumber}</span></td>
                             <td className="py-4 font-mono text-slate-500">{log.salesOrderNumber}</td>
                             <td className="py-4 text-right font-bold text-slate-800">{formatCurrency(log.amount)}</td>

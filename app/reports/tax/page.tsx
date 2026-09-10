@@ -25,7 +25,7 @@ function fmtDate(d: string | null | undefined) {
   if (!d) return "—"
   return new Date(d).toLocaleDateString("id-ID", {
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
   })
 }

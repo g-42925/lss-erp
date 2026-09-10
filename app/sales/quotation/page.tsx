@@ -5,6 +5,7 @@ import Link from "next/link";
 import { HugeiconsIcon } from '@hugeicons/react'
 import { AddCircleHalfDotIcon, Edit03Icon, Delete01Icon } from '@hugeicons/core-free-icons'
 import Swal from "sweetalert2";
+import { formatDate } from "@/lib/utils";
 
 export default function QuotationList() {
   return (
@@ -168,7 +169,7 @@ function QuotationListContent() {
           <tbody>
             {quotations.map((quo) => (
               <tr key={quo._id}>
-                <td>{new Date(quo.date).toLocaleDateString()}</td>
+                <td>{formatDate(quo.date)}</td>
                 <td>{quo.quotationNumber}</td>
                 <td>
                   {quo.customerId ? quo.customerId.name || quo.customerId.bussinessName : quo.customCustomer?.name || '-'}

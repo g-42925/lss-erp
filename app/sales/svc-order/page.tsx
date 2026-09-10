@@ -5,6 +5,7 @@
 import useAuth from "@/store/auth"
 import useFetch from '@/hooks/useFetch'
 import Link from "next/link"
+import { formatDate } from "@/lib/utils"
 
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -16,6 +17,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
 import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 import { PercentCircleIcon } from '@hugeicons/core-free-icons';
+import { NumericFormat } from "react-number-format";
 
 
 export default function XOrder() {
@@ -53,6 +55,7 @@ function XOrderContent() {
   const invoiceModalRef = useRef<HTMLDialogElement>(null)
   const applyTaxModalRef = useRef<HTMLDialogElement>(null)
   const closeConfirmRef = useRef<HTMLDialogElement>(null)
+  const vendorPriceModalRef = useRef<HTMLDialogElement>(null)
 
   const [applyTaxOrder, setApplyTaxOrder] = useState<any>(null)
   const [applyTaxSelected, setApplyTaxSelected] = useState<any[]>([])
@@ -63,6 +66,10 @@ function XOrderContent() {
   const [hidden, setHidden] = useState<boolean>(false)
   const [statusFilter, setStatusFilter] = useState<'active' | 'closed' | 'all'>('active')
   const [closeTargetOrder, setCloseTargetOrder] = useState<any>(null)
+  const [vendorPriceOrder, setVendorPriceOrder] = useState<any>(null)
+  const [vendorPriceValue, setVendorPriceValue] = useState<string>('')
+  const [vendorPriceLoading, setVendorPriceLoading] = useState(false)
+  const [vendorPriceError, setVendorPriceError] = useState(false)
 
   const [qProduct, setQProduct] = useState<string>('')
 
@@ -295,6 +302,40 @@ function XOrderContent() {
     })
   }
 
+
+  function openVendorPriceModal(order: any) {
+    setVendorPriceOrder(order)
+    setVendorPriceValue(String(order.vendorPrice ?? 0))
+    setVendorPriceError(false)
+    vendorPriceModalRef.current?.showModal()
+  }
+
+  async function submitVendorPrice() {
+    if (!vendorPriceOrder) return
+    setVendorPriceLoading(true)
+    setVendorPriceError(false)
+    try {
+      const res = await fetch('/api/web/service-csale', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ _id: vendorPriceOrder._id, vendorPrice: parseFloat(vendorPriceValue) || 0 }),
+      })
+      const json = await res.json()
+      if (json.error || json.noResult) {
+        setVendorPriceError(true)
+        return
+      }
+      setLocalOrders(prev =>
+        prev.map(o => o._id === vendorPriceOrder._id ? { ...o, vendorPrice: parseFloat(vendorPriceValue) || 0 } : o)
+      )
+      vendorPriceModalRef.current?.close()
+      setVendorPriceOrder(null)
+    } catch {
+      setVendorPriceError(true)
+    } finally {
+      setVendorPriceLoading(false)
+    }
+  }
 
   function submitInvoice(data: any) {
     const params = {
@@ -1006,8 +1047,8 @@ function XOrderContent() {
                                   <td>{products.filter(p => p._id === s.productId)[0]?.productName ?? '-'}</td>
                                   <td>{s.contractType}</td>
                                   <td>{s.customCustomer ? s.customCustomer.name : s.customerId}</td>
-                                  <td>{new Date(s.periodStart).toLocaleDateString()}</td>
-                                  <td>{new Date(s.periodEnd).toLocaleDateString()}</td>
+                                  <td>{formatDate(s.periodStart)}</td>
+                                  <td>{formatDate(s.periodEnd)}</td>
                                   <td>{s.frequency}</td>
                                   <td>{new Intl.NumberFormat('id-ID').format(s.price)}</td>
                                   <td>{s.billed}</td>
@@ -1064,6 +1105,16 @@ function XOrderContent() {
                                             )}
                                           </button>
                                         </li>
+                                        {s.handledBy !== 'internal' && (
+                                          <li>
+                                            <button onClick={() => openVendorPriceModal(s)} className="flex items-center gap-2 text-amber-700">
+                                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                              </svg>
+                                              Harga Vendor
+                                            </button>
+                                          </li>
+                                        )}
                                         <li>
                                           <button onClick={() => openEditModal(s)} className="text-gray-900 flex items-center gap-2">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-4">
@@ -1394,6 +1445,79 @@ function XOrderContent() {
             </button>
           </div>
         </form>
+      </dialog>
+
+      {/* Vendor Price Modal */}
+      <dialog ref={vendorPriceModalRef} className="modal h-full text-black">
+        <div className="modal-box flex flex-col gap-4 max-w-sm">
+          <h3 className="text-lg font-bold">Edit Harga Vendor</h3>
+          {vendorPriceOrder && (
+            <div className="bg-slate-50 rounded-lg p-3 text-sm flex flex-col gap-1">
+              <span className="font-medium text-slate-700">{vendorPriceOrder.salesOrderNumber}</span>
+              <span className="text-slate-500">{vendorPriceOrder.customCustomer?.name || vendorPriceOrder.customerId}</span>
+              <span className="text-slate-400 text-xs">Harga jual: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(vendorPriceOrder.price)}</span>
+            </div>
+          )}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-600">Harga Vendor (Vendor Price)</label>
+            <label className="input w-full">
+              <span className="text-slate-400 text-sm">Rp</span>
+              <NumericFormat
+                value={vendorPriceValue}
+                onValueChange={(values) => setVendorPriceValue(values.floatValue?.toString() ?? '')}
+                thousandSeparator=","
+                decimalSeparator="."
+                allowNegative={false}
+                placeholder="0"
+                className="flex-1"
+              />
+            </label>
+          </div>
+          {vendorPriceOrder && Number(vendorPriceValue) > 0 && (
+            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-sm flex flex-col gap-1">
+              <div className="flex justify-between text-slate-600">
+                <span>Harga Jual</span>
+                <span>{new Intl.NumberFormat('id-ID').format(vendorPriceOrder.price)}</span>
+              </div>
+              <div className="flex justify-between text-amber-700">
+                <span>Harga Vendor</span>
+                <span>{new Intl.NumberFormat('id-ID').format(Number(vendorPriceValue))}</span>
+              </div>
+              <div className="flex justify-between font-bold border-t border-amber-200 mt-1 pt-1 text-slate-800">
+                <span>Margin</span>
+                <span className={vendorPriceOrder.price - Number(vendorPriceValue) >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                  {new Intl.NumberFormat('id-ID').format(vendorPriceOrder.price - Number(vendorPriceValue))}
+                </span>
+              </div>
+            </div>
+          )}
+          {vendorPriceError && (
+            <p className="text-red-600 text-sm">Terjadi kesalahan. Silakan coba lagi.</p>
+          )}
+          <div className="flex flex-row gap-3 modal-action mt-0">
+            <button
+              type="button"
+              className="btn flex-1"
+              onClick={() => {
+                vendorPriceModalRef.current?.close()
+                setVendorPriceOrder(null)
+              }}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={vendorPriceLoading}
+              onClick={submitVendorPrice}
+              className="btn bg-amber-600 text-white flex-1"
+            >
+              {vendorPriceLoading
+                ? <span className="loading loading-spinner loading-sm"></span>
+                : 'Simpan'
+              }
+            </button>
+          </div>
+        </div>
       </dialog>
 
       {/* Close Order Confirmation Modal */}

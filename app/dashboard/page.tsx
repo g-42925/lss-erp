@@ -59,7 +59,7 @@ const SHORT_IDR = (v: number) => {
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
-const fmtDate = (d: string) => new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })
 
 function pct(val: number) {
   const s = val > 0 ? `+${val.toFixed(1)}` : val.toFixed(1)
@@ -214,7 +214,7 @@ export default function DashboardPage() {
       <div className="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-100 px-6 py-3 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-extrabold text-slate-800 leading-tight">Dashboard ERP</h1>
-          <p className="text-xs text-slate-400">{companyName} &middot; {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+          <p className="text-xs text-slate-400">{companyName} &middot; {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-400 hidden sm:block">

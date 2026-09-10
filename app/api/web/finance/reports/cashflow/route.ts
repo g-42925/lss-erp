@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
         for (const inv of invoices) {
             if (!inv.paymentHistory) continue;
-            
+
             for (const payment of inv.paymentHistory) {
                 if (payment.reverted) continue;
 
@@ -156,7 +156,8 @@ export async function GET(request: NextRequest) {
                         reference: inv.invoiceNumber,
                         source: 'Sales Invoice',
                         type: 'in',
-                        from: fromName
+                        from: fromName,
+                        bankVoucher: inv.bankVoucher ?? '-'
                     });
                 }
             }
@@ -195,7 +196,7 @@ export async function GET(request: NextRequest) {
                     reference: (log.paymentNumber || '') + (relatedPurchase ? ` (${relatedPurchase.purchaseOrderNumber})` : ''),
                     source: 'Purchase Payment',
                     type: 'out',
-                    to: log.to.name
+                    to: log.to?.name
                 });
             }
         });

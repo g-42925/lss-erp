@@ -44,7 +44,7 @@ export default function BankVoucherPage() {
   const today = new Date();
   const formattedToday = today.toLocaleDateString('id-ID', {
     day: '2-digit',
-    month: 'long',
+    month: '2-digit',
     year: 'numeric'
   });
 

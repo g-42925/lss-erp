@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!invoice) throw new Error("Invoice not found")
 
-    invoice.bankVoucher = params.bankVoucher
+    invoice.bankVoucher = params.voucherNumber
 
     await invoice.save()
 

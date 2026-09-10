@@ -38,7 +38,7 @@ function firstOfMonthStr() {
 }
 function fmtDate(d: string) {
   if (!d) return "—"
-  return new Date(d).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+  return new Date(d).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────

@@ -33,7 +33,7 @@ const STATUS_OPTIONS = [
 ]
 
 const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+  new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })
 
 function Badge({ value, options }: { value: string; options: { value: string; label: string; color: string }[] }) {
   const opt = options.find(o => o.value === value)

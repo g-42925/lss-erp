@@ -6,6 +6,7 @@ import useFetch from "@/hooks/useFetch"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import * as XLSX from 'xlsx'
+import { formatDate } from "@/lib/utils"
 
 export default function BankReport() {
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -231,7 +232,7 @@ export default function BankReport() {
               <p className="text-sm text-gray-500 mt-1">{selectedBank?.accountName} ({selectedBank?.accountNumber})</p>
               {(startDate || endDate) && (
                 <p className="text-xs font-semibold text-blue-800 bg-blue-50 inline-block px-2 py-1 rounded mt-2">
-                    Filtered: {startDate ? new Date(startDate).toLocaleDateString() : 'Start'} - {endDate ? new Date(endDate).toLocaleDateString() : 'End'}
+                    Filtered: {startDate ? formatDate(startDate) : 'Start'} - {endDate ? formatDate(endDate) : 'End'}
                 </p>
               )}
             </div>
