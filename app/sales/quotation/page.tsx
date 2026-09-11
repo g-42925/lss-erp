@@ -116,7 +116,8 @@ function QuotationListContent() {
         Swal.fire('Success!', 'Quotation berhasil disalin.', 'success')
         setCopyModalOpen(false)
         fetchQuotations()
-      } else {
+      }
+      else {
         Swal.fire('Error!', data.message, 'error')
       }
     } catch (err) {
@@ -216,7 +217,7 @@ function QuotationListContent() {
                 <label className="label"><span className="label-text">Nama Customer Baru</span></label>
                 <input type="text" className="input input-bordered" required value={copyCustomer} onChange={e => setCopyCustomer(e.target.value)} />
               </div>
-              
+
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-semibold">Opsi Harga</span>

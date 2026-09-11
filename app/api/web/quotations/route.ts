@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
 
     const count = await Quotation.countDocuments({ companyId: company[0]._id });
     const date = new Date();
-    const prefix = `QUO-${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-    const quotationNumber = `${prefix}-${(count + 1).toString().padStart(4, '0')}`;
+    const prefix = `QUO-${company[0].invoiceCode}-${date.getFullYear().toString().slice(-2)}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+    const quotationNumber = `${prefix}-${(count + 1).toString().padStart(3, '0')}`;
 
     const quotation = await Quotation.create({
       ...body,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectToDatabase();
-    
+
     const company = await Companie.find({
       masterAccountId: masterAccountId,
     });
