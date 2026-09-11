@@ -259,8 +259,8 @@ export async function PUT(request: NextRequest) {
       
       let totalPayAmount = 0;
       let paymentFound = false;
-      
-      invoice.paymentHistory = invoice.paymentHistory.map((ph: any) => {
+
+      invoice.paymentHistory.forEach((ph: any) => {
         if (ph._id && ph._id.toString() === paymentHistoryId.toString()) {
           paymentFound = true;
           if (params.newAmount !== undefined) ph.amount = Number(params.newAmount);
@@ -270,7 +270,6 @@ export async function PUT(request: NextRequest) {
         if (!ph.reverted) {
           totalPayAmount += ph.amount;
         }
-        return ph;
       });
       
       if (paymentFound) {
