@@ -1,6 +1,10 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
-import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client
+} from "@aws-sdk/client-s3";
 
 import Invoice from "@/models/Invoice";
 import ServiceOrder from "@/models/ServiceOrder";
@@ -19,6 +23,8 @@ type CustomerData = {
   taxNumber: string;
 };
 
+type InvoiceStatus = "active" | "draft";
+
 function formatNumber(value: number) {
   return String(value).padStart(4, "0");
 }
@@ -31,7 +37,10 @@ function getInvoiceNumber(invoiceCode: string, count: number) {
   return `${invoiceCode}${year}${month}${formatNumber(count + 1)}`;
 }
 
-function parseNumber(value: FormDataEntryValue | null, fallback = 0) {
+function parseNumber(
+  value: FormDataEntryValue | null,
+  fallback = 0
+) {
   if (typeof value !== "string") return fallback;
 
   const number = Number(value);
@@ -44,7 +53,9 @@ function parseDate(value: FormDataEntryValue | null) {
 
   const date = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  return Number.isNaN(date.getTime())
+    ? undefined
+    : date;
 }
 
 function parseTaxes(value: FormDataEntryValue | null): Tax[] {
@@ -55,14 +66,30 @@ function parseTaxes(value: FormDataEntryValue | null): Tax[] {
   return Array.isArray(parsed) ? parsed : [];
 }
 
+function parseInvoiceStatus(
+  value: FormDataEntryValue | null
+): InvoiceStatus {
+  if (value !== "active" && value !== "draft") {
+    throw new Error("Invalid invoice status");
+  }
+
+  return value;
+}
+
 function getPphDeduction(taxes: Tax[]) {
   return taxes.reduce(
-    (total, tax) => total + (tax.isPPh ? Number(tax.taxValue) || 0 : 0),
+    (total, tax) =>
+      total +
+      (tax.isPPh ? Number(tax.taxValue) || 0 : 0),
     0
   );
 }
 
-function isInitialInvoice(contractType: string, frequency: string, range: number) {
+function isInitialInvoice(
+  contractType: string,
+  frequency: string,
+  range: number
+) {
   return (
     contractType === "One Time" &&
     (
@@ -70,6 +97,18 @@ function isInitialInvoice(contractType: string, frequency: string, range: number
       (frequency === "Month" && range < 2)
     )
   );
+}
+
+function createS3Client() {
+  return new S3Client({
+    forcePathStyle: true,
+    region: process.env.S3_REGION!,
+    endpoint: process.env.S3_ENDPOINT!,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY!,
+      secretAccessKey: process.env.S3_SECRET_KEY!
+    }
+  });
 }
 
 async function createInvoice({
@@ -93,13 +132,11 @@ async function createInvoice({
     companyId: company._id
   });
 
-  const invoiceNumber = getInvoiceNumber(
-    company.invoiceCode,
-    invoiceCount
-  );
-
   return Invoice.create({
-    invoiceNumber,
+    invoiceNumber: getInvoiceNumber(
+      company.invoiceCode,
+      invoiceCount
+    ),
     companyId: company._id,
     invoiceType: "service",
     salesOrderId: serviceOrder._id,
@@ -109,14 +146,15 @@ async function createInvoice({
     date: new Date(),
     status: "draft",
 
-    paymentHistory: payAmount > 0
-      ? [{
-        amount: payAmount,
-        date: new Date(),
-        method: paymentMethod || "Cash",
-        reverted: false
-      }]
-      : [],
+    paymentHistory:
+      payAmount > 0
+        ? [{
+          amount: payAmount,
+          date: new Date(),
+          method: paymentMethod || "Cash",
+          reverted: false
+        }]
+        : [],
 
     pphDeduction: getPphDeduction(taxes),
     price,
@@ -125,7 +163,10 @@ async function createInvoice({
   });
 }
 
-function jsonError(message: string, status = 500) {
+function jsonError(
+  message: string,
+  status = 500
+) {
   return NextResponse.json(
     {
       noResult: true,
@@ -137,13 +178,41 @@ function jsonError(message: string, status = 500) {
   );
 }
 
-function jsonSuccess(message: string, result: unknown = {}) {
+function jsonSuccess(
+  message: string,
+  result: unknown = {}
+) {
   return NextResponse.json({
     noResult: false,
     message,
     result,
     error: false
   });
+}
+
+async function uploadContract(
+  company: any,
+  file: File,
+  key: string,
+  metadata?: Record<string, string>
+) {
+  const buffer = Buffer.from(
+    await file.arrayBuffer()
+  );
+
+  const s3 = createS3Client();
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: key,
+      Body: buffer,
+      ContentType: file.type,
+      Metadata: metadata
+    })
+  );
+
+  return s3;
 }
 
 export async function POST(request: NextRequest) {
@@ -153,46 +222,78 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     const id = formData.get("id") as string;
-    const customerName = formData.get("customerName") as string;
-    const address = formData.get("address") as string;
-    const productId = formData.get("productId") as string;
+    const customerName =
+      formData.get("customerName") as string;
+    const address =
+      formData.get("address") as string;
+    const productId =
+      formData.get("productId") as string;
 
-    const contractType = formData.get("contractType") as string;
-    const frequency = formData.get("frequency") as string;
+    const contractType =
+      formData.get("contractType") as string;
+    const frequency =
+      formData.get("frequency") as string;
 
-    const price = parseNumber(formData.get("price"));
-    const qty = parseNumber(formData.get("qty"), 1);
-    const range = parseNumber(formData.get("range"));
+    const price = parseNumber(
+      formData.get("price")
+    );
+    const qty = parseNumber(
+      formData.get("qty"),
+      1
+    );
+    const range = parseNumber(
+      formData.get("range")
+    );
 
-    const debt = parseNumber(formData.get("debt"));
-    const payTerm = parseNumber(formData.get("payTerm"));
+    const debt = parseNumber(
+      formData.get("debt")
+    );
+    const payTerm = parseNumber(
+      formData.get("payTerm")
+    );
 
-    const dueDate = formData.get("dueDate") as string;
-    const paymentMethod = formData.get("paymentMethod") as string;
-    const payAmount = parseNumber(formData.get("payAmount"));
+    const dueDate =
+      formData.get("dueDate") as string;
+    const paymentMethod =
+      formData.get("paymentMethod") as string;
+    const payAmount = parseNumber(
+      formData.get("payAmount")
+    );
 
     const contract = formData.get("contract");
-    const taxes = parseTaxes(formData.get("taxes"));
+    const taxes = parseTaxes(
+      formData.get("taxes")
+    );
 
-    const periodStart = parseDate(formData.get("periodStart"));
-    const periodEnd = parseDate(formData.get("periodEnd"));
+    const periodStart = parseDate(
+      formData.get("periodStart")
+    );
+    const periodEnd = parseDate(
+      formData.get("periodEnd")
+    );
 
-    const taxNumberForm = formData.get("taxNumber") as string;
-    const handledBy = formData.get("handledBy") as string;
-    const vendorId = formData.get("vendorId") as string;
+    const taxNumberForm =
+      formData.get("taxNumber") as string;
+    const handledBy =
+      formData.get("handledBy") as string;
+    const vendorId =
+      formData.get("vendorId") as string;
 
     const company = await Companie.findOne({
       masterAccountId: id
     });
 
-    if (!company) throw new Error("Company not found");
+    if (!company) {
+      throw new Error("Company not found");
+    }
 
     const customer = await Customer.findOne({
       bussinessName: customerName,
       customerOf: company._id
     });
 
-    const taxNumber = taxNumberForm ||
+    const taxNumber =
+      taxNumberForm ||
       (
         customer?.taxNumber
           ? `${customer.taxType ? `${customer.taxType} ` : ""}${customer.taxNumber}`.trim()
@@ -207,35 +308,28 @@ export async function POST(request: NextRequest) {
 
     let contractUrl: string | undefined;
 
-    if (contract instanceof File && contract.size > 0) {
+    if (
+      contract instanceof File &&
+      contract.size > 0
+    ) {
       const fileName =
-        (formData.get("fileName") as string) || contract.name;
+        (formData.get("fileName") as string) ||
+        contract.name;
 
-      const buffer = Buffer.from(await contract.arrayBuffer());
+      const folder =
+        `erp_${company.email.split("@")[0]}`;
 
-      const s3 = new S3Client({
-        forcePathStyle: true,
-        region: process.env.S3_REGION!,
-        endpoint: process.env.S3_ENDPOINT!,
-        credentials: {
-          accessKeyId: process.env.S3_ACCESS_KEY!,
-          secretAccessKey: process.env.S3_SECRET_KEY!
-        }
-      });
+      const key =
+        `${folder}/contracts/${fileName}`;
 
-      const folder = `erp_${company.email.split("@")[0]}`;
-
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET!,
-          Key: `${folder}/contracts/${fileName}`,
-          Body: buffer,
-          ContentType: contract.type
-        })
+      await uploadContract(
+        company,
+        contract,
+        key
       );
 
       contractUrl =
-        `https://leryn-ljm-3.b-cdn.net/${folder}/contracts/${fileName}`;
+        `https://leryn-ljm-3.b-cdn.net/${key}`;
     }
 
     const serviceOrderData = {
@@ -259,7 +353,8 @@ export async function POST(request: NextRequest) {
 
       date: new Date(),
       productType: "service",
-      salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
+      salesOrderNumber:
+        `SO-${String(Date.now()).slice(-5)}`,
 
       periodStart,
       periodEnd,
@@ -276,31 +371,48 @@ export async function POST(request: NextRequest) {
       frequency === "Month" &&
       range > 1
     ) {
-      delete (serviceOrderData as Partial<typeof serviceOrderData>).payTerm;
+      delete (
+        serviceOrderData as
+        Partial<typeof serviceOrderData>
+      ).payTerm;
     }
 
     if (
       contractType === "Full" ||
       contractType === "Trial"
     ) {
-      delete (serviceOrderData as Partial<typeof serviceOrderData>).paymentMethod;
-      delete (serviceOrderData as Partial<typeof serviceOrderData>).debt;
-      delete (serviceOrderData as Partial<typeof serviceOrderData>).payAmount;
-      delete (serviceOrderData as Partial<typeof serviceOrderData>).payTerm;
+      const data =
+        serviceOrderData as
+        Partial<typeof serviceOrderData>;
+
+      delete data.paymentMethod;
+      delete data.debt;
+      delete data.payAmount;
+      delete data.payTerm;
     }
 
     if (
       contractType === "One Time" &&
       frequency === "Once"
     ) {
-      delete (serviceOrderData as Partial<typeof serviceOrderData>).dueDate;
+      delete (
+        serviceOrderData as
+        Partial<typeof serviceOrderData>
+      ).dueDate;
     }
 
-    const serviceOrder = await ServiceOrder.create(
-      serviceOrderData
-    );
+    const serviceOrder =
+      await ServiceOrder.create(
+        serviceOrderData
+      );
 
-    if (isInitialInvoice(contractType, frequency, range)) {
+    if (
+      isInitialInvoice(
+        contractType,
+        frequency,
+        range
+      )
+    ) {
       await createInvoice({
         company,
         serviceOrder,
@@ -318,93 +430,114 @@ export async function POST(request: NextRequest) {
     console.error(e);
 
     return jsonError(
-      e instanceof Error ? e.message : "Unknown error"
+      e instanceof Error
+        ? e.message
+        : "Unknown error"
     );
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest
+) {
   try {
     await connectToDatabase();
 
     const url = new URL(request.url);
 
-    const id = url.searchParams.get("id");
-    const type = url.searchParams.get("type") || "orders";
+    const id =
+      url.searchParams.get("id");
+    const type =
+      url.searchParams.get("type") ||
+      "orders";
 
     const company = await Companie.findOne({
       masterAccountId: id
     });
 
-    if (!company) throw new Error("Company not found");
-
-    if (type === "invoices") {
-      const invoices = await Invoice.aggregate([
-        {
-          $match: {
-            companyId: company._id,
-            invoiceType: "service",
-            status: "active"
-          }
-        },
-        {
-          $lookup: {
-            from: "serviceorders",
-            localField: "salesOrderId",
-            foreignField: "_id",
-            as: "order"
-          }
-        },
-        {
-          $unwind: "$order"
-        },
-        {
-          $lookup: {
-            from: "customers",
-            localField: "order.customerId",
-            foreignField: "_id",
-            as: "order.customer"
-          }
-        },
-        {
-          $unwind: {
-            path: "$order.customer",
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $lookup: {
-            from: "products",
-            localField: "order.productId",
-            foreignField: "_id",
-            as: "order.product"
-          }
-        },
-        {
-          $unwind: {
-            path: "$order.product",
-            preserveNullAndEmptyArrays: true
-          }
-        }
-      ]);
-
-      return jsonSuccess("", invoices);
+    if (!company) {
+      throw new Error("Company not found");
     }
 
-    const orders = await ServiceOrder.find({
-      companyId: company._id
-    });
+    if (type === "invoices") {
+      const invoices =
+        await Invoice.aggregate([
+          {
+            $match: {
+              companyId: company._id,
+              invoiceType: "service",
+              status: "active"
+            }
+          },
+          {
+            $lookup: {
+              from: "serviceorders",
+              localField: "salesOrderId",
+              foreignField: "_id",
+              as: "order"
+            }
+          },
+          {
+            $unwind: "$order"
+          },
+          {
+            $lookup: {
+              from: "customers",
+              localField: "order.customerId",
+              foreignField: "_id",
+              as: "order.customer"
+            }
+          },
+          {
+            $unwind: {
+              path: "$order.customer",
+              preserveNullAndEmptyArrays: true
+            }
+          },
+          {
+            $lookup: {
+              from: "products",
+              localField: "order.productId",
+              foreignField: "_id",
+              as: "order.product"
+            }
+          },
+          {
+            $unwind: {
+              path: "$order.product",
+              preserveNullAndEmptyArrays: true
+            }
+          }
+        ]);
 
-    return jsonSuccess("success", orders);
+      return jsonSuccess(
+        "",
+        invoices
+      );
+    }
+
+    const orders =
+      await ServiceOrder.find({
+        companyId: company._id
+      });
+
+    return jsonSuccess(
+      "success",
+      orders
+    );
   }
   catch (e: unknown) {
     return jsonError(
-      e instanceof Error ? e.message : "Unknown error"
+      e instanceof Error
+        ? e.message
+        : "Unknown error"
     );
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(
+  request: NextRequest
+) {
   try {
     await connectToDatabase();
 
@@ -475,18 +608,24 @@ export async function PATCH(request: NextRequest) {
   }
   catch (e: unknown) {
     return jsonError(
-      e instanceof Error ? e.message : "Unknown error"
+      e instanceof Error
+        ? e.message
+        : "Unknown error"
     );
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest
+) {
   try {
     await connectToDatabase();
 
-    const formData = await request.formData();
+    const formData =
+      await request.formData();
 
-    const _id = formData.get("_id") as string | null;
+    const _id =
+      formData.get("_id") as string | null;
 
     /*
      * ============================================================
@@ -495,50 +634,74 @@ export async function PUT(request: NextRequest) {
      */
 
     if (_id) {
-      const order = await ServiceOrder.findById(_id);
+      const order =
+        await ServiceOrder.findById(_id);
 
-      if (!order) throw new Error("Order not found");
+      if (!order) {
+        throw new Error(
+          "Order not found"
+        );
+      }
 
-      const company = await Companie.findById(
-        order.companyId
-      );
+      const company =
+        await Companie.findById(
+          order.companyId
+        );
 
-      if (!company) throw new Error("Company not found");
+      if (!company) {
+        throw new Error(
+          "Company not found"
+        );
+      }
 
-      const productId = formData.get("productId") as string;
-      const contractType = formData.get("contractType") as string;
-      const customer = JSON.parse(
-        formData.get("customer") as string
-      );
+      const productId =
+        formData.get("productId") as string;
 
-      const range = parseNumber(
-        formData.get("range"),
-        1
-      );
+      const contractType =
+        formData.get("contractType") as string;
 
-      const frequency = formData.get("frequency") as string;
+      const customer =
+        JSON.parse(
+          formData.get("customer") as string
+        );
 
-      const price = parseNumber(
-        formData.get("price")
-      );
+      const range =
+        parseNumber(
+          formData.get("range"),
+          1
+        );
 
-      const qty = parseNumber(
-        formData.get("qty"),
-        1
-      );
+      const frequency =
+        formData.get("frequency") as string;
 
-      const billed = parseNumber(
-        formData.get("billed")
-      );
+      const price =
+        parseNumber(
+          formData.get("price")
+        );
+
+      const qty =
+        parseNumber(
+          formData.get("qty"),
+          1
+        );
+
+      const billed =
+        parseNumber(
+          formData.get("billed")
+        );
 
       const taxNumber =
         formData.get("taxNumber") as string;
 
       const periodStart =
-        parseDate(formData.get("periodStart"));
+        parseDate(
+          formData.get("periodStart")
+        );
 
       const periodEnd =
-        parseDate(formData.get("periodEnd"));
+        parseDate(
+          formData.get("periodEnd")
+        );
 
       const handledBy =
         formData.get("handledBy") as string;
@@ -546,7 +709,8 @@ export async function PUT(request: NextRequest) {
       const vendorId =
         formData.get("vendorId") as string;
 
-      customer.taxNumber = taxNumber;
+      customer.taxNumber =
+        taxNumber;
 
       const updateData = {
         productId,
@@ -569,51 +733,45 @@ export async function PUT(request: NextRequest) {
         vendorId
       };
 
-      const contract = formData.get("contract");
+      const contract =
+        formData.get("contract");
 
-      if (contract instanceof File && contract.size > 0) {
-        const fileName = contract.name;
-
-        const buffer = Buffer.from(
-          await contract.arrayBuffer()
-        );
-
-        const s3 = new S3Client({
-          region: process.env.S3_REGION || "us-east-1",
-          endpoint: process.env.S3_ENDPOINT!,
-          credentials: {
-            accessKeyId: process.env.S3_ACCESS_KEY!,
-            secretAccessKey: process.env.S3_SECRET_KEY!
-          }
-        });
+      if (
+        contract instanceof File &&
+        contract.size > 0
+      ) {
+        const fileName =
+          contract.name;
 
         const key =
           `erp/${company.email.split("@")[0]}/upload/${fileName}`;
 
-        await s3.send(
-          new PutObjectCommand({
-            Bucket: process.env.S3_BUCKET!,
-            Key: key,
-            Body: buffer,
-            ContentType: contract.type,
-            Metadata: {
-              cid: "true"
-            }
-          })
-        );
+        const s3 =
+          await uploadContract(
+            company,
+            contract,
+            key,
+            { cid: "true" }
+          );
 
-        const head = await s3.send(
-          new HeadObjectCommand({
-            Bucket: process.env.S3_BUCKET!,
-            Key: key
-          })
-        );
+        const head =
+          await s3.send(
+            new HeadObjectCommand({
+              Bucket:
+                process.env.S3_BUCKET!,
+              Key: key
+            })
+          );
 
-        const cid = head.Metadata?.cid;
+        const cid =
+          head.Metadata?.cid;
 
         if (cid) {
-          updateData["contract" as keyof typeof updateData] =
-            `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}` as never;
+          (
+            updateData as
+            Record<string, unknown>
+          ).contract =
+            `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
         }
       }
 
@@ -622,21 +780,24 @@ export async function PUT(request: NextRequest) {
         updateData
       );
 
-      return jsonSuccess("success");
+      return jsonSuccess(
+        "success"
+      );
     }
 
     /*
      * ============================================================
      * ACTIVATE EXISTING DRAFT / CREATE INVOICE
      * ============================================================
-     *
-     * This was previously the second PUT handler's create logic.
      */
 
-    const id = formData.get("id") as string;
+    const id =
+      formData.get("id") as string;
 
     const salesOrderNumber =
-      formData.get("salesOrderNumber") as string;
+      formData.get(
+        "salesOrderNumber"
+      ) as string;
 
     if (salesOrderNumber) {
       const serviceOrder =
@@ -661,27 +822,25 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      const statusValue = formData.get("status");
+      const status =
+        parseInvoiceStatus(
+          formData.get("status")
+        );
 
-      if (statusValue !== "active" && statusValue !== "draft") {
-        throw new Error("Invalid invoice status");
-      }
+      const missing =
+        parseNumber(
+          formData.get("missing")
+        );
 
-      const status = statusValue;
-
-      invoice.status = status
-
-      const missing = parseNumber(
-        formData.get("missing")
-      );
-
-      const payAmount = parseNumber(
-        formData.get("payAmount")
-      );
+      const payAmount =
+        parseNumber(
+          formData.get("payAmount")
+        );
 
       const invoice =
         await Invoice.findOne({
-          salesOrderId: serviceOrder._id,
+          salesOrderId:
+            serviceOrder._id,
           invoiceType: "service",
           status: "draft"
         });
@@ -692,16 +851,19 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      invoice.status = status;
+      invoice.status =
+        status;
 
       if (
         formData.has("missing")
       ) {
-        invoice.missing = missing;
+        invoice.missing =
+          missing;
       }
 
       if (payAmount > 0) {
-        invoice.payAmount = payAmount;
+        invoice.payAmount =
+          payAmount;
 
         invoice.paymentHistory.push({
           amount: payAmount,
@@ -764,7 +926,9 @@ export async function PUT(request: NextRequest) {
     console.error(e);
 
     return jsonError(
-      e instanceof Error ? e.message : "Unknown error"
+      e instanceof Error
+        ? e.message
+        : "Unknown error"
     );
   }
 }
