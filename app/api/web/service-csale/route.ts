@@ -661,8 +661,15 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      const status =
-        formData.get("status") as string;
+      const statusValue = formData.get("status");
+
+      if (statusValue !== "active" && statusValue !== "draft") {
+        throw new Error("Invalid invoice status");
+      }
+
+      const status = statusValue;
+
+      invoice.status = status
 
       const missing = parseNumber(
         formData.get("missing")
