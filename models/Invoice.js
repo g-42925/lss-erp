@@ -57,7 +57,8 @@ const invoiceSchema = new mongoose.Schema({
     type: [{
       amount: { type: Number, required: true },
       method: { type: String, required: true },
-      date: { type: Date, required: true }
+      date: { type: Date, required: true },
+      reverted: { type: Boolean, default: false }
     }],
     default: []
   },
