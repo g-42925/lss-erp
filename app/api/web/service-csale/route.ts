@@ -1,556 +1,766 @@
-
-import Invoice from '@/models/Invoice'
-import ServiceOrder from "@/models/ServiceOrder"
-import Companie from '@/models/Companie'
-import Customer from '@/models/Customer'
-import Purchase from '@/models/Purchase'
-import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
+import { HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+import Invoice from "@/models/Invoice";
+import ServiceOrder from "@/models/ServiceOrder";
+import Companie from "@/models/Companie";
+import Customer from "@/models/Customer";
 
+type Tax = {
+  isPPh?: boolean;
+  taxValue?: number;
+  [key: string]: unknown;
+};
+
+type CustomerData = {
+  name: string;
+  address: string;
+  taxNumber: string;
+};
+
+function formatNumber(value: number) {
+  return String(value).padStart(4, "0");
+}
+
+function getInvoiceNumber(invoiceCode: string, count: number) {
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+
+  return `${invoiceCode}${year}${month}${formatNumber(count + 1)}`;
+}
+
+function parseNumber(value: FormDataEntryValue | null, fallback = 0) {
+  if (typeof value !== "string") return fallback;
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function parseDate(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value) return undefined;
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function parseTaxes(value: FormDataEntryValue | null): Tax[] {
+  if (typeof value !== "string" || !value) return [];
+
+  const parsed = JSON.parse(value);
+
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function getPphDeduction(taxes: Tax[]) {
+  return taxes.reduce(
+    (total, tax) => total + (tax.isPPh ? Number(tax.taxValue) || 0 : 0),
+    0
+  );
+}
+
+function isInitialInvoice(contractType: string, frequency: string, range: number) {
+  return (
+    contractType === "One Time" &&
+    (
+      frequency === "Once" ||
+      (frequency === "Month" && range < 2)
+    )
+  );
+}
+
+async function createInvoice({
+  company,
+  serviceOrder,
+  payAmount,
+  paymentMethod,
+  price,
+  qty,
+  taxes
+}: {
+  company: any;
+  serviceOrder: any;
+  payAmount: number;
+  paymentMethod?: string;
+  price: number;
+  qty: number;
+  taxes: Tax[];
+}) {
+  const invoiceCount = await Invoice.countDocuments({
+    companyId: company._id
+  });
+
+  const invoiceNumber = getInvoiceNumber(
+    company.invoiceCode,
+    invoiceCount
+  );
+
+  return Invoice.create({
+    invoiceNumber,
+    companyId: company._id,
+    invoiceType: "service",
+    salesOrderId: serviceOrder._id,
+    salesOrderNumber: serviceOrder.salesOrderNumber,
+    payAmount,
+    paid: false,
+    date: new Date(),
+    paymentMethod,
+    status: "draft",
+
+    paymentHistory: payAmount > 0
+      ? [
+        {
+          amount: payAmount,
+          date: new Date(),
+          method: paymentMethod || "Cash",
+          reverted: false
+        }
+      ]
+      : [],
+
+    pphDeduction: getPphDeduction(taxes),
+    price,
+    qty,
+    taxes
+  });
+}
+
+function jsonError(message: string, status = 500) {
+  return NextResponse.json(
+    {
+      noResult: true,
+      message,
+      result: null,
+      error: true
+    },
+    { status }
+  );
+}
+
+function jsonSuccess(message: string, result: unknown = {}) {
+  return NextResponse.json({
+    noResult: false,
+    message,
+    result,
+    error: false
+  });
+}
 
 export async function POST(request: NextRequest) {
-
-  function formatNumber(x: number) {
-    return String(x).padStart(4, '0');
-  }
-
   try {
-    await connectToDatabase()
-    const formData = await request.formData()
+    await connectToDatabase();
 
-    const id = formData.get("id") as string
-    const customerName = formData.get("customerName") as string
-    const address = formData.get("address") as string
-    const productId = formData.get("productId") as string
-    const price = formData.get("price") as string
-    const contractType = formData.get("contractType") as string
-    const frequency = formData.get("frequency") as string
-    const qty = formData.get("qty") as string
-    const range = formData.get("range")
-    const debt = formData.get("debt") as string
-    const payTerm = formData.get("payTerm") as string
-    const dueDate = formData.get("dueDate") as string
-    const paymentMethod = formData.get("paymentMethod") as string
-    const payAmount = formData.get("payAmount")
-    const contract = formData.get("contract") as File
-    const taxes = formData.get("taxes") as string
-    const periodStart = formData.get("periodStart") as string
-    const periodEnd = formData.get("periodEnd") as string
-    const taxNumberForm = formData.get("taxNumber") as string
+    const formData = await request.formData();
 
-    const company = await Companie.findOne({ masterAccountId: id })
-    const customer = await Customer.findOne({ bussinessName: customerName, customerOf: company._id })
-    const taxNumberToUse = taxNumberForm || (customer && customer.taxNumber ? `${customer.taxType ? customer.taxType + ' ' : ''}${customer.taxNumber}`.trim() : '');
+    const id = formData.get("id") as string;
+    const customerName = formData.get("customerName") as string;
+    const address = formData.get("address") as string;
+    const productId = formData.get("productId") as string;
 
-    const handledBy = formData.get("handledBy") as string
-    const vendorId = formData.get("vendorId") as string
+    const contractType = formData.get("contractType") as string;
+    const frequency = formData.get("frequency") as string;
 
-    const customCustomer = {
+    const price = parseNumber(formData.get("price"));
+    const qty = parseNumber(formData.get("qty"), 1);
+    const range = parseNumber(formData.get("range"));
+
+    const debt = parseNumber(formData.get("debt"));
+    const payTerm = parseNumber(formData.get("payTerm"));
+
+    const dueDate = formData.get("dueDate") as string;
+    const paymentMethod = formData.get("paymentMethod") as string;
+    const payAmount = parseNumber(formData.get("payAmount"));
+
+    const contract = formData.get("contract");
+    const taxes = parseTaxes(formData.get("taxes"));
+
+    const periodStart = parseDate(formData.get("periodStart"));
+    const periodEnd = parseDate(formData.get("periodEnd"));
+
+    const taxNumberForm = formData.get("taxNumber") as string;
+    const handledBy = formData.get("handledBy") as string;
+    const vendorId = formData.get("vendorId") as string;
+
+    const company = await Companie.findOne({
+      masterAccountId: id
+    });
+
+    if (!company) throw new Error("Company not found");
+
+    const customer = await Customer.findOne({
+      bussinessName: customerName,
+      customerOf: company._id
+    });
+
+    const taxNumber = taxNumberForm ||
+      (
+        customer?.taxNumber
+          ? `${customer.taxType ? `${customer.taxType} ` : ""}${customer.taxNumber}`.trim()
+          : ""
+      );
+
+    const customCustomer: CustomerData = {
       name: customerName,
-      address: address,
-      taxNumber: taxNumberToUse
-    }
+      address,
+      taxNumber
+    };
 
-    const rangeNum = range ? parseInt(range as string) : 0;
+    let contractUrl: string | undefined;
 
-    if (contract) {
-      const fileName = (formData.get("fileName") as string) ?? contract.name;
-      const r = company;
+    if (contract instanceof File && contract.size > 0) {
+      const fileName =
+        (formData.get("fileName") as string) || contract.name;
 
-      const cdnUrl = `https://leryn-ljm-3.b-cdn.net/erp_${r.email.split('@')[0]}/contracts/${fileName}`;
       const buffer = Buffer.from(await contract.arrayBuffer());
+
       const s3 = new S3Client({
         forcePathStyle: true,
         region: process.env.S3_REGION!,
         endpoint: process.env.S3_ENDPOINT!,
         credentials: {
           accessKeyId: process.env.S3_ACCESS_KEY!,
-          secretAccessKey: process.env.S3_SECRET_KEY!,
-        },
+          secretAccessKey: process.env.S3_SECRET_KEY!
+        }
       });
 
-      const invoiceCount = await Invoice.countDocuments({
-        companyId: r._id,
-      })
-
-      const now = new Date();
-      const shortYear = String(now.getFullYear()).slice(-2);
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const invoiceNumber = `${r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
+      const folder = `erp_${company.email.split("@")[0]}`;
 
       await s3.send(
         new PutObjectCommand({
           Bucket: process.env.S3_BUCKET!,
-          Key: `erp_${r.email.split("@")[0]}/contracts/${fileName}`,
-          Body: Buffer.from(buffer),
-          ContentType: contract.type,
+          Key: `${folder}/contracts/${fileName}`,
+          Body: buffer,
+          ContentType: contract.type
         })
       );
 
-
-      const obj: Record<string, unknown> = {
-        companyId: r._id,
-        customCustomer,
-        productId: productId.split("/")[0],
-        price,
-        contractType,
-        frequency,
-        qty,
-        range,
-        debt,
-        payTerm,
-        dueDate,
-        paymentMethod,
-        payAmount,
-        contract: cdnUrl,
-        date: Date.now(),
-        productType: "service",
-        salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
-        periodStart: periodStart ? new Date(periodStart) : undefined,
-        periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-        taxNumber: taxNumberToUse,
-        taxes: taxes ? JSON.parse(taxes) : [],
-        handledBy: handledBy,
-        vendorId: vendorId,
-      }
-
-      if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
-        delete obj.payTerm
-      }
-
-      if (contractType === "Full" || contractType === "Trial") {
-        delete obj.paymentMethod
-        delete obj.debt
-        delete obj.payAmount
-        delete obj.payTerm
-      }
-
-      if (contractType === "One Time" && frequency === "Once") {
-        delete obj.dueDate
-      }
-      const result = await ServiceOrder.create(obj)
-
-      let pphDeduction = 0;
-      if (Array.isArray(obj.taxes) && obj.taxes.length > 0) {
-        obj.taxes.forEach((t: any) => {
-          if (t.isPPh) {
-            pphDeduction += t.taxValue;
-          }
-        });
-      }
-
-      if (obj.contractType === "One Time" && obj.frequency === "Once") {
-        await Invoice.create({
-          invoiceNumber,
-          companyId: r._id,
-          invoiceType: "service",
-          salesOrderId: result._id,
-          salesOrderNumber: result.salesOrderNumber,
-          payAmount: payAmount,
-          paid: false,
-          date: Date.now(),
-          paymentMethod: obj.paymentMethod,
-          status: "draft",
-          paymentHistory: [
-            {
-              amount: payAmount,
-              date: Date.now(),
-              method: obj.paymentMethod,
-            }
-          ],
-          pphDeduction: pphDeduction,
-          price: parseFloat(price as string) || 0,
-          qty: parseInt(qty as string) || 1,
-          taxes: obj.taxes
-        })
-      }
-
-      // Vendor debt is now tracked dynamically via Invoice.vendorPaid
-
-      if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
-        await Invoice.create({
-          invoiceNumber,
-          companyId: r._id,
-          invoiceType: "service",
-          salesOrderId: result._id,
-          salesOrderNumber: result.salesOrderNumber,
-          payAmount: payAmount,
-          paid: false,
-          date: Date.now(),
-          paymentMethod: obj.paymentMethod,
-          status: "draft",
-          paymentHistory: [
-            {
-              amount: payAmount,
-              date: Date.now(),
-              method: obj.paymentMethod,
-            }
-          ],
-          pphDeduction: pphDeduction,
-          price: parseFloat(price as string) || 0,
-          qty: parseInt(qty as string) || 1,
-          taxes: obj.taxes
-        })
-      }
-
-      return NextResponse.json({
-        noResult: false,
-        message: "success",
-        result: {},
-        error: false
-      })
+      contractUrl =
+        `https://leryn-ljm-3.b-cdn.net/${folder}/contracts/${fileName}`;
     }
-    else {
-      const _r = company;
 
-      const obj: Record<string, unknown> = {
-        companyId: _r._id,
-        customCustomer,
-        productId: productId.split("/")[0],
-        price,
-        contractType,
-        frequency,
-        qty,
-        range,
-        debt,
-        payTerm,
-        dueDate,
-        paymentMethod,
-        payAmount,
-        date: Date.now(),
-        productType: "service",
-        salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
-        periodStart: periodStart ? new Date(periodStart) : undefined,
-        periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-        taxNumber: taxNumberToUse,
-        taxes: JSON.parse(taxes),
-        handledBy: handledBy,
-        vendorId: vendorId,
-      }
+    const serviceOrderData = {
+      companyId: company._id,
+      customCustomer,
+      productId: productId.split("/")[0],
 
-      if (contractType === "One Time" && frequency === "Month" && rangeNum > 1) {
-        delete obj.payTerm
-      }
+      price,
+      contractType,
+      frequency,
+      qty,
+      range,
 
-      if (contractType === "Full" || contractType === "Trial") {
-        delete obj.paymentMethod
-        delete obj.debt
-        delete obj.payAmount
-        delete obj.payTerm
-      }
+      debt,
+      payTerm,
+      dueDate,
+      paymentMethod,
+      payAmount,
 
-      if (contractType === "One Time" && frequency === "Once") {
-        delete obj.dueDate
-      }
+      contract: contractUrl,
 
-      const result = await ServiceOrder.create(obj)
+      date: new Date(),
+      productType: "service",
+      salesOrderNumber: `SO-${String(Date.now()).slice(-5)}`,
 
-      let pphDeduction = 0;
-      if (Array.isArray(obj.taxes) && obj.taxes.length > 0) {
-        obj.taxes.forEach((t: any) => {
-          if (t.isPPh) {
-            pphDeduction += t.taxValue;
-          }
-        });
-      }
+      periodStart,
+      periodEnd,
 
-      if (obj.contractType === "One Time" && obj.frequency === "Once") {
-        const _r = await Companie.findOne({ masterAccountId: id })
+      taxNumber,
+      taxes,
 
-        const invoiceCount = await Invoice.countDocuments({
-          companyId: _r._id,
-        })
+      handledBy,
+      vendorId
+    };
 
-        const now = new Date();
-        const shortYear = String(now.getFullYear()).slice(-2);
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const invoiceNumber = `${_r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
-
-        await Invoice.create({
-          invoiceNumber,
-          companyId: _r._id,
-          invoiceType: "service",
-          salesOrderId: result._id,
-          salesOrderNumber: result.salesOrderNumber,
-          payAmount: payAmount,
-          paid: false,
-          date: Date.now(),
-          paymentMethod: obj.paymentMethod,
-          status: "draft",
-          paymentHistory: [
-            {
-              amount: payAmount,
-              date: Date.now(),
-              method: obj.paymentMethod,
-            }
-          ],
-          pphDeduction: pphDeduction,
-          price: parseFloat(price as string) || 0,
-          qty: parseInt(qty as string) || 1,
-          taxes: obj.taxes
-        })
-      }
-
-      // Vendor debt is now tracked dynamically via Invoice.vendorPaid
-
-      if (contractType === "One Time" && frequency === "Month" && rangeNum < 2) {
-        const _r = await Companie.findOne({ masterAccountId: id })
-
-        const invoiceCount = await Invoice.countDocuments({
-          companyId: _r._id,
-        })
-
-        const now = new Date();
-        const shortYear = String(now.getFullYear()).slice(-2);
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const invoiceNumber = `${_r.invoiceCode}${shortYear}${month}${formatNumber(invoiceCount + 1)}`
-
-        await Invoice.create({
-          invoiceNumber,
-          companyId: _r._id,
-          invoiceType: "service",
-          salesOrderId: result._id,
-          salesOrderNumber: result.salesOrderNumber,
-          payAmount: payAmount,
-          paid: false,
-          date: Date.now(),
-          paymentMethod: obj.paymentMethod,
-          status: "draft",
-          paymentHistory: [
-            {
-              amount: payAmount,
-              date: Date.now(),
-              method: obj.paymentMethod,
-            }
-          ],
-          pphDeduction: pphDeduction,
-          price: parseFloat(price as string) || 0,
-          qty: parseInt(qty as string) || 1,
-          taxes: obj.taxes
-        })
-      }
-
-      return NextResponse.json({
-        noResult: false,
-        message: "success",
-        result: {},
-        error: false
-      })
+    if (
+      contractType === "One Time" &&
+      frequency === "Month" &&
+      range > 1
+    ) {
+      delete (serviceOrderData as Partial<typeof serviceOrderData>).payTerm;
     }
+
+    if (
+      contractType === "Full" ||
+      contractType === "Trial"
+    ) {
+      delete (serviceOrderData as Partial<typeof serviceOrderData>).paymentMethod;
+      delete (serviceOrderData as Partial<typeof serviceOrderData>).debt;
+      delete (serviceOrderData as Partial<typeof serviceOrderData>).payAmount;
+      delete (serviceOrderData as Partial<typeof serviceOrderData>).payTerm;
+    }
+
+    if (
+      contractType === "One Time" &&
+      frequency === "Once"
+    ) {
+      delete (serviceOrderData as Partial<typeof serviceOrderData>).dueDate;
+    }
+
+    const serviceOrder = await ServiceOrder.create(
+      serviceOrderData
+    );
+
+    if (isInitialInvoice(contractType, frequency, range)) {
+      await createInvoice({
+        company,
+        serviceOrder,
+        payAmount,
+        paymentMethod,
+        price,
+        qty,
+        taxes
+      });
+    }
+
+    return jsonSuccess("success");
   }
   catch (e: unknown) {
-    console.log(e)
-    return NextResponse.json({
-      noResult: true,
-      message: (e as Error).message,
-      result: null,
-      error: true
-    })
+    console.error(e);
+
+    return jsonError(
+      e instanceof Error ? e.message : "Unknown error"
+    );
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    await connectToDatabase()
+    await connectToDatabase();
+
     const url = new URL(request.url);
+
     const id = url.searchParams.get("id");
+    const type = url.searchParams.get("type") || "orders";
+
     const company = await Companie.findOne({
       masterAccountId: id
-    })
+    });
+
+    if (!company) throw new Error("Company not found");
+
+    if (type === "invoices") {
+      const invoices = await Invoice.aggregate([
+        {
+          $match: {
+            companyId: company._id,
+            invoiceType: "service",
+            status: "active"
+          }
+        },
+        {
+          $lookup: {
+            from: "serviceorders",
+            localField: "salesOrderId",
+            foreignField: "_id",
+            as: "order"
+          }
+        },
+        {
+          $unwind: "$order"
+        },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "order.customerId",
+            foreignField: "_id",
+            as: "order.customer"
+          }
+        },
+        {
+          $unwind: {
+            path: "$order.customer",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: "products",
+            localField: "order.productId",
+            foreignField: "_id",
+            as: "order.product"
+          }
+        },
+        {
+          $unwind: {
+            path: "$order.product",
+            preserveNullAndEmptyArrays: true
+          }
+        }
+      ]);
+
+      return jsonSuccess("", invoices);
+    }
+
     const orders = await ServiceOrder.find({
       companyId: company._id
-    })
-    return NextResponse.json({
-      noResult: false,
-      message: "success",
-      result: orders,
-      error: false
-    })
+    });
+
+    return jsonSuccess("success", orders);
   }
   catch (e: unknown) {
-    return NextResponse.json({
-      noResult: true,
-      message: (e as Error).message,
-      result: null,
-      error: true
-    })
+    return jsonError(
+      e instanceof Error ? e.message : "Unknown error"
+    );
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
     await connectToDatabase();
+
     const body = await request.json();
-    const { _id, taxes, action, vendorPrice } = body;
+
+    const {
+      _id,
+      taxes,
+      action,
+      vendorPrice
+    } = body;
 
     if (!_id) {
-      return NextResponse.json({
-        noResult: true,
-        message: "Invalid request: _id required",
-        result: null,
-        error: true,
-      }, { status: 400 });
+      return jsonError(
+        "Invalid request: _id required",
+        400
+      );
     }
 
-    // Handle close / reopen action
-    if (action === 'close') {
-      await ServiceOrder.findByIdAndUpdate(_id, { status: 'closed' });
-      return NextResponse.json({
-        noResult: false,
-        message: "Order closed successfully",
-        result: {},
-        error: false,
-      });
+    if (action === "close") {
+      await ServiceOrder.findByIdAndUpdate(
+        _id,
+        { status: "closed" }
+      );
+
+      return jsonSuccess(
+        "Order closed successfully"
+      );
     }
 
-    if (action === 'reopen') {
-      await ServiceOrder.findByIdAndUpdate(_id, { status: 'active' });
-      return NextResponse.json({
-        noResult: false,
-        message: "Order reopened successfully",
-        result: {},
-        error: false,
-      });
+    if (action === "reopen") {
+      await ServiceOrder.findByIdAndUpdate(
+        _id,
+        { status: "active" }
+      );
+
+      return jsonSuccess(
+        "Order reopened successfully"
+      );
     }
 
-    // Handle vendorPrice update
-    if (typeof vendorPrice === 'number') {
-      await ServiceOrder.findByIdAndUpdate(_id, { vendorPrice });
-      return NextResponse.json({
-        noResult: false,
-        message: "Vendor price updated successfully",
-        result: {},
-        error: false,
-      });
+    if (typeof vendorPrice === "number") {
+      await ServiceOrder.findByIdAndUpdate(
+        _id,
+        { vendorPrice }
+      );
+
+      return jsonSuccess(
+        "Vendor price updated successfully"
+      );
     }
 
-    // Handle taxes update (original logic)
     if (!Array.isArray(taxes)) {
-      return NextResponse.json({
-        noResult: true,
-        message: "Invalid request: taxes array required",
-        result: null,
-        error: true,
-      }, { status: 400 });
+      return jsonError(
+        "Invalid request: taxes array required",
+        400
+      );
     }
 
-    await ServiceOrder.findByIdAndUpdate(_id, { taxes });
+    await ServiceOrder.findByIdAndUpdate(
+      _id,
+      { taxes }
+    );
 
-    return NextResponse.json({
-      noResult: false,
-      message: "Taxes applied successfully",
-      result: {},
-      error: false,
-    });
-  } catch (e: unknown) {
-    return NextResponse.json({
-      noResult: true,
-      message: (e as Error).message,
-      result: null,
-      error: true,
-    });
+    return jsonSuccess(
+      "Taxes applied successfully"
+    );
+  }
+  catch (e: unknown) {
+    return jsonError(
+      e instanceof Error ? e.message : "Unknown error"
+    );
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
+
     const formData = await request.formData();
 
-    const _id = formData.get("_id") as string;
-    const order = await ServiceOrder.findById(_id);
-    if (!order) throw new Error("Order not found");
-    const company = await Companie.findById(order.companyId);
-    if (!company) throw new Error("Company not found");
+    const _id = formData.get("_id") as string | null;
 
-    const productId = formData.get("productId") as string;
-    const contractType = formData.get("contractType") as string;
-    const customer = JSON.parse(formData.get("customer") as string);
-    const range = formData.get("range");
-    const frequency = formData.get("frequency") as string;
-    const price = formData.get("price") as string;
-    const qty = formData.get("qty") as string;
-    const billed = formData.get("billed") as string;
+    /*
+     * ============================================================
+     * UPDATE EXISTING SERVICE ORDER
+     * ============================================================
+     */
 
-    const contract = formData.get("contract") as File | null;
-    const taxNumber = formData.get("taxNumber") as string;
-    const periodStart = formData.get("periodStart") as string;
-    const periodEnd = formData.get("periodEnd") as string;
-    customer.taxNumber = taxNumber;
+    if (_id) {
+      const order = await ServiceOrder.findById(_id);
 
-    const handledBy = formData.get("handledBy") as string
-    const vendorId = formData.get("vendorId") as string
+      if (!order) throw new Error("Order not found");
 
-    const updateData: any = {
-      productId,
-      contractType,
-      customCustomer: customer,
-      taxNumber: taxNumber,
-      range: parseInt(range as string) || 1,
-      frequency,
-      price: parseFloat(price) || 0,
-      qty: parseInt(qty as string) || 1,
-      periodStart: periodStart ? new Date(periodStart) : undefined,
-      periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-      billed: billed,
-      handledBy: handledBy,
-      vendorId: vendorId,
-    };
-
-    if (contract) {
-      const fileName = contract.name;
-      const buffer = Buffer.from(await contract.arrayBuffer());
-
-      const s3 = new S3Client({
-        region: "us-east-1",
-        endpoint: "https://s3.filebase.com",
-        credentials: {
-          accessKeyId: "B8F0135956143AE0685E",
-          secretAccessKey: "gKrbIZJnzLWBXZ0VGQvnlAumvngpBH35PsXN5zUp",
-        },
-      });
-
-      const putCommand = new PutObjectCommand({
-        Bucket: `leryn-storage`,
-        Key: `erp/${company.email.split("@")[0]}/upload/${fileName}`,
-        Body: buffer,
-        ContentType: contract.type,
-        Metadata: {
-          cid: "true",
-        },
-      });
-
-      await s3.send(putCommand)
-
-      const head = await s3.send(
-        new HeadObjectCommand({
-          Bucket: "leryn-storage",
-          Key: `erp/${company.email.split("@")[0]}/upload/${fileName}`,
-        })
+      const company = await Companie.findById(
+        order.companyId
       );
 
-      const cid = head.Metadata?.cid;
-      const contractUrl = `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}`;
-      updateData.contract = contractUrl;
+      if (!company) throw new Error("Company not found");
+
+      const productId = formData.get("productId") as string;
+      const contractType = formData.get("contractType") as string;
+      const customer = JSON.parse(
+        formData.get("customer") as string
+      );
+
+      const range = parseNumber(
+        formData.get("range"),
+        1
+      );
+
+      const frequency = formData.get("frequency") as string;
+
+      const price = parseNumber(
+        formData.get("price")
+      );
+
+      const qty = parseNumber(
+        formData.get("qty"),
+        1
+      );
+
+      const billed = parseNumber(
+        formData.get("billed")
+      );
+
+      const taxNumber =
+        formData.get("taxNumber") as string;
+
+      const periodStart =
+        parseDate(formData.get("periodStart"));
+
+      const periodEnd =
+        parseDate(formData.get("periodEnd"));
+
+      const handledBy =
+        formData.get("handledBy") as string;
+
+      const vendorId =
+        formData.get("vendorId") as string;
+
+      customer.taxNumber = taxNumber;
+
+      const updateData = {
+        productId,
+        contractType,
+        customCustomer: customer,
+
+        taxNumber,
+
+        range,
+        frequency,
+
+        price,
+        qty,
+        billed,
+
+        periodStart,
+        periodEnd,
+
+        handledBy,
+        vendorId
+      };
+
+      const contract = formData.get("contract");
+
+      if (contract instanceof File && contract.size > 0) {
+        const fileName = contract.name;
+
+        const buffer = Buffer.from(
+          await contract.arrayBuffer()
+        );
+
+        const s3 = new S3Client({
+          region: process.env.S3_REGION || "us-east-1",
+          endpoint: process.env.S3_ENDPOINT!,
+          credentials: {
+            accessKeyId: process.env.S3_ACCESS_KEY!,
+            secretAccessKey: process.env.S3_SECRET_KEY!
+          }
+        });
+
+        const key =
+          `erp/${company.email.split("@")[0]}/upload/${fileName}`;
+
+        await s3.send(
+          new PutObjectCommand({
+            Bucket: process.env.S3_BUCKET!,
+            Key: key,
+            Body: buffer,
+            ContentType: contract.type,
+            Metadata: {
+              cid: "true"
+            }
+          })
+        );
+
+        const head = await s3.send(
+          new HeadObjectCommand({
+            Bucket: process.env.S3_BUCKET!,
+            Key: key
+          })
+        );
+
+        const cid = head.Metadata?.cid;
+
+        if (cid) {
+          updateData["contract" as keyof typeof updateData] =
+            `https://wooden-plum-woodpecker.myfilebase.com/ipfs/${cid}` as never;
+        }
+      }
+
+      await ServiceOrder.findByIdAndUpdate(
+        _id,
+        updateData
+      );
+
+      return jsonSuccess("success");
     }
 
-    await ServiceOrder.findByIdAndUpdate(_id, updateData);
+    /*
+     * ============================================================
+     * ACTIVATE EXISTING DRAFT / CREATE INVOICE
+     * ============================================================
+     *
+     * This was previously the second PUT handler's create logic.
+     */
 
-    return NextResponse.json({
-      noResult: false,
-      message: "success",
-      result: {},
-      error: false
-    });
+    const id = formData.get("id") as string;
+
+    const salesOrderNumber =
+      formData.get("salesOrderNumber") as string;
+
+    if (salesOrderNumber) {
+      const serviceOrder =
+        await ServiceOrder.findOne({
+          salesOrderNumber
+        });
+
+      if (!serviceOrder) {
+        throw new Error(
+          "Service Order not found"
+        );
+      }
+
+      const company =
+        await Companie.findById(
+          serviceOrder.companyId
+        );
+
+      if (!company) {
+        throw new Error(
+          "Company not found"
+        );
+      }
+
+      const status =
+        formData.get("status") as string;
+
+      const missing = parseNumber(
+        formData.get("missing")
+      );
+
+      const payAmount = parseNumber(
+        formData.get("payAmount")
+      );
+
+      const invoice =
+        await Invoice.findOne({
+          salesOrderId: serviceOrder._id,
+          invoiceType: "service",
+          status: "draft"
+        });
+
+      if (!invoice) {
+        throw new Error(
+          "Draft invoice not found"
+        );
+      }
+
+      invoice.status = status;
+
+      if (
+        formData.has("missing")
+      ) {
+        invoice.missing = missing;
+      }
+
+      if (payAmount > 0) {
+        invoice.payAmount = payAmount;
+
+        invoice.paymentHistory.push({
+          amount: payAmount,
+          method: "Cash",
+          date: new Date(),
+          reverted: false
+        });
+      }
+
+      if (
+        invoice.invoiceNumber === "xxx" ||
+        !invoice.invoiceNumber
+      ) {
+        const count =
+          await Invoice.countDocuments({
+            companyId: company._id
+          });
+
+        invoice.invoiceNumber =
+          getInvoiceNumber(
+            company.invoiceCode,
+            count
+          );
+      }
+
+      await invoice.save();
+
+      await ServiceOrder.findByIdAndUpdate(
+        serviceOrder._id,
+        {
+          $inc: {
+            billed: 1
+          }
+        }
+      );
+
+      return jsonSuccess(
+        "Invoice activated",
+        invoice
+      );
+    }
+
+    /*
+     * ============================================================
+     * ACTIVATE / CREATE FROM SERVICE ORDER NUMBER
+     * ============================================================
+     */
+
+    if (!id) {
+      throw new Error(
+        "Company id is required"
+      );
+    }
+
+    throw new Error(
+      "Invalid PUT request"
+    );
   }
   catch (e: unknown) {
-    return NextResponse.json({
-      noResult: true,
-      message: (e as Error).message,
-      result: null,
-      error: true
-    });
+    console.error(e);
+
+    return jsonError(
+      e instanceof Error ? e.message : "Unknown error"
+    );
   }
 }
