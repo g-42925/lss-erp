@@ -241,29 +241,32 @@ export async function PUT(request: NextRequest) {
     const pphDeduction = getPphDeduction(so.taxes);
 
     const newInvoice = await Invoice.create({
-      invoiceNumber,
       companyId: company._id,
-      invoiceType: "service",
-      salesOrderId: serviceOrder._id,
-      salesOrderNumber: serviceOrder.salesOrderNumber,
-      payAmount,
+      salesOrderId: so._id,
+      date: params.date ? new Date(params.date) : new Date(),
+      invoiceNumber,
+      salesOrderNumber: so.salesOrderNumber,
       paid: false,
-      date: new Date(),
-      status: "draft",
+      payAmount: params.payAmount ?? 0,
+      status: params.status,
+      missing: params.missing,
+      invoiceType: "service",
 
-      paymentHistory: payAmount > 0
-        ? [{
-          amount: payAmount,
-          date: new Date(),
-          method: paymentMethod || "Cash",
-          reverted: false
-        }]
+      paymentHistory: params.payAmount > 0
+        ? [
+          {
+            amount: params.payAmount,
+            method: "Cash",
+            date: new Date(),
+            reverted: false
+          }
+        ]
         : [],
 
-      pphDeduction: getPphDeduction(taxes),
-      price,
-      qty,
-      taxes
+      pphDeduction,
+      price: so.price,
+      qty: so.qty,
+      taxes: so.taxes
     });
 
     return NextResponse.json({
