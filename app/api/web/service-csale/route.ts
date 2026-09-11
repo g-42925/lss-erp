@@ -107,18 +107,15 @@ async function createInvoice({
     payAmount,
     paid: false,
     date: new Date(),
-    paymentMethod,
     status: "draft",
 
     paymentHistory: payAmount > 0
-      ? [
-        {
-          amount: payAmount,
-          date: new Date(),
-          method: paymentMethod || "Cash",
-          reverted: false
-        }
-      ]
+      ? [{
+        amount: payAmount,
+        date: new Date(),
+        method: paymentMethod || "Cash",
+        reverted: false
+      }]
       : [],
 
     pphDeduction: getPphDeduction(taxes),
