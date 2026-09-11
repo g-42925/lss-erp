@@ -1,5 +1,6 @@
 "use client";
 
+import { NumericFormat } from "react-number-format";
 import React, { useState, useEffect, useRef } from "react";
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
@@ -40,6 +41,7 @@ function terbilang(angka: number): string {
   return result.trim().replace(/\s+/g, ' ');
 }
 
+
 export default function BankVoucherPage() {
   const today = new Date();
   const formattedToday = today.toLocaleDateString('id-ID', {
@@ -54,6 +56,8 @@ export default function BankVoucherPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
 
+  const [mode, setMode] = useState("create");
+
   // Toast state
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,6 +70,11 @@ export default function BankVoucherPage() {
 
   const getFn = useFetch<any[], any>({
     url: '',
+    method: "GET",
+  });
+
+  const getAllVouchersFn = useFetch<any[], any>({
+    url: `/api/web/bank-voucher?id=${masterAccountId}`,
     method: "GET",
   });
 
@@ -88,6 +97,9 @@ export default function BankVoucherPage() {
       getCustomersFn.fn(`/api/web/customers?id=${masterAccountId}`, "{}", (result) => {
         setCustomers(result);
       });
+      getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", (result) => {
+        console.log(result);
+      });
     }
   }, [hasHydrated, masterAccountId]);
 
@@ -96,7 +108,66 @@ export default function BankVoucherPage() {
 
   const [selectedRekening, setSelectedRekening] = useState("");
   const [selectedBankAccountId, setSelectedBankAccountId] = useState("");
+  const [selectedBank, setSelectedBank] = useState("");
   const [dibayarDiterima, setDibayarDiterima] = useState("");
+
+  const [selectedBankCode, setSelectedBankCode] = useState("");
+  const [selectedBankName, setSelectedBankName] = useState("");
+
+  const indonesianBanks = [
+    "Bank BCA (Bank Central Asia)",
+    "Bank Mandiri",
+    "Bank BNI (Bank Negara Indonesia)",
+    "Bank BRI (Bank Rakyat Indonesia)",
+    "Bank Syariah Indonesia (BSI)",
+    "Bank CIMB Niaga",
+    "Bank Permata",
+    "Bank Danamon",
+    "Bank BTN (Bank Tabungan Negara)",
+    "Bank Mega",
+    "Bank Panin",
+    "Bank OCBC NISP",
+    "Bank Maybank Indonesia",
+    "Bank Sinarmas",
+    "Bank Commonwealth",
+    "Bank Bukopin",
+    "Bank BTPN",
+    "Bank UOB Indonesia",
+    "Bank DBS Indonesia",
+    "Bank HSBC Indonesia",
+    "Bank Standard Chartered Indonesia",
+    "Bank Citibank Indonesia",
+    "Bank ANZ Indonesia",
+    "Bank Woori Saudara",
+    "Bank Ina Perdana",
+    "Bank Jago",
+    "Bank Neo Commerce",
+    "Bank Aladin Syariah",
+    "Allo Bank",
+    "SeaBank Indonesia",
+    "Bank Sahabat Sampoerna",
+    "Bank Muamalat Indonesia",
+    "Bank Mega Syariah",
+    "Bank Victoria Syariah",
+    "Bank Aceh Syariah",
+    "Bank BPD Jawa Barat (BJB)",
+    "Bank BPD Jawa Tengah",
+    "Bank BPD Jawa Timur",
+    "Bank DKI",
+    "Bank NTB Syariah",
+    "Bank Sulselbar",
+    "Bank Sumut",
+    "Bank Sumsel Babel",
+    "Bank Kalsel",
+    "Bank Kaltimtara",
+    "Bank Papua",
+    "Bank Riau Kepri Syariah",
+    "GoPay (Bank Jago)",
+    "OVO (Grab Finance)",
+    "Dana",
+    "ShopeePay",
+    "LinkAja",
+  ];
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
 
   const [rows, setRows] = useState<ItemRow[]>([
@@ -155,6 +226,7 @@ export default function BankVoucherPage() {
       voucherNumber: voucherNo,
       voucherType: isMasuk ? "masuk" : "keluar",
       bankAccountId: selectedBankAccountId || null,
+      bank: selectedBank,
       dibayarDiterima,
       noRekening: selectedRekening,
       date: tanggal || new Date().toISOString(),
@@ -178,7 +250,29 @@ export default function BankVoucherPage() {
     );
   };
 
-  return (
+  function setBank(bank: { bank: string, accountNumber: string }) {
+    setSelectedBankName(bank.bank);
+    setSelectedBankCode(bank.accountNumber.slice(-4));
+    console.log(bank)
+  }
+
+  // const makeVoucherNumber = (transactionType: string, bank: string, bank: string, bankNumber: string) => {
+  //   const now = new Date();
+  //   const rawMonth = now.getMonth(); // 0 - 11
+  //   const day = String(now.getDate()).padStart(2, '0');
+  //   const month = String(rawMonth + 1).padStart(2, '0');
+  //   const year = now.getFullYear().toString().slice(-2);
+  //   const monthName = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+  //   const _month = monthName[rawMonth]; // Langsung pakai index 0 - 11
+  // }
+
+  useEffect(() => {
+    if (mode === 'create') {
+      //makeVoucherNumber();
+    }
+  }, [mode]);
+
+  return mode === 'create' ? (
     <>
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -195,9 +289,8 @@ export default function BankVoucherPage() {
 
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed top-5 right-5 z-50 alert ${
-          toast.type === "success" ? "alert-success" : "alert-error"
-        } shadow-lg max-w-sm animate-in fade-in slide-in-from-top-2 print:hidden`}>
+        <div className={`fixed top-5 right-5 z-50 alert ${toast.type === "success" ? "alert-success" : "alert-error"
+          } shadow-lg max-w-sm animate-in fade-in slide-in-from-top-2 print:hidden`}>
           <span>{toast.message}</span>
         </div>
       )}
@@ -280,42 +373,57 @@ export default function BankVoucherPage() {
             <div className="grid grid-cols-2 gap-4 md:gap-8 mb-4 text-sm font-medium">
               <div className="space-y-3">
                 <div className="grid grid-cols-[130px_10px_1fr] items-center">
-                  <span>Dibayar/ Diterima</span>
+                  {isMasuk ? <span>Dibayar Oleh</span> : <span>Diterima Oleh</span>}
                   <span>:</span>
-                  <select
-                    className="select select-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium print:appearance-none"
+                  <input
+                    type="text"
                     value={dibayarDiterima}
                     onChange={(e) => setDibayarDiterima(e.target.value)}
-                  >
-                    <option value="">Pilih Bank...</option>
-                    <option value="Bank BCA">Bank BCA</option>
-                    <option value="Bank Mandiri">Bank Mandiri</option>
-                    <option value="Bank BNI">Bank BNI</option>
-                    <option value="Bank BRI">Bank BRI</option>
-                    <option value="Bank Syariah Indonesia (BSI)">Bank Syariah Indonesia (BSI)</option>
-                    <option value="Bank CIMB Niaga">Bank CIMB Niaga</option>
-                    <option value="Bank Permata">Bank Permata</option>
-                    <option value="Bank Danamon">Bank Danamon</option>
-                    <option value="Bank BTN">Bank BTN</option>
-                  </select>
+                    placeholder="Nama penerima / pembayar..."
+                    className="input input-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium"
+                  />
                 </div>
                 <div className="grid grid-cols-[130px_10px_1fr] items-center">
                   <span>Bank</span>
                   <span>:</span>
-                  <select
-                    className="select select-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium print:appearance-none"
-                    value={selectedBankAccountId}
-                    onChange={(e) => {
-                      setSelectedBankAccountId(e.target.value);
-                      const acc = accounts.find((a) => a._id === e.target.value);
-                      if (acc) setSelectedRekening(acc.accountNumber);
-                    }}
-                  >
-                    <option value="">Pilih Akun Bank...</option>
-                    {accounts.map(a => (
-                      <option key={a._id} value={a._id}>{a.bank} - {a.accountName}</option>
-                    ))}
-                  </select>
+                  <div className="relative w-full">
+                    <select
+                      className="select select-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium print:appearance-none"
+                      value={selectedBank}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedBank(val);
+                        // Cek apakah pilihan adalah akun bank internal (format: id|accountNumber)
+                        if (val.startsWith("acc:")) {
+                          const accId = val.replace("acc:", "");
+                          const acc = accounts.find((a) => a._id === accId);
+                          if (acc) {
+                            setSelectedBankAccountId(acc._id);
+                            setSelectedRekening(acc.accountNumber);
+                          }
+                        } else {
+
+                          setSelectedBankAccountId("");
+                        }
+                      }}
+                    >
+                      <option value="">Pilih Bank...</option>
+                      {accounts.length > 0 && (
+                        <optgroup label="── Akun Bank Perusahaan ──">
+                          {accounts.map(a => (
+                            <option key={a._id} value={`acc:${a._id}`}>
+                              {a.bank} - {a.accountName} ({a.accountNumber})
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="── Bank Indonesia ──">
+                        {indonesianBanks.map(bank => (
+                          <option key={bank} value={bank}>{bank}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
                 </div>
                 <div className="grid grid-cols-[130px_10px_1fr] items-center">
                   <span>No. Rekening</span>
@@ -329,6 +437,8 @@ export default function BankVoucherPage() {
                   />
                 </div>
               </div>
+
+
               <div className="space-y-3">
                 <div className="grid grid-cols-[80px_10px_1fr] items-center">
                   <span>No.</span>
@@ -350,6 +460,30 @@ export default function BankVoucherPage() {
                     onChange={(e) => setTanggal(e.target.value)}
                     className="input input-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black"
                   />
+                </div>
+                <div className="grid grid-cols-[80px_10px_1fr] items-center">
+                  <span>Bank</span>
+                  <span>:</span>
+                  <div className="relative w-full">
+                    <select
+                      className="select select-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium print:appearance-none"
+                      onChange={(e) => {
+                        const [accountNumber, bank] = e.target.value.split('|');
+                        setSelectedBankName(bank);
+                        setSelectedBankCode(accountNumber.slice(-4));
+                        console.log({ bank, accountNumber: selectedBankCode })
+                      }}
+                    >
+                      <option value="">Pilih Bank...</option>
+                      {accounts.length > 0 && (
+                        accounts.map(a => (
+                          <option key={a._id} value={`${a.accountNumber}|${a.bank}`}>
+                            {a.bank} - {a.accountName} ({a.accountNumber})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -397,12 +531,16 @@ export default function BankVoucherPage() {
                       <td className="p-1 align-top">
                         <div className="flex items-center h-full px-2">
                           <span className="mr-1 font-semibold">Rp.</span>
-                          <input
-                            type="number"
-                            value={row.jumlah || ""}
-                            onChange={(e) => handleRowChange(index, "jumlah", e.target.value)}
+                          <NumericFormat
+                            thousandSeparator="."
+                            decimalSeparator=","
+                            decimalScale={2}
+                            fixedDecimalScale
+                            allowNegative={false}
+                            value={row.jumlah}
+                            onValueChange={(values) => handleRowChange(index, "jumlah", values.floatValue?.toString() ?? "")}
                             className="w-full bg-transparent focus:outline-none text-right text-black font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            placeholder="0"
+                            placeholder="Contoh: 150000"
                           />
                         </div>
                       </td>
@@ -455,5 +593,94 @@ export default function BankVoucherPage() {
         </div>
       </div>
     </>
-  );
+  )
+    :
+    <>
+
+      <div className="p-4 md:p-6 min-h-screen print:min-h-0 print:p-0 bg-base-200 print:bg-white">
+
+        <div className="grid grid-cols-12 gap-4">
+          <div className="col-span-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+              {getAllVouchersFn.result?.map((voucher) => {
+                const isMasuk = voucher.voucherType === 'masuk';
+                const isSaved = voucher.status === 'saved';
+
+                return (
+                  <div
+                    key={voucher._id || voucher.voucherNumber}
+                    className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col justify-between overflow-hidden"
+                  >
+                    {/* Header Card: Tipe & Status */}
+                    <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${isMasuk
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        : 'bg-rose-100 text-rose-700 border border-rose-200'
+                        }`}>
+                        Voucher {voucher.voucherType}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${isSaved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                        <span className="text-xs font-medium text-slate-600 capitalize">
+                          {voucher.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Body Card: Detail Informasi */}
+                    <div className="p-4 space-y-3 flex-1">
+                      <div>
+                        <p className="text-xs text-slate-400 font-mono">{voucher.voucherNumber}</p>
+                        <h3 className="text-base font-bold text-slate-800 truncate">
+                          {voucher.dibayarDiterima || 'Tanpa Nama'}
+                        </h3>
+                      </div>
+
+                      <div className="text-xs text-slate-500 space-y-1">
+                        {voucher.noRekening && (
+                          <p className="truncate">
+                            <span className="font-medium text-slate-600">Rek:</span> {voucher.noRekening}
+                          </p>
+                        )}
+                        <p>
+                          <span className="font-medium text-slate-600">Tanggal:</span>{' '}
+                          {new Date(voucher.date).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        <p>
+                          <span className="font-medium text-slate-600">Total Item:</span> {voucher.items?.length || 0} item
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Footer Card: Nominal & Terbilang */}
+                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                      <div className="max-w-[50%]">
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Total</p>
+                        <p className="text-xs text-slate-500 truncate italic" title={voucher.terbilang}>
+                          {voucher.terbilang || '-'}
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className={`text-base font-bold font-mono ${isMasuk ? 'text-emerald-600' : 'text-slate-900'}`}>
+                          {isMasuk ? '+' : '-'} Rp {voucher.total?.toLocaleString('id-ID')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </>
+
 }

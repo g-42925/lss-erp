@@ -35,7 +35,7 @@ const bankVoucherSchema = new mongoose.Schema(
       type: String,
       enum: ['draft', 'saved'],
       default: 'saved',
-    },
+    }
   },
   { timestamps: true }
 );

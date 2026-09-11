@@ -111,17 +111,18 @@ export default function Debt() {
       to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || ''
     })
 
-    setPaySubmitting(true)
-    await putFn.fn('', payload, (result) => {
-      setDebts(prev => {
-        const updated = [...prev]
-        const idx = updated.findIndex(d => d._id === selectedDebt._id)
-        if (idx >= 0) updated[idx].payAmount = selectedDebt.payAmount + newPayAmt
-        return updated.filter(d => d.finalPrice > d.payAmount)
-      })
-      payRef.current?.close()
-    })
-    setPaySubmitting(false)
+
+    // setPaySubmitting(true)
+    // await putFn.fn('', payload, (result) => {
+    //   setDebts(prev => {
+    //     const updated = [...prev]
+    //     const idx = updated.findIndex(d => d._id === selectedDebt._id)
+    //     if (idx >= 0) updated[idx].payAmount = selectedDebt.payAmount + newPayAmt
+    //     return updated.filter(d => d.finalPrice > d.payAmount)
+    //   })
+    //   payRef.current?.close()
+    // })
+    // setPaySubmitting(false)
   }
 
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
@@ -170,7 +171,8 @@ export default function Debt() {
   async function handlePay() {
     if (filterType === 'vendor') {
       await payVendorDebt()
-    } else {
+    }
+    else {
       await payPurchase()
     }
   }
@@ -393,13 +395,16 @@ export default function Debt() {
 
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Jumlah Bayar</legend>
-                <input
-                  className="input w-full"
-                  type="number"
-                  min="1"
+                <NumericFormat
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  decimalScale={2}
+                  fixedDecimalScale
+                  allowNegative={false}
                   value={payFormData.payAmount || ''}
-                  onChange={e => setPayFormData(p => ({ ...p, payAmount: Number(e.target.value) }))}
-                  required
+                  onValueChange={(values) => setPayFormData(p => ({ ...p, payAmount: values.floatValue ?? 0 }))}
+                  className="input w-full"
+                  placeholder="Contoh: 150000"
                 />
               </fieldset>
 
@@ -413,7 +418,7 @@ export default function Debt() {
                   <option value="Cash">Cash</option>
                   {bankAccountFn.result?.map((bank: any) => (
                     <option key={bank._id} value={`transfer from ${bank.bank}`}>
-                      transfer from {bank.bank} ({bank.accountName})
+                      {bank.bank} ({bank.accountName})
                     </option>
                   ))}
                 </select>

@@ -97,6 +97,7 @@ export default function PrintQuotation({ params }: { params: Promise<{ id: strin
 
   const customerName = quotation.customerId ? (quotation.customerId.name || quotation.customerId.bussinessName) : quotation.customCustomer?.name
   const productName = quotation.productId?.productName || 'PEST CONTROL'
+  const date = quotation.date
 
   return (
     <div className="bg-gray-100 min-h-screen text-black print:p-0 p-8 font-sans">
@@ -135,6 +136,9 @@ export default function PrintQuotation({ params }: { params: Promise<{ id: strin
             <div className="text-md space-y-4 leading-relaxed text-gray-800">
               <p>
                 <span className="inline-block w-24">Perihal</span>: <b>Penawaran Pekerjaan {productName}</b>
+              </p>
+              <p>
+                <span className="inline-block w-24">Tanggal</span>: <b>{date.split('T')[0]}</b>
               </p>
 
               <p>Dengan hormat,</p>

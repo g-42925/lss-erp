@@ -152,7 +152,6 @@ export default function BankAccounts() {
                     <th className="text-xs uppercase text-gray-500">Bank</th>
                     <th className="text-xs uppercase text-gray-500">Account Number</th>
                     <th className="text-xs uppercase text-gray-500">In the Name Of</th>
-                    <th className="text-xs uppercase text-gray-500">Balance</th>
                     <th className="text-xs uppercase text-gray-500">...</th>
                   </tr>
                 </thead>
@@ -167,7 +166,6 @@ export default function BankAccounts() {
                         <span className="font-mono tracking-wider">{a.accountNumber}</span>
                       </td>
                       <td>{a.accountName}</td>
-                      <td>{toIdr(a.balance)}</td>
                       <td>
                         <div className="flex flex-row gap-2">
                           <button
@@ -235,20 +233,6 @@ export default function BankAccounts() {
               />
               {newForm.formState.errors.accountName && (
                 <span className="text-red-500 text-xs">Account name is required</span>
-              )}
-            </div>
-
-            {/* Balance */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-gray-600 font-medium">Balance</label>
-              <input
-                {...newForm.register("balance", { required: true })}
-                type="text"
-                placeholder="e.g. 1234567890"
-                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:border-blue-500 font-mono tracking-wider"
-              />
-              {newForm.formState.errors.balance && (
-                <span className="text-red-500 text-xs">Balance is required</span>
               )}
             </div>
 
@@ -323,20 +307,6 @@ export default function BankAccounts() {
               />
               {editForm.formState.errors.accountName && (
                 <span className="text-red-500 text-xs">Account name is required</span>
-              )}
-            </div>
-
-            {/* Balance */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-gray-600 font-medium">Balance</label>
-              <input
-                {...editForm.register("balance", { required: true })}
-                type="number"
-                placeholder="e.g. 1000000"
-                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:border-blue-500"
-              />
-              {editForm.formState.errors.balance && (
-                <span className="text-red-500 text-xs">Balance is required</span>
               )}
             </div>
 
