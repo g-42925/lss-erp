@@ -239,7 +239,10 @@ export async function PUT(request: NextRequest) {
             date: new Date()
           }
         ] : [],
-        pphDeduction: pphDeduction
+        pphDeduction: pphDeduction,
+        price: so.price,
+        qty: so.qty,
+        taxes: so.taxes
       })
 
       return NextResponse.json({

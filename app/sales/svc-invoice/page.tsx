@@ -203,7 +203,9 @@ export default function Invoices() {
 
   function whatTax(invoice: any, taxName: string) {
     const isOneTimeService = invoice.order.contractType === "One Time" && invoice.order.frequency === "Once"
-    const total = isOneTimeService ? invoice.order.price : invoice.order.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    const price = invoice.price ?? invoice.order.price
+    const qty = invoice.qty ?? invoice.order.qty
+    const total = isOneTimeService ? price : price - ((price / qty) * invoice?.missing)
 
 
     if (!getTaxesFn.result) return '0%'
@@ -234,7 +236,9 @@ export default function Invoices() {
   function openCloseInvoice(invoice: any) {
     setSelectedInvoice(invoice)
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
-    const total = isOneTimeService ? invoice.order.price : invoice.order.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    const price = invoice?.price ?? invoice?.order?.price
+    const qty = invoice?.qty ?? invoice?.order?.qty
+    const total = isOneTimeService ? price : price - ((price / qty) * invoice?.missing)
     closeInvoiceForm.reset({
       salesOrderNumber: invoice.salesOrderNumber,
       payAmount: total,
@@ -303,18 +307,23 @@ export default function Invoices() {
 
   function fSubtotal(invoice: any) {
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
-    const baseTotal = isOneTimeService ? invoice?.order?.price : invoice?.order?.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    const price = invoice?.price ?? invoice?.order?.price
+    const qty = invoice?.qty ?? invoice?.order?.qty
+    const baseTotal = isOneTimeService ? price : price - ((price / qty) * invoice?.missing)
     const deduction = invoice?.pphDeduction || 0;
     return baseTotal - deduction;
   }
 
   function fTotal(invoice: any) {
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
-    const baseTotal = isOneTimeService ? invoice?.order?.price : invoice?.order?.price - ((invoice?.order?.price / invoice?.order?.qty) * invoice?.missing)
+    const price = invoice?.price ?? invoice?.order?.price
+    const qty = invoice?.qty ?? invoice?.order?.qty
+    const baseTotal = isOneTimeService ? price : price - ((price / qty) * invoice?.missing)
     // hitung total setelah ditambah pajak non-PPh dan dikurangi PPh
     let totalWithTax = baseTotal;
-    if (invoice?.order?.taxes) {
-      invoice.order.taxes.forEach((tax: any) => {
+    const taxes = invoice?.taxes ?? invoice?.order?.taxes;
+    if (taxes) {
+      taxes.forEach((tax: any) => {
         if (tax.isPPh) {
           totalWithTax -= tax.taxValue;
         } else {
@@ -391,7 +400,7 @@ export default function Invoices() {
 
       getTaxesFn.fn(url8, body, (result: any) => { })
       getBankAccountsFn.fn(url7, body, (result: any) => { setBankAccounts(result) })
-      getInvoicesFn.fn(url4, body, (result) => { })
+      getInvoicesFn.fn(url4, body, (result) => console.log(result))
       getCompaniesFn.fn(url6, body, (result: any) => { })
       getOrdersFn.fn(urlOrder, body, (result: any) => { setOrders(result) })
       getProductsFn.fn(url5, body, (result: any) => {
@@ -862,21 +871,21 @@ export default function Invoices() {
                   <td className="py-[5px] text-sm text-gray-800">{selectedInvoice?.order?.product?.productName}</td>
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.price ?? selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(selectedInvoice?.order?.price / selectedInvoice?.order?.qty).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number((selectedInvoice?.price ?? selectedInvoice?.order?.price) / (selectedInvoice?.qty ?? selectedInvoice?.order?.qty)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
                   }
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
                       <td className="py-[5px] text-sm text-gray-800 text-right">1</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{(selectedInvoice?.order?.qty || 1) - (selectedInvoice?.missing || 0)}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{(((selectedInvoice?.qty ?? selectedInvoice?.order?.qty) || 1) - (selectedInvoice?.missing || 0))}</td>
                     )
                   }
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.price ?? selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
                       <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
@@ -915,7 +924,7 @@ export default function Invoices() {
                   <span className="text-gray-700 text-sm">Subtotal</span>
                   {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.price ?? selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     ) : (
                       <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(selectedInvoice) + (selectedInvoice?.pphDeduction || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     )
@@ -923,7 +932,8 @@ export default function Invoices() {
                 </div>
                 {getTaxesFn.result && getTaxesFn.result.length > 0
                   ? getTaxesFn.result.map((tax: any, idx: number) => {
-                    const appliedTax = selectedInvoice?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
+                    const taxes = selectedInvoice?.taxes ?? selectedInvoice?.order?.taxes;
+                    const appliedTax = taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
                     const taxVal = appliedTax ? appliedTax.taxValue : 0;
                     const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
                     return (
@@ -1081,21 +1091,21 @@ export default function Invoices() {
                   <td className="py-[5px] text-sm text-gray-800">{invoiceToPrint?.order?.product?.productName}</td>
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(invoiceToPrint?.price ?? invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number((invoiceToPrint?.order?.price || 0) / (invoiceToPrint?.order?.qty || 1)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{Number(((invoiceToPrint?.price ?? invoiceToPrint?.order?.price) || 0) / ((invoiceToPrint?.qty ?? invoiceToPrint?.order?.qty) || 1)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
                   }
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
                       <td className="py-[5px] text-sm text-gray-800 text-right">1</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right">{(invoiceToPrint?.order?.qty || 1) - (invoiceToPrint?.missing || 0)}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right">{(((invoiceToPrint?.qty ?? invoiceToPrint?.order?.qty) || 1) - (invoiceToPrint?.missing || 0))}</td>
                     )
                   }
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(invoiceToPrint?.price ?? invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
                       <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     )
@@ -1129,7 +1139,7 @@ export default function Invoices() {
                   <span className="text-gray-700 text-sm">Subtotal</span>
                   {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                      <span className="text-gray-800 ml-auto text-sm">{Number(invoiceToPrint?.price ?? invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     ) : (
                       <span className="text-gray-800 ml-auto text-sm">{Number(fSubtotal(invoiceToPrint) + (invoiceToPrint?.pphDeduction || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                     )
@@ -1137,13 +1147,14 @@ export default function Invoices() {
                 </div>
                 {getTaxesFn.result && getTaxesFn.result.length > 0
                   ? getTaxesFn.result.map((tax: any, idx: number) => {
-                    const appliedTax = invoiceToPrint?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
+                    const taxes = invoiceToPrint?.taxes ?? invoiceToPrint?.order?.taxes;
+                    const appliedTax = taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
                     const taxVal = appliedTax ? appliedTax.taxValue : 0;
                     const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${appliedTax ? tax.value : 0}%`}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
                       </div>
                     )
                   })

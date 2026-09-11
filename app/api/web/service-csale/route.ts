@@ -160,7 +160,10 @@ export async function POST(request: NextRequest) {
               method: obj.paymentMethod,
             }
           ],
-          pphDeduction: pphDeduction
+          pphDeduction: pphDeduction,
+          price: parseFloat(price as string) || 0,
+          qty: parseInt(qty as string) || 1,
+          taxes: obj.taxes
         })
       }
 
@@ -185,7 +188,10 @@ export async function POST(request: NextRequest) {
               method: obj.paymentMethod,
             }
           ],
-          pphDeduction: pphDeduction
+          pphDeduction: pphDeduction,
+          price: parseFloat(price as string) || 0,
+          qty: parseInt(qty as string) || 1,
+          taxes: obj.taxes
         })
       }
 
@@ -280,7 +286,10 @@ export async function POST(request: NextRequest) {
               method: obj.paymentMethod,
             }
           ],
-          pphDeduction: pphDeduction
+          pphDeduction: pphDeduction,
+          price: parseFloat(price as string) || 0,
+          qty: parseInt(qty as string) || 1,
+          taxes: obj.taxes
         })
       }
 
@@ -316,7 +325,10 @@ export async function POST(request: NextRequest) {
               method: obj.paymentMethod,
             }
           ],
-          pphDeduction: pphDeduction
+          pphDeduction: pphDeduction,
+          price: parseFloat(price as string) || 0,
+          qty: parseInt(qty as string) || 1,
+          taxes: obj.taxes
         })
       }
 

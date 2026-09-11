@@ -99,7 +99,21 @@ const invoiceSchema = new mongoose.Schema({
   bankVoucher: {
     type: String,
     required: false
+  },
+  price: {
+    type: Number,
+    required: false
+  },
+  qty: {
+    type: Number,
+    required: false
+  },
+  taxes: {
+    type: Array,
+    required: false,
+    default: []
   }
 });
 
-export default mongoose.models.Invoice || mongoose.model('Invoice', invoiceSchema)
+delete mongoose.models.Invoice;
+export default mongoose.model('Invoice', invoiceSchema);

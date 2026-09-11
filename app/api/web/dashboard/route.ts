@@ -98,8 +98,8 @@ export async function GET(req: NextRequest) {
               { $eq: ['$svcOrderDoc.frequency', 'Once'] }
             ]
           },
-          svcPrice: { $ifNull: ['$svcOrderDoc.price', 0] },
-          svcQty: { $ifNull: ['$svcOrderDoc.qty', 1] }
+          svcPrice: { $ifNull: ['$price', { $ifNull: ['$svcOrderDoc.price', 0] }] },
+          svcQty: { $ifNull: ['$qty', { $ifNull: ['$svcOrderDoc.qty', 1] }] }
         }
       },
       {
@@ -206,8 +206,8 @@ export async function GET(req: NextRequest) {
               { $eq: ['$svcOrderDoc.frequency', 'Once'] }
             ]
           },
-          svcPrice: { $ifNull: ['$svcOrderDoc.price', 0] },
-          svcQty: { $ifNull: ['$svcOrderDoc.qty', 1] }
+          svcPrice: { $ifNull: ['$price', { $ifNull: ['$svcOrderDoc.price', 0] }] },
+          svcQty: { $ifNull: ['$qty', { $ifNull: ['$svcOrderDoc.qty', 1] }] }
         }
       },
       {
@@ -229,7 +229,7 @@ export async function GET(req: NextRequest) {
             $subtract: [
               {
                 $reduce: {
-                  input: { $ifNull: ['$svcOrderDoc.taxes', []] },
+                  input: { $ifNull: ['$taxes', { $ifNull: ['$svcOrderDoc.taxes', []] }] },
                   initialValue: 0,
                   in: {
                     $add: [
@@ -399,12 +399,63 @@ export async function GET(req: NextRequest) {
         },
         { $sort: { '_id.year': 1, '_id.month': 1 } }
       ]),
-      ServiceOrder.aggregate([
-        { $match: { companyId: cid, date: { $gte: sixMonthsAgo } } },
+      Invoice.aggregate([
+        {
+          $match: {
+            companyId: cid,
+            invoiceType: 'service',
+            status: 'active',
+            date: { $gte: sixMonthsAgo }
+          }
+        },
+        {
+          $lookup: {
+            from: 'serviceorders',
+            localField: 'salesOrderId',
+            foreignField: '_id',
+            as: 'serviceOrder'
+          }
+        },
+        {
+          $addFields: {
+            svcOrderDoc: { $arrayElemAt: ['$serviceOrder', 0] }
+          }
+        },
+        {
+          $addFields: {
+            svcPrice: { $ifNull: ['$price', { $ifNull: ['$svcOrderDoc.price', 0] }] },
+            svcQty: { $ifNull: ['$qty', { $ifNull: ['$svcOrderDoc.qty', 1] }] },
+            isOneTimeService: {
+              $and: [
+                { $eq: ['$svcOrderDoc.contractType', 'One Time'] },
+                { $eq: ['$svcOrderDoc.frequency', 'Once'] }
+              ]
+            }
+          }
+        },
+        {
+          $addFields: {
+            missingQty: { $ifNull: ['$missing', 0] },
+            svcUnitPrice: {
+              $divide: ['$svcPrice', { $cond: [{ $eq: ['$svcQty', 0] }, 1, '$svcQty'] }]
+            }
+          }
+        },
+        {
+          $addFields: {
+            svcBaseTotal: {
+              $cond: [
+                '$isOneTimeService',
+                '$svcPrice',
+                { $subtract: ['$svcPrice', { $multiply: ['$svcUnitPrice', '$missingQty'] }] }
+              ]
+            }
+          }
+        },
         {
           $group: {
             _id: { year: { $year: '$date' }, month: { $month: '$date' } },
-            revenue: { $sum: '$price' },
+            revenue: { $sum: '$svcBaseTotal' },
             orders: { $sum: 1 }
           }
         },

@@ -193,7 +193,10 @@ export default function ProductSellReportPage() {
   if (productTypeFilter === 'Service' || productTypeFilter === 'all') {
     const serviceData = filteredServiceInvoices.map((row: any) => {
       const isOneTimeService = row.order?.contractType === "One Time" && row.order?.frequency === "Once"
-      const baseTotal = isOneTimeService ? row.order?.price : row.order?.price - ((row.order?.price / (row.order?.qty || 1)) * (row.missing || 0))
+      // Prioritize invoice snapshot values, fall back to live order values
+      const price = row.price ?? row.order?.price ?? 0
+      const qty = row.qty ?? row.order?.qty ?? 1
+      const baseTotal = isOneTimeService ? price : price - ((price / qty) * (row.missing || 0))
       const deduction = row.pphDeduction || 0;
       const fSubtotal = baseTotal - deduction;
 
