@@ -333,11 +333,7 @@ export default function PrintQuotation({
                 :{" "}
                 <b>
                   {date
-                    ? new Date(date).toLocaleDateString("id-ID", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })
+                    ? date.split("T")[0].split("-").reverse().join("/")
                     : "-"}
                 </b>
               </p>
