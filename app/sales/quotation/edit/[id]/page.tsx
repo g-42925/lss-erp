@@ -270,10 +270,10 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
             <div key={i} className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center mb-2">
               <input type="number" placeholder="Qty" className="input input-bordered w-full" value={opt.qty} onChange={e => updatePriceOption(i, 'qty', parseInt(e.target.value) || 0)} />
               <select className="select select-bordered w-full" value={opt.frequency} onChange={e => updatePriceOption(i, 'frequency', e.target.value)}>
-                <option value="Once">Once</option>
-                <option value="Week">Week</option>
-                <option value="Month">Month</option>
-                <option value="Year">Year</option>
+                <option value="Once">Sekali</option>
+                <option value="Week">Minggu</option>
+                <option value="Month">Bulan</option>
+                <option value="Year">Tahun</option>
               </select>
               <input type="number" placeholder="Price" className="input input-bordered w-full" value={opt.price} onChange={e => updatePriceOption(i, 'price', parseFloat(e.target.value) || 0)} />
               <button type="button" onClick={() => removePriceOption(i)} className="btn btn-error btn-square btn-sm text-white">X</button>
