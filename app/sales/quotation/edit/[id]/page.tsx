@@ -281,7 +281,7 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
 
         {/* Note */}
         <div className="form-control w-full border-b pb-6">
-          <h2 className="text-xl font-semibold mb-2">Note (NB)</h2>
+          <h2 className="text-xl font-semibold mb-2">Note</h2>
           <textarea className="textarea textarea-bordered h-24" placeholder="Enter note..." value={note} onChange={e => setNote(e.target.value)}></textarea>
         </div>
 
