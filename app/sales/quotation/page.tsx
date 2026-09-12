@@ -1,11 +1,17 @@
 "use client"
-import { useEffect, useState, Suspense } from 'react'
+
+import { useEffect, useState, Suspense } from "react"
 import useAuth from "@/store/auth"
-import Link from "next/link";
-import { HugeiconsIcon } from '@hugeicons/react'
-import { AddCircleHalfDotIcon, Edit03Icon, Delete01Icon } from '@hugeicons/core-free-icons'
-import Swal from "sweetalert2";
-import { formatDate } from "@/lib/utils";
+import Link from "next/link"
+import { HugeiconsIcon } from "@hugeicons/react"
+import {
+  AddCircleHalfDotIcon,
+  Edit03Icon,
+  Delete01Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons"
+import Swal from "sweetalert2"
+import { formatDate } from "@/lib/utils"
 
 export default function QuotationList() {
   return (
@@ -19,13 +25,18 @@ function QuotationListContent() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+
   const [quotations, setQuotations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Filter
+  const [customerName, setCustomerName] = useState("")
+  const [searching, setSearching] = useState(false)
 
   // Copy Modal States
   const [copyModalOpen, setCopyModalOpen] = useState(false)
   const [copyTargetQuo, setCopyTargetQuo] = useState<any>(null)
-  const [copyCustomer, setCopyCustomer] = useState('')
+  const [copyCustomer, setCopyCustomer] = useState("")
   const [copyPriceOptions, setCopyPriceOptions] = useState<any[]>([])
   const [copying, setCopying] = useState(false)
 
@@ -35,68 +46,112 @@ function QuotationListContent() {
     }
   }, [loggedIn, hasHydrated, masterAccountId])
 
-  const fetchQuotations = async () => {
+  const fetchQuotations = async (name = customerName) => {
     setLoading(true)
+
     try {
-      const res = await fetch(`/api/web/quotations?id=${masterAccountId}`)
+      const params = new URLSearchParams({
+        id: masterAccountId!,
+      })
+
+      if (name.trim()) {
+        params.set("customerName", name.trim())
+      }
+
+      const res = await fetch(`/api/web/quotations?${params.toString()}`)
       const data = await res.json()
+
       if (!data.error) {
         setQuotations(data.result || [])
+      } else {
+        Swal.fire("Error!", data.message, "error")
       }
     } catch (e) {
       console.error(e)
+      Swal.fire("Error!", "Something went wrong", "error")
     } finally {
       setLoading(false)
+      setSearching(false)
     }
+  }
+
+  const handleSearch = async () => {
+    setSearching(true)
+    await fetchQuotations(customerName)
+  }
+
+  const handleResetFilter = async () => {
+    setCustomerName("")
+    setSearching(true)
+    await fetchQuotations("")
   }
 
   const handleDelete = async (id: string) => {
     const confirm = await Swal.fire({
-      title: 'Are you sure?',
+      title: "Are you sure?",
       text: "You won't be able to revert this!",
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete it!'
+      confirmButtonText: "Yes, delete it!",
     })
 
     if (confirm.isConfirmed) {
       try {
-        const res = await fetch(`/api/web/quotations/${id}`, {
-          method: 'DELETE',
+        const res = await fetch(`/ api / web / quotations / ${id} `, {
+          method: "DELETE",
         })
+
         const data = await res.json()
+
         if (!data.error) {
-          Swal.fire('Deleted!', 'Your quotation has been deleted.', 'success')
+          Swal.fire(
+            "Deleted!",
+            "Your quotation has been deleted.",
+            "success"
+          )
+
           fetchQuotations()
         } else {
-          Swal.fire('Error!', data.message, 'error')
+          Swal.fire("Error!", data.message, "error")
         }
       } catch (e) {
-        Swal.fire('Error!', 'Something went wrong', 'error')
+        Swal.fire("Error!", "Something went wrong", "error")
       }
     }
   }
 
   const openCopyModal = (quo: any) => {
     setCopyTargetQuo(quo)
-    setCopyCustomer('')
-    setCopyPriceOptions(quo.priceOptions?.length ? JSON.parse(JSON.stringify(quo.priceOptions)) : [{ qty: 1, frequency: 'Month', price: 0 }])
+    setCopyCustomer("")
+
+    setCopyPriceOptions(
+      quo.priceOptions?.length
+        ? JSON.parse(JSON.stringify(quo.priceOptions))
+        : [{ qty: 1, frequency: "Month", price: 0 }]
+    )
+
     setCopyModalOpen(true)
   }
 
   const handleCopySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     if (!copyCustomer) {
-      Swal.fire('Error', 'Nama Customer harus diisi', 'error')
+      Swal.fire("Error", "Nama Customer harus diisi", "error")
       return
     }
 
     setCopying(true)
+
     try {
       const payload = {
         masterAccountId,
-        customCustomer: { name: copyCustomer, address: '' },
-        productId: copyTargetQuo.productId?._id || copyTargetQuo.productId,
+        customCustomer: {
+          name: copyCustomer,
+          address: "",
+        },
+        productId:
+          copyTargetQuo.productId?._id || copyTargetQuo.productId,
         specifications: copyTargetQuo.specifications,
         priceOptions: copyPriceOptions,
         programs: copyTargetQuo.programs,
@@ -105,36 +160,56 @@ function QuotationListContent() {
         disclaimers: copyTargetQuo.disclaimers,
       }
 
-      const res = await fetch('/api/web/quotations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const res = await fetch("/api/web/quotations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
+
       if (!data.error) {
-        Swal.fire('Success!', 'Quotation berhasil disalin.', 'success')
+        Swal.fire(
+          "Success!",
+          "Quotation berhasil disalin.",
+          "success"
+        )
+
         setCopyModalOpen(false)
         fetchQuotations()
-      }
-      else {
-        Swal.fire('Error!', data.message, 'error')
+      } else {
+        Swal.fire("Error!", data.message, "error")
       }
     } catch (err) {
-      Swal.fire('Error!', 'Something went wrong', 'error')
+      Swal.fire("Error!", "Something went wrong", "error")
     } finally {
       setCopying(false)
     }
   }
 
   const addCopyPriceOption = () => {
-    setCopyPriceOptions([...copyPriceOptions, { qty: 1, frequency: 'Month', price: 0 }])
+    setCopyPriceOptions([
+      ...copyPriceOptions,
+      {
+        qty: 1,
+        frequency: "Month",
+        price: 0,
+      },
+    ])
   }
-  const updateCopyPriceOption = (index: number, field: string, val: any) => {
+
+  const updateCopyPriceOption = (
+    index: number,
+    field: string,
+    val: any
+  ) => {
     const newOpts = [...copyPriceOptions]
     newOpts[index][field] = val
     setCopyPriceOptions(newOpts)
   }
+
   const removeCopyPriceOption = (index: number) => {
     const newOpts = [...copyPriceOptions]
     newOpts.splice(index, 1)
@@ -142,17 +217,71 @@ function QuotationListContent() {
   }
 
   if (!hasHydrated || loading) {
-    return <div className="p-8 text-center"><span className="loading loading-spinner loading-lg"></span></div>
+    return (
+      <div className="p-8 text-center">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    )
   }
 
   return (
     <div className="p-8 pb-32">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Quotations</h1>
-        <Link href="/sales/quotation/create" className="btn btn-primary">
+
+        <Link
+          href="/sales/quotation/create"
+          className="btn btn-primary"
+        >
           <HugeiconsIcon icon={AddCircleHalfDotIcon} />
           Create Quotation
         </Link>
+      </div>
+
+      {/* Filter */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSearch()
+          }}
+          className="flex gap-3 items-end"
+        >
+          <div className="flex-1">
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Cari nama customer..."
+              className="input input-bordered w-full"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={searching}
+            className="btn btn-primary"
+          >
+            {searching ? (
+              <span className="loading loading-spinner loading-sm" />
+            ) : (
+              <HugeiconsIcon
+                icon={Search01Icon}
+                size={18}
+              />
+            )}
+            Cari
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResetFilter}
+            disabled={searching || !customerName}
+            className="btn btn-outline"
+          >
+            Reset
+          </button>
+        </form>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
@@ -167,41 +296,87 @@ function QuotationListContent() {
               <th>Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {quotations.map((quo) => (
               <tr key={quo._id}>
                 <td>{formatDate(quo.date)}</td>
+
                 <td>{quo.quotationNumber}</td>
+
                 <td>
-                  {quo.customerId ? quo.customerId.name || quo.customerId.bussinessName : quo.customCustomer?.name || '-'}
+                  {quo.customerId
+                    ? quo.customerId.name ||
+                    quo.customerId.bussinessName
+                    : quo.customCustomer?.name || "-"}
                 </td>
-                <td>{quo.productId?.productName || '-'}</td>
+
                 <td>
-                  <span className={`badge ${quo.status === 'draft' ? 'badge-neutral' : quo.status === 'accepted' ? 'badge-success' : 'badge-info'}`}>
+                  {quo.productId?.productName || "-"}
+                </td>
+
+                <td>
+                  <span
+                    className={`badge ${quo.status === "draft"
+                        ? "badge-neutral"
+                        : quo.status === "accepted"
+                          ? "badge-success"
+                          : "badge-info"
+                      } `}
+                  >
                     {quo.status}
                   </span>
                 </td>
+
                 <td>
                   <div className="flex gap-2">
-                    <button onClick={() => openCopyModal(quo)} className="btn btn-sm btn-outline btn-secondary">
+                    <button
+                      onClick={() => openCopyModal(quo)}
+                      className="btn btn-sm btn-outline btn-secondary"
+                    >
                       Salin
                     </button>
-                    <Link href={`/sales/quotation/edit/${quo._id}`} className="btn btn-sm btn-outline btn-warning">
-                      <HugeiconsIcon icon={Edit03Icon} size={16} /> Edit
+
+                    <Link
+                      href={`/ sales / quotation / edit / ${quo._id} `}
+                      className="btn btn-sm btn-outline btn-warning"
+                    >
+                      <HugeiconsIcon
+                        icon={Edit03Icon}
+                        size={16}
+                      />
+                      Edit
                     </Link>
-                    <Link href={`/sales/quotation/print/${quo._id}`} className="btn btn-sm btn-outline btn-info">
+
+                    <Link
+                      href={`/ sales / quotation / print / ${quo._id} `}
+                      className="btn btn-sm btn-outline btn-info"
+                    >
                       Print/Preview
                     </Link>
-                    <button onClick={() => handleDelete(quo._id)} className="btn btn-sm btn-outline btn-error">
-                      <HugeiconsIcon icon={Delete01Icon} size={16} />
+
+                    <button
+                      onClick={() => handleDelete(quo._id)}
+                      className="btn btn-sm btn-outline btn-error"
+                    >
+                      <HugeiconsIcon
+                        icon={Delete01Icon}
+                        size={16}
+                      />
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
+
             {quotations.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-500">No quotations found</td>
+                <td
+                  colSpan={6}
+                  className="text-center py-8 text-gray-500"
+                >
+                  No quotations found
+                </td>
               </tr>
             )}
           </tbody>
@@ -211,37 +386,131 @@ function QuotationListContent() {
       {copyModalOpen && (
         <div className="modal modal-open">
           <div className="modal-box max-w-3xl">
-            <h3 className="font-bold text-lg mb-4">Salin Quotation</h3>
-            <form onSubmit={handleCopySubmit} className="space-y-4">
+            <h3 className="font-bold text-lg mb-4">
+              Salin Quotation
+            </h3>
+
+            <form
+              onSubmit={handleCopySubmit}
+              className="space-y-4"
+            >
               <div className="form-control">
-                <label className="label"><span className="label-text">Nama Customer Baru</span></label>
-                <input type="text" className="input input-bordered" required value={copyCustomer} onChange={e => setCopyCustomer(e.target.value)} />
+                <label className="label">
+                  <span className="label-text">
+                    Nama Customer Baru
+                  </span>
+                </label>
+
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  required
+                  value={copyCustomer}
+                  onChange={(e) =>
+                    setCopyCustomer(e.target.value)
+                  }
+                />
               </div>
 
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold">Opsi Harga</span>
-                  <button type="button" onClick={addCopyPriceOption} className="btn btn-sm btn-primary">Add Price Option</button>
+                  <span className="font-semibold">
+                    Opsi Harga
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={addCopyPriceOption}
+                    className="btn btn-sm btn-primary"
+                  >
+                    Add Price Option
+                  </button>
                 </div>
+
                 {copyPriceOptions.map((opt, i) => (
-                  <div key={i} className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center mb-2">
-                    <input type="number" placeholder="Qty" className="input input-bordered w-full" required value={opt.qty} onChange={e => updateCopyPriceOption(i, 'qty', parseInt(e.target.value) || 0)} />
-                    <select className="select select-bordered w-full" value={opt.frequency} onChange={e => updateCopyPriceOption(i, 'frequency', e.target.value)}>
+                  <div
+                    key={i}
+                    className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center mb-2"
+                  >
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      className="input input-bordered w-full"
+                      required
+                      value={opt.qty}
+                      onChange={(e) =>
+                        updateCopyPriceOption(
+                          i,
+                          "qty",
+                          parseInt(e.target.value) || 0
+                        )
+                      }
+                    />
+
+                    <select
+                      className="select select-bordered w-full"
+                      value={opt.frequency}
+                      onChange={(e) =>
+                        updateCopyPriceOption(
+                          i,
+                          "frequency",
+                          e.target.value
+                        )
+                      }
+                    >
                       <option value="Once">Once</option>
                       <option value="Week">Week</option>
                       <option value="Month">Month</option>
                       <option value="Year">Year</option>
                     </select>
-                    <input type="number" placeholder="Price" className="input input-bordered w-full" required value={opt.price} onChange={e => updateCopyPriceOption(i, 'price', parseFloat(e.target.value) || 0)} />
-                    <button type="button" onClick={() => removeCopyPriceOption(i)} className="btn btn-error btn-square btn-sm text-white">X</button>
+
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      className="input input-bordered w-full"
+                      required
+                      value={opt.price}
+                      onChange={(e) =>
+                        updateCopyPriceOption(
+                          i,
+                          "price",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeCopyPriceOption(i)
+                      }
+                      className="btn btn-error btn-square btn-sm text-white"
+                    >
+                      X
+                    </button>
                   </div>
                 ))}
               </div>
 
               <div className="modal-action">
-                <button type="button" className="btn" onClick={() => setCopyModalOpen(false)}>Cancel</button>
-                <button type="submit" disabled={copying} className="btn btn-success text-white">
-                  {copying ? 'Menyalin...' : 'Salin'}
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() =>
+                    setCopyModalOpen(false)
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={copying}
+                  className="btn btn-success text-white"
+                >
+                  {copying
+                    ? "Menyalin..."
+                    : "Salin"}
                 </button>
               </div>
             </form>

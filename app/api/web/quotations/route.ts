@@ -3,30 +3,43 @@ import { NextRequest, NextResponse } from "next/server";
 
 import Companie from "@/models/Companie";
 import Quotation from "@/models/Quotation";
+import Customer from "@/models/Customer";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
   try {
     await connectToDatabase();
 
-    const company = await Companie.find({
+    const body = await request.json();
+
+    if (!body.masterAccountId) {
+      throw new Error("Master account ID is required");
+    }
+
+    const company = await Companie.findOne({
       masterAccountId: body.masterAccountId,
     });
 
-    if (!company || company.length === 0) {
+    if (!company) {
       throw new Error("Company not found");
     }
 
-    const count = await Quotation.countDocuments({ companyId: company[0]._id });
+    const count = await Quotation.countDocuments({
+      companyId: company._id,
+    });
+
     const date = new Date();
-    const prefix = `${company[0].invoiceCode}-QUO-${date.getFullYear().toString().slice(-2)}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-    const quotationNumber = `${prefix}-${(count + 1).toString().padStart(3, '0')}`;
+
+    const prefix = `${company.invoiceCode}-QUO-${date.getFullYear().toString().slice(-2)}${(date.getMonth() + 1).toString().padStart(2, "0")}`;
+
+    const quotationNumber = `${prefix}-${(count + 1)
+      .toString()
+      .padStart(3, "0")}`;
 
     const quotation = await Quotation.create({
       ...body,
       quotationNumber,
-      companyId: company[0]._id,
-      date: date,
+      companyId: company._id,
+      date,
     });
 
     return NextResponse.json({
@@ -46,17 +59,23 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const url = new URL(request.url);
-  const masterAccountId = url.searchParams.get("id");
-
   try {
     await connectToDatabase();
 
-    const company = await Companie.find({
-      masterAccountId: masterAccountId,
+    const url = new URL(request.url);
+
+    const masterAccountId = url.searchParams.get("id");
+    const customerName = url.searchParams.get("customerName")?.trim();
+
+    if (!masterAccountId) {
+      throw new Error("Master account ID is required");
+    }
+
+    const company = await Companie.findOne({
+      masterAccountId,
     });
 
-    if (!company || company.length === 0) {
+    if (!company) {
       return NextResponse.json({
         noResult: true,
         message: "Company not found",
@@ -65,12 +84,42 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const quotations = await Quotation.find({
-      companyId: company[0]._id,
-    }).populate('customerId').populate('productId').sort({ createdAt: -1 });
+    const filter: Record<string, any> = {
+      companyId: company._id,
+    };
+
+    if (customerName) {
+      const regex = new RegExp(
+        customerName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        "i"
+      );
+
+      const customers = await Customer.find({
+        $or: [
+          { name: regex },
+          { bussinessName: regex },
+        ],
+      }).select("_id");
+
+      filter.$or = [
+        {
+          customerId: {
+            $in: customers.map((customer) => customer._id),
+          },
+        },
+        {
+          "customCustomer.name": regex,
+        },
+      ];
+    }
+
+    const quotations = await Quotation.find(filter)
+      .populate("customerId")
+      .populate("productId")
+      .sort({ createdAt: -1 });
 
     return NextResponse.json({
-      noResult: false,
+      noResult: quotations.length === 0,
       message: "",
       result: quotations,
       error: false,
