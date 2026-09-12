@@ -216,10 +216,10 @@ function CreateQuotationContent() {
             <div key={i} className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center mb-2">
               <input type="number" placeholder="Qty" className="input input-bordered w-full" value={opt.qty} onChange={e => updatePriceOption(i, 'qty', parseInt(e.target.value) || 0)} />
               <select className="select select-bordered w-full" value={opt.frequency} onChange={e => updatePriceOption(i, 'frequency', e.target.value)}>
-                <option value="Sekali">Sekali</option>
-                <option value="Minggu">Minggu</option>
-                <option value="Bulan">Bulan</option>
-                <option value="Tahun">Tahun</option>
+                <option value="Sekali">Once</option>
+                <option value="Minggu">Week</option>
+                <option value="Bulan">Month</option>
+                <option value="Tahun">Year</option>
               </select>
               <input type="number" placeholder="Price" className="input input-bordered w-full" value={opt.price} onChange={e => updatePriceOption(i, 'price', parseFloat(e.target.value) || 0)} />
               <button type="button" onClick={() => removePriceOption(i)} className="btn btn-error btn-square btn-sm text-white">X</button>
