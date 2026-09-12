@@ -235,7 +235,7 @@ function CreateQuotationContent() {
 
         {/* Introduction */}
         <div className="form-control w-full border-b pb-6">
-          <h2 className="text-xl font-semibold mb-2">Paragraf Pembuka (setelah &quot;Dengan hormat,&quot;)</h2>
+          <h2 className="text-xl font-semibold mb-2">Paragraf Pembuka</h2>
           <textarea className="textarea textarea-bordered h-32" placeholder="Isi paragraf pengenalan perusahaan..." value={introduction} onChange={e => setIntroduction(e.target.value)}></textarea>
         </div>
 

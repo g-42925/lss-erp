@@ -225,8 +225,6 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
             <select className="select select-bordered" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="draft">Draft</option>
               <option value="sent">Sent</option>
-              <option value="accepted">Accepted</option>
-              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
@@ -289,7 +287,7 @@ function EditQuotationContent({ params }: { params: Promise<{ id: string }> }) {
 
         {/* Introduction */}
         <div className="form-control w-full border-b pb-6">
-          <h2 className="text-xl font-semibold mb-2">Paragraf Pembuka (setelah &quot;Dengan hormat,&quot;)</h2>
+          <h2 className="text-xl font-semibold mb-2">Paragraf Pembuka</h2>
           <textarea className="textarea textarea-bordered h-32" placeholder="Isi paragraf pengenalan perusahaan..." value={introduction} onChange={e => setIntroduction(e.target.value)}></textarea>
         </div>
 
