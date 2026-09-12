@@ -416,19 +416,15 @@ export default function PrintQuotation({
                         No
                       </th>
 
-                      <th className="border border-gray-300 py-1 px-2">
+                      <th className="border border-gray-300 py-1 px-2 text-center">
                         Produk
                       </th>
 
-                      <th className="border border-gray-300 py-1 px-2 text-center w-14">
-                        Jml
+                      <th className="border border-gray-300 py-1 px-2 text-center">
+                        Jumlah Kunjungan
                       </th>
 
-                      <th className="border border-gray-300 py-1 px-2 text-center w-24">
-                        Frekuensi
-                      </th>
-
-                      <th className="border border-gray-300 py-1 px-2 text-right w-32">
+                      <th className="border border-gray-300 py-1 px-2 text-center">
                         Harga
                       </th>
                     </tr>
@@ -447,12 +443,7 @@ export default function PrintQuotation({
                           </td>
 
                           <td className="border border-gray-300 py-1 px-2 text-center">
-                            {opt.qty}
-                          </td>
-
-                          <td className="border border-gray-300 py-1 px-2 text-center">
-                            {frequencyLabels[opt.frequency] ||
-                              opt.frequency}
+                            {opt.qty} x {opt.frequency}
                           </td>
 
                           <td className="border border-gray-300 py-1 px-2 text-right whitespace-nowrap">

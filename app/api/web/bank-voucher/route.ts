@@ -40,6 +40,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const voucherCount = await BankVoucher.countDocuments({
+      companyId: company._id,
+    });
+
     // Check duplicate voucherNumber per company
     const existing = await BankVoucher.findOne({
       companyId: company._id,
