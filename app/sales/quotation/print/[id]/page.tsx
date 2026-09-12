@@ -25,7 +25,7 @@ function LetterheadHeader({ company }: { company: any }) {
 
         {/* Nama Perusahaan & Tagline (Tengah) */}
         <div className="flex-1 text-center px-4">
-          <h1 className="text-3xl font-extrabold text-teal-700 leading-tight inline-block border-b-2 border-teal-700 pb-0.5">
+          <h1 className="text-3xl font-extrabold text-cyan-400 leading-tight inline-block border-b-2 border-teal-700 pb-0.5">
             {company?.name || "Nama Perusahaan"}
           </h1>
           {company?.tagline && (
