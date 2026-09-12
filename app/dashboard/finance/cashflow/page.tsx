@@ -244,8 +244,8 @@ export default function CashflowReportPage() {
 					</div>
 				</div>
 
-				{/* Integrated Filter Bar - Diperbesar & Proporsional */}
-				<div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3.5">
+				{/* Integrated Sticky Filter Bar */}
+				<div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3.5 transition-all">
 
 					{/* Mode Switcher */}
 					<div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
