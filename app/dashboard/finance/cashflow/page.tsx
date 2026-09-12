@@ -15,8 +15,9 @@ type CashflowTransaction = {
 	reference: string;
 	source: string;
 	type: 'in' | 'out' | 'initial';
-	to?: string,
-	from?: string
+	to?: string;
+	from?: string;
+	balance?: number;
 };
 
 type Summary = {
@@ -57,7 +58,8 @@ export default function CashflowReportPage() {
 	const [isCashOut, setIsCashOut] = useState(false);
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-	const [selectedReference, setSelectedReference] = useState('')
+	const [selectedReference, setSelectedReference] = useState('');
+	const [search, setSearch] = useState('');
 
 	// Modal state
 	const [showModal, setShowModal] = useState(false);
@@ -93,6 +95,7 @@ export default function CashflowReportPage() {
 			if (startDate) params.append('startDate', startDate);
 			if (endDate) params.append('endDate', endDate);
 			if (mode === 'bank' && bankAccountId) params.append('bankAccountId', bankAccountId);
+			if (search.trim()) params.append('search', search.trim());
 
 			const res = await fetch(`/api/web/finance/reports/cashflow?${params.toString()}`);
 			const json = await res.json();
@@ -102,7 +105,6 @@ export default function CashflowReportPage() {
 			}
 			else {
 				const txs = json.result?.transactions || [];
-				// Sort ascending first to calculate running balance correctly
 				txs.sort((a: any, b: any) => {
 					const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
 					if (dateDiff === 0) {
@@ -132,7 +134,7 @@ export default function CashflowReportPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [masterAccountId, mode, startDate, endDate, bankAccountId]);
+	}, [masterAccountId, mode, startDate, endDate, bankAccountId, search]);
 
 	useEffect(() => {
 		if (hasHydrated && loggedIn) {
@@ -168,7 +170,7 @@ export default function CashflowReportPage() {
 				alert(json.message);
 			}
 			else {
-				window.location.href = '/dashboard/finance/cashflow'
+				window.location.href = '/dashboard/finance/cashflow';
 			}
 		}
 		catch (e: any) {
@@ -186,7 +188,7 @@ export default function CashflowReportPage() {
 	}
 
 	function toExcel() {
-		if (transactions.length === 0) return alert('Tidak ada data untuk diexport')
+		if (transactions.length === 0) return alert('Tidak ada data untuk diexport');
 		const data = transactions.map(t => ({
 			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
 			'Dari': t.from || '-',
@@ -196,76 +198,106 @@ export default function CashflowReportPage() {
 			'Akun / Metode': t.method,
 			'Tipe': t.type.toUpperCase(),
 			'Jumlah (IDR)': t.amount,
-		}))
-		const worksheet = XLSX.utils.json_to_sheet(data)
-		const workbook = XLSX.utils.book_new()
-		XLSX.utils.book_append_sheet(workbook, worksheet, `Cashflow ${mode.charAt(0).toUpperCase() + mode.slice(1)}`)
-		XLSX.writeFile(workbook, `cashflow-${mode}-${new Date().toISOString().slice(0, 10)}.xlsx`)
-	}
-
-	function isInitial(bankAccountId: string) {
-		return bankAccountId
+		}));
+		const worksheet = XLSX.utils.json_to_sheet(data);
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, `Cashflow ${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+		XLSX.writeFile(workbook, `cashflow-${mode}-${new Date().toISOString().slice(0, 10)}.xlsx`);
 	}
 
 	if (!hasHydrated || !loggedIn) return null;
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/20 text-slate-800 p-6 font-sans">
+		<div className="min-h-screen bg-slate-50/50 text-slate-800 p-6 font-sans">
 			<div className="max-w-[1400px] mx-auto space-y-6">
 
-				{/* Header */}
-				<div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-4">
+				{/* Header dengan Action Group di Kanan */}
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
 					<div>
-						<h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Cashflow Report</h1>
-						<p className="text-sm text-slate-500 mt-1">Laporan Uang Keluar & Masuk</p>
+						<h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cashflow Report</h1>
+						<p className="text-xs text-slate-500 mt-0.5">Laporan Uang Keluar & Masuk Real-time</p>
 					</div>
-					<button
-						onClick={() => {
-							setModalData({ ...modalData, accountType: mode });
-							setShowModal(true);
-						}}
-						className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95"
-					>
-						+ Catat Kas Manual
-					</button>
+
+					<div className="flex items-center gap-2.5">
+						<button
+							type="button"
+							onClick={toExcel}
+							disabled={loading || transactions.length === 0}
+							className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-emerald-600">
+								<path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+							</svg>
+							<span>Export Excel</span>
+						</button>
+
+						<button
+							type="button"
+							onClick={() => {
+								setModalData({ ...modalData, accountType: mode });
+								setShowModal(true);
+							}}
+							className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-1.5"
+						>
+							<span>+ Catat Kas Manual</span>
+						</button>
+					</div>
 				</div>
 
-				{/* Filters */}
-				<div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-wrap items-center gap-4">
-					<div className="flex bg-slate-100 p-1 rounded-xl">
+				{/* Integrated Filter Bar - Diperbesar & Proporsional */}
+				<div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3.5">
+
+					{/* Mode Switcher */}
+					<div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
 						<button
+							type="button"
 							onClick={() => setMode('cash')}
-							className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'cash' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+							className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'cash'
+								? 'bg-white shadow-sm text-indigo-600 font-bold'
+								: 'text-slate-600 hover:text-slate-900'
+								}`}
 						>
 							Cash (Tunai)
 						</button>
 						<button
+							type="button"
 							onClick={() => setMode('bank')}
-							className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'bank' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+							className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'bank'
+								? 'bg-white shadow-sm text-indigo-600 font-bold'
+								: 'text-slate-600 hover:text-slate-900'
+								}`}
 						>
 							Bank
 						</button>
 					</div>
 
-					<div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+					<div className="h-6 w-px bg-slate-200 hidden lg:block"></div>
 
-					<input
-						type="date"
-						value={startDate}
-						onChange={(e) => setStartDate(e.target.value)}
-						className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50"
-					/>
-					<input
-						type="date"
-						value={endDate}
-						onChange={(e) => setEndDate(e.target.value)}
-						className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50"
-					/>
+					{/* Date Range */}
+					<div className="flex items-center gap-2 shrink-0">
+						<input
+							type="date"
+							value={startDate}
+							onChange={(e) => setStartDate(e.target.value)}
+							className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 min-w-[140px]"
+						/>
+						<input
+							type="date"
+							value={endDate}
+							onChange={(e) => setEndDate(e.target.value)}
+							className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 min-w-[140px]"
+						/>
+					</div>
 
+					{/* Bank Select */}
 					{mode === 'bank' && (
-						<select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50">
+						<select
+							value={bankAccountId}
+							onChange={(e) => setBankAccountId(e.target.value)}
+							className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 max-w-[220px] truncate shrink-0"
+						>
 							<option value="">-- Semua Bank --</option>
-							{bankAccounts.map(b => (
+							{bankAccounts.map((b) => (
 								<option key={b._id} value={b._id}>
 									{b.bank} - {b.accountName}
 								</option>
@@ -273,110 +305,123 @@ export default function CashflowReportPage() {
 						</select>
 					)}
 
+					{/* Search Input */}
+					<div className="relative flex-1 min-w-[240px]">
+						<input
+							type="text"
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+							placeholder="Cari customer, invoice, referensi..."
+							className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50/50 text-slate-700 placeholder:text-slate-400"
+						/>
+						<svg
+							className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+						</svg>
+					</div>
+
+					{/* Sort Button */}
 					<button
-						onClick={fetchCashflow}
-						disabled={loading}
-						className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-70 ml-auto"
-					>
-						{loading ? 'Memuat...' : 'Terapkan Filter'}
-					</button>
-					<button
+						type="button"
 						onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-						className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+						className="border border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shrink-0 ml-auto"
+						title="Urutan Transaksi"
 					>
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" className="w-4 h-4 text-slate-500">
 							<path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
 						</svg>
-						{sortOrder === 'asc' ? 'Terlama di Atas' : 'Terbaru di Atas'}
+						<span>{sortOrder === 'asc' ? 'Terlama' : 'Terbaru'}</span>
 					</button>
-					<button
-						onClick={toExcel}
-						disabled={loading || transactions.length === 0}
-						className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-70 flex items-center gap-2"
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-						Export Excel
-					</button>
+
 				</div>
 
 				{/* Summary Cards */}
 				{error ? (
-					<div className="bg-rose-50 text-rose-600 p-4 rounded-xl border border-rose-100 text-sm font-medium">
+					<div className="bg-rose-50 text-rose-600 p-4 rounded-xl border border-rose-100 text-xs font-semibold">
 						Error: {error}
 					</div>
 				) : (
-					<div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-						<div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 relative overflow-hidden">
-							<div className="w-16 h-16 bg-emerald-500/10 rounded-full absolute -right-4 -top-4"></div>
-							<p className="text-emerald-700/70 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">Total Uang Masuk</p>
+					<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+						<div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 relative overflow-hidden">
+							<div className="w-14 h-14 bg-emerald-500/10 rounded-full absolute -right-3 -top-3"></div>
+							<p className="text-emerald-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Total Uang Masuk</p>
 							<p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.totalIn)}</p>
 						</div>
-						<div className="bg-rose-50 border border-rose-100 rounded-2xl p-5 relative overflow-hidden">
-							<div className="w-16 h-16 bg-rose-500/10 rounded-full absolute -right-4 -top-4"></div>
-							<p className="text-rose-700/70 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">Total Uang Keluar</p>
+						<div className="bg-rose-50/60 border border-rose-100 rounded-2xl p-4 relative overflow-hidden">
+							<div className="w-14 h-14 bg-rose-500/10 rounded-full absolute -right-3 -top-3"></div>
+							<p className="text-rose-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Total Uang Keluar</p>
 							<p className="text-2xl font-extrabold text-rose-700 relative z-10">{IDR(summary.totalOut)}</p>
 						</div>
-						<div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 relative overflow-hidden">
-							<div className="w-16 h-16 bg-emerald-500/10 rounded-full absolute -right-4 -top-4"></div>
-							<p className="text-emerald-700/70 text-xs font-bold uppercase tracking-widest mb-1 relative z-10">Saldo Bersih</p>
+						<div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 relative overflow-hidden">
+							<div className="w-14 h-14 bg-emerald-500/10 rounded-full absolute -right-3 -top-3"></div>
+							<p className="text-emerald-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Saldo Bersih</p>
 							<p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.netCashflow)}</p>
 						</div>
 					</div>
 				)}
 
 				{/* Table */}
-				<div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+				<div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
 					<div className="overflow-x-auto">
-						<table className="w-full text-left text-sm">
-							<thead className="bg-slate-50 border-b border-slate-100 text-xs font-bold uppercase tracking-widest text-slate-500">
+						<table className="w-full text-left text-xs">
+							<thead className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500">
 								<tr>
-									<th className="p-4 whitespace-nowrap">Tanggal</th>
-									<th className="p-4 whitespace-nowrap">Dari</th>
-									<th className="p-4 whitespace-nowrap">Kepada</th>
-									<th className="p-4 whitespace-nowrap">Sumber</th>
-									<th className="p-4">Referensi</th>
-									<th className="p-4 whitespace-nowrap">Akun / Metode</th>
-									<th className="p-4 whitespace-nowrap">Tipe</th>
-									<th className="p-4 whitespace-nowrap text-right">Jumlah</th>
-									<th className="p-4 whitespace-nowrap">Saldo akhir</th>
+									<th className="p-3.5 whitespace-nowrap">Tanggal</th>
+									<th className="p-3.5 whitespace-nowrap">Dari</th>
+									<th className="p-3.5 whitespace-nowrap">Kepada</th>
+									<th className="p-3.5 whitespace-nowrap">Sumber</th>
+									<th className="p-3.5">Referensi</th>
+									<th className="p-3.5 whitespace-nowrap">Akun / Metode</th>
+									<th className="p-3.5 whitespace-nowrap">Tipe</th>
+									<th className="p-3.5 whitespace-nowrap text-right">Jumlah</th>
+									<th className="p-3.5 whitespace-nowrap text-right">Saldo Akhir</th>
 								</tr>
 							</thead>
-							<tbody className="divide-y divide-slate-50">
-								{transactions.length === 0 ? (
+							<tbody className="divide-y divide-slate-100">
+								{loading ? (
 									<tr>
-										<td colSpan={6} className="p-8 text-center text-slate-400">Belum ada transaksi pada periode ini.</td>
+										<td colSpan={9} className="p-8 text-center text-slate-400 font-medium">Memuat data transaksi...</td>
+									</tr>
+								) : transactions.length === 0 ? (
+									<tr>
+										<td colSpan={9} className="p-8 text-center text-slate-400">Belum ada transaksi pada periode ini.</td>
 									</tr>
 								) : (
 									(sortOrder === 'desc' ? [...transactions].reverse() : transactions).map((t: any, idx: number) => (
-										<tr key={t._id + idx} className="hover:bg-slate-50/50 transition-colors">
-											<td className="p-4 whitespace-nowrap font-medium text-slate-700">
+										<tr key={t._id + idx} className="hover:bg-slate-50/60 transition-colors">
+											<td className="p-3.5 whitespace-nowrap font-medium text-slate-700">
 												{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })}
 											</td>
-											<td className="p-4 whitespace-nowrap text-slate-600">
+											<td className="p-3.5 whitespace-nowrap text-slate-600">
 												{t.from || <span className="text-slate-300">-</span>}
 											</td>
-											<td className="p-4 whitespace-nowrap text-slate-600">
+											<td className="p-3.5 whitespace-nowrap text-slate-600">
 												{t.to || <span className="text-slate-300">-</span>}
 											</td>
-											<td className="p-4 whitespace-nowrap">
-												<span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md">
+											<td className="p-3.5 whitespace-nowrap">
+												<span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
 													{t.source}
 												</span>
 											</td>
-											{t.type === "initial" && <td>{t.reference.split('-')[0]}</td>}
-											{t.type != "initial" && <td>{t.reference}</td>}
-
-											{t.type === 'initial' && <td className="p-4 font-medium text-slate-600 capitalize">{t.method} - {t.reference.split('-')[1]}</td>}
-											{t.type !== 'initial' && <td className="p-4 font-medium text-slate-600 capitalize">{t.method}</td>}
-											<td className="p-4 whitespace-nowrap">
-												{t.type === 'in' && <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">IN</span>}
-												{t.type === 'out' && <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">OUT</span>}
-												{t.type === 'initial' && <span className="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">INITIAL</span>}
+											<td className="p-3.5 font-medium text-slate-700">
+												{t.type === "initial" ? t.reference.split('-')[0] : t.reference}
 											</td>
-											<td className={`p-4 font-extrabold text-right whitespace-nowrap ${t.type === 'in' ? 'text-emerald-600' : t.type === 'out' ? 'text-rose-600' : 'text-sky-600'}`}>
+											<td className="p-3.5 font-medium text-slate-600 capitalize whitespace-nowrap">
+												{t.type === 'initial' ? `${t.method} - ${t.reference.split('-')[1] || ''}` : t.method}
+											</td>
+											<td className="p-3.5 whitespace-nowrap">
+												{t.type === 'in' && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">IN</span>}
+												{t.type === 'out' && <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">OUT</span>}
+												{t.type === 'initial' && <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">INITIAL</span>}
+											</td>
+											<td className={`p-3.5 font-bold text-right whitespace-nowrap ${t.type === 'in' ? 'text-emerald-600' : t.type === 'out' ? 'text-rose-600' : 'text-sky-600'}`}>
 												{t.amount.toLocaleString('id-ID')}
 											</td>
-											<td className={`p-4 font-extrabold text-right whitespace-nowrap`}>
+											<td className="p-3.5 font-bold text-right whitespace-nowrap text-slate-700">
 												{(t.balance || 0).toLocaleString('id-ID')}
 											</td>
 										</tr>
@@ -387,13 +432,17 @@ export default function CashflowReportPage() {
 					</div>
 				</div>
 
-				{/* Create Modal */}
+				{/* Modal Catat Kas Manual */}
 				{showModal && (
 					<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
 						<div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100">
 							<div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
 								<h2 className="text-lg font-bold text-slate-800">Catat Kas (Manual)</h2>
-								<button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors">
+								<button
+									type="button"
+									onClick={() => setShowModal(false)}
+									className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors"
+								>
 									<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
 										<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
 									</svg>
@@ -417,6 +466,7 @@ export default function CashflowReportPage() {
 										<option value="initial">Saldo Awal</option>
 									</select>
 								</div>
+
 								<div className="grid grid-cols-2 gap-4">
 									{modalData.type !== 'initial' && (
 										<div>
@@ -435,10 +485,12 @@ export default function CashflowReportPage() {
 									{modalData.accountType === 'bank' && (
 										<div className={modalData.type === 'initial' ? 'col-span-2' : ''}>
 											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Pilih Bank</label>
-											<select required onChange={(e) => {
-												setModalData({ ...modalData, bankAccountId: e.target.value.split('-')[0] })
-												if (modalData.type === 'initial') setSelectedReference(e.target.value.split('-')[1])
-											}}
+											<select
+												required
+												onChange={(e) => {
+													setModalData({ ...modalData, bankAccountId: e.target.value.split('-')[0] });
+													if (modalData.type === 'initial') setSelectedReference(e.target.value.split('-')[1]);
+												}}
 												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
 											>
 												<option value="">-- Pilih Bank --</option>
@@ -490,33 +542,31 @@ export default function CashflowReportPage() {
 									/>
 								</div>
 
-								{
-									modalData.type !== 'initial' && (
-										isCashOut ? (
-											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
-												<input
-													type="text"
-													value={modalData.to}
-													onChange={(e) => setModalData({ ...modalData, to: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-													placeholder="Contoh: Ke Siapa"
-												/>
-											</div>
-										) : (
-											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
-												<input
-													type="text"
-													value={modalData.from}
-													onChange={(e) => setModalData({ ...modalData, from: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-													placeholder="Contoh: Dari Siapa"
-												/>
-											</div>
-										)
+								{modalData.type !== 'initial' && (
+									isCashOut ? (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
+											<input
+												type="text"
+												value={modalData.to}
+												onChange={(e) => setModalData({ ...modalData, to: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+												placeholder="Contoh: Ke Siapa"
+											/>
+										</div>
+									) : (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
+											<input
+												type="text"
+												value={modalData.from}
+												onChange={(e) => setModalData({ ...modalData, from: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+												placeholder="Contoh: Dari Siapa"
+											/>
+										</div>
 									)
-								}
+								)}
 
 								<div className="pt-4 flex justify-end gap-3">
 									<button
