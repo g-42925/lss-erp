@@ -7,24 +7,36 @@ import useAuth from "@/store/auth"
 function LetterheadHeader({ company }: { company: any }) {
   return (
     <div className="w-full mb-5">
-      <div className="flex items-center border-b-[6px] border-yellow-400 pb-2">
-        {company?.logo ? (
-          <img
-            src={company.logo}
-            alt="Company Logo"
-            className="w-16 h-16 object-contain"
-          />
-        ) : (
-          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs">
-            Logo
-          </div>
-        )}
+      <div className="relative flex items-center justify-between border-b-[6px] border-yellow-400 pb-2">
+        {/* Logo (Kiri) */}
+        <div className="flex-shrink-0">
+          {company?.logo ? (
+            <img
+              src={company.logo}
+              alt="Company Logo"
+              className="w-16 h-16 object-contain"
+            />
+          ) : (
+            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs">
+              Logo
+            </div>
+          )}
+        </div>
 
-        <div className="ml-3">
-          <h1 className="text-2xl font-extrabold text-teal-700 leading-tight">
+        {/* Nama Perusahaan & Tagline (Tengah) */}
+        <div className="flex-1 text-center px-4">
+          <h1 className="text-3xl font-extrabold text-teal-700 leading-tight inline-block border-b-2 border-teal-700 pb-0.5">
             {company?.name || "Nama Perusahaan"}
           </h1>
+          {company?.tagline && (
+            <p className="text-xs text-gray-600 font-semibold mt-1">
+              {company.tagline}
+            </p>
+          )}
         </div>
+
+        {/* Spacer kanan untuk menjaga posisi tengah tetap presisi */}
+        <div className="w-16 flex-shrink-0" />
       </div>
     </div>
   )
@@ -187,13 +199,6 @@ export default function PrintQuotation({
 
   const date = quotation.date
 
-  const frequencyLabels: Record<string, string> = {
-    Once: "Sekali",
-    Week: "Per Minggu",
-    Month: "Per Bulan",
-    Year: "Per Tahun",
-  }
-
   return (
     <>
       <style jsx global>{`
@@ -268,10 +273,7 @@ export default function PrintQuotation({
 
       <div className="bg-gray-100 min-h-screen text-black p-8 print:p-0 print:bg-white font-sans">
 
-        {/* =========================================================
-            PRINT ACTIONS
-        ========================================================= */}
-
+        {/* PRINT ACTIONS */}
         <div className="flex justify-between items-center p-4 mb-4 bg-gray-200 print:hidden">
           <Link
             href="/sales/quotation"
@@ -288,10 +290,7 @@ export default function PrintQuotation({
           </button>
         </div>
 
-        {/* =========================================================
-            PAGE 1 — PENAWARAN
-        ========================================================= */}
-
+        {/* PAGE 1 — PENAWARAN */}
         <A4Page company={company}>
 
           <LetterheadHeader company={company} />
@@ -315,6 +314,16 @@ export default function PrintQuotation({
             {/* Main Content */}
 
             <div className="text-sm leading-relaxed text-gray-800">
+
+              <p>
+                <span className="inline-block w-24">
+                  Kepada
+                </span>
+                :{" "}
+                <b>
+                  {customerName}
+                </b>
+              </p>
 
               <p>
                 <span className="inline-block w-24">
@@ -493,9 +502,7 @@ export default function PrintQuotation({
 
             </div>
 
-            {/* =====================================================
-                SIGNATURES
-            ===================================================== */}
+            {/* SIGNATURES */}
 
             <div className="mt-6 flex justify-between px-8 text-sm">
 
@@ -531,17 +538,11 @@ export default function PrintQuotation({
 
           </div>
 
-          {/* =======================================================
-              FOOTER
-          ======================================================= */}
-
           <LetterheadFooter company={company} />
 
         </A4Page>
 
-        {/* =========================================================
-            PAGE 2 — PROGRAM KERJA
-        ========================================================= */}
+        {/* PAGE 2 — PROGRAM KERJA */}
 
         {quotation.programs?.length > 0 && (
           <A4Page
