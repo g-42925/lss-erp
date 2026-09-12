@@ -332,7 +332,13 @@ export default function PrintQuotation({
                 </span>
                 :{" "}
                 <b>
-                  {date.split("T")[0]}
+                  {date
+                    ? new Date(date).toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                    })
+                    : "-"}
                 </b>
               </p>
 
