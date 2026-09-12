@@ -189,7 +189,9 @@ export default function BankVoucherPage() {
   const total = rows.reduce((acc, row) => acc + (Number(row.jumlah) || 0), 0);
 
   const [terbilangValue, setTerbilangValue] = useState("");
-  const [voucherNo, setVoucherNo] = useState("BM-BCA8838/V/26/001");
+  const [voucherNo, setVoucherNo] = useState("BM-BCA8838/V/26");
+
+  const [month, setMonth] = useState('')
 
   useEffect(() => {
     setVoucherNo((prev) => {
@@ -256,19 +258,31 @@ export default function BankVoucherPage() {
     console.log(bank)
   }
 
-  // const makeVoucherNumber = (transactionType: string, bank: string, bank: string, bankNumber: string) => {
-  //   const now = new Date();
-  //   const rawMonth = now.getMonth(); // 0 - 11
-  //   const day = String(now.getDate()).padStart(2, '0');
-  //   const month = String(rawMonth + 1).padStart(2, '0');
-  //   const year = now.getFullYear().toString().slice(-2);
-  //   const monthName = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-  //   const _month = monthName[rawMonth]; // Langsung pakai index 0 - 11
-  // }
+  function makeVoucherNumber(voucherNumber: string) {
+    const tahunSekarang = new Date().getFullYear();
+    return voucherNumber.replace('V/26', `${month}/${tahunSekarang.toString().slice(-2)}`);
+  }
+
+  function onBankChange(accountNumber: string, bank: string, voucherNumber: string) {
+    const [trxType, rest] = voucherNumber.split('-')
+    const [credential, year, month] = rest.split('/')
+
+    const newCredential = `${bank}${accountNumber.slice(-4)}`
+    setVoucherNo(`${trxType}-${newCredential}/${year}/${month}`)
+  }
 
   useEffect(() => {
     if (mode === 'create') {
-      //makeVoucherNumber();
+      (() => {
+        const now = new Date();
+        const rawMonth = now.getMonth(); // 0 - 11
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(rawMonth + 1).padStart(2, '0');
+        const year = now.getFullYear().toString().slice(-2);
+        const monthName = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+        const _month = monthName[rawMonth]; // Langsung pakai index 0 - 11
+        setMonth(_month)
+      })()
     }
   }, [mode]);
 
@@ -401,27 +415,16 @@ export default function BankVoucherPage() {
                             setSelectedBankAccountId(acc._id);
                             setSelectedRekening(acc.accountNumber);
                           }
-                        } else {
+                        }
+                        else {
 
                           setSelectedBankAccountId("");
                         }
                       }}
                     >
-                      <option value="">Pilih Bank...</option>
-                      {accounts.length > 0 && (
-                        <optgroup label="── Akun Bank Perusahaan ──">
-                          {accounts.map(a => (
-                            <option key={a._id} value={`acc:${a._id}`}>
-                              {a.bank} - {a.accountName} ({a.accountNumber})
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      <optgroup label="── Bank Indonesia ──">
-                        {indonesianBanks.map(bank => (
-                          <option key={bank} value={bank}>{bank}</option>
-                        ))}
-                      </optgroup>
+                      {indonesianBanks.map(bank => (
+                        <option key={bank} value={bank}>{bank}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -445,9 +448,9 @@ export default function BankVoucherPage() {
                   <span>:</span>
                   <input
                     type="text"
-                    value={voucherNo}
+                    value={makeVoucherNumber(voucherNo)}
                     onChange={(e) => setVoucherNo(e.target.value)}
-                    placeholder="BM-BCA8838/V/26/001"
+                    placeholder="BM-BCA8838/V/26"
                     className="input input-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black"
                   />
                 </div>
@@ -469,16 +472,14 @@ export default function BankVoucherPage() {
                       className="select select-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium print:appearance-none"
                       onChange={(e) => {
                         const [accountNumber, bank] = e.target.value.split('|');
-                        setSelectedBankName(bank);
-                        setSelectedBankCode(accountNumber.slice(-4));
-                        console.log({ bank, accountNumber: selectedBankCode })
+                        onBankChange(accountNumber, bank, voucherNo)
                       }}
                     >
                       <option value="">Pilih Bank...</option>
                       {accounts.length > 0 && (
                         accounts.map(a => (
                           <option key={a._id} value={`${a.accountNumber}|${a.bank}`}>
-                            {a.bank} - {a.accountName} ({a.accountNumber})
+                            {a.bank} - {a.accountName}
                           </option>
                         ))
                       )}

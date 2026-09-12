@@ -960,8 +960,8 @@ function XOrderContent() {
   return (
     <>
       <div className="p-3 md:p-6 flex flex-col gap-3 text-black">
-        <div className="min-h-screen bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+        <div className="bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+          <div className="sticky top-0 z-20 -mx-6 -mt-6 px-6 pt-6 pb-3 bg-white border-b border-gray-100 flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center font-semibold">Service Orders</span>
             {/* Status filter tabs */}
             <div className="flex flex-row gap-1 rounded-full border border-gray-200 bg-gray-100 p-1">
