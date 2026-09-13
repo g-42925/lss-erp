@@ -693,6 +693,11 @@ export async function PUT(
           formData.get("billed")
         );
 
+      const dueDate =
+        parseNumber(
+          formData.get("dueDate")
+        );
+
       const taxNumber =
         formData.get("taxNumber") as string;
 
@@ -728,6 +733,7 @@ export async function PUT(
         price,
         qty,
         billed,
+        dueDate,
 
         periodStart,
         periodEnd,

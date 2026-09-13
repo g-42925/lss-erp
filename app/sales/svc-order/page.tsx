@@ -490,6 +490,7 @@ function XOrderContent() {
       qty: order.qty,
       range: order.range,
       billed: order.billed,
+      dueDate: order.dueDate || 0,
       periodStart: order.periodStart ? new Date(order.periodStart).toISOString().split('T')[0] : "",
       periodEnd: order.periodEnd ? new Date(order.periodEnd).toISOString().split('T')[0] : "",
       handledBy: order.handledBy || "internal",
@@ -515,6 +516,7 @@ function XOrderContent() {
     formData.append("qty", data.qty)
     formData.append("range", data.range)
     formData.append("billed", data.billed)
+    formData.append("dueDate", data.dueDate || 0)
     formData.append("periodStart", data.periodStart || "")
     formData.append("periodEnd", data.periodEnd || "")
     formData.append("handledBy", data.handledBy || "internal")
@@ -548,6 +550,7 @@ function XOrderContent() {
           qty: Number(data.qty),
           range: Number(data.range),
           billed: data.billed,
+          dueDate: Number(data.dueDate) || 0,
           periodStart: data.periodStart,
           periodEnd: data.periodEnd,
           handledBy: data.handledBy,
@@ -1425,6 +1428,11 @@ function XOrderContent() {
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Billed</label>
             <input {...editOrderForm.register("billed")} type="text" className="input flex-1" />
+          </div>
+
+          <div className="flex flex-row items-center gap-3">
+            <label className="w-[110px] text-sm font-medium">Termin</label>
+            <input {...editOrderForm.register("dueDate")} type="number" className="input flex-1" placeholder="termin" />
           </div>
 
           <div className="flex flex-row items-center gap-3">
