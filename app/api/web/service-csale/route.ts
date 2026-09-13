@@ -248,7 +248,7 @@ export async function POST(request: NextRequest) {
     const debt = parseNumber(
       formData.get("debt")
     );
-    const payTerm = parseNumber(
+    const payTerm = parseDate(
       formData.get("payTerm")
     );
 
@@ -362,9 +362,12 @@ export async function POST(request: NextRequest) {
       taxNumber,
       taxes,
 
-      handledBy,
-      vendorId
+      handledBy
     };
+
+    if (vendorId) {
+      (serviceOrderData as Record<string, any>).vendorId = vendorId;
+    }
 
     if (
       contractType === "One Time" &&
@@ -729,9 +732,12 @@ export async function PUT(
         periodStart,
         periodEnd,
 
-        handledBy,
-        vendorId
+        handledBy
       };
+
+      if (vendorId) {
+        (updateData as Record<string, any>).vendorId = vendorId;
+      }
 
       const contract =
         formData.get("contract");
