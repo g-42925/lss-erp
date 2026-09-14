@@ -249,7 +249,7 @@ export default function Debt() {
   async function submitEditLog() {
     if (!editingLog) return
     if (!editApprovalCode) return alert("Kode approval wajib diisi")
-    if (editAmount <= 0) return alert("Amount harus lebih dari 0")
+    if (Number(editAmount) <= 0) return alert("Amount harus lebih dari 0")
     setEditSubmitting(true)
     try {
       // Vendor logs diedit via /api/web/debt PUT, purchase logs via /api/web/log/purchase PUT
@@ -261,7 +261,7 @@ export default function Debt() {
           logId: editingLog._id,
           approvalCode: editApprovalCode,
           userId,
-          newAmount: editAmount,
+          newAmount: Number(editAmount),
           newDate: editDate,
           newPaymentMethod: editPaymentMethod,
         }),
