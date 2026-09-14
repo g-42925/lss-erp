@@ -122,6 +122,14 @@ const invoiceSchema = new mongoose.Schema({
   taxes: {
     type: Array,
     default: []
+  },
+  debt: {
+    type: Number,
+    default: 0
+  },
+  handledBy: {
+    type: String,
+    enum: ["internal", "vendor"],
   }
 });
 

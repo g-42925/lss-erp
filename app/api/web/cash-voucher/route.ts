@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import BankVoucher from "@/models/BankVoucher";
+import CashVoucher from "@/models/CashVoucher";
 import Companie from "@/models/Companie";
 
 export async function POST(request: NextRequest) {
@@ -12,14 +12,11 @@ export async function POST(request: NextRequest) {
       masterAccountId,
       voucherNumber,
       voucherType,
-      bankAccountId,
       dibayarDiterima,
-      noRekening,
       date,
       items,
       total,
       terbilang,
-      bank,
     } = body;
 
     if (!masterAccountId || !voucherNumber || !voucherType || !date) {
@@ -41,12 +38,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const voucherCount = await BankVoucher.countDocuments({
-      companyId: company._id,
-    });
-
     // Check duplicate voucherNumber per company
-    const existing = await BankVoucher.findOne({
+    const existing = await CashVoucher.findOne({
       companyId: company._id,
       voucherNumber,
     });
@@ -59,14 +52,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const voucher = await BankVoucher.create({
+    const voucher = await CashVoucher.create({
       companyId: company._id,
       voucherNumber,
       voucherType,
-      bankAccountId: bankAccountId || null,
-      bank: bank || "",
       dibayarDiterima: dibayarDiterima || "",
-      noRekening: noRekening || "",
       date: new Date(date),
       items: (items || []).map((item: any, i: number) => ({
         no: i + 1,
@@ -85,7 +75,7 @@ export async function POST(request: NextRequest) {
       error: false,
     });
   } catch (e: any) {
-    console.error("POST BankVoucher Error:", e);
+    console.error("POST CashVoucher Error:", e);
     return NextResponse.json({
       noResult: true,
       message: e.message || "Terjadi kesalahan",
@@ -120,8 +110,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const vouchers = await BankVoucher.find({ companyId: company._id })
-      .populate("bankAccountId", "bank accountName accountNumber")
+    const vouchers = await CashVoucher.find({ companyId: company._id })
       .sort({ createdAt: -1 });
 
     return NextResponse.json({
@@ -131,7 +120,7 @@ export async function GET(request: NextRequest) {
       error: false,
     });
   } catch (e: any) {
-    console.error("GET BankVoucher Error:", e);
+    console.error("GET CashVoucher Error:", e);
     return NextResponse.json({
       noResult: true,
       message: e.message || "Terjadi kesalahan",
@@ -151,14 +140,11 @@ export async function PUT(request: NextRequest) {
       masterAccountId,
       voucherNumber,
       voucherType,
-      bankAccountId,
       dibayarDiterima,
-      noRekening,
       date,
       items,
       total,
       terbilang,
-      bank,
     } = body;
 
     if (!_id || !masterAccountId || !voucherNumber || !voucherType || !date) {
@@ -180,8 +166,8 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Check if updating to a voucher number that already exists (and is not this one)
-    const existing = await BankVoucher.findOne({
+    // Check duplicate voucherNumber per company
+    const existing = await CashVoucher.findOne({
       companyId: company._id,
       voucherNumber,
       _id: { $ne: _id }
@@ -196,15 +182,12 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    const voucher = await BankVoucher.findByIdAndUpdate(
+    const voucher = await CashVoucher.findByIdAndUpdate(
       _id,
       {
         voucherNumber,
         voucherType,
-        bankAccountId: bankAccountId || null,
-        bank: bank || "",
         dibayarDiterima: dibayarDiterima || "",
-        noRekening: noRekening || "",
         date: new Date(date),
         items: (items || []).map((item: any, i: number) => ({
           no: i + 1,
@@ -234,7 +217,7 @@ export async function PUT(request: NextRequest) {
       error: false,
     });
   } catch (e: any) {
-    console.error("PUT BankVoucher Error:", e);
+    console.error("PUT CashVoucher Error:", e);
     return NextResponse.json({
       noResult: true,
       message: e.message || "Terjadi kesalahan",

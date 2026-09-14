@@ -1,13 +1,13 @@
 import mongoose from 'mongoose';
 
-const bankVoucherItemSchema = new mongoose.Schema({
+const cashVoucherItemSchema = new mongoose.Schema({
   no: { type: Number, required: true },
   keterangan: { type: String, default: '' },
   customer: { type: String, default: '' },
   jumlah: { type: Number, required: true, default: 0 },
 });
 
-const bankVoucherSchema = new mongoose.Schema(
+const cashVoucherSchema = new mongoose.Schema(
   {
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -20,16 +20,9 @@ const bankVoucherSchema = new mongoose.Schema(
       enum: ['masuk', 'keluar'],
       required: true,
     },
-    bankAccountId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'BankAccount',
-      required: false,
-    },
-    bank: { type: String, default: '' },
     dibayarDiterima: { type: String, default: '' },
-    noRekening: { type: String, default: '' },
     date: { type: Date, required: true },
-    items: [bankVoucherItemSchema],
+    items: [cashVoucherItemSchema],
     total: { type: Number, required: true, default: 0 },
     terbilang: { type: String, default: '' },
     status: {
@@ -41,5 +34,5 @@ const bankVoucherSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.BankVoucher ||
-  mongoose.model('BankVoucher', bankVoucherSchema);
+export default mongoose.models.CashVoucher ||
+  mongoose.model('CashVoucher', cashVoucherSchema);

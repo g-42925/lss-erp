@@ -4,6 +4,7 @@ import { NumericFormat } from "react-number-format";
 import React, { useState, useEffect, useRef } from "react";
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
+import PrintableVoucher from "./PrintableBankVoucher";
 
 type ItemRow = {
   id: string;
@@ -42,7 +43,7 @@ function terbilang(angka: number): string {
 }
 
 
-export default function BankVoucherPage() {
+export default function BankVoucherTab() {
   const today = new Date();
   const formattedToday = today.toLocaleDateString('id-ID', {
     day: '2-digit',
@@ -55,8 +56,11 @@ export default function BankVoucherPage() {
 
   const [accounts, setAccounts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [company, setCompany] = useState<any>(null);
 
   const [mode, setMode] = useState("create");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedVouchers, setSelectedVouchers] = useState<any[]>([]);
 
   // Toast state
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -69,6 +73,11 @@ export default function BankVoucherPage() {
   };
 
   const getFn = useFetch<any[], any>({
+    url: '',
+    method: "GET",
+  });
+
+  const getCompanyFn = useFetch<any, any>({
     url: '',
     method: "GET",
   });
@@ -89,16 +98,34 @@ export default function BankVoucherPage() {
     onError: (msg) => showToast("error", msg),
   });
 
+  const updateFn = useFetch<any, any>({
+    url: '/api/web/bank-voucher',
+    method: "PUT",
+    onError: (msg) => showToast("error", msg),
+  });
+
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
       getFn.fn(`/api/web/bank-accounts?id=${masterAccountId}`, "{}", (result) => {
         setAccounts(result);
       });
+      getCompanyFn.fn(`/api/web/companies?id=${masterAccountId}`, "{}", (result: any) => {
+        if (result && result.length > 0) {
+          setCompany(result[0]);
+        }
+      });
       getCustomersFn.fn(`/api/web/customers?id=${masterAccountId}`, "{}", (result) => {
         setCustomers(result);
       });
       getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", (result) => {
-        console.log(result);
+        const nextSeq = String((result?.length || 0) + 1).padStart(3, '0');
+        setVoucherNo((prev) => {
+          // Replace or append the sequence number at the end
+          const parts = prev.split('/');
+          // Remove old seq if it's all digits
+          if (/^\d+$/.test(parts[parts.length - 1])) parts.pop();
+          return parts.join('/') + '/' + nextSeq;
+        });
       });
     }
   }, [hasHydrated, masterAccountId]);
@@ -241,13 +268,18 @@ export default function BankVoucherPage() {
         })),
       total,
       terbilang: terbilangValue,
+      ...(editingId ? { _id: editingId } : {})
     };
 
-    saveFn.fn(
+    const actionFn = editingId ? updateFn : saveFn;
+
+    actionFn.fn(
       '/api/web/bank-voucher',
       JSON.stringify(payload),
       () => {
-        showToast("success", `Voucher ${voucherNo} berhasil disimpan!`);
+        showToast("success", `Voucher ${voucherNo} berhasil ${editingId ? 'diupdate' : 'disimpan'}!`);
+        // Refresh list after save
+        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}");
       }
     );
   };
@@ -260,15 +292,45 @@ export default function BankVoucherPage() {
 
   function makeVoucherNumber(voucherNumber: string) {
     const tahunSekarang = new Date().getFullYear();
-    return voucherNumber.replace('V/26', `${month}/${tahunSekarang.toString().slice(-2)}`);
+    // Extract sequence (last segment if all digits)
+    const parts = voucherNumber.split('/');
+    let seq = '';
+    if (/^\d+$/.test(parts[parts.length - 1])) {
+      seq = '/' + parts.pop();
+    }
+    const base = parts.join('/');
+    return base.replace('V/26', `${month}/${tahunSekarang.toString().slice(-2)}`) + seq;
   }
 
   function onBankChange(accountNumber: string, bank: string, voucherNumber: string) {
-    const [trxType, rest] = voucherNumber.split('-')
-    const [credential, year, month] = rest.split('/')
+    if (!accountNumber || !bank) return;
 
-    const newCredential = `${bank}${accountNumber.slice(-4)}`
-    setVoucherNo(`${trxType}-${newCredential}/${year}/${month}`)
+    const parts = voucherNumber.split('/');
+    // Extract sequence if last part is digits
+    let seq = '';
+    if (/^\d+$/.test(parts[parts.length - 1])) {
+      seq = '/' + parts.pop();
+    }
+    
+    const newCredential = `${bank}${accountNumber.slice(-4)}`;
+
+    if (!voucherNumber.includes('-')) {
+      const prefix = isMasuk ? 'BM' : 'BK';
+      setVoucherNo(`${prefix}-${newCredential}/V${seq}`);
+      return;
+    }
+
+    const [trxType, ...restTokens] = parts.join('/').split('-');
+    const rest = restTokens.join('-');
+    
+    if (rest) {
+      const restParts = rest.split('/');
+      restParts.shift(); // remove the old credential
+      const joinedRest = restParts.length > 0 ? '/' + restParts.join('/') : '';
+      setVoucherNo(`${trxType}-${newCredential}${joinedRest}${seq}`);
+    } else {
+      setVoucherNo(`${trxType}-${newCredential}/V${seq}`);
+    }
   }
 
   useEffect(() => {
@@ -286,7 +348,141 @@ export default function BankVoucherPage() {
     }
   }, [mode]);
 
-  return mode === 'create' ? (
+  const handleNewVoucher = () => {
+    setEditingId(null);
+    setVoucherNo(""); // Will be auto-generated by the effect if empty, or we can just let it be
+    setIsMasuk(false);
+    setIsKeluar(true);
+    setSelectedBank("");
+    setSelectedBankAccountId("");
+    setSelectedRekening("");
+    setDibayarDiterima("");
+    setTanggal(new Date().toISOString().split("T")[0]);
+    setTerbilangValue("");
+    setRows([
+      { id: "1", keterangan: "", customer: "", jumlah: 0 },
+      { id: "2", keterangan: "", customer: "", jumlah: 0 },
+      { id: "3", keterangan: "", customer: "", jumlah: 0 },
+    ]);
+    
+    // Regenerate voucher number sequence
+    getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", (result) => {
+      const nextSeq = String((result?.length || 0) + 1).padStart(3, '0');
+      setVoucherNo((prev) => {
+        const parts = prev.split('/');
+        if (/^\d+$/.test(parts[parts.length - 1])) parts.pop();
+        return parts.join('/') + '/' + nextSeq;
+      });
+    });
+
+    setMode("create");
+  };
+
+  const handleSelectVoucher = (voucher: any) => {
+    setEditingId(voucher._id);
+    setVoucherNo(voucher.voucherNumber);
+    setIsMasuk(voucher.voucherType === "masuk");
+    setIsKeluar(voucher.voucherType === "keluar");
+    setSelectedBank(voucher.bank || voucher.bankAccountId?.bank || "");
+    setSelectedBankAccountId(voucher.bankAccountId?._id || voucher.bankAccountId || "");
+    setSelectedRekening(voucher.noRekening || "");
+    setDibayarDiterima(voucher.dibayarDiterima || "");
+    setTanggal(voucher.date ? new Date(voucher.date).toISOString().split("T")[0] : "");
+    setTerbilangValue(voucher.terbilang || "");
+    
+    let newRows = [...(voucher.items || [])];
+    while (newRows.length < 3) {
+      newRows.push({ id: Math.random().toString(), keterangan: "", customer: "", jumlah: 0 });
+    }
+    setRows(newRows);
+    
+    setMode("create");
+  };
+
+  return mode === 'print-multiple' ? (
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact;
+          }
+        }
+      `}} />
+      <div className="p-4 md:p-6 min-h-screen print:min-h-0 print:p-0 bg-base-200 print:bg-white">
+        <div className="flex justify-between items-center mb-6 print:hidden">
+          <div>
+            <h1 className="text-2xl font-bold text-base-content">Print Voucher</h1>
+            <p className="text-base-content/70">Print {selectedVouchers.length} voucher terpilih</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setMode("listing")}
+              className="btn btn-outline"
+            >
+              Kembali
+            </button>
+            <button onClick={handlePrint} className="btn btn-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              Print Semua
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col items-center print:block print:w-full print:m-0 print:p-0">
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 0;
+                background-color: white;
+              }
+              .voucher-print-wrapper {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+              }
+              .voucher-print-page {
+                box-sizing: border-box;
+                width: 100% !important;
+                height: 297mm !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 15mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                page-break-after: always;
+                break-after: page;
+              }
+              .voucher-print-page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+              }
+            }
+          `}} />
+          <div className="voucher-print-wrapper">
+            {selectedVouchers.map((voucher, idx) => (
+              <PrintableVoucher
+                key={voucher._id || voucher.voucherNumber}
+                voucher={voucher}
+                isLast={idx === selectedVouchers.length - 1}
+                company={company}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  ) : mode === 'create' ? (
     <>
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -309,13 +505,26 @@ export default function BankVoucherPage() {
         </div>
       )}
 
-      <div className="p-4 md:p-6 min-h-screen print:min-h-0 print:p-0 bg-base-200 print:bg-white">
-        <div className="flex justify-between items-center mb-6 print:hidden">
-          <div>
-            <h1 className="text-2xl font-bold text-base-content">Bank Voucher</h1>
-            <p className="text-base-content/70">Buat dan simpan bukti voucher bank</p>
+      <div className="pb-6 print:p-0">
+        <div className="flex justify-between items-center mb-6 print:hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 leading-tight">{editingId ? "Edit" : "Buat"} Bank Voucher</h2>
+              <p className="text-slate-500 text-xs">Isi form di bawah untuk mencetak voucher</p>
+            </div>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={() => setMode("listing")}
+              className="btn btn-outline"
+            >
+              Lihat Daftar
+            </button>
             <button
               onClick={handleSave}
               disabled={saveFn.loading}
@@ -375,10 +584,14 @@ export default function BankVoucherPage() {
               </div>
               <div className="text-right">
                 <div className="flex items-center justify-end space-x-2 mb-2">
-                  <div className="w-10 h-10 bg-blue-500 text-white font-bold flex items-center justify-center rounded-sm">
-                    LR
-                  </div>
-                  <h3 className="font-bold text-lg">PT. LERYN JAYA MAS</h3>
+                  {company && company.logo ? (
+                    <img src={company.logo} alt="Logo" className="w-10 h-10 object-contain" />
+                  ) : (
+                    <div className="w-10 h-10 bg-blue-500 text-white font-bold flex items-center justify-center rounded-sm">
+                      LR
+                    </div>
+                  )}
+                  <h3 className="font-bold text-lg">{company?.name || "PT. LERYN JAYA MAS"}</h3>
                 </div>
               </div>
             </div>
@@ -598,7 +811,42 @@ export default function BankVoucherPage() {
     :
     <>
 
-      <div className="p-4 md:p-6 min-h-screen print:min-h-0 print:p-0 bg-base-200 print:bg-white">
+      <div className="pb-6 print:p-0">
+        <div className="flex justify-between items-center mb-6 print:hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 leading-tight">Daftar Bank Voucher</h2>
+              <p className="text-slate-500 text-xs">Arsip semua voucher bank yang tersimpan</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {selectedVouchers.length > 0 && (
+              <button
+                onClick={() => setMode("print-multiple")}
+                className="btn btn-secondary"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print {selectedVouchers.length} Terpilih
+              </button>
+            )}
+            <button
+              onClick={handleNewVoucher}
+              className="btn btn-primary"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Buat Voucher Baru
+            </button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12">
@@ -614,12 +862,26 @@ export default function BankVoucherPage() {
                   >
                     {/* Header Card: Tipe & Status */}
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${isMasuk
-                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                        : 'bg-rose-100 text-rose-700 border border-rose-200'
-                        }`}>
-                        Voucher {voucher.voucherType}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          className="checkbox checkbox-sm rounded"
+                          checked={selectedVouchers.some(v => v._id === voucher._id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedVouchers([...selectedVouchers, voucher]);
+                            } else {
+                              setSelectedVouchers(selectedVouchers.filter(v => v._id !== voucher._id));
+                            }
+                          }}
+                        />
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${isMasuk
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          : 'bg-rose-100 text-rose-700 border border-rose-200'
+                          }`}>
+                          Voucher {voucher.voucherType}
+                        </span>
+                      </div>
 
                       <div className="flex items-center gap-1.5">
                         <span className={`w-2 h-2 rounded-full ${isSaved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
@@ -672,6 +934,19 @@ export default function BankVoucherPage() {
                           {isMasuk ? '+' : '-'} Rp {voucher.total?.toLocaleString('id-ID')}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Action Card */}
+                    <div className="p-3 bg-white border-t border-slate-100 flex justify-end">
+                      <button 
+                        onClick={() => handleSelectVoucher(voucher)} 
+                        className="btn btn-sm btn-outline btn-primary"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        Edit & Print
+                      </button>
                     </div>
                   </div>
                 );

@@ -7,6 +7,7 @@ import Invoice from '@/models/Invoice'
 import ServiceOrder from '@/models/ServiceOrder'
 import Companie from '@/models/Companie'
 import Log from '@/models/Log'
+import Cashflow from '@/models/Cashflow'
 
 
 export async function GET(request: NextRequest) {
@@ -15,19 +16,33 @@ export async function GET(request: NextRequest) {
     const id = url.searchParams.get("id")
     // filterType: 'barang' | 'jasa' | 'vendor'
     const filterType = url.searchParams.get("filterType") ?? 'barang'
+    const status = url.searchParams.get("status") ?? 'unpaid' // 'unpaid' | 'paid'
+    const month = url.searchParams.get("month") // format 'YYYY-MM'
+
     await connectToDatabase()
     const cmp = await Companie.findOne({ masterAccountId: id })
 
-    // ─── Hutang Barang: Purchase produk belum lunas ───────────────────────────
+    // ─── Hutang Barang: Purchase produk ───────────────────────────
     if (filterType === 'barang') {
+      const matchQuery: any = {
+        companyId: cmp._id,
+        purchaseType: 'product',
+      }
+      if (status === 'unpaid') {
+        matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
+      } else if (status === 'paid') {
+        matchQuery.$expr = { $lte: ["$finalPrice", "$payAmount"] }
+      }
+      if (month) {
+        const [yearStr, monthStr] = month.split('-')
+        const y = parseInt(yearStr), m = parseInt(monthStr)
+        const startDate = new Date(y, m - 1, 1)
+        const endDate = new Date(y, m, 1)
+        matchQuery.date = { $gte: startDate, $lt: endDate }
+      }
+
       const debts = await Purchase.aggregate([
-        {
-          $match: {
-            companyId: cmp._id,
-            purchaseType: 'product',
-            $expr: { $gt: ["$finalPrice", "$payAmount"] }
-          },
-        },
+        { $match: matchQuery },
         {
           $lookup: {
             from: 'products',
@@ -60,16 +75,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ noResult: false, message: "", result: debts, error: false })
     }
 
-    // ─── Hutang Jasa: Purchase service belum lunas ───────────────────────────
+    // ─── Hutang Jasa: Purchase service ───────────────────────────
     if (filterType === 'jasa') {
+      const matchQuery: any = {
+        companyId: cmp._id,
+        purchaseType: 'service',
+      }
+      if (status === 'unpaid') {
+        matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
+      } else if (status === 'paid') {
+        matchQuery.$expr = { $lte: ["$finalPrice", "$payAmount"] }
+      }
+      if (month) {
+        const [yearStr, monthStr] = month.split('-')
+        const y = parseInt(yearStr), m = parseInt(monthStr)
+        const startDate = new Date(y, m - 1, 1)
+        const endDate = new Date(y, m, 1)
+        matchQuery.date = { $gte: startDate, $lt: endDate }
+      }
+
       const debts = await Purchase.aggregate([
-        {
-          $match: {
-            companyId: cmp._id,
-            purchaseType: 'service',
-            $expr: { $gt: ["$finalPrice", "$payAmount"] }
-          },
-        },
+        { $match: matchQuery },
         {
           $lookup: {
             from: 'vendors',
@@ -93,27 +119,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ noResult: false, message: "", result: debts, error: false })
     }
 
-    // ─── Hutang Vendor: dari Invoice yg berasal dari ServiceOrder handledBy != internal ──
+    // ─── Hutang Vendor: Invoice yg memiliki handledBy != internal ──
     if (filterType === 'vendor') {
-      const vendorOrders = await ServiceOrder.find({
+      const matchQuery: any = {
         companyId: cmp._id,
-        handledBy: { $ne: 'internal' }
-      }).select('_id vendorId').lean()
-
-      if (vendorOrders.length === 0) {
-        return NextResponse.json({ noResult: true, message: "Tidak ada hutang vendor", result: [], error: false })
+        handledBy: { $exists: true, $ne: 'internal' },
+        void: { $ne: true }
+      }
+      if (month) {
+        const [yearStr, monthStr] = month.split('-')
+        const y = parseInt(yearStr), m = parseInt(monthStr)
+        const startDate = new Date(y, m - 1, 1)
+        const endDate = new Date(y, m, 1)
+        matchQuery.date = { $gte: startDate, $lt: endDate }
       }
 
-      const orderIds = vendorOrders.map((o: any) => o._id)
-
       const invoices = await Invoice.aggregate([
-        {
-          $match: {
-            companyId: cmp._id,
-            salesOrderId: { $in: orderIds },
-            void: { $ne: true }
-          }
-        },
+        { $match: matchQuery },
         {
           $lookup: {
             from: 'serviceorders',
@@ -133,15 +155,10 @@ export async function GET(request: NextRequest) {
         },
         { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
         {
-          // Hitung total hutang vendor dari ServiceOrder: price × qty × max(range, 1)
+          // Hitung total hutang vendor dari property debt di Invoice
           $addFields: {
             vendorPaid: { $ifNull: ['$vendorPaid', 0] },
-            totalVendorAmount: {
-              $multiply: [
-                { $ifNull: ['$serviceOrder.price', 0] },
-                { $ifNull: ['$serviceOrder.qty', 1] }
-              ]
-            }
+            totalVendorAmount: { $ifNull: ['$debt', 0] }
           }
         },
         {
@@ -154,13 +171,17 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        // Hanya tampilkan yang belum lunas
+        // Filter status lunas / belum lunas
         {
-          $match: {
-            $expr: { $gt: ['$totalVendorAmount', '$vendorPaid'] }
-          }
+          $match: status === 'unpaid' 
+            ? { $expr: { $gt: ['$totalVendorAmount', '$vendorPaid'] } }
+            : { $expr: { $lte: ['$totalVendorAmount', '$vendorPaid'] } }
         }
       ])
+
+      if (invoices.length === 0) {
+        return NextResponse.json({ noResult: true, message: "Tidak ada hutang vendor", result: [], error: false })
+      }
 
       return NextResponse.json({ noResult: false, message: "", result: invoices, error: false })
     }
@@ -177,12 +198,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─── POST: Bayar hutang vendor (update Invoice.vendorPaid + catat Log) ────────
+// ─── POST: Bayar hutang vendor (update Invoice.vendorPaid + catat Log + Cashflow) ────────
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     const body = await request.json()
-    const { invoiceId, payAmount, paymentMethod, payDate, userId } = body
+    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId } = body
 
     if (!invoiceId || !payAmount || payAmount <= 0) {
       return NextResponse.json({ noResult: true, message: "Parameter tidak valid", result: null, error: true })
@@ -191,14 +212,12 @@ export async function POST(request: NextRequest) {
     const invoice = await Invoice.findById(invoiceId).lean() as any
     if (!invoice) return NextResponse.json({ noResult: true, message: "Invoice tidak ditemukan", result: null, error: true })
 
-    // Hitung total hutang vendor dari ServiceOrder
-    const serviceOrder = await ServiceOrder.findById(invoice.salesOrderId).lean() as any
-    if (!serviceOrder) return NextResponse.json({ noResult: true, message: "ServiceOrder tidak ditemukan", result: null, error: true })
-
-    const totalVendorAmount = (serviceOrder.price ?? 0) * (serviceOrder.qty ?? 1)
+    // Hitung total hutang vendor dari Invoice
+    const totalVendorAmount = invoice.debt || 0;
 
     const currentVendorPaid = (invoice.vendorPaid ?? 0)
-    const newVendorPaid = currentVendorPaid + Number(payAmount)
+    const amt = Number(payAmount)
+    const newVendorPaid = currentVendorPaid + amt
 
     if (newVendorPaid > totalVendorAmount) {
       return NextResponse.json({ noResult: true, message: `Jumlah bayar melebihi hutang (max: ${totalVendorAmount - currentVendorPaid})`, result: null, error: true })
@@ -206,10 +225,10 @@ export async function POST(request: NextRequest) {
 
     await Invoice.findByIdAndUpdate(invoiceId, { vendorPaid: newVendorPaid })
 
-    await Log.create({
+    const logEntry = await Log.create({
       purchaseId: new mongoose.Types.ObjectId(invoiceId),
       date: payDate ? new Date(payDate) : new Date(),
-      amount: Number(payAmount),
+      amount: amt,
       initial: false,
       paymentNumber: `VL-${String(Date.now()).slice(-6)}`,
       type: 'payment',
@@ -217,10 +236,185 @@ export async function POST(request: NextRequest) {
       createdBy: userId ? new mongoose.Types.ObjectId(userId) : undefined
     })
 
+    // ─── Catat Cashflow ──────────────────────────────────────────────────────
+    const isCash = !paymentMethod || paymentMethod === 'Cash'
+    const cmp = masterAccountId ? await Companie.findOne({ masterAccountId }) : null
+
+    if (cmp) {
+      await Cashflow.create({
+        companyId: cmp._id,
+        accountType: isCash ? 'Cash' : 'Bank',
+        bankAccountId: isCash ? null : (bankAccountId || null),
+        type: 'out',
+        amount: amt,
+        reference: `Pembayaran hutang vendor - ${invoice.invoiceNumber || invoiceId}`,
+        date: payDate ? new Date(payDate) : new Date(),
+        recordedBy: userId ? new mongoose.Types.ObjectId(userId) : null,
+        to: 'Vendor'
+      })
+    }
+
     return NextResponse.json({
       noResult: false,
       message: "Pembayaran berhasil dicatat",
-      result: { invoiceId, newVendorPaid, remaining: totalVendorAmount - newVendorPaid },
+      result: { invoiceId, newVendorPaid, remaining: totalVendorAmount - newVendorPaid, logId: logEntry._id },
+      error: false
+    })
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: e instanceof Error ? e.message : "Something went wrong",
+      result: null,
+      error: true
+    })
+  }
+}
+
+// ─── PUT: Edit pembayaran hutang vendor (tanggal & jumlah) ─────────────────────
+export async function PUT(request: NextRequest) {
+  try {
+    await connectToDatabase()
+    const body = await request.json()
+    const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod } = body
+
+    if (!logId) {
+      return NextResponse.json({ noResult: true, message: "logId is required", result: null, error: true })
+    }
+    if (!approvalCode) {
+      return NextResponse.json({ noResult: true, message: "Approval code is required", result: null, error: true })
+    }
+
+    const User = (await import('@/models/User')).default
+
+    const approver = await User.findOne({ approvalCode })
+    if (!approver) {
+      return NextResponse.json({ noResult: true, message: "Kode approval tidak valid", result: null, error: true })
+    }
+
+    const oldLog = await Log.findById(logId)
+    if (!oldLog) {
+      return NextResponse.json({ noResult: true, message: "Log tidak ditemukan", result: null, error: true })
+    }
+
+    const editor = userId ? await User.findById(userId) : null
+
+    const updates: any = {
+      editedAt: new Date(),
+      editApprovedBy: approver._id,
+    }
+    if (editor) updates.editedBy = editor._id
+    if (newDate) updates.date = new Date(newDate)
+    if (newPaymentMethod) updates.paymentMethod = newPaymentMethod
+
+    // Jika amount berubah, update Invoice.vendorPaid
+    if (newAmount !== undefined && newAmount !== null && Number(newAmount) !== oldLog.amount) {
+      const diff = Number(newAmount) - oldLog.amount
+      updates.amount = Number(newAmount)
+
+      // Update vendorPaid di Invoice
+      await Invoice.findByIdAndUpdate(oldLog.purchaseId, {
+        $inc: { vendorPaid: diff }
+      })
+
+      // Update Cashflow jika ada
+      const invoice = await Invoice.findById(oldLog.purchaseId).lean() as any
+      if (invoice) {
+        const cmp = await Companie.findOne({ _id: invoice.companyId })
+        if (cmp) {
+          // Cari cashflow terkait dan update amount-nya
+          const cfQuery: any = {
+            companyId: cmp._id,
+            type: 'out',
+            reference: { $regex: invoice.invoiceNumber || oldLog.purchaseId.toString() }
+          }
+          // Update cashflow terdekat berdasarkan tanggal log lama
+          await Cashflow.findOneAndUpdate(
+            { ...cfQuery, amount: oldLog.amount, date: oldLog.date },
+            { amount: Number(newAmount), ...(newDate ? { date: new Date(newDate) } : {}) }
+          )
+        }
+      }
+    }
+
+    const updated = await Log.findByIdAndUpdate(logId, updates, { new: true })
+      .populate('createdBy', 'name')
+      .populate('editedBy', 'name')
+      .populate('editApprovedBy', 'name')
+      .lean()
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Payment log updated",
+      result: updated,
+      error: false
+    })
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: e instanceof Error ? e.message : "Something went wrong",
+      result: null,
+      error: true
+    })
+  }
+}
+
+// ─── DELETE: Hapus pembayaran hutang vendor ─────────────────────────────────────
+export async function DELETE(request: NextRequest) {
+  try {
+    await connectToDatabase()
+    const url = new URL(request.url)
+    const logId = url.searchParams.get("logId")
+    const approvalCode = url.searchParams.get("approvalCode")
+
+    if (!logId) {
+      return NextResponse.json({ noResult: true, message: "logId is required", result: null, error: true })
+    }
+    if (!approvalCode) {
+      return NextResponse.json({ noResult: true, message: "Approval code is required", result: null, error: true })
+    }
+
+    const User = (await import('@/models/User')).default
+
+    const approver = await User.findOne({ approvalCode })
+    if (!approver) {
+      return NextResponse.json({ noResult: true, message: "Kode approval tidak valid", result: null, error: true })
+    }
+
+    const log = await Log.findById(logId)
+    if (!log) {
+      return NextResponse.json({ noResult: true, message: "Log tidak ditemukan", result: null, error: true })
+    }
+
+    const logAmount = log.amount ?? 0
+
+    // Rollback vendorPaid di Invoice
+    await Invoice.findByIdAndUpdate(log.purchaseId, {
+      $inc: { vendorPaid: -logAmount }
+    })
+
+    // Hapus Cashflow terkait
+    const invoice = await Invoice.findById(log.purchaseId).lean() as any
+    if (invoice) {
+      const cmp = await Companie.findOne({ _id: invoice.companyId })
+      if (cmp) {
+        await Cashflow.findOneAndDelete({
+          companyId: cmp._id,
+          type: 'out',
+          amount: logAmount,
+          reference: { $regex: invoice.invoiceNumber || log.purchaseId.toString() }
+        })
+      }
+    }
+
+    // Hapus log
+    await Log.findByIdAndDelete(logId)
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Pembayaran berhasil dihapus",
+      result: { logId, rolledBackAmount: logAmount },
       error: false
     })
   }

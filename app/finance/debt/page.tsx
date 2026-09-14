@@ -24,20 +24,24 @@ export default function Debt() {
   const editLogRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<FilterType>('barang')
+  const [statusFilter, setStatusFilter] = useState<'unpaid' | 'paid'>('unpaid')
+  const [monthFilter, setMonthFilter] = useState<string>("")
   const [debts, setDebts] = useState<any[]>([])
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [editingLog, setEditingLog] = useState<any>(null)
   const [editApprovalCode, setEditApprovalCode] = useState("")
-  const [editAmount, setEditAmount] = useState<number>(0)
+  const [editAmount, setEditAmount] = useState<number | string>(0)
   const [editDate, setEditDate] = useState("")
   const [editPaymentMethod, setEditPaymentMethod] = useState("")
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [paySubmitting, setPaySubmitting] = useState(false)
   const [selectedDebt, setSelectedDebt] = useState<any>(null)
+  const [selectedLogDebt, setSelectedLogDebt] = useState<any>(null)
   const [payFormData, setPayFormData] = useState({
-    payAmount: 0,
+    payAmount: 0 as number | string,
     paymentMethod: 'Cash',
+    bankAccountId: '',
     payDate: new Date().toISOString().split('T')[0]
   })
 
@@ -58,13 +62,9 @@ export default function Debt() {
     method: 'GET'
   })
 
-  const getLogsFn = useFetch<any[], any>({
-    url: `/api/web/log/purchase`,
-    method: 'GET'
-  })
-
-  function fetchDebts(type: FilterType) {
-    const url = `/api/web/debt?id=${masterAccountId}&filterType=${type}`
+  function fetchDebts(type: FilterType = filterType, stat: string = statusFilter, mon: string = monthFilter) {
+    let url = `/api/web/debt?id=${masterAccountId}&filterType=${type}&status=${stat}`
+    if (mon) url += `&month=${mon}`
     getFn.fn(url, "{}", (result) => {
       setDebts(result ?? [])
     })
@@ -73,15 +73,28 @@ export default function Debt() {
   function handleFilterChange(type: FilterType) {
     setFilterType(type)
     setDebts([])
-    fetchDebts(type)
+    fetchDebts(type, statusFilter, monthFilter)
+  }
+
+  function handleStatusChange(stat: 'unpaid' | 'paid') {
+    setStatusFilter(stat)
+    setDebts([])
+    fetchDebts(filterType, stat, monthFilter)
+  }
+
+  function handleMonthChange(mon: string) {
+    setMonthFilter(mon)
+    setDebts([])
+    fetchDebts(filterType, statusFilter, mon)
   }
 
   // ─── Open Pay Modal ──────────────────────────────────────────────────────────
   function openPay(debt: any) {
     setSelectedDebt(debt)
     setPayFormData({
-      payAmount: 0,
+      payAmount: "",
       paymentMethod: 'Cash',
+      bankAccountId: '',
       payDate: new Date().toISOString().split('T')[0]
     })
     payRef.current?.showModal()
@@ -128,12 +141,12 @@ export default function Debt() {
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
   async function payVendorDebt() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, payDate } = payFormData
+    const { payAmount, paymentMethod, bankAccountId, payDate } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
-    const remaining = selectedDebt.totalVendorAmount - (selectedDebt.vendorPaid ?? 0)
-    if (newPayAmt > remaining) return alert("Jumlah bayar melebihi sisa hutang vendor")
+    const rem = selectedDebt.totalVendorAmount - (selectedDebt.vendorPaid ?? 0)
+    if (newPayAmt > rem) return alert("Jumlah bayar melebihi sisa hutang vendor")
 
     setPaySubmitting(true)
     try {
@@ -144,27 +157,54 @@ export default function Debt() {
           invoiceId: selectedDebt._id,
           payAmount: newPayAmt,
           paymentMethod,
+          bankAccountId: paymentMethod === 'Cash' ? null : bankAccountId,
           payDate,
-          userId
+          userId,
+          masterAccountId
         })
       })
       const json = await res.json()
       if (json.error) return alert(json.message)
 
-      setDebts(prev => {
-        const updated = [...prev]
-        const idx = updated.findIndex(d => d._id === selectedDebt._id)
-        if (idx >= 0) {
-          updated[idx].vendorPaid = (updated[idx].vendorPaid ?? 0) + newPayAmt
-          updated[idx].remaining = updated[idx].totalVendorAmount - updated[idx].vendorPaid
-        }
-        return updated.filter(d => d.totalVendorAmount > (d.vendorPaid ?? 0))
-      })
+      // Re-fetch dari server untuk menghindari bug double update di local state
+      fetchDebts()
       payRef.current?.close()
     } catch (e: any) {
       alert(e.message)
     } finally {
       setPaySubmitting(false)
+    }
+  }
+
+  async function markAsPaid(debt: any) {
+    if (!confirm('Yakin ingin menandai hutang ini sebagai lunas? (Pembayaran menggunakan Cash)')) return;
+    const rem = remaining(debt);
+    if (rem <= 0) return alert('Hutang sudah lunas');
+    
+    if (filterType === 'vendor') {
+      try {
+        const res = await fetch('/api/web/debt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            invoiceId: debt._id,
+            payAmount: rem,
+            paymentMethod: 'Cash',
+            bankAccountId: null,
+            payDate: new Date().toISOString().split('T')[0],
+            userId,
+            masterAccountId
+          })
+        })
+        const json = await res.json()
+        if (json.error) return alert(json.message)
+        fetchDebts()
+      } catch (e: any) {
+        alert(e.message)
+      }
+    } else {
+      // Implementasi untuk barang/jasa jika diperlukan
+      alert('Tandai lunas untuk barang/jasa belum diimplementasikan backend');
     }
   }
 
@@ -178,13 +218,23 @@ export default function Debt() {
   }
 
   async function viewLogs(debt: any) {
+    setSelectedLogDebt(debt)
     setLogs([])
     logsRef.current?.showModal()
     setLogsLoading(true)
-    getLogsFn.fn(`/api/web/log/purchase?purchaseId=${debt._id}`, "{}", (res) => {
-      setLogs(res)
+    try {
+      const res = await fetch(`/api/web/log/purchase?purchaseId=${debt._id}`)
+      const data = await res.json()
+      if (data.noResult || data.error) {
+        setLogs([])
+      } else {
+        setLogs(data.result || [])
+      }
+    } catch (e) {
+      setLogs([])
+    } finally {
       setLogsLoading(false)
-    })
+    }
   }
 
   function openEditLog(log: any) {
@@ -202,7 +252,9 @@ export default function Debt() {
     if (editAmount <= 0) return alert("Amount harus lebih dari 0")
     setEditSubmitting(true)
     try {
-      const res = await fetch('/api/web/log/purchase', {
+      // Vendor logs diedit via /api/web/debt PUT, purchase logs via /api/web/log/purchase PUT
+      const apiUrl = filterType === 'vendor' ? '/api/web/debt' : '/api/web/log/purchase'
+      const res = await fetch(apiUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,10 +268,14 @@ export default function Debt() {
       })
       const response = await res.json()
       if (response.error) {
-        alert('something went wrong')
+        alert(response.message || 'something went wrong')
       } else {
         editLogRef.current?.close()
-        fetchDebts(filterType)
+        // Refresh logs jika modal logs masih terbuka
+        if (selectedLogDebt) {
+          viewLogs(selectedLogDebt)
+        }
+        fetchDebts()
       }
     } catch (e: any) {
       alert(e.message)
@@ -228,13 +284,35 @@ export default function Debt() {
     }
   }
 
+  async function deleteLog(log: any) {
+    const approvalCode = prompt("Masukkan kode approval supervisor untuk menghapus pembayaran ini:")
+    if (!approvalCode) return
+
+    if (!confirm(`Yakin ingin menghapus pembayaran ${log.paymentNumber} sebesar ${Math.abs(log.amount).toLocaleString('id-ID')}?`)) return
+
+    try {
+      const apiUrl = filterType === 'vendor'
+        ? `/api/web/debt?logId=${log._id}&approvalCode=${encodeURIComponent(approvalCode)}`
+        : `/api/web/log/purchase?logId=${log._id}&approvalCode=${encodeURIComponent(approvalCode)}`
+      const res = await fetch(apiUrl, { method: 'DELETE' })
+      const json = await res.json()
+      if (json.error) return alert(json.message || 'Gagal menghapus')
+
+      // Refresh logs & debts
+      if (selectedLogDebt) viewLogs(selectedLogDebt)
+      fetchDebts()
+    } catch (e: any) {
+      alert(e.message)
+    }
+  }
+
   useEffect(() => {
     if (hasHydrated) {
       const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
       bankAccountFn.fn(bankUrl, "{}", () => { })
-      fetchDebts('barang')
+      fetchDebts('barang', 'unpaid', '')
     }
-  }, [masterAccountId])
+  }, [masterAccountId, hasHydrated])
 
   if (!hasHydrated) return null
   if (!loggedIn) router.push('/login')
@@ -257,28 +335,61 @@ export default function Debt() {
         <span className="page-title">Debts</span>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
 
-          {/* Filter Tabs */}
-          <div className="flex flex-row gap-2 flex-wrap">
-            {filterTabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => handleFilterChange(tab.key)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${filterType === tab.key
-                  ? 'bg-blue-900 text-white border-blue-900'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-900'
-                  }`}
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+            <div className="flex flex-row gap-2 flex-wrap">
+              {filterTabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => handleFilterChange(tab.key)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${filterType === tab.key
+                    ? 'bg-blue-900 text-white border-blue-900'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-900'
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-row gap-3 flex-wrap items-center">
+              <select 
+                className="select select-sm select-bordered" 
+                value={statusFilter} 
+                onChange={(e) => handleStatusChange(e.target.value as 'unpaid' | 'paid')}
               >
-                {tab.label}
-              </button>
-            ))}
+                <option value="unpaid">Belum Lunas</option>
+                <option value="paid">Lunas</option>
+              </select>
+
+              <input 
+                type="month" 
+                className="input input-sm input-bordered" 
+                value={monthFilter}
+                onChange={(e) => handleMonthChange(e.target.value)}
+              />
+              {monthFilter && (
+                <button className="btn btn-sm btn-ghost text-red-500" onClick={() => handleMonthChange('')}>
+                  Reset Bulan
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Description */}
-          <p className="text-sm text-gray-500">
-            {filterType === 'barang' && 'Hutang yang timbul dari purchase produk/barang yang belum lunas.'}
-            {filterType === 'jasa' && 'Hutang yang timbul dari purchase jasa (renovasi, kelistrikan, dll) yang belum lunas.'}
-            {filterType === 'vendor' && 'Hutang kepada vendor berdasarkan setiap invoice dari service order yang ditangani vendor eksternal.'}
-          </p>
+          {/* Summary and Description */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50 p-4 rounded-lg border">
+            <p className="text-sm text-gray-500 flex-1">
+              {filterType === 'barang' && 'Hutang yang timbul dari purchase produk/barang yang belum lunas.'}
+              {filterType === 'jasa' && 'Hutang yang timbul dari purchase jasa (renovasi, kelistrikan, dll) yang belum lunas.'}
+              {filterType === 'vendor' && 'Hutang kepada vendor berdasarkan setiap invoice dari service order yang ditangani vendor eksternal.'}
+            </p>
+            <div className="flex flex-col text-left md:text-right">
+              <span className="text-sm text-gray-500 font-medium uppercase tracking-wider">Total Sisa Hutang</span>
+              <span className="text-2xl font-bold text-red-700">
+                Rp {debts.reduce((acc, d) => acc + remaining(d), 0).toLocaleString('id-ID')}
+              </span>
+            </div>
+          </div>
 
           {/* Table */}
           {
@@ -336,7 +447,7 @@ export default function Debt() {
                             </td>
                             <td>
                               {(filterType === 'vendor'
-                                ? d.serviceOrder.vendorPrice
+                                ? d.totalVendorAmount
                                 : d.finalPrice)?.toLocaleString('id-ID')}
                             </td>
                             <td>
@@ -348,14 +459,21 @@ export default function Debt() {
                               {remaining(d)?.toLocaleString('id-ID')}
                             </td>
                             <td className="flex flex-row gap-2">
-                              <button className="btn btn-sm btn-primary" onClick={() => openPay(d)}>
-                                Bayar
-                              </button>
-                              {filterType !== 'vendor' && (
-                                <button className="btn btn-sm btn-secondary" onClick={() => viewLogs(d)}>
-                                  Logs
-                                </button>
+                              {statusFilter === 'unpaid' && (
+                                <>
+                                  <button className="btn btn-sm btn-primary" onClick={() => openPay(d)}>
+                                    Bayar
+                                  </button>
+                                  {filterType === 'vendor' && (
+                                    <button className="btn btn-sm btn-success" onClick={() => markAsPaid(d)}>
+                                      Lunas
+                                    </button>
+                                  )}
+                                </>
                               )}
+                              <button className="btn btn-sm btn-secondary" onClick={() => viewLogs(d)}>
+                                Logs
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -401,8 +519,11 @@ export default function Debt() {
                   decimalScale={2}
                   fixedDecimalScale
                   allowNegative={false}
-                  value={payFormData.payAmount || ''}
-                  onValueChange={(values) => setPayFormData(p => ({ ...p, payAmount: values.floatValue ?? 0 }))}
+                  value={payFormData.payAmount}
+                  onValueChange={(values) => {
+                    // if empty string, floatValue is undefined
+                    setPayFormData(p => ({ ...p, payAmount: values.floatValue ?? "" }))
+                  }}
                   className="input w-full"
                   placeholder="Contoh: 150000"
                 />
@@ -413,7 +534,16 @@ export default function Debt() {
                 <select
                   className="select w-full"
                   value={payFormData.paymentMethod}
-                  onChange={e => setPayFormData(p => ({ ...p, paymentMethod: e.target.value }))}
+                  onChange={e => {
+                    const val = e.target.value
+                    // Cari bankAccountId yang sesuai
+                    const matchedBank = bankAccountFn.result?.find((b: any) => `transfer from ${b.bank}` === val)
+                    setPayFormData(p => ({
+                      ...p,
+                      paymentMethod: val,
+                      bankAccountId: matchedBank?._id || ''
+                    }))
+                  }}
                 >
                   <option value="Cash">Cash</option>
                   {bankAccountFn.result?.map((bank: any) => (
@@ -475,8 +605,9 @@ export default function Debt() {
                         <td>{L.createdBy?.name || '-'}</td>
                         <td>{L.editedAt ? new Date(L.editedAt).toLocaleString('id-ID') : '-'}</td>
                         <td>{L.editedBy?.name || '-'}</td>
-                        <td>
+                        <td className="flex flex-row gap-1">
                           <button className="btn btn-xs btn-warning" onClick={() => openEditLog(L)}>Edit</button>
+                          <button className="btn btn-xs btn-error" onClick={() => deleteLog(L)}>Hapus</button>
                         </td>
                       </tr>
                     ))}
@@ -522,7 +653,7 @@ export default function Debt() {
                     className="input w-full"
                     type="number"
                     value={editAmount}
-                    onChange={e => setEditAmount(Number(e.target.value))}
+                    onChange={e => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
                     required
                   />
                 </fieldset>

@@ -210,6 +210,11 @@ export async function PUT(request: NextRequest) {
         });
       }
 
+      if (so.handledBy !== 'internal') {
+        existingInvoice.debt = so.vendorPrice || 0;
+      }
+      existingInvoice.handledBy = so.handledBy;
+
       await existingInvoice.save();
 
       return NextResponse.json({
@@ -266,7 +271,9 @@ export async function PUT(request: NextRequest) {
       pphDeduction,
       price: so.price,
       qty: so.qty,
-      taxes: so.taxes
+      taxes: so.taxes,
+      debt: so.handledBy !== 'internal' ? (so.vendorPrice || 0) : 0,
+      handledBy: so.handledBy
     });
 
     return NextResponse.json({

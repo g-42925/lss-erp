@@ -167,6 +167,33 @@ export default function Invoices() {
     }
   })
 
+  const syncDebtFn = useFetch<any, any>({
+    url: '/api/web/invoice/sync-debt',
+    method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
+  function handleSyncDebt(invoice: any) {
+    if (!confirm("Are you sure you want to sync debt from Service Order vendor price?")) return;
+    const body = JSON.stringify({ invoiceId: invoice._id });
+    syncDebtFn.fn('', body, (res) => {
+      const updated = res;
+      getInvoicesFn.reset(
+        getInvoicesFn.result?.map((inv: any) =>
+          inv._id === updated._id ? { ...inv, debt: updated.debt } : inv
+        )
+      )
+      setSearchResult(
+        searchResult.map((inv: any) =>
+          inv._id === updated._id ? { ...inv, debt: updated.debt } : inv
+        )
+      )
+      alert("Debt synchronized successfully!");
+    })
+  }
+
   const sourceInvoices = searchResult.length > 0 ? searchResult : (getInvoicesFn.result || []);
   const filteredInvoices = sourceInvoices.filter((s: any) => {
     if (filterStatus !== "all") {
@@ -518,6 +545,7 @@ export default function Invoices() {
                           <th>Product</th>
                           <th>Value</th>
                           <th>pay amount</th>
+                          <th>debt</th>
                           <th>paid</th>
                           <th>...</th>
                         </tr>
@@ -550,6 +578,7 @@ export default function Invoices() {
                                   <td>{s.order?.salesOrderNumber}</td>
                                   <td>{Math.floor(Number(fTotal(s))).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                                   <td>{Math.floor(Number(s.payAmount || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                                  <td>{s.debt !== undefined ? Math.floor(Number(s.debt)).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '-'}</td>
                                   <td>
                                     <span className={`badge badge - sm ${s.paid ? 'badge-success' : 'badge-warning'} `}>
                                       {s.paid ? 'paid' : 'unpaid'}
@@ -598,6 +627,17 @@ export default function Invoices() {
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
                                       </svg>
                                     </button>
+                                    {s.order?.handledBy !== 'internal' && (
+                                      <button 
+                                        className="text-orange-600 hover:text-orange-800" 
+                                        onClick={() => handleSyncDebt(s)} 
+                                        title="Sync Debt from Vendor Price"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                        </svg>
+                                      </button>
+                                    )}
                                   </td>
                                 </tr>
                               )
