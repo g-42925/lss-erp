@@ -197,7 +197,7 @@ export default function CashVoucherTab() {
       () => {
         showToast("success", `Voucher ${voucherNo} berhasil ${editingId ? 'diupdate' : 'disimpan'}!`);
         // Refresh list after save
-        getAllVouchersFn.fn(`/api/web/cash-voucher?id=${masterAccountId}`, "{}");
+        getAllVouchersFn.fn(`/api/web/cash-voucher?id=${masterAccountId}`, "{}", () => {});
       }
     );
   };
