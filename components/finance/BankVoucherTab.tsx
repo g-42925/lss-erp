@@ -279,7 +279,7 @@ export default function BankVoucherTab() {
       () => {
         showToast("success", `Voucher ${voucherNo} berhasil ${editingId ? 'diupdate' : 'disimpan'}!`);
         // Refresh list after save
-        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}");
+        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", () => {});
       }
     );
   };
