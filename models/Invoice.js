@@ -114,6 +114,7 @@ const invoiceSchema = new mongoose.Schema({
   },
 
   bankVoucher: String,
+  cashVoucher: String,
 
   price: Number,
 
@@ -130,6 +131,16 @@ const invoiceSchema = new mongoose.Schema({
   handledBy: {
     type: String,
     enum: ["internal", "vendor"],
+  },
+  vendorId: {
+    type: mongoose.Schema.Types.ObjectId,
+  },
+  description: {
+    type: String
+  },
+  vendorInvoiceNumber: {
+    type: String,
+    required: false
   }
 });
 

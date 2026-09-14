@@ -9,6 +9,8 @@ import Cashflow from "@/models/Cashflow";
 import Order from "@/models/Order";
 import ServiceOrder from "@/models/ServiceOrder";
 import Customer from "@/models/Customer";
+import CashVoucher from "@/models/CashVoucher";
+import BankVoucher from "@/models/BankVoucher";
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -219,7 +221,11 @@ export async function GET(request: NextRequest) {
 			manualQuery.date = dateFilter;
 		}
 
-		const manualLogs = await Cashflow.find(manualQuery).populate('bankAccountId').lean();
+		const manualLogs = await Cashflow.find(manualQuery)
+			.populate('bankAccountId')
+			.populate('cashVoucherId')
+			.populate('bankVoucherId')
+			.lean();
 		manualLogs.forEach(entry => {
 			let methodName = 'Cash';
 			if (entry.accountType === 'Bank') {
@@ -236,7 +242,11 @@ export async function GET(request: NextRequest) {
 				source: 'Manual Entry',
 				type: entry.type, // 'in', 'out', or 'initial'
 				from: entry.from,
-				to: entry.to
+				to: entry.to,
+				cashVoucherId: entry.cashVoucherId ? (entry.cashVoucherId as any)._id : null,
+				cashVoucherNumber: entry.cashVoucherId ? (entry.cashVoucherId as any).voucherNumber : null,
+				bankVoucherId: entry.bankVoucherId ? (entry.bankVoucherId as any)._id : null,
+				bankVoucherNumber: entry.bankVoucherId ? (entry.bankVoucherId as any).voucherNumber : null,
 			});
 		});
 
@@ -298,13 +308,73 @@ export async function GET(request: NextRequest) {
 	}
 }
 
+export async function PUT(request: NextRequest) {
+	try {
+		await connectToDatabase();
+
+		const body = await request.json();
+		const { id, masterAccountId, accountType, bankAccountId, type, amount, reference, date, from, to, cashVoucherId, bankVoucherId } = body;
+
+		if (!id || !masterAccountId) {
+			return NextResponse.json({
+				noResult: true,
+				message: "Missing id or masterAccountId",
+				error: true
+			});
+		}
+
+		const company = await Companie.findOne({ masterAccountId });
+		if (!company) return NextResponse.json({
+			noResult: true,
+			message: "Company not found",
+			error: true
+		});
+
+		const entry = await Cashflow.findOne({ _id: id, companyId: company._id });
+		if (!entry) return NextResponse.json({
+			noResult: true,
+			message: "Entry not found",
+			error: true
+		});
+
+		// Update fields
+		if (accountType !== undefined) entry.accountType = accountType;
+		if (bankAccountId !== undefined) entry.bankAccountId = bankAccountId || null;
+		if (type !== undefined) entry.type = type;
+		if (amount !== undefined) entry.amount = Number(amount);
+		if (reference !== undefined) entry.reference = reference;
+		if (date !== undefined) entry.date = new Date(date);
+		if (from !== undefined) entry.from = from;
+		if (to !== undefined) entry.to = to;
+		if (cashVoucherId !== undefined) entry.cashVoucherId = cashVoucherId || null;
+		if (bankVoucherId !== undefined) entry.bankVoucherId = bankVoucherId || null;
+
+		await entry.save();
+
+		return NextResponse.json({
+			noResult: false,
+			message: "Cashflow entry updated successfully",
+			result: entry,
+			error: false
+		});
+	}
+	catch (e: unknown) {
+		console.error("Cashflow PUT Error:", e);
+		return NextResponse.json({
+			noResult: true,
+			message: e instanceof Error ? e.message : "Something went wrong",
+			error: true
+		});
+	}
+}
+
 export async function POST(request: NextRequest) {
 	try {
 		await connectToDatabase();
 
 		const body = await request.json();
 
-		const { masterAccountId, accountType, bankAccountId, type, amount, reference, date, recordedBy, additional } = body;
+		const { masterAccountId, accountType, bankAccountId, type, amount, reference, date, recordedBy, additional, cashVoucherId, bankVoucherId } = body;
 
 		if (!masterAccountId || !accountType || !type || amount === undefined || !reference) {
 			return NextResponse.json({
@@ -331,6 +401,8 @@ export async function POST(request: NextRequest) {
 			reference,
 			date: date || new Date(),
 			recordedBy: recordedBy || null,
+			cashVoucherId: cashVoucherId || null,
+			bankVoucherId: bankVoucherId || null,
 			...additional
 		});
 

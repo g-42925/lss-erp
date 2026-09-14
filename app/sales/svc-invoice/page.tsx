@@ -20,6 +20,7 @@ export default function Invoices() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
   const [bankVouchers, setBankVouchers] = useState<any[]>([])
+  const [cashVouchers, setCashVouchers] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [orders, setOrders] = useState<any[]>([])
   const modalRef = useRef<HTMLDialogElement>(null)
@@ -28,6 +29,8 @@ export default function Invoices() {
   const closeInvoiceModalRef = useRef<HTMLDialogElement>(null)
   const paymentHistoryModalRef = useRef<HTMLDialogElement>(null)
   const voucherModalRef = useRef<HTMLDialogElement>(null)
+  const vendorInvoiceModalRef = useRef<HTMLDialogElement>(null)
+  const [vendorInvoices, setVendorInvoices] = useState<any[]>([])
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
   const [selectedMonth, setSelectedMonth] = useState<string>("")
@@ -36,6 +39,8 @@ export default function Invoices() {
   const [searchQuery, setSearchQuery] = useState<string>("")
   const [filterStatus, setFilterStatus] = useState<string>("unpaid")
   const [voucherSearch, setVoucherSearch] = useState<string>("")
+  const [closeInvoiceVoucherSearch, setCloseInvoiceVoucherSearch] = useState<string>("")
+  const [selectedCloseVoucher, setSelectedCloseVoucher] = useState<any>(null)
 
   function openInvoice(invoice: any) {
     setSelectedInvoice(invoice)
@@ -159,12 +164,29 @@ export default function Invoices() {
     method: 'GET'
   })
 
+  const getCashVouchersFn = useFetch<any, any>({
+    url: '',
+    method: 'GET'
+  })
+
   const setVoucherFn = useFetch<any, any>({
     url: '/api/web/invoice/svc',
     method: 'PATCH',
     onError: (m) => {
       alert(m)
     }
+  })
+
+  const getVendorInvoicesFn = useFetch<any, any>({
+    url: '',
+    method: 'GET',
+    onError: (m) => alert(m)
+  })
+
+  const setVendorInvoiceFn = useFetch<any, any>({
+    url: '/api/web/invoice/svc',
+    method: 'PATCH',
+    onError: (m) => alert(m)
   })
 
   const syncDebtFn = useFetch<any, any>({
@@ -260,8 +282,25 @@ export default function Invoices() {
     })
   }
 
+  function fetchVouchersForMethod(method: string) {
+    const isCash = method === 'Cash'
+    if (isCash) {
+      const urlCash = `/api/web/cash-voucher?id=${masterAccountId}`
+      getCashVouchersFn.fn(urlCash, JSON.stringify({}), (result: any) => {
+        setCashVouchers(result || [])
+      })
+    } else {
+      const urlBank = `/api/web/bank-voucher?id=${masterAccountId}`
+      getBankVouchersFn.fn(urlBank, JSON.stringify({}), (result: any) => {
+        setBankVouchers(result || [])
+      })
+    }
+  }
+
   function openCloseInvoice(invoice: any) {
     setSelectedInvoice(invoice)
+    setSelectedCloseVoucher(null)
+    setCloseInvoiceVoucherSearch('')
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
     const price = invoice?.price ?? invoice?.order?.price
     const qty = invoice?.qty ?? invoice?.order?.qty
@@ -272,6 +311,8 @@ export default function Invoices() {
       paymentMethod: 'Cash',
       paymentDate: new Date().toISOString().substring(0, 10)
     })
+    // Pre-fetch cash vouchers since default payment method is Cash
+    fetchVouchersForMethod('Cash')
     closeInvoiceModalRef.current?.showModal()
   }
 
@@ -283,21 +324,36 @@ export default function Invoices() {
       paymentMethod: data.paymentMethod,
       paymentDate: data.paymentDate
     }
-    closeInvoiceFn.fn('', JSON.stringify(params), () => {
+    const isCash = data.paymentMethod === 'Cash'
+    closeInvoiceFn.fn('', JSON.stringify(params), (res: any) => {
+      // After marking as paid, save the selected voucher if one was chosen
+      if (selectedCloseVoucher && selectedInvoice?._id) {
+        const voucherBody: any = { _id: selectedInvoice._id }
+        if (isCash) {
+          voucherBody.cashVoucherNumber = selectedCloseVoucher.voucherNumber
+        } else {
+          voucherBody.voucherNumber = selectedCloseVoucher.voucherNumber
+        }
+        setVoucherFn.fn('', JSON.stringify(voucherBody), () => {})
+      }
+      const voucherUpdate = selectedCloseVoucher
+        ? (isCash ? { cashVoucher: selectedCloseVoucher.voucherNumber } : { voucherNumber: selectedCloseVoucher.voucherNumber })
+        : {}
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
           inv.salesOrderNumber === data.salesOrderNumber
-            ? { ...inv, paid: true, payAmount: Number(data.payAmount) }
+            ? { ...inv, paid: true, payAmount: Number(data.payAmount), ...voucherUpdate }
             : inv
         )
       )
       setSearchResult(
         searchResult.map((inv: any) =>
           inv.salesOrderNumber === data.salesOrderNumber
-            ? { ...inv, paid: true, payAmount: Number(data.payAmount) }
+            ? { ...inv, paid: true, payAmount: Number(data.payAmount), ...voucherUpdate }
             : inv
         )
       )
+      setSelectedCloseVoucher(null)
       closeInvoiceModalRef.current?.close()
     })
   }
@@ -410,9 +466,52 @@ export default function Invoices() {
     })
   }
 
+  function openVendorInvoiceModal(invoice: any) {
+    setSelectedInvoice(invoice)
+    const url = `/api/web/debt/invoice?id=${masterAccountId}`
+    getVendorInvoicesFn.fn(url, JSON.stringify({}), (result: any) => {
+      let vInvoices = result || [];
+      if (invoice.order?.vendorId) {
+        vInvoices = vInvoices.filter((v: any) => v.vendorId === invoice.order.vendorId);
+      }
+      setVendorInvoices(vInvoices);
+    })
+    vendorInvoiceModalRef.current?.showModal()
+  }
+
+  function assignVendorInvoice(vendorInvoice: any) {
+    const body = JSON.stringify({
+      _id: selectedInvoice._id,
+      vendorInvoiceNumber: vendorInvoice.invoiceNumber
+    })
+    setVendorInvoiceFn.fn('', body, () => {
+      const updated = { ...selectedInvoice, vendorInvoiceNumber: vendorInvoice.invoiceNumber }
+      getInvoicesFn.reset(
+        getInvoicesFn.result?.map((inv: any) =>
+          inv._id === selectedInvoice._id ? updated : inv
+        )
+      )
+      setSearchResult(
+        searchResult.map((inv: any) =>
+          inv._id === selectedInvoice._id ? updated : inv
+        )
+      )
+      setSelectedInvoice(updated)
+      vendorInvoiceModalRef.current?.close()
+    })
+  }
+
   function fDate(date: Date) {
     return new Date(date).toLocaleDateString('id-ID')
   }
+
+  const paymentMethodWatch = closeInvoiceForm.watch("paymentMethod");
+  useEffect(() => {
+    if (paymentMethodWatch) {
+      fetchVouchersForMethod(paymentMethodWatch);
+      setSelectedCloseVoucher(null); // Reset selection when method changes
+    }
+  }, [paymentMethodWatch, masterAccountId])
 
   useEffect(() => {
     if (hasHydrated) {
@@ -470,7 +569,7 @@ export default function Invoices() {
       </style>
       <div className="h-fit h-full p-3 md:p-6 flex flex-col gap-3 text-black print:hidden">
         <div className="bg-white border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+          <div className="sticky top-0 z-20 bg-white flex flex-col sm:flex-row gap-2 items-start sm:items-center py-2">
             <input
               type="search"
               placeholder="Search by customer name..."
@@ -611,13 +710,6 @@ export default function Invoices() {
                                         )}
                                       </button>
                                     )}
-                                    {s.paymentHistory && s.paymentHistory.length > 0 && (
-                                      <button className="text-indigo-700 hover:text-indigo-900" onClick={() => openPaymentHistory(s)} title="Payment History">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                        </svg>
-                                      </button>
-                                    )}
                                     <button
                                       className={s.voucherNumber ? 'text-emerald-600 hover:text-emerald-800' : 'text-gray-400 hover:text-blue-700'}
                                       onClick={() => openVoucherModal(s)}
@@ -628,16 +720,19 @@ export default function Invoices() {
                                       </svg>
                                     </button>
                                     {s.order?.handledBy !== 'internal' && (
-                                      <button 
-                                        className="text-orange-600 hover:text-orange-800" 
-                                        onClick={() => handleSyncDebt(s)} 
-                                        title="Sync Debt from Vendor Price"
-                                      >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                        </svg>
-                                      </button>
+                                      <>
+                                        <button
+                                          className={s.vendorInvoiceNumber ? 'text-purple-600 hover:text-purple-800' : 'text-gray-400 hover:text-purple-700'}
+                                          onClick={() => openVendorInvoiceModal(s)}
+                                          title={s.vendorInvoiceNumber ? `Vendor Invoice: ${s.vendorInvoiceNumber}` : 'Assign Vendor Invoice'}
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                          </svg>
+                                        </button>
+                                      </>
                                     )}
+
                                   </td>
                                 </tr>
                               )
@@ -753,7 +848,7 @@ export default function Invoices() {
       </dialog>
 
       <dialog ref={closeInvoiceModalRef} id="close_invoice_modal" className="modal h-full text-black print:hidden">
-        <form onSubmit={closeInvoiceForm.handleSubmit(submitCloseInvoice)} className="modal-box flex flex-col gap-3">
+        <form onSubmit={closeInvoiceForm.handleSubmit(submitCloseInvoice)} className="modal-box flex flex-col gap-3 max-w-lg">
           <h3 className="text-lg font-bold">Close Invoice</h3>
           <p className="text-sm">Are you sure you want to mark this invoice as fully paid?</p>
           <div className="flex flex-row items-center gap-3">
@@ -764,7 +859,16 @@ export default function Invoices() {
           </div>
           <div className="flex flex-row items-center gap-2">
             <label className="w-[120px]">Payment Method</label>
-            <select {...closeInvoiceForm.register("paymentMethod")} className="select flex-1">
+            <select
+              {...closeInvoiceForm.register("paymentMethod")}
+              className="select flex-1"
+              onChange={(e) => {
+                closeInvoiceForm.setValue('paymentMethod', e.target.value)
+                setSelectedCloseVoucher(null)
+                setCloseInvoiceVoucherSearch('')
+                fetchVouchersForMethod(e.target.value)
+              }}
+            >
               <option value="Cash">Cash</option>
               {bankAccounts.map((b: any, i: number) => (
                 <option key={i} value={`${b.bank} - ${b.accountNumber}`}>{b.bank} - {b.accountNumber}</option>
@@ -775,7 +879,80 @@ export default function Invoices() {
             <label className="w-[120px]">Payment Date</label>
             <input {...closeInvoiceForm.register("paymentDate")} type="date" className="input flex-1" defaultValue={new Date().toISOString().substring(0, 10)} />
           </div>
-          {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
+
+          {/* Voucher selection section */}
+          <div className="border rounded-lg p-3 bg-gray-50 flex flex-col gap-2">
+            <div className="flex flex-row items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">
+                {closeInvoiceForm.watch('paymentMethod') === 'Cash' ? 'Cash Voucher' : 'Bank Voucher'}
+                <span className="text-gray-400 font-normal ml-1">(opsional)</span>
+              </span>
+              {selectedCloseVoucher && (
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:text-red-800"
+                  onClick={() => setSelectedCloseVoucher(null)}
+                >
+                  Hapus Pilihan
+                </button>
+              )}
+            </div>
+            {selectedCloseVoucher ? (
+              <div className="flex flex-row items-center gap-2 bg-green-50 border border-green-200 rounded px-3 py-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4 text-green-600 flex-shrink-0">
+                  <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                </svg>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-green-800">{selectedCloseVoucher.voucherNumber}</span>
+                  <span className="text-xs text-green-600">{fDate(selectedCloseVoucher.date)} · Rp {Number(selectedCloseVoucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  placeholder="Cari nomor voucher..."
+                  className="input input-sm border-gray-300"
+                  value={closeInvoiceVoucherSearch}
+                  onChange={(e) => setCloseInvoiceVoucherSearch(e.target.value)}
+                />
+                <div className="max-h-[180px] overflow-y-auto flex flex-col gap-1">
+                  {(closeInvoiceForm.watch('paymentMethod') === 'Cash'
+                    ? (getCashVouchersFn.loading ? [] : cashVouchers)
+                    : (getBankVouchersFn.loading ? [] : bankVouchers)
+                  )
+                    .filter((v: any) =>
+                      !closeInvoiceVoucherSearch ||
+                      v.voucherNumber?.toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
+                    )
+                    .map((v: any) => (
+                      <button
+                        key={v._id}
+                        type="button"
+                        className="flex flex-row items-center justify-between px-3 py-2 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-left transition-colors"
+                        onClick={() => setSelectedCloseVoucher(v)}
+                      >
+                        <span className="text-sm font-medium">{v.voucherNumber}</span>
+                        <span className="text-xs text-gray-500">{fDate(v.date)} · Rp {Number(v.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                      </button>
+                    ))
+                  }
+                  {(closeInvoiceForm.watch('paymentMethod') === 'Cash' ? getCashVouchersFn.loading : getBankVouchersFn.loading) && (
+                    <div className="text-center py-2"><span className="loading loading-spinner loading-xs"></span></div>
+                  )}
+                  {!getCashVouchersFn.loading && !getBankVouchersFn.loading &&
+                    (closeInvoiceForm.watch('paymentMethod') === 'Cash' ? cashVouchers : bankVouchers).filter((v: any) =>
+                      !closeInvoiceVoucherSearch ||
+                      v.voucherNumber?.toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
+                    ).length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-2">Tidak ada voucher tersedia</p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
           <div className="flex flex-row gap-3 modal-action">
             <button type="button" className="btn" onClick={() => closeInvoiceModalRef.current?.close()}>Cancel</button>
             <button disabled={closeInvoiceFn.loading} className="btn bg-green-700 text-white hover:bg-green-800">
@@ -1055,6 +1232,48 @@ export default function Invoices() {
           </div>
           <div className="modal-action">
             <button className="btn" onClick={() => voucherModalRef.current?.close()}>Close</button>
+          </div>
+        </div>
+      </dialog>
+
+      {/* Vendor invoice modal */}
+      <dialog ref={vendorInvoiceModalRef} className="modal h-full text-black print:hidden">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Assign Vendor Invoice</h3>
+          <div className="py-4">
+            <div className="mt-4 max-h-[400px] overflow-y-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Invoice Number</th>
+                    <th>Date</th>
+                    <th>Vendor</th>
+                    <th>Nominal</th>
+                    <th>...</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getVendorInvoicesFn.loading ? (
+                    <tr><td colSpan={5} className="text-center"><span className="loading loading-spinner"></span></td></tr>
+                  ) : vendorInvoices.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center">No Vendor Invoices Found</td></tr>
+                  ) : (
+                    vendorInvoices.map((vInv: any) => (
+                      <tr key={vInv._id}>
+                        <td>{vInv.invoiceNumber}</td>
+                        <td>{fDate(vInv.date)}</td>
+                        <td>{vInv.vendor?.name}</td>
+                        <td>{Number(vInv.debt).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                        <td><button className="btn btn-sm" onClick={() => assignVendorInvoice(vInv)}>Assign</button></td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="modal-action">
+            <button className="btn" onClick={() => vendorInvoiceModalRef.current?.close()}>Close</button>
           </div>
         </div>
       </dialog>

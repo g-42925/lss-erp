@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const filterType = url.searchParams.get("filterType") ?? 'barang'
     const status = url.searchParams.get("status") ?? 'unpaid' // 'unpaid' | 'paid'
     const month = url.searchParams.get("month") // format 'YYYY-MM'
+    const vendorId = url.searchParams.get("vendorId")
 
     await connectToDatabase()
     const cmp = await Companie.findOne({ masterAccountId: id })
@@ -36,9 +37,17 @@ export async function GET(request: NextRequest) {
       if (month) {
         const [yearStr, monthStr] = month.split('-')
         const y = parseInt(yearStr), m = parseInt(monthStr)
-        const startDate = new Date(y, m - 1, 1)
-        const endDate = new Date(y, m, 1)
+        const nextMonth = m === 12 ? 1 : m + 1
+        const nextYear = m === 12 ? y + 1 : y
+        const startDate = new Date(`${yearStr}-${monthStr}-01T00:00:00+07:00`)
+        const endDate = new Date(`${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00+07:00`)
         matchQuery.date = { $gte: startDate, $lt: endDate }
+      }
+      if (vendorId) {
+        matchQuery.$or = [
+          { vendorId: new mongoose.Types.ObjectId(vendorId) },
+          { supplierId: new mongoose.Types.ObjectId(vendorId) }
+        ]
       }
 
       const debts = await Purchase.aggregate([
@@ -89,9 +98,17 @@ export async function GET(request: NextRequest) {
       if (month) {
         const [yearStr, monthStr] = month.split('-')
         const y = parseInt(yearStr), m = parseInt(monthStr)
-        const startDate = new Date(y, m - 1, 1)
-        const endDate = new Date(y, m, 1)
+        const nextMonth = m === 12 ? 1 : m + 1
+        const nextYear = m === 12 ? y + 1 : y
+        const startDate = new Date(`${yearStr}-${monthStr}-01T00:00:00+07:00`)
+        const endDate = new Date(`${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00+07:00`)
         matchQuery.date = { $gte: startDate, $lt: endDate }
+      }
+      if (vendorId) {
+        matchQuery.$or = [
+          { vendorId: new mongoose.Types.ObjectId(vendorId) },
+          { supplierId: new mongoose.Types.ObjectId(vendorId) }
+        ]
       }
 
       const debts = await Purchase.aggregate([
@@ -119,46 +136,58 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ noResult: false, message: "", result: debts, error: false })
     }
 
-    // ─── Hutang Vendor: Invoice yg memiliki handledBy != internal ──
+    // ─── Hutang Vendor: Invoice yg memiliki invoiceType === 'vendor_manual' ──
     if (filterType === 'vendor') {
       const matchQuery: any = {
         companyId: cmp._id,
-        handledBy: { $exists: true, $ne: 'internal' },
+        invoiceType: 'vendor_manual',
         void: { $ne: true }
       }
       if (month) {
         const [yearStr, monthStr] = month.split('-')
         const y = parseInt(yearStr), m = parseInt(monthStr)
-        const startDate = new Date(y, m - 1, 1)
-        const endDate = new Date(y, m, 1)
+        const nextMonth = m === 12 ? 1 : m + 1
+        const nextYear = m === 12 ? y + 1 : y
+        const startDate = new Date(`${yearStr}-${monthStr}-01T00:00:00+07:00`)
+        const endDate = new Date(`${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00+07:00`)
         matchQuery.date = { $gte: startDate, $lt: endDate }
+      }
+      if (vendorId) {
+        matchQuery.vendorId = new mongoose.Types.ObjectId(vendorId)
       }
 
       const invoices = await Invoice.aggregate([
         { $match: matchQuery },
         {
           $lookup: {
-            from: 'serviceorders',
-            localField: 'salesOrderId',
-            foreignField: '_id',
-            as: 'serviceOrder'
-          }
-        },
-        { $unwind: { path: '$serviceOrder', preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
             from: 'vendors',
-            localField: 'serviceOrder.vendorId',
+            localField: 'vendorId',
             foreignField: '_id',
             as: 'vendor'
           }
         },
         { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
         {
-          // Hitung total hutang vendor dari property debt di Invoice
+          $lookup: {
+            from: 'invoices',
+            let: { manualInvoiceNumber: '$invoiceNumber' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$vendorInvoiceNumber', '$$manualInvoiceNumber'] },
+                  void: { $ne: true }
+                }
+              }
+            ],
+            as: 'relatedInvoices'
+          }
+        },
+        {
           $addFields: {
             vendorPaid: { $ifNull: ['$vendorPaid', 0] },
-            totalVendorAmount: { $ifNull: ['$debt', 0] }
+            totalVendorAmount: {
+              $sum: '$relatedInvoices.debt'
+            }
           }
         },
         {
@@ -203,7 +232,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     const body = await request.json()
-    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId } = body
+    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId, description, voucher } = body
 
     if (!invoiceId || !payAmount || payAmount <= 0) {
       return NextResponse.json({ noResult: true, message: "Parameter tidak valid", result: null, error: true })
@@ -212,8 +241,9 @@ export async function POST(request: NextRequest) {
     const invoice = await Invoice.findById(invoiceId).lean() as any
     if (!invoice) return NextResponse.json({ noResult: true, message: "Invoice tidak ditemukan", result: null, error: true })
 
-    // Hitung total hutang vendor dari Invoice
-    const totalVendorAmount = invoice.debt || 0;
+    // Hitung total hutang vendor dari Invoice lain (akumulatif debt)
+    const relatedInvoices = await Invoice.find({ vendorInvoiceNumber: invoice.invoiceNumber, void: { $ne: true } }).lean()
+    const totalVendorAmount = relatedInvoices.reduce((sum, inv: any) => sum + (inv.debt || 0), 0);
 
     const currentVendorPaid = (invoice.vendorPaid ?? 0)
     const amt = Number(payAmount)
@@ -223,7 +253,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ noResult: true, message: `Jumlah bayar melebihi hutang (max: ${totalVendorAmount - currentVendorPaid})`, result: null, error: true })
     }
 
-    await Invoice.findByIdAndUpdate(invoiceId, { vendorPaid: newVendorPaid })
+    await Invoice.findByIdAndUpdate(invoiceId, { 
+      vendorPaid: newVendorPaid,
+      ...(voucher ? { bankVoucher: voucher } : {})
+    })
+
+    const refText = [description, voucher ? `Voucher: ${voucher}` : null].filter(Boolean).join(' - ')
 
     const logEntry = await Log.create({
       purchaseId: new mongoose.Types.ObjectId(invoiceId),
@@ -233,7 +268,8 @@ export async function POST(request: NextRequest) {
       paymentNumber: `VL-${String(Date.now()).slice(-6)}`,
       type: 'payment',
       paymentMethod: paymentMethod || 'Cash',
-      createdBy: userId ? new mongoose.Types.ObjectId(userId) : undefined
+      createdBy: userId ? new mongoose.Types.ObjectId(userId) : undefined,
+      reference: refText || undefined
     })
 
     // ─── Catat Cashflow ──────────────────────────────────────────────────────
@@ -247,7 +283,7 @@ export async function POST(request: NextRequest) {
         bankAccountId: isCash ? null : (bankAccountId || null),
         type: 'out',
         amount: amt,
-        reference: `Pembayaran hutang vendor - ${invoice.invoiceNumber || invoiceId}`,
+        reference: `Pembayaran hutang vendor - ${invoice.invoiceNumber || invoiceId}${refText ? ` | ${refText}` : ''}`,
         date: payDate ? new Date(payDate) : new Date(),
         recordedBy: userId ? new mongoose.Types.ObjectId(userId) : null,
         to: 'Vendor'

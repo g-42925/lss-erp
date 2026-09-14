@@ -18,6 +18,16 @@ type CashflowTransaction = {
 	to?: string;
 	from?: string;
 	balance?: number;
+	cashVoucherId?: string;
+	cashVoucherNumber?: string;
+	bankVoucherId?: string;
+	bankVoucherNumber?: string;
+};
+
+type Voucher = {
+	_id: string;
+	voucherNumber: string;
+	voucherType: string;
 };
 
 type Summary = {
@@ -52,6 +62,8 @@ export default function CashflowReportPage() {
 
 	const [transactions, setTransactions] = useState<CashflowTransaction[]>([]);
 	const [summary, setSummary] = useState<Summary>({ totalIn: 0, totalOut: 0, initialBalance: 0, netCashflow: 0, finalBalance: 0 });
+	const [cashVouchers, setCashVouchers] = useState<Voucher[]>([]);
+	const [bankVouchers, setBankVouchers] = useState<Voucher[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 
@@ -61,7 +73,7 @@ export default function CashflowReportPage() {
 	const [selectedReference, setSelectedReference] = useState('');
 	const [search, setSearch] = useState('');
 
-	// Modal state
+	// Modal Add state
 	const [showModal, setShowModal] = useState(false);
 	const [modalData, setModalData] = useState({
 		type: 'in', // 'in', 'out', 'initial'
@@ -72,7 +84,26 @@ export default function CashflowReportPage() {
 		bankAccountId: '',
 		from: '',
 		to: '',
+		cashVoucherId: '',
+		bankVoucherId: '',
 	});
+
+	// Modal Edit state
+	const [showEditModal, setShowEditModal] = useState(false);
+	const [editData, setEditData] = useState({
+		_id: '',
+		type: 'in',
+		amount: '',
+		reference: '',
+		date: new Date().toISOString().split('T')[0],
+		accountType: 'cash',
+		bankAccountId: '',
+		from: '',
+		to: '',
+		cashVoucherId: '',
+		bankVoucherId: '',
+	});
+	const [editSaving, setEditSaving] = useState(false);
 
 	const fetchBankAccounts = useCallback(async () => {
 		if (!masterAccountId) return;
@@ -80,6 +111,19 @@ export default function CashflowReportPage() {
 			const res = await fetch(`/api/web/bank-accounts?id=${masterAccountId}`);
 			const data = await res.json();
 			if (!data.error) setBankAccounts(data.result || []);
+		} catch (e) { }
+	}, [masterAccountId]);
+
+	const fetchVouchers = useCallback(async () => {
+		if (!masterAccountId) return;
+		try {
+			const resCash = await fetch(`/api/web/cash-voucher?id=${masterAccountId}`);
+			const dataCash = await resCash.json();
+			if (!dataCash.error) setCashVouchers(dataCash.result || []);
+
+			const resBank = await fetch(`/api/web/bank-voucher?id=${masterAccountId}`);
+			const dataBank = await resBank.json();
+			if (!dataBank.error) setBankVouchers(dataBank.result || []);
 		} catch (e) { }
 	}, [masterAccountId]);
 
@@ -139,9 +183,10 @@ export default function CashflowReportPage() {
 	useEffect(() => {
 		if (hasHydrated && loggedIn) {
 			fetchBankAccounts();
+			fetchVouchers();
 			fetchCashflow();
 		}
-	}, [hasHydrated, loggedIn, fetchCashflow, fetchBankAccounts]);
+	}, [hasHydrated, loggedIn, fetchCashflow, fetchBankAccounts, fetchVouchers]);
 
 	const handleAddSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -162,6 +207,8 @@ export default function CashflowReportPage() {
 					reference: reference,
 					date: modalData.date,
 					recordedBy: null,
+					cashVoucherId: modalData.accountType === 'cash' ? modalData.cashVoucherId : null,
+					bankVoucherId: modalData.accountType === 'bank' ? modalData.bankVoucherId : null,
 					additional
 				})
 			});
@@ -186,6 +233,63 @@ export default function CashflowReportPage() {
 			setIsCashOut(false);
 		}
 	}
+
+	function openEditModal(t: any) {
+		// Determine accountType from method
+		const accountType = mode === 'bank' ? 'bank' : 'cash';
+		// Find bankAccountId: we look up by method name matching bank name
+		const matchedBank = bankAccounts.find(b => b.bank === t.method);
+		setEditData({
+			_id: t._id,
+			type: t.type,
+			amount: String(t.amount),
+			reference: t.type === 'initial' ? t.reference.split('-')[0] : t.reference,
+			date: new Date(t.date).toISOString().split('T')[0],
+			accountType,
+			bankAccountId: matchedBank?._id || '',
+			from: t.from || '',
+			to: t.to || '',
+			cashVoucherId: t.cashVoucherId || '',
+			bankVoucherId: t.bankVoucherId || '',
+		});
+		setShowEditModal(true);
+	}
+
+	const handleEditSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setEditSaving(true);
+		try {
+			const res = await fetch('/api/web/finance/reports/cashflow', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					id: editData._id,
+					masterAccountId,
+					accountType: editData.accountType === 'cash' ? 'Cash' : 'Bank',
+					bankAccountId: editData.accountType === 'bank' ? editData.bankAccountId : null,
+					type: editData.type,
+					amount: Number(editData.amount),
+					reference: editData.reference,
+					date: editData.date,
+					from: editData.type === 'in' ? editData.from : undefined,
+					to: editData.type === 'out' ? editData.to : undefined,
+					cashVoucherId: editData.accountType === 'cash' ? editData.cashVoucherId : null,
+					bankVoucherId: editData.accountType === 'bank' ? editData.bankVoucherId : null,
+				})
+			});
+			const json = await res.json();
+			if (json.error) {
+				alert(json.message);
+			} else {
+				setShowEditModal(false);
+				fetchCashflow();
+			}
+		} catch (e: any) {
+			alert('Error: ' + e.message);
+		} finally {
+			setEditSaving(false);
+		}
+	};
 
 	function toExcel() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport');
@@ -379,16 +483,17 @@ export default function CashflowReportPage() {
 									<th className="p-3.5 whitespace-nowrap">Tipe</th>
 									<th className="p-3.5 whitespace-nowrap text-right">Jumlah</th>
 									<th className="p-3.5 whitespace-nowrap text-right">Saldo Akhir</th>
+									<th className="p-3.5 whitespace-nowrap text-center">Aksi</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-slate-100">
 								{loading ? (
 									<tr>
-										<td colSpan={9} className="p-8 text-center text-slate-400 font-medium">Memuat data transaksi...</td>
+										<td colSpan={10} className="p-8 text-center text-slate-400 font-medium">Memuat data transaksi...</td>
 									</tr>
 								) : transactions.length === 0 ? (
 									<tr>
-										<td colSpan={9} className="p-8 text-center text-slate-400">Belum ada transaksi pada periode ini.</td>
+										<td colSpan={10} className="p-8 text-center text-slate-400">Belum ada transaksi pada periode ini.</td>
 									</tr>
 								) : (
 									(sortOrder === 'desc' ? [...transactions].reverse() : transactions).map((t: any, idx: number) => (
@@ -403,12 +508,21 @@ export default function CashflowReportPage() {
 												{t.to || <span className="text-slate-300">-</span>}
 											</td>
 											<td className="p-3.5 whitespace-nowrap">
-												<span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+												<span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+													t.source === 'Manual Entry'
+														? 'bg-amber-100 text-amber-700'
+														: 'bg-slate-100 text-slate-600'
+												}`}>
 													{t.source}
 												</span>
 											</td>
 											<td className="p-3.5 font-medium text-slate-700">
 												{t.type === "initial" ? t.reference.split('-')[0] : t.reference}
+												{t.source === 'Manual Entry' && (t.cashVoucherNumber || t.bankVoucherNumber) && (
+													<span className="block text-[10px] text-slate-400 font-normal">
+														Voucher: {t.cashVoucherNumber || t.bankVoucherNumber}
+													</span>
+												)}
 											</td>
 											<td className="p-3.5 font-medium text-slate-600 capitalize whitespace-nowrap">
 												{t.type === 'initial' ? `${t.method} - ${t.reference.split('-')[1] || ''}` : t.method}
@@ -424,6 +538,21 @@ export default function CashflowReportPage() {
 											<td className="p-3.5 font-bold text-right whitespace-nowrap text-slate-700">
 												{(t.balance || 0).toLocaleString('id-ID')}
 											</td>
+											<td className="p-3.5 text-center">
+												{t.source === 'Manual Entry' && (
+													<button
+														type="button"
+														onClick={() => openEditModal(t)}
+														title="Edit entri ini"
+														className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+													>
+														<svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+															<path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+														</svg>
+														Edit
+													</button>
+												)}
+											</td>
 										</tr>
 									))
 								)}
@@ -431,6 +560,202 @@ export default function CashflowReportPage() {
 						</table>
 					</div>
 				</div>
+
+				{/* Modal Edit Manual Entry */}
+				{showEditModal && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+						<div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100">
+							<div className="px-6 py-5 border-b border-amber-100 bg-amber-50/60 flex items-center justify-between">
+								<div className="flex items-center gap-2">
+									<span className="bg-amber-500 text-white rounded-lg p-1.5">
+										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+											<path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+										</svg>
+									</span>
+									<h2 className="text-lg font-bold text-slate-800">Edit Entri Manual</h2>
+								</div>
+								<button
+									type="button"
+									onClick={() => setShowEditModal(false)}
+									className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+										<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+									</svg>
+								</button>
+							</div>
+
+							<form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+								<div>
+									<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Jenis Aliran</label>
+									<select
+										required
+										value={editData.type}
+										onChange={(e) => setEditData({ ...editData, type: e.target.value })}
+										className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+									>
+										<option value="in">Uang Masuk (Cash In)</option>
+										<option value="out">Uang Keluar (Cash Out)</option>
+										<option value="initial">Saldo Awal</option>
+									</select>
+								</div>
+
+								<div className="grid grid-cols-2 gap-4">
+									{editData.type !== 'initial' && (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tipe Akun</label>
+											<select
+												value={editData.accountType}
+												onChange={(e) => setEditData({ ...editData, accountType: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+											>
+												<option value="cash">Kas Tunai</option>
+												<option value="bank">Rekening Bank</option>
+											</select>
+										</div>
+									)}
+									{editData.accountType === 'bank' && (
+										<div className={editData.type === 'initial' ? 'col-span-2' : ''}>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Pilih Bank</label>
+											<select
+												required
+												value={editData.bankAccountId}
+												onChange={(e) => setEditData({ ...editData, bankAccountId: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+											>
+												<option value="">-- Pilih Bank --</option>
+												{bankAccounts.map(b => (
+													<option key={b._id} value={b._id}>{b.accountName} ({b.bank})</option>
+												))}
+											</select>
+										</div>
+									)}
+									
+									{editData.type !== 'initial' && editData.accountType === 'cash' && (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Cash Voucher</label>
+											<select
+												value={editData.cashVoucherId}
+												onChange={(e) => setEditData({ ...editData, cashVoucherId: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+											>
+												<option value="">-- Tanpa Voucher --</option>
+												{cashVouchers
+													.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
+													.map(v => (
+													<option key={v._id} value={v._id}>{v.voucherNumber}</option>
+												))}
+											</select>
+										</div>
+									)}
+
+									{editData.type !== 'initial' && editData.accountType === 'bank' && (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Bank Voucher</label>
+											<select
+												value={editData.bankVoucherId}
+												onChange={(e) => setEditData({ ...editData, bankVoucherId: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+											>
+												<option value="">-- Tanpa Voucher --</option>
+												{bankVouchers
+													.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
+													.map(v => (
+													<option key={v._id} value={v._id}>{v.voucherNumber}</option>
+												))}
+											</select>
+										</div>
+									)}
+								</div>
+
+								<div>
+									<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nominal (Rp)</label>
+									<NumericFormat
+										thousandSeparator="."
+										decimalSeparator=","
+										decimalScale={2}
+										fixedDecimalScale
+										allowNegative={false}
+										value={editData.amount}
+										onValueChange={(values) => setEditData({ ...editData, amount: values.floatValue?.toString() ?? '' })}
+										className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-amber-400 bg-slate-50"
+										placeholder="Contoh: 150000"
+									/>
+								</div>
+
+								{editData.type !== 'initial' && (
+									<div>
+										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Referensi / Keterangan</label>
+										<input
+											type="text"
+											required
+											value={editData.reference}
+											onChange={(e) => setEditData({ ...editData, reference: e.target.value })}
+											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+											placeholder="Contoh: Bayar Listrik Bulan Ini"
+										/>
+									</div>
+								)}
+
+								<div>
+									<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tanggal</label>
+									<input
+										type="date"
+										required
+										value={editData.date}
+										onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+										className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+									/>
+								</div>
+
+								{editData.type !== 'initial' && (
+									editData.type === 'out' ? (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
+											<input
+												type="text"
+												value={editData.to}
+												onChange={(e) => setEditData({ ...editData, to: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+												placeholder="Contoh: Ke Siapa"
+											/>
+										</div>
+									) : (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
+											<input
+												type="text"
+												value={editData.from}
+												onChange={(e) => setEditData({ ...editData, from: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
+												placeholder="Contoh: Dari Siapa"
+											/>
+										</div>
+									)
+								)}
+
+								<div className="pt-4 flex justify-end gap-3">
+									<button
+										type="button"
+										onClick={() => setShowEditModal(false)}
+										disabled={editSaving}
+										className="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+									>
+										Batal
+									</button>
+									<button
+										type="submit"
+										disabled={editSaving}
+										className="px-6 py-2.5 rounded-xl text-white font-semibold shadow-md focus:outline-none transition-all active:scale-95 bg-amber-500 hover:bg-amber-600 shadow-amber-500/30 disabled:opacity-60 flex items-center gap-2"
+									>
+										{editSaving && <span className="loading loading-spinner loading-xs" />}
+										Simpan Perubahan
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				)}
 
 				{/* Modal Catat Kas Manual */}
 				{showModal && (
@@ -496,6 +821,42 @@ export default function CashflowReportPage() {
 												<option value="">-- Pilih Bank --</option>
 												{bankAccounts.map(b => (
 													<option key={b._id} value={`${b._id}-${b.accountNumber}`}>{b.accountName}</option>
+												))}
+											</select>
+										</div>
+									)}
+
+									{modalData.type !== 'initial' && modalData.accountType === 'cash' && (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Cash Voucher</label>
+											<select
+												value={modalData.cashVoucherId}
+												onChange={(e) => setModalData({ ...modalData, cashVoucherId: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+											>
+												<option value="">-- Tanpa Voucher --</option>
+												{cashVouchers
+													.filter(v => v.voucherType === (modalData.type === 'in' ? 'masuk' : 'keluar'))
+													.map(v => (
+													<option key={v._id} value={v._id}>{v.voucherNumber}</option>
+												))}
+											</select>
+										</div>
+									)}
+
+									{modalData.type !== 'initial' && modalData.accountType === 'bank' && (
+										<div>
+											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Bank Voucher</label>
+											<select
+												value={modalData.bankVoucherId}
+												onChange={(e) => setModalData({ ...modalData, bankVoucherId: e.target.value })}
+												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+											>
+												<option value="">-- Tanpa Voucher --</option>
+												{bankVouchers
+													.filter(v => v.voucherType === (modalData.type === 'in' ? 'masuk' : 'keluar'))
+													.map(v => (
+													<option key={v._id} value={v._id}>{v.voucherNumber}</option>
 												))}
 											</select>
 										</div>

@@ -22,10 +22,17 @@ export default function Debt() {
   const payRef = useRef<HTMLDialogElement>(null)
   const logsRef = useRef<HTMLDialogElement>(null)
   const editLogRef = useRef<HTMLDialogElement>(null)
+  const createInvoiceRef = useRef<HTMLDialogElement>(null)
+  const listInvoiceRef = useRef<HTMLDialogElement>(null)
+  const relatedInvoicesRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<FilterType>('barang')
   const [statusFilter, setStatusFilter] = useState<'unpaid' | 'paid'>('unpaid')
   const [monthFilter, setMonthFilter] = useState<string>("")
+  const [vendorFilter, setVendorFilter] = useState<string>("")
+  const [vendors, setVendors] = useState<any[]>([])
+  const [cashVouchers, setCashVouchers] = useState<any[]>([])
+  const [bankVouchers, setBankVouchers] = useState<any[]>([])
   const [debts, setDebts] = useState<any[]>([])
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
@@ -36,14 +43,29 @@ export default function Debt() {
   const [editPaymentMethod, setEditPaymentMethod] = useState("")
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [paySubmitting, setPaySubmitting] = useState(false)
+  const [bulkPaySubmitting, setBulkPaySubmitting] = useState(false)
   const [selectedDebt, setSelectedDebt] = useState<any>(null)
   const [selectedLogDebt, setSelectedLogDebt] = useState<any>(null)
   const [payFormData, setPayFormData] = useState({
     payAmount: 0 as number | string,
     paymentMethod: 'Cash',
     bankAccountId: '',
-    payDate: new Date().toISOString().split('T')[0]
+    payDate: new Date().toISOString().split('T')[0],
+    description: '',
+    voucher: ''
   })
+
+  const [createInvoiceSubmitting, setCreateInvoiceSubmitting] = useState(false)
+  const [createInvoiceData, setCreateInvoiceData] = useState({
+    id: '',
+    invoiceNumber: '',
+    vendorId: '',
+    nominal: '' as number | string,
+    tanggal: new Date().toISOString().split('T')[0],
+    keterangan: ''
+  })
+  const [manualInvoices, setManualInvoices] = useState<any[]>([])
+  const [manualInvoicesLoading, setManualInvoicesLoading] = useState(false)
 
   const router = useRouter()
 
@@ -62,9 +84,15 @@ export default function Debt() {
     method: 'GET'
   })
 
-  function fetchDebts(type: FilterType = filterType, stat: string = statusFilter, mon: string = monthFilter) {
+  const getVendorsFn = useFetch<any[], any>({
+    url: '',
+    method: 'GET'
+  })
+
+  function fetchDebts(type: FilterType = filterType, stat: string = statusFilter, mon: string = monthFilter, ven: string = vendorFilter) {
     let url = `/api/web/debt?id=${masterAccountId}&filterType=${type}&status=${stat}`
     if (mon) url += `&month=${mon}`
+    if (ven) url += `&vendorId=${ven}`
     getFn.fn(url, "{}", (result) => {
       setDebts(result ?? [])
     })
@@ -73,19 +101,25 @@ export default function Debt() {
   function handleFilterChange(type: FilterType) {
     setFilterType(type)
     setDebts([])
-    fetchDebts(type, statusFilter, monthFilter)
+    fetchDebts(type, statusFilter, monthFilter, vendorFilter)
   }
 
   function handleStatusChange(stat: 'unpaid' | 'paid') {
     setStatusFilter(stat)
     setDebts([])
-    fetchDebts(filterType, stat, monthFilter)
+    fetchDebts(filterType, stat, monthFilter, vendorFilter)
   }
 
   function handleMonthChange(mon: string) {
     setMonthFilter(mon)
     setDebts([])
-    fetchDebts(filterType, statusFilter, mon)
+    fetchDebts(filterType, statusFilter, mon, vendorFilter)
+  }
+
+  function handleVendorChange(ven: string) {
+    setVendorFilter(ven)
+    setDebts([])
+    fetchDebts(filterType, statusFilter, monthFilter, ven)
   }
 
   // ─── Open Pay Modal ──────────────────────────────────────────────────────────
@@ -95,15 +129,111 @@ export default function Debt() {
       payAmount: "",
       paymentMethod: 'Cash',
       bankAccountId: '',
-      payDate: new Date().toISOString().split('T')[0]
+      payDate: new Date().toISOString().split('T')[0],
+      description: '',
+      voucher: ''
     })
     payRef.current?.showModal()
+  }
+
+  function openCreateInvoice() {
+    setCreateInvoiceData({
+      id: '',
+      invoiceNumber: '',
+      vendorId: '',
+      nominal: '',
+      tanggal: new Date().toISOString().split('T')[0],
+      keterangan: ''
+    })
+    createInvoiceRef.current?.showModal()
+  }
+
+  async function fetchManualInvoices() {
+    setManualInvoicesLoading(true)
+    try {
+      const res = await fetch(`/api/web/debt/invoice?id=${masterAccountId}`)
+      const data = await res.json()
+      setManualInvoices(data.result || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setManualInvoicesLoading(false)
+    }
+  }
+
+  function openListInvoice() {
+    listInvoiceRef.current?.showModal()
+    fetchManualInvoices()
+  }
+
+  function viewRelatedInvoices(debt: any) {
+    setSelectedDebt(debt)
+    relatedInvoicesRef.current?.showModal()
+  }
+
+  function openEditInvoice(inv: any) {
+    setCreateInvoiceData({
+      id: inv._id,
+      invoiceNumber: inv.invoiceNumber || '',
+      vendorId: inv.vendorId,
+      nominal: inv.debt,
+      tanggal: new Date(inv.date).toISOString().split('T')[0],
+      keterangan: inv.description || ''
+    })
+    createInvoiceRef.current?.showModal()
+  }
+
+  async function deleteManualInvoice(id: string) {
+    if (!confirm('Yakin ingin menghapus invoice ini?')) return
+    try {
+      const res = await fetch(`/api/web/debt/invoice?id=${id}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (json.error) return alert(json.message)
+      fetchManualInvoices()
+    } catch (e: any) {
+      alert(e.message)
+    }
+  }
+
+  async function submitCreateInvoice() {
+    const { id, invoiceNumber, vendorId, nominal, tanggal, keterangan } = createInvoiceData
+    if (!vendorId) return alert("Pilih vendor terlebih dahulu")
+    if (!nominal || Number(nominal) <= 0) return alert("Nominal harus lebih dari 0")
+    if (!tanggal) return alert("Pilih tanggal")
+
+    setCreateInvoiceSubmitting(true)
+    try {
+      const isEdit = !!id
+      const res = await fetch('/api/web/debt/invoice', {
+        method: isEdit ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          invoiceNumber,
+          vendorId,
+          nominal: Number(nominal),
+          tanggal,
+          keterangan,
+          masterAccountId
+        })
+      })
+      const json = await res.json()
+      if (json.error) return alert(json.message)
+
+      alert(isEdit ? "Invoice berhasil diupdate!" : "Invoice berhasil dibuat!")
+      if (isEdit) fetchManualInvoices()
+      createInvoiceRef.current?.close()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setCreateInvoiceSubmitting(false)
+    }
   }
 
   // ─── Pay: barang or jasa (via Purchase) ─────────────────────────────────────
   async function payPurchase() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, payDate } = payFormData
+    const { payAmount, paymentMethod, payDate, description, voucher } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
@@ -116,7 +246,7 @@ export default function Debt() {
       newPayAmt,
       payAmount: selectedDebt.payAmount + newPayAmt,
       status: '___approved',
-      reference: null,
+      reference: description ? `${description} ${voucher ? `(Voucher: ${voucher})` : ''}` : voucher ? `Voucher: ${voucher}` : null,
       purchaseType: selectedDebt.purchaseType,
       paymentMethod,
       date: payDate ? new Date(payDate).toISOString() : new Date().toISOString(),
@@ -141,7 +271,7 @@ export default function Debt() {
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
   async function payVendorDebt() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, bankAccountId, payDate } = payFormData
+    const { payAmount, paymentMethod, bankAccountId, payDate, description, voucher } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
@@ -160,7 +290,9 @@ export default function Debt() {
           bankAccountId: paymentMethod === 'Cash' ? null : bankAccountId,
           payDate,
           userId,
-          masterAccountId
+          masterAccountId,
+          description,
+          voucher
         })
       })
       const json = await res.json()
@@ -180,7 +312,7 @@ export default function Debt() {
     if (!confirm('Yakin ingin menandai hutang ini sebagai lunas? (Pembayaran menggunakan Cash)')) return;
     const rem = remaining(debt);
     if (rem <= 0) return alert('Hutang sudah lunas');
-    
+
     if (filterType === 'vendor') {
       try {
         const res = await fetch('/api/web/debt', {
@@ -214,6 +346,67 @@ export default function Debt() {
     }
     else {
       await payPurchase()
+    }
+  }
+
+  async function markAllAsPaid() {
+    if (!vendorFilter || !monthFilter) return;
+    const unpaidDebts = debts.filter(d => remaining(d) > 0);
+    if (unpaidDebts.length === 0) return alert("Tidak ada hutang yang belum lunas pada kriteria ini.");
+
+    if (!confirm(`Yakin ingin melunasi ${unpaidDebts.length} tagihan secara bersamaan? (Pembayaran otomatis menggunakan Cash pada tanggal hari ini)`)) return;
+
+    setBulkPaySubmitting(true);
+    let successCount = 0;
+    try {
+      for (const debt of unpaidDebts) {
+        const rem = remaining(debt);
+        if (filterType === 'vendor') {
+          const res = await fetch('/api/web/debt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              invoiceId: debt._id,
+              payAmount: rem,
+              paymentMethod: 'Cash',
+              bankAccountId: null,
+              payDate: new Date().toISOString().split('T')[0],
+              userId,
+              masterAccountId
+            })
+          });
+          const json = await res.json();
+          if (!json.error) successCount++;
+        } else {
+          // For barang and jasa, via /api/web/purchases
+          const payload = JSON.stringify({
+            _id: debt._id,
+            type: "payment",
+            newPayAmt: rem,
+            payAmount: (debt.payAmount ?? 0) + rem,
+            status: '___approved',
+            reference: null,
+            purchaseType: debt.purchaseType,
+            paymentMethod: 'Cash',
+            date: new Date().toISOString(),
+            userId,
+            to: debt.supplier?.bussinessName || debt.vendor?.name || ''
+          });
+          const res = await fetch('/api/web/purchases', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload
+          });
+          const json = await res.json();
+          if (!json.error) successCount++;
+        }
+      }
+      alert(`Berhasil melunasi ${successCount} dari ${unpaidDebts.length} tagihan.`);
+      fetchDebts();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setBulkPaySubmitting(false);
     }
   }
 
@@ -310,7 +503,12 @@ export default function Debt() {
     if (hasHydrated) {
       const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
       bankAccountFn.fn(bankUrl, "{}", () => { })
-      fetchDebts('barang', 'unpaid', '')
+      getVendorsFn.fn(`/api/web/vendor?id=${masterAccountId}`, "{}", setVendors)
+      fetchDebts('barang', 'unpaid', '', '')
+
+      // Fetch vouchers
+      fetch(`/api/web/cash-voucher?id=${masterAccountId}`).then(r => r.json()).then(d => setCashVouchers(d.result || []))
+      fetch(`/api/web/bank-voucher?id=${masterAccountId}`).then(r => r.json()).then(d => setBankVouchers(d.result || []))
     }
   }, [masterAccountId, hasHydrated])
 
@@ -332,7 +530,21 @@ export default function Debt() {
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
-        <span className="page-title">Debts</span>
+        <div className="flex justify-between items-center gap-2">
+          <span className="page-title">Debts</span>
+          <div className="flex gap-2">
+            {filterType === 'vendor' && (
+              <button className="btn btn-sm btn-outline btn-primary bg-white" onClick={openListInvoice}>
+                List Invoice Manual
+              </button>
+            )}
+            {filterType === 'vendor' && (
+              <button className="btn btn-sm btn-primary" onClick={openCreateInvoice}>
+                + Buat Invoice Vendor
+              </button>
+            )}
+          </div>
+        </div>
         <div className="relative bg-white h-full border-t-4 border-blue-900 flex flex-col p-6 gap-6">
 
           {/* Filters */}
@@ -352,44 +564,35 @@ export default function Debt() {
               ))}
             </div>
 
-            <div className="flex flex-row gap-3 flex-wrap items-center">
-              <select 
-                className="select select-sm select-bordered" 
-                value={statusFilter} 
-                onChange={(e) => handleStatusChange(e.target.value as 'unpaid' | 'paid')}
-              >
-                <option value="unpaid">Belum Lunas</option>
-                <option value="paid">Lunas</option>
-              </select>
-
-              <input 
-                type="month" 
-                className="input input-sm input-bordered" 
-                value={monthFilter}
-                onChange={(e) => handleMonthChange(e.target.value)}
-              />
-              {monthFilter && (
-                <button className="btn btn-sm btn-ghost text-red-500" onClick={() => handleMonthChange('')}>
-                  Reset Bulan
-                </button>
-              )}
+            <div className="flex flex-wrap gap-2 items-center md:justify-end">
+              {
+                (filterType === 'vendor' || filterType === 'jasa') && (
+                  <select
+                    className="select select-sm select-bordered w-auto max-w-[180px]"
+                    value={vendorFilter}
+                    onChange={(e) => handleVendorChange(e.target.value)}
+                  >
+                    <option value="">-- Semua Vendor --</option>
+                    {vendors?.map((v: any) => (
+                      <option key={v._id} value={v._id}>{v.name}</option>
+                    ))}
+                  </select>
+                )
+              }
             </div>
           </div>
 
           {/* Summary and Description */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50 p-4 rounded-lg border">
-            <p className="text-sm text-gray-500 flex-1">
-              {filterType === 'barang' && 'Hutang yang timbul dari purchase produk/barang yang belum lunas.'}
-              {filterType === 'jasa' && 'Hutang yang timbul dari purchase jasa (renovasi, kelistrikan, dll) yang belum lunas.'}
-              {filterType === 'vendor' && 'Hutang kepada vendor berdasarkan setiap invoice dari service order yang ditangani vendor eksternal.'}
-            </p>
-            <div className="flex flex-col text-left md:text-right">
-              <span className="text-sm text-gray-500 font-medium uppercase tracking-wider">Total Sisa Hutang</span>
-              <span className="text-2xl font-bold text-red-700">
-                Rp {debts.reduce((acc, d) => acc + remaining(d), 0).toLocaleString('id-ID')}
-              </span>
-            </div>
-          </div>
+          {
+            filterType !== 'vendor' && (
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50 p-4 rounded-lg border">
+                <p className="text-sm text-gray-500 flex-1">
+                  {filterType === 'barang' && 'Hutang yang timbul dari purchase produk/barang yang belum lunas.'}
+                  {filterType === 'jasa' && 'Hutang yang timbul dari purchase jasa (renovasi, kelistrikan, dll) yang belum lunas.'}
+                </p>
+              </div>
+            )
+          }
 
           {/* Table */}
           {
@@ -422,11 +625,12 @@ export default function Debt() {
                           {filterType === 'barang' && <th>Produk</th>}
                           {filterType === 'jasa' && <th>Deskripsi</th>}
                           {filterType === 'vendor' && <th>No. Invoice</th>}
-                          {filterType === 'vendor' && <th>Sales Order</th>}
                           <th>
                             {filterType === 'barang' ? 'Supplier/Vendor' : 'Vendor'}
                           </th>
-                          <th>Total</th>
+                          {filterType === 'vendor' && <th>Tagihan</th>}
+                          {filterType === 'vendor' && <th>Total Hutang</th>}
+                          {filterType != 'vendor' && <th>Total</th>}
                           <th>Sudah Dibayar</th>
                           <th>Sisa</th>
                           <th>Aksi</th>
@@ -439,7 +643,6 @@ export default function Debt() {
                             {filterType === 'barang' && <td>{d.product?.productName ?? '-'}</td>}
                             {filterType === 'jasa' && <td>{d.description ?? '-'}</td>}
                             {filterType === 'vendor' && <td>{d.invoiceNumber}</td>}
-                            {filterType === 'vendor' && <td>{d.salesOrderNumber ?? '-'}</td>}
                             <td>
                               {filterType === 'vendor'
                                 ? d.vendor?.name ?? '-'
@@ -447,9 +650,20 @@ export default function Debt() {
                             </td>
                             <td>
                               {(filterType === 'vendor'
-                                ? d.totalVendorAmount
+                                ? d.debt
                                 : d.finalPrice)?.toLocaleString('id-ID')}
                             </td>
+                            {filterType === 'vendor' && (
+                              <td>
+                                <button
+                                  className={`underline font-semibold hover:text-blue-800 ${d.debt !== d.totalVendorAmount ? 'text-orange-600' : 'text-blue-600'}`}
+                                  onClick={() => viewRelatedInvoices(d)}
+                                  title="Lihat Invoice Terkait"
+                                >
+                                  {d.totalVendorAmount?.toLocaleString('id-ID')}
+                                </button>
+                              </td>
+                            )}
                             <td>
                               {(filterType === 'vendor'
                                 ? (d.vendorPaid ?? 0)
@@ -458,22 +672,24 @@ export default function Debt() {
                             <td className="font-semibold text-red-700">
                               {remaining(d)?.toLocaleString('id-ID')}
                             </td>
-                            <td className="flex flex-row gap-2">
-                              {statusFilter === 'unpaid' && (
-                                <>
-                                  <button className="btn btn-sm btn-primary" onClick={() => openPay(d)}>
+                            <td>
+                              <div className="flex flex-row gap-1">
+                                {remaining(d) > 0 && (
+                                  <button
+                                    className="btn btn-xs btn-primary"
+                                    onClick={() => openPay(d)}
+                                  >
                                     Bayar
                                   </button>
-                                  {filterType === 'vendor' && (
-                                    <button className="btn btn-sm btn-success" onClick={() => markAsPaid(d)}>
-                                      Lunas
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                              <button className="btn btn-sm btn-secondary" onClick={() => viewLogs(d)}>
-                                Logs
-                              </button>
+                                )}
+                                <button
+                                  className="btn btn-xs btn-outline"
+                                  onClick={() => viewLogs(d)}
+                                  title="Lihat & Edit Riwayat Pembayaran"
+                                >
+                                  Riwayat
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -541,7 +757,8 @@ export default function Debt() {
                     setPayFormData(p => ({
                       ...p,
                       paymentMethod: val,
-                      bankAccountId: matchedBank?._id || ''
+                      bankAccountId: matchedBank?._id || '',
+                      voucher: '' // reset voucher saat ganti metode
                     }))
                   }}
                 >
@@ -552,6 +769,38 @@ export default function Debt() {
                     </option>
                   ))}
                 </select>
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">
+                  {payFormData.paymentMethod === 'Cash' ? 'Pilih Voucher Cash' : 'Pilih Voucher Bank'}
+                </legend>
+                <select
+                  className="select w-full"
+                  value={payFormData.voucher}
+                  onChange={e => setPayFormData(p => ({ ...p, voucher: e.target.value }))}
+                >
+                  <option value="">-- Tidak menggunakan voucher --</option>
+                  {payFormData.paymentMethod === 'Cash'
+                    ? cashVouchers.map((v: any) => (
+                      <option key={v._id} value={v.voucherNumber}>{v.voucherNumber} ({v.voucherType})</option>
+                    ))
+                    : bankVouchers.map((v: any) => (
+                      <option key={v._id} value={v.voucherNumber}>{v.voucherNumber} ({v.voucherType})</option>
+                    ))
+                  }
+                </select>
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Keterangan Tambahan</legend>
+                <input
+                  className="input w-full"
+                  type="text"
+                  placeholder="Deskripsi atau catatan pembayaran"
+                  value={payFormData.description}
+                  onChange={e => setPayFormData(p => ({ ...p, description: e.target.value }))}
+                />
               </fieldset>
 
               <div className="modal-action">
@@ -694,6 +943,210 @@ export default function Debt() {
                 </div>
               </div>
             )}
+          </div>
+        </dialog>
+
+        {/* ─── Create Invoice Vendor Modal ─── */}
+        <dialog id="create_invoice_modal" ref={createInvoiceRef} className="modal text-black">
+          <div className="modal-box w-11/12 max-w-2xl">
+            <h3 className="font-bold text-lg mb-4">{createInvoiceData.id ? 'Edit' : 'Buat'} Invoice Vendor Manual</h3>
+            <div className="flex flex-col gap-3">
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">No. Invoice</legend>
+                <input
+                  className="input w-full"
+                  type="text"
+                  placeholder="Kosongkan untuk generate otomatis"
+                  value={createInvoiceData.invoiceNumber}
+                  onChange={e => setCreateInvoiceData(p => ({ ...p, invoiceNumber: e.target.value }))}
+                />
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Vendor</legend>
+                <select
+                  className="select w-full"
+                  value={createInvoiceData.vendorId}
+                  onChange={e => setCreateInvoiceData(p => ({ ...p, vendorId: e.target.value }))}
+                >
+                  <option value="">-- Pilih Vendor --</option>
+                  {vendors?.map((v: any) => (
+                    <option key={v._id} value={v._id}>{v.name}</option>
+                  ))}
+                </select>
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tanggal Invoice</legend>
+                <input
+                  className="input w-full"
+                  type="date"
+                  value={createInvoiceData.tanggal}
+                  onChange={e => setCreateInvoiceData(p => ({ ...p, tanggal: e.target.value }))}
+                  required
+                />
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Nominal</legend>
+                <NumericFormat
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  decimalScale={2}
+                  fixedDecimalScale
+                  allowNegative={false}
+                  value={createInvoiceData.nominal}
+                  onValueChange={(values) => {
+                    setCreateInvoiceData(p => ({ ...p, nominal: values.floatValue ?? "" }))
+                  }}
+                  className="input w-full"
+                  placeholder="Contoh: 150000"
+                />
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Keterangan</legend>
+                <input
+                  className="input w-full"
+                  type="text"
+                  placeholder="Masukkan keterangan invoice"
+                  value={createInvoiceData.keterangan}
+                  onChange={e => setCreateInvoiceData(p => ({ ...p, keterangan: e.target.value }))}
+                />
+              </fieldset>
+
+              <div className="modal-action">
+                <button type="button" className="btn" onClick={() => createInvoiceRef.current?.close()}>Batal</button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={createInvoiceSubmitting}
+                  onClick={submitCreateInvoice}
+                >
+                  {createInvoiceSubmitting ? <span className="loading loading-spinner loading-sm"></span> : (createInvoiceData.id ? 'Simpan Perubahan' : 'Buat Invoice')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
+        {/* ─── List Invoice Manual Modal ─── */}
+        <dialog id="list_invoice_modal" ref={listInvoiceRef} className="modal text-black">
+          <div className="modal-box w-11/12 max-w-4xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Daftar Invoice Vendor Manual</h3>
+              <button className="btn btn-sm btn-circle" onClick={() => listInvoiceRef.current?.close()}>✕</button>
+            </div>
+            {manualInvoicesLoading ? (
+              <div className="flex flex-col justify-center items-center p-6"><span className="loading loading-spinner"></span></div>
+            ) : manualInvoices.length === 0 ? (
+              <p>Belum ada invoice manual.</p>
+            ) : (
+              <div className="overflow-x-auto w-full">
+                <table className="table text-sm">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>No. Invoice</th>
+                      <th>Vendor</th>
+                      <th>Nominal</th>
+                      <th>Keterangan</th>
+                      <th>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {manualInvoices.map((inv, i) => (
+                      <tr key={i}>
+                        <td>{new Date(inv.date).toLocaleDateString('id-ID')}</td>
+                        <td>{inv.invoiceNumber}</td>
+                        <td>{inv.vendor?.name || '-'}</td>
+                        <td>{inv.debt?.toLocaleString('id-ID')}</td>
+                        <td>{inv.description || '-'}</td>
+                        <td className="flex flex-row gap-1">
+                          <button className="btn btn-xs btn-warning" onClick={() => openEditInvoice(inv)}>Edit</button>
+                          <button className="btn btn-xs btn-error" onClick={() => deleteManualInvoice(inv._id)}>Hapus</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </dialog>
+
+        {/* ─── Related Invoices Modal ─── */}
+        <dialog id="related_invoices_modal" ref={relatedInvoicesRef} className="modal text-black">
+          <div className="modal-box w-11/12 max-w-4xl">
+            <h3 className="font-bold text-lg mb-4">Rincian Hutang Invoice Terkait</h3>
+            {selectedDebt && (
+              <div className="flex flex-col gap-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-sm flex justify-between items-center">
+                  <div>
+                    <div className="text-gray-500 mb-1">Invoice Manual</div>
+                    <div className="font-bold text-lg">{selectedDebt.invoiceNumber}</div>
+                    <div className="text-gray-600">{selectedDebt.vendor?.name}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-gray-500 mb-1">Nominal Tagihan</div>
+                    <div className="font-bold text-xl text-blue-800">
+                      Rp {selectedDebt.debt?.toLocaleString('id-ID')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto border rounded-lg">
+                  <table className="table table-zebra w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th>Tanggal</th>
+                        <th>No. Invoice</th>
+                        <th>Keterangan</th>
+                        <th className="text-right">Hutang (Debt)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedDebt.relatedInvoices?.length > 0 ? (
+                        selectedDebt.relatedInvoices.map((inv: any, idx: number) => (
+                          <tr key={idx}>
+                            <td>{new Date(inv.date).toLocaleDateString('id-ID')}</td>
+                            <td className="font-medium">{inv.invoiceNumber}</td>
+                            <td>{inv.description || '-'}</td>
+                            <td className="text-right font-semibold">
+                              {inv.debt?.toLocaleString('id-ID')}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="text-center py-8 text-gray-500">
+                            Tidak ada invoice terkait yang ditemukan.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot className="bg-gray-50 font-bold">
+                      <tr>
+                        <td colSpan={3} className="text-right py-3">Total Hutang Akumulatif:</td>
+                        <td className="text-right text-red-600 text-base py-3">
+                          Rp {selectedDebt.totalVendorAmount?.toLocaleString('id-ID')}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {selectedDebt.debt !== selectedDebt.totalVendorAmount && (
+                  <div className="alert alert-warning text-sm shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <span><strong>Perhatian:</strong> Terdapat selisih antara nominal tagihan dan total hutang akumulatif!</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="modal-action">
+              <button className="btn" onClick={() => relatedInvoicesRef.current?.close()}>Tutup</button>
+            </div>
           </div>
         </dialog>
 
