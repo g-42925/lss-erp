@@ -220,11 +220,23 @@ export default function BankVoucherTab() {
 
   const [month, setMonth] = useState('')
 
+
+
   useEffect(() => {
     setVoucherNo((prev) => {
       if (prev.startsWith("BK-") && isMasuk) return prev.replace("BK-", "BM-");
       if (prev.startsWith("BM-") && isKeluar) return prev.replace("BM-", "BK-");
       return prev;
+    });
+
+    setVoucherNo((prev) => {
+      const now = new Date();
+      const [bank, ...rest] = prev.split('-')
+      const [credential, _, number] = rest.join('-').split('/')
+      const _month = now.getMonth() + 1;
+      const year = now.getFullYear().toString().slice(-2);
+      const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][_month - 1];
+      return `${bank}-${credential}/${roman}/${year}/${number}`;
     });
   }, [isMasuk, isKeluar]);
 

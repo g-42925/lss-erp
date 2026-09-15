@@ -45,7 +45,7 @@ function terbilang(angka: number): string {
 
 export default function CashVoucherTab() {
   const today = new Date();
-  
+
   const masterAccountId = useAuth((state) => state.masterAccountId);
   const hasHydrated = useAuth((s) => s._hasHydrated);
 
@@ -58,6 +58,9 @@ export default function CashVoucherTab() {
   // Toast state
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMasuk, setIsMasuk] = useState(false);
+  const [isKeluar, setIsKeluar] = useState(true);
+  const [settled, setSettled] = useState(false)
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -94,6 +97,8 @@ export default function CashVoucherTab() {
 
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
+
+
       getCompanyFn.fn(`/api/web/companies?id=${masterAccountId}`, "{}", (result: any) => {
         if (result && result.length > 0) {
           setCompany(result[0]);
@@ -109,12 +114,22 @@ export default function CashVoucherTab() {
           if (/^\d+$/.test(parts[parts.length - 1])) parts.pop();
           return parts.join('/') + '/' + nextSeq;
         });
+        if (!settled) {
+          setVoucherNo((prev) => {
+            const [parts, ...rest] = prev.split('-')
+            const [type, month, number] = rest.join('-').split('/')
+            const now = new Date();
+            const _month = now.getMonth() + 1;
+            const year = now.getFullYear().toString().slice(-2);
+            const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][_month - 1];
+            return `${parts}-${type}/${month}/${year}/${nextSeq}`
+          })
+        }
       });
     }
-  }, [hasHydrated, masterAccountId]);
+  }, [hasHydrated, masterAccountId, isMasuk, isKeluar]);
 
-  const [isMasuk, setIsMasuk] = useState(false);
-  const [isKeluar, setIsKeluar] = useState(true);
+
 
   const [dibayarDiterima, setDibayarDiterima] = useState("");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
@@ -147,6 +162,18 @@ export default function CashVoucherTab() {
       if (prev.startsWith("KM-") && isKeluar) return prev.replace("KM-", "KK-");
       return prev;
     });
+
+    if (settled) {
+      setVoucherNo((prev) => {
+        const [parts, ...rest] = prev.split('-')
+        const [type, month, number] = rest.join('-').split('/')
+        const now = new Date();
+        const _month = now.getMonth() + 1;
+        const year = now.getFullYear().toString().slice(-2);
+        const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][_month - 1];
+        return `${parts}-${type}/${month}/${year}/${nextSeq}`
+      })
+    }
   }, [isMasuk, isKeluar]);
 
   useEffect(() => {
@@ -197,7 +224,7 @@ export default function CashVoucherTab() {
       () => {
         showToast("success", `Voucher ${voucherNo} berhasil ${editingId ? 'diupdate' : 'disimpan'}!`);
         // Refresh list after save
-        getAllVouchersFn.fn(`/api/web/cash-voucher?id=${masterAccountId}`, "{}", () => {});
+        getAllVouchersFn.fn(`/api/web/cash-voucher?id=${masterAccountId}`, "{}", () => { });
       }
     );
   };
@@ -239,7 +266,7 @@ export default function CashVoucherTab() {
       { id: "2", keterangan: "", customer: "", jumlah: 0 },
       { id: "3", keterangan: "", customer: "", jumlah: 0 },
     ]);
-    
+
     // Regenerate voucher number sequence
     getAllVouchersFn.fn(`/api/web/cash-voucher?id=${masterAccountId}`, "{}", (result) => {
       const nextSeq = String((result?.length || 0) + 1).padStart(3, '0');
@@ -261,13 +288,13 @@ export default function CashVoucherTab() {
     setDibayarDiterima(voucher.dibayarDiterima || "");
     setTanggal(voucher.date ? new Date(voucher.date).toISOString().split("T")[0] : "");
     setTerbilangValue(voucher.terbilang || "");
-    
+
     let newRows = [...(voucher.items || [])];
     while (newRows.length < 3) {
       newRows.push({ id: Math.random().toString(), keterangan: "", customer: "", jumlah: 0 });
     }
     setRows(newRows);
-    
+
     setMode("create");
   };
 
@@ -307,7 +334,8 @@ export default function CashVoucherTab() {
           </div>
         </div>
         <div className="flex flex-col items-center print:block print:w-full print:m-0 print:p-0">
-          <style dangerouslySetInnerHTML={{ __html: `
+          <style dangerouslySetInnerHTML={{
+            __html: `
             @media print {
               @page {
                 size: A4 portrait;
@@ -666,8 +694,8 @@ export default function CashVoucherTab() {
                   >
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                       <div className="flex items-center gap-2">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           className="checkbox checkbox-sm rounded"
                           checked={selectedVouchers.some(v => v._id === voucher._id)}
                           onChange={(e) => {
@@ -733,8 +761,8 @@ export default function CashVoucherTab() {
                     </div>
 
                     <div className="p-3 bg-white border-t border-slate-100 flex justify-end">
-                      <button 
-                        onClick={() => handleSelectVoucher(voucher)} 
+                      <button
+                        onClick={() => handleSelectVoucher(voucher)}
                         className="btn btn-sm btn-outline btn-primary"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
