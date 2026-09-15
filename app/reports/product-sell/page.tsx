@@ -63,7 +63,9 @@ export default function ProductSellReportPage() {
   const [loading, setLoading] = useState(false)
   const [hasRun, setHasRun] = useState(false)
   const [allProducts, setAllProducts] = useState<any[]>([])
-  const [serviceInvoices, setServiceInvoices] = useState<any[]>([])
+  // Total dari API (konsisten dengan perhitungan dashboard)
+  const [apiTotalRevenue, setApiTotalRevenue] = useState<number>(0)
+  const [apiTotalTransactions, setApiTotalTransactions] = useState<number>(0)
 
   // ─── Fetch Products for Dropdown ─────────────────────────────────────────────
   useEffect(() => {
@@ -89,48 +91,28 @@ export default function ProductSellReportPage() {
   async function runReport() {
     setLoading(true)
     setItems([])
-    setServiceInvoices([])
     setSummary({})
+    setApiTotalRevenue(0)
+    setApiTotalTransactions(0)
     try {
-      const params = new URLSearchParams({ id: masterAccountId })
-      const [res, invoiceRes] = await Promise.all([
-        fetch(`/api/web/reports/product-sell?${params}`),
-        fetch(`/api/web/invoice/svc?${params}&type=service`)
-      ])
+      // Kirim startDate & endDate ke API agar filtering dilakukan server-side
+      const params = new URLSearchParams({
+        id: masterAccountId,
+        startDate: startDate,
+        endDate: endDate
+      })
+      const res = await fetch(`/api/web/reports/product-sell?${params}`)
       const data = await res.json()
-      const invoiceData = await invoiceRes.json()
 
       if (!data.error && data.result) {
+        // Data sudah difilter tanggal oleh API — langsung set tanpa filter ulang
+        setItems(data.result.data ?? [])
+        setSummary(data.result.summary ?? {})
 
-        const startTime = new Date(startDate).setHours(0, 0, 0, 0)
-        const endTime = new Date(endDate).setHours(23, 59, 59, 999)
+        // Total dari API: dihitung dengan pipeline identik dengan dashboard
+        setApiTotalRevenue(data.result.totalRevenue ?? 0)
+        setApiTotalTransactions(data.result.totalTransactions ?? 0)
 
-        // Filter and re-calculate summary for the date range internally
-        const runtimeSummary: Record<string, { qty: number, subTotal: number }> = {}
-        const filteredByDate = (data.result.data ?? []).filter((item: ProductSellEntry) => {
-          const d = new Date(item.date).getTime()
-          if (d >= startTime && d <= endTime) {
-            const pn = item.productName || 'Unknown Product'
-            if (!runtimeSummary[pn]) runtimeSummary[pn] = { qty: 0, subTotal: 0 }
-            runtimeSummary[pn].qty += item.qty
-            runtimeSummary[pn].subTotal += item.subTotal
-            return true;
-          }
-          return false;
-        })
-
-        setItems(filteredByDate)
-
-        if (invoiceData && invoiceData.result) {
-          const filteredInvoices = invoiceData.result.filter((inv: any) => {
-            if (!inv.date) return false;
-            const d = new Date(inv.date).getTime()
-            return d >= startTime && d <= endTime
-          })
-          setServiceInvoices(filteredInvoices)
-        }
-
-        setSummary(runtimeSummary)
         setHasRun(true)
       }
       else {
@@ -172,59 +154,9 @@ export default function ProductSellReportPage() {
     )
   }
 
-  let filteredServiceInvoices = serviceInvoices
-
-  if (selectedProduct !== 'all') {
-    filteredServiceInvoices = filteredServiceInvoices.filter(i => i.order?.product?.productName === selectedProduct)
-  }
-
-  if (search.trim()) {
-    const s = search.toLowerCase()
-    filteredServiceInvoices = filteredServiceInvoices.filter(r =>
-      r.order?.product?.productName?.toLowerCase().includes(s) ||
-      r.invoiceNumber?.toLowerCase().includes(s) ||
-      r.order?.salesOrderNumber?.toLowerCase().includes(s) ||
-      (r.order?.customCustomer ? r.order.customCustomer.name : r.order?.customer?.bussinessName)?.toLowerCase().includes(s)
-    )
-  }
-
+  // Bangun unifiedData dari items yang sudah difilter
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let unifiedData: any[] = []
-
-  if (productTypeFilter === 'Service' || productTypeFilter === 'all') {
-    const serviceData = filteredServiceInvoices.map((row: any) => {
-      const isOneTimeService = row.order?.contractType === "One Time" && row.order?.frequency === "Once"
-      // Prioritize invoice snapshot values, fall back to live order values
-      const price = row.price ?? row.order?.price ?? 0
-      const qty = row.qty ?? row.order?.qty ?? 1
-      const baseTotal = isOneTimeService ? price : price - ((price / qty) * (row.missing || 0))
-      const deduction = row.pphDeduction || 0;
-      const fSubtotal = baseTotal - deduction;
-
-      const taxes = row.order.taxes.filter((t: { taxName: string; isPPh: boolean }) => !t.isPPh && t.taxName != 'ppn')
-      const _taxes = taxes.length < 1 ? [{ taxName: 'PPN', taxValue: 0 }] : taxes
-
-      return {
-        id: row._id,
-        date: row.date,
-        invoiceNumber: row.invoiceNumber,
-        salesOrderNumber: row.salesOrderNumber,
-        customerName: row.order?.customCustomer ? row.order.customCustomer.name : row.order?.customer?.bussinessName,
-        customCustomerName: row.order?.customCustomer?.name,
-        taxNumber: row.order?.customCustomer?.taxNumber,
-        dpp: row.order?.price,
-        productName: row.order?.product?.productName,
-        value: fSubtotal,
-        payAmount: row.payAmount || 0,
-        paid: row.paid,
-        void: row.void || 0,
-        type: 'Service',
-        qty: row.order?.qty || 1,
-        pphDeduction: row.pphDeduction ?? 0,
-        taxes: _taxes
-      }
-    })
-    unifiedData = [...unifiedData, ...serviceData]
-  }
 
   if (productTypeFilter === 'Good' || productTypeFilter === 'all') {
     const goodData = filtered.filter(r => r.productType !== 'Service').map(row => ({
@@ -243,63 +175,46 @@ export default function ProductSellReportPage() {
     unifiedData = [...unifiedData, ...goodData]
   }
 
+  if (productTypeFilter === 'Service' || productTypeFilter === 'all') {
+    const serviceData = filtered.filter(r => r.productType === 'Service').map(row => ({
+      id: row.id,
+      date: row.date,
+      invoiceNumber: row.transactionNumber,
+      salesOrderNumber: row.transactionNumber,
+      customerName: row.customerName,
+      productName: row.productName,
+      value: row.subTotal,
+      payAmount: row.subTotal,
+      paid: true,
+      type: 'Service',
+      qty: row.qty
+    }))
+    unifiedData = [...unifiedData, ...serviceData]
+  }
+
   unifiedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  const totalCalculatedRevenue = unifiedData.reduce((acc, row) => acc + row.value, 0)
-  const totalCalculatedQty = unifiedData.reduce((acc, row) => acc + row.qty, 0)
+  // Gunakan totalRevenue dari API (konsisten dengan dashboard) ketika tidak ada filter produk/tipe
+  // Jika ada filter tambahan (tipe/produk/search), hitung dari baris yang tampil
+  const isFiltered = productTypeFilter !== 'all' || selectedProduct !== 'all' || search.trim() !== ''
+  const totalCalculatedRevenue = isFiltered
+    ? unifiedData.reduce((acc, row) => acc + row.value, 0)
+    : apiTotalRevenue
+  const totalTransactionCount = isFiltered ? unifiedData.length : apiTotalTransactions
 
   function toExcel() {
     if (unifiedData.length === 0) return alert('Tidak ada data untuk diexport')
 
-    let data: any[];
-    if (productTypeFilter === 'Service') {
-      let totalDpp = 0;
-      data = unifiedData.map((row, i) => {
-        if (!row.void) {
-          totalDpp += (row.dpp || 0);
-        }
-
-        const taxes: Record<string, number> = {}
-
-        row.taxes.forEach((t: { taxName: string; taxValue: number }) => {
-          taxes[t.taxName] = t.taxValue
-        })
-
-
-        return {
-          'NO': i + 1,
-          'NO. TRANSAKSI': row.invoiceNumber || '-',
-          'NPWP': row.taxNumber || '-',
-          'TGL PENJUALAN': fmtDate(row.date),
-          'NAMA CUSTOMER': row.customCustomerName || '-',
-          'DESKRIPSI': row.productName || '-',
-          'DPP': row.void ? 0 : row.dpp || 0,
-          'PPH': row.void ? 0 : row.pphDeduction || 0,
-          ...taxes
-        }
-      });
-      data.push({
-        'NO': '',
-        'NO. TRANSAKSI': '',
-        'NPWP': '',
-        'TGL PENJUALAN': '',
-        'NAMA CUSTOMER': '',
-        'DESKRIPSI': 'GRAND TOTAL',
-        'DPP': totalDpp
-      });
-    }
-    else {
-      data = unifiedData.map(row => ({
-        'Date': fmtDate(row.date),
-        'Invoice Number': row.invoiceNumber,
-        'Sales Order Number': row.salesOrderNumber,
-        'Customer': row.customerName,
-        'Product': row.productName,
-        'Value': row.value || 0,
-        'Pay Amount': row.payAmount || 0,
-        'Paid': row.paid ? 'Paid' : 'Unpaid'
-      }))
-    }
+    const data = unifiedData.map((row, i) => ({
+      'NO': i + 1,
+      'TGL PENJUALAN': fmtDate(row.date),
+      'NO. TRANSAKSI': row.salesOrderNumber || '-',
+      'CUSTOMER': row.customerName || '-',
+      'PRODUK / LAYANAN': row.productName || '-',
+      'TIPE': row.type || '-',
+      'QTY': row.qty || 0,
+      'NILAI': row.value || 0,
+    }))
 
     const sd = new Date(startDate)
     const month = sd.toLocaleString('id-ID', { month: 'long' })
@@ -325,7 +240,7 @@ export default function ProductSellReportPage() {
     }
 
     // Merge cells for title to center it
-    const colCount = productTypeFilter === 'Service' ? 7 : 8
+    const colCount = 8
     worksheet['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } }
     ]
@@ -340,32 +255,20 @@ export default function ProductSellReportPage() {
 
     // Set row height for the title
     worksheet['!rows'] = [
-      { hpt: 30 } // Set height of first row to 30 points
+      { hpt: 30 }
     ]
 
     // Set column widths
-    if (productTypeFilter === 'Service') {
-      worksheet['!cols'] = [
-        { wch: 5 },  // NO
-        { wch: 25 }, // NO. TRANSAKSI
-        { wch: 20 }, // NPWP
-        { wch: 15 }, // TGL PENJUALAN
-        { wch: 40 }, // NAMA CUSTOMER
-        { wch: 30 }, // DESKRIPSI
-        { wch: 15 }, // DPP
-      ]
-    } else {
-      worksheet['!cols'] = [
-        { wch: 15 }, // Date
-        { wch: 25 }, // Invoice Number
-        { wch: 25 }, // Sales Order Number
-        { wch: 40 }, // Customer
-        { wch: 30 }, // Product
-        { wch: 15 }, // Value
-        { wch: 15 }, // Pay Amount
-        { wch: 10 }, // Paid
-      ]
-    }
+    worksheet['!cols'] = [
+      { wch: 5 },  // NO
+      { wch: 15 }, // TGL PENJUALAN
+      { wch: 25 }, // NO. TRANSAKSI
+      { wch: 40 }, // CUSTOMER
+      { wch: 30 }, // PRODUK / LAYANAN
+      { wch: 10 }, // TIPE
+      { wch: 8 },  // QTY
+      { wch: 18 }, // NILAI
+    ]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Product Sales')
@@ -466,8 +369,8 @@ export default function ProductSellReportPage() {
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       {hasRun && !loading && (
         <div className="mb-6 flex gap-4 ">
-          <SummaryCard label="Total Pendapatan" value={fmtMoney(Math.round(totalCalculatedRevenue / 1000) * 1000)} color="emerald" icon="💰" />
-          <SummaryCard label="Total Transaksi" value={unifiedData.length} color="amber" icon="📄" />
+          <SummaryCard label="Total Pendapatan" value={fmtMoney(Math.round(totalCalculatedRevenue))} color="emerald" icon="💰" />
+          <SummaryCard label="Total Transaksi" value={totalTransactionCount} color="amber" icon="📄" />
         </div>
       )}
 

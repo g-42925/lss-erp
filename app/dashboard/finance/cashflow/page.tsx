@@ -72,6 +72,7 @@ export default function CashflowReportPage() {
 
 	const [selectedReference, setSelectedReference] = useState('');
 	const [search, setSearch] = useState('');
+	const [inlineSavingId, setInlineSavingId] = useState<string | null>(null);
 
 	// Modal Add state
 	const [showModal, setShowModal] = useState(false);
@@ -233,6 +234,32 @@ export default function CashflowReportPage() {
 			setIsCashOut(false);
 		}
 	}
+
+	const handleInlineVoucherChange = async (t: any, voucherId: string) => {
+		setInlineSavingId(t._id);
+		try {
+			const res = await fetch('/api/web/finance/reports/cashflow', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					id: t._id,
+					masterAccountId,
+					cashVoucherId: mode === 'cash' ? (voucherId || null) : undefined,
+					bankVoucherId: mode === 'bank' ? (voucherId || null) : undefined,
+				})
+			});
+			const json = await res.json();
+			if (json.error) {
+				alert(json.message);
+			} else {
+				fetchCashflow();
+			}
+		} catch (e: any) {
+			alert('Error: ' + e.message);
+		} finally {
+			setInlineSavingId(null);
+		}
+	};
 
 	function openEditModal(t: any) {
 		// Determine accountType from method
@@ -483,7 +510,7 @@ export default function CashflowReportPage() {
 									<th className="p-3.5 whitespace-nowrap">Tipe</th>
 									<th className="p-3.5 whitespace-nowrap text-right">Jumlah</th>
 									<th className="p-3.5 whitespace-nowrap text-right">Saldo Akhir</th>
-									<th className="p-3.5 whitespace-nowrap text-center">Aksi</th>
+									<th className="p-3.5 whitespace-nowrap text-right">Aksi</th>
 								</tr>
 							</thead>
 							<tbody className="divide-y divide-slate-100">
@@ -538,19 +565,50 @@ export default function CashflowReportPage() {
 											<td className="p-3.5 font-bold text-right whitespace-nowrap text-slate-700">
 												{(t.balance || 0).toLocaleString('id-ID')}
 											</td>
-											<td className="p-3.5 text-center">
+											<td className="p-3.5 text-right">
 												{t.source === 'Manual Entry' && (
-													<button
-														type="button"
-														onClick={() => openEditModal(t)}
-														title="Edit entri ini"
-														className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg transition-all active:scale-95"
-													>
-														<svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-															<path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-														</svg>
-														Edit
-													</button>
+													<div className="dropdown dropdown-left z-50">
+														<div tabIndex={0} role="button" className="btn btn-sm btn-ghost btn-circle" title="Opsi">
+															<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+															</svg>
+														</div>
+														<ul tabIndex={0} className="dropdown-content menu p-2 shadow-xl bg-white rounded-xl w-52 border border-slate-100 z-[100] gap-1 text-left">
+															<li>
+																<button
+																	type="button"
+																	onClick={() => openEditModal(t)}
+																	className="text-amber-700 hover:bg-amber-50 hover:text-amber-800 text-xs font-semibold rounded-lg flex items-center gap-2 px-3 py-2"
+																>
+																	<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+																		<path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+																	</svg>
+																	Edit Entri
+																</button>
+															</li>
+															{t.type !== 'initial' && (
+																<li className="px-3 py-1.5 flex flex-col gap-1 border-t border-slate-100 mt-1 pt-2 pointer-events-none">
+																	<span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-0 py-0 mb-1">Set Voucher</span>
+																	<select
+																		value={t.cashVoucherId || t.bankVoucherId || ''}
+																		onChange={(e) => handleInlineVoucherChange(t, e.target.value)}
+																		disabled={inlineSavingId === t._id}
+																		className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-600 focus:outline-indigo-500 bg-slate-50 pointer-events-auto"
+																	>
+																		<option value="">-- Tanpa Voucher --</option>
+																		{mode === 'cash' 
+																			? cashVouchers.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar')).map(v => (
+																				<option key={v._id} value={v._id}>{v.voucherNumber}</option>
+																			))
+																			: bankVouchers.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar')).map(v => (
+																				<option key={v._id} value={v._id}>{v.voucherNumber}</option>
+																			))
+																		}
+																	</select>
+																</li>
+															)}
+														</ul>
+													</div>
 												)}
 											</td>
 										</tr>

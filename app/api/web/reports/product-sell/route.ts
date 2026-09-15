@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Order from '@/models/Order';
 import Invoice from '@/models/Invoice';
 import Companie from '@/models/Companie';
+import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,8 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const id = url.searchParams.get("id");
+    const startDateParam = url.searchParams.get("startDate");
+    const endDateParam = url.searchParams.get("endDate");
 
     if (!id) {
       return NextResponse.json({ error: true, message: "Company Master Account ID is required", noResult: true, result: null });
@@ -21,18 +24,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: true, message: "Company not found", noResult: true, result: null });
     }
 
-    const orders = await Order.find({ companyId: company._id, void: { $ne: true } })
+    const cid = company._id as mongoose.Types.ObjectId;
+
+    // ── Parse date range (wajib dari frontend) ──
+    const startDate = startDateParam ? new Date(startDateParam) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const endDate = endDateParam ? new Date(endDateParam) : new Date();
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(23, 59, 59, 999);
+
+    // ── Produk (Good): ambil dari Order langsung untuk detail per-produk ──
+    const orders = await Order.find({
+      companyId: cid,
+      void: { $ne: true },
+      saleDate: { $gte: startDate, $lte: endDate }
+    })
       .populate('customerId', 'customerName')
       .populate('cart.productId', 'productName')
       .sort({ saleDate: -1 });
 
-    // Use Invoice (with snapshot values) for service revenue instead of ServiceOrder
+    // ── Service: ambil dari Invoice service aktif dalam rentang tanggal ──
     const serviceInvoices = await Invoice.aggregate([
       {
         $match: {
-          companyId: company._id,
+          companyId: cid,
           invoiceType: 'service',
-          status: 'active'
+          status: 'active',
+          date: { $gte: startDate, $lte: endDate }
         }
       },
       {
@@ -50,7 +67,6 @@ export async function GET(request: NextRequest) {
       },
       {
         $addFields: {
-          // prefer invoice snapshot price/qty over live serviceorder values
           svcPrice: { $ifNull: ['$price', { $ifNull: ['$svcOrderDoc.price', 0] }] },
           svcQty: { $ifNull: ['$qty', { $ifNull: ['$svcOrderDoc.qty', 1] }] },
           isOneTimeService: {
@@ -96,6 +112,88 @@ export async function GET(request: NextRequest) {
       { $sort: { date: -1 } }
     ]);
 
+    // ── Total Revenue: Pipeline IDENTIK dengan baseRevenuePipeline di dashboard ──
+    // Menggunakan SATU pipeline untuk semua invoice aktif (tanpa filter invoiceType)
+    // Sama persis dengan cara dashboard menghitung totalRevenue
+    const [totalRevenueData] = await Invoice.aggregate([
+      {
+        $match: {
+          companyId: cid,
+          status: 'active',
+          date: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $lookup: {
+          from: 'orders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'order'
+        }
+      },
+      {
+        $lookup: {
+          from: 'serviceorders',
+          localField: 'salesOrderId',
+          foreignField: '_id',
+          as: 'serviceOrder'
+        }
+      },
+      {
+        $addFields: {
+          orderDoc: { $arrayElemAt: ['$order', 0] },
+          svcOrderDoc: { $arrayElemAt: ['$serviceOrder', 0] }
+        }
+      },
+      {
+        $addFields: {
+          orderTotal: { $ifNull: ['$orderDoc.total', 0] },
+          isOneTimeService: {
+            $and: [
+              { $eq: ['$svcOrderDoc.contractType', 'One Time'] },
+              { $eq: ['$svcOrderDoc.frequency', 'Once'] }
+            ]
+          },
+          svcPrice: { $ifNull: ['$price', { $ifNull: ['$svcOrderDoc.price', 0] }] },
+          svcQty: { $ifNull: ['$qty', { $ifNull: ['$svcOrderDoc.qty', 1] }] }
+        }
+      },
+      {
+        $addFields: {
+          missingQty: { $ifNull: ['$missing', 0] },
+          svcUnitPrice: {
+            $divide: ['$svcPrice', { $cond: [{ $eq: ['$svcQty', 0] }, 1, '$svcQty'] }]
+          }
+        }
+      },
+      {
+        $addFields: {
+          svcBaseTotal: {
+            $cond: [
+              '$isOneTimeService',
+              '$svcPrice',
+              { $subtract: ['$svcPrice', { $multiply: ['$svcUnitPrice', '$missingQty'] }] }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          serviceTotal: {
+            $cond: [{ $ne: ['$svcOrderDoc', null] }, '$svcBaseTotal', 0]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $add: ['$orderTotal', '$serviceTotal'] } },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // ── Build detail rows ──
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reportData: any[] = [];
     const summary: Record<string, { qty: number, subTotal: number }> = {};
@@ -161,8 +259,11 @@ export async function GET(request: NextRequest) {
       noResult: false,
       message: "Success",
       result: {
-        summary: summary,
-        data: reportData
+        summary,
+        data: reportData,
+        // Total revenue dihitung dengan pipeline IDENTIK dengan baseRevenuePipeline dashboard
+        totalRevenue: totalRevenueData?.total ?? 0,
+        totalTransactions: totalRevenueData?.count ?? 0,
       },
       error: false
     });
