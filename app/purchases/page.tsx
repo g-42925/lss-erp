@@ -95,6 +95,7 @@ function Purchases() {
       description: "",
       quantity: "",
       vendorId: "",
+      productId: "",
     },
   })
 
