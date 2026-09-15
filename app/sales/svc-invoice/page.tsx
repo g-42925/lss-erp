@@ -41,6 +41,8 @@ export default function Invoices() {
   const [voucherSearch, setVoucherSearch] = useState<string>("")
   const [closeInvoiceVoucherSearch, setCloseInvoiceVoucherSearch] = useState<string>("")
   const [selectedCloseVoucher, setSelectedCloseVoucher] = useState<any>(null)
+  const [selectedEditVoucher, setSelectedEditVoucher] = useState<any>(null)
+  const [editVoucherSearch, setEditVoucherSearch] = useState<string>("")
 
   function openInvoice(invoice: any) {
     setSelectedInvoice(invoice)
@@ -78,13 +80,21 @@ export default function Invoices() {
   }
 
   function submitEditPayment(data: any) {
-    const params = {
+    const isCash = data.method === 'Cash'
+    const params: any = {
       action: 'editPayment',
       _id: selectedInvoice._id,
       paymentHistoryId: editingPaymentId,
       newAmount: Number(data.amount),
       newDate: data.date,
       newMethod: data.method
+    }
+    if (selectedEditVoucher) {
+      if (isCash) {
+        params.cashVoucherNumber = selectedEditVoucher.voucherNumber
+      } else {
+        params.voucherNumber = selectedEditVoucher.voucherNumber
+      }
     }
 
     closeInvoiceFn.fn('', JSON.stringify(params), (res) => {
@@ -101,6 +111,8 @@ export default function Invoices() {
       )
       setSelectedInvoice({ ...selectedInvoice, payAmount: updatedInvoice.payAmount, paymentHistory: updatedInvoice.paymentHistory })
       setEditingPaymentId(null)
+      setSelectedEditVoucher(null)
+      setEditVoucherSearch('')
     })
   }
 
@@ -688,6 +700,15 @@ export default function Invoices() {
                                         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                                       </svg>
                                     </button>
+                                    <button
+                                      className={s.paymentHistory?.length > 0 ? 'text-amber-600 hover:text-amber-800' : 'text-gray-400 hover:text-amber-600'}
+                                      onClick={() => openPaymentHistory(s)}
+                                      title={s.paymentHistory?.length > 0 ? `Payment History (${s.paymentHistory.filter((ph: any) => !ph.reverted).length} entries)` : 'Payment History'}
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                      </svg>
+                                    </button>
                                     {!s.paid && (
                                       <button
                                         onClick={() => openCloseInvoice(s)}
@@ -985,17 +1006,94 @@ export default function Invoices() {
                   <tr key={idx}>
                     {editingPaymentId === ph._id ? (
                       <td colSpan={4} className="p-2 bg-slate-50">
-                        <form onSubmit={editPaymentForm.handleSubmit(submitEditPayment)} className="flex flex-row gap-2 items-center">
-                          <input type="date" {...editPaymentForm.register("date", { required: true })} className="input input-sm flex-1 border-slate-300" />
-                          <input type="number" {...editPaymentForm.register("amount", { required: true })} className="input input-sm flex-1 border-slate-300" />
-                          <select {...editPaymentForm.register("method")} className="select select-sm flex-1 border-slate-300">
-                            <option value="Cash">Cash</option>
-                            {bankAccounts.map((b: any, i: number) => (
-                              <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
-                            ))}
-                          </select>
-                          <button type="submit" className="btn btn-sm bg-blue-900 text-white" disabled={closeInvoiceFn.loading}>Save</button>
-                          <button type="button" className="btn btn-sm" onClick={() => setEditingPaymentId(null)}>Cancel</button>
+                        <form onSubmit={editPaymentForm.handleSubmit(submitEditPayment)} className="flex flex-col gap-2">
+                          <div className="flex flex-row gap-2 items-center">
+                            <input type="date" {...editPaymentForm.register("date", { required: true })} className="input input-sm flex-1 border-slate-300" />
+                            <input type="number" {...editPaymentForm.register("amount", { required: true })} className="input input-sm flex-1 border-slate-300" />
+                            <select
+                              {...editPaymentForm.register("method")}
+                              className="select select-sm flex-1 border-slate-300"
+                              onChange={(e) => {
+                                editPaymentForm.setValue('method', e.target.value)
+                                setSelectedEditVoucher(null)
+                                setEditVoucherSearch('')
+                                fetchVouchersForMethod(e.target.value)
+                              }}
+                            >
+                              <option value="Cash">Cash</option>
+                              {bankAccounts.map((b: any, i: number) => (
+                                <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Voucher picker */}
+                          <div className="border rounded-lg p-2 bg-white flex flex-col gap-2">
+                            <div className="flex flex-row items-center justify-between">
+                              <span className="text-xs font-medium text-gray-600">
+                                {editPaymentForm.watch('method') === 'Cash' ? 'Cash Voucher' : 'Bank Voucher'}
+                                <span className="text-gray-400 font-normal ml-1">(opsional)</span>
+                              </span>
+                              {selectedEditVoucher && (
+                                <button type="button" className="text-xs text-red-600 hover:text-red-800" onClick={() => setSelectedEditVoucher(null)}>Hapus Pilihan</button>
+                              )}
+                            </div>
+                            {selectedEditVoucher ? (
+                              <div className="flex flex-row items-center gap-2 bg-green-50 border border-green-200 rounded px-2 py-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4 text-green-600 flex-shrink-0">
+                                  <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                                </svg>
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-semibold text-green-800">{selectedEditVoucher.voucherNumber}</span>
+                                  <span className="text-xs text-green-600">{fDate(selectedEditVoucher.date)} · Rp {Number(selectedEditVoucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <input
+                                  type="text"
+                                  placeholder="Cari nomor voucher..."
+                                  className="input input-xs border-gray-300"
+                                  value={editVoucherSearch}
+                                  onChange={(e) => setEditVoucherSearch(e.target.value)}
+                                />
+                                <div className="max-h-[120px] overflow-y-auto flex flex-col gap-1">
+                                  {(editPaymentForm.watch('method') === 'Cash'
+                                    ? (getCashVouchersFn.loading ? [] : cashVouchers)
+                                    : (getBankVouchersFn.loading ? [] : bankVouchers)
+                                  )
+                                    .filter((v: any) =>
+                                      !editVoucherSearch ||
+                                      v.voucherNumber?.toLowerCase().includes(editVoucherSearch.toLowerCase())
+                                    )
+                                    .map((v: any) => (
+                                      <button
+                                        key={v._id}
+                                        type="button"
+                                        className="flex flex-row items-center justify-between px-2 py-1 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-left transition-colors"
+                                        onClick={() => setSelectedEditVoucher(v)}
+                                      >
+                                        <span className="text-xs font-medium">{v.voucherNumber}</span>
+                                        <span className="text-xs text-gray-500">{fDate(v.date)} · Rp {Number(v.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
+                                      </button>
+                                    ))
+                                  }
+                                  {(editPaymentForm.watch('method') === 'Cash' ? getCashVouchersFn.loading : getBankVouchersFn.loading) && (
+                                    <div className="text-center py-1"><span className="loading loading-spinner loading-xs"></span></div>
+                                  )}
+                                  {!getCashVouchersFn.loading && !getBankVouchersFn.loading &&
+                                    (editPaymentForm.watch('method') === 'Cash' ? cashVouchers : bankVouchers).filter((v: any) =>
+                                      !editVoucherSearch || v.voucherNumber?.toLowerCase().includes(editVoucherSearch.toLowerCase())
+                                    ).length === 0 && (
+                                      <p className="text-xs text-gray-400 text-center py-1">Tidak ada voucher tersedia</p>
+                                    )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex flex-row gap-2">
+                            <button type="submit" className="btn btn-sm bg-blue-900 text-white" disabled={closeInvoiceFn.loading}>Save</button>
+                            <button type="button" className="btn btn-sm" onClick={() => { setEditingPaymentId(null); setSelectedEditVoucher(null); setEditVoucherSearch('') }}>Cancel</button>
+                          </div>
                         </form>
                       </td>
                     ) : (
@@ -1008,11 +1106,15 @@ export default function Invoices() {
                             className="btn btn-xs bg-slate-200"
                             onClick={() => {
                               setEditingPaymentId(ph._id);
+                              setSelectedEditVoucher(null);
+                              setEditVoucherSearch('');
+                              const method = ph.method || 'Cash';
                               editPaymentForm.reset({
                                 amount: ph.amount,
                                 date: new Date(ph.date).toISOString().substring(0, 10),
-                                method: ph.method || 'Cash'
+                                method
                               });
+                              fetchVouchersForMethod(method);
                             }}
                           >
                             Edit
