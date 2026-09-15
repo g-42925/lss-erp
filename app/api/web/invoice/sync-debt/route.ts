@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!invoice) throw new Error("Invoice not found");
 
     const so = await ServiceOrder.findOne({
-      _id: invoice.salesOrderId
+      salesOrderNumber: invoice.salesOrderNumber
     });
 
     if (!so) throw new Error("Service Order not found");
