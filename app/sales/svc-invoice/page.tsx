@@ -334,7 +334,7 @@ export default function Invoices() {
         } else {
           voucherBody.voucherNumber = selectedCloseVoucher.voucherNumber
         }
-        setVoucherFn.fn('', JSON.stringify(voucherBody), () => {})
+        setVoucherFn.fn('', JSON.stringify(voucherBody), () => { })
       }
       const voucherUpdate = selectedCloseVoucher
         ? (isCash ? { cashVoucher: selectedCloseVoucher.voucherNumber } : { voucherNumber: selectedCloseVoucher.voucherNumber })
@@ -641,10 +641,7 @@ export default function Invoices() {
                           <th>invoice number</th>
                           <th>sales order number</th>
                           <th>Customer</th>
-                          <th>Product</th>
                           <th>Value</th>
-                          <th>pay amount</th>
-                          <th>debt</th>
                           <th>paid</th>
                           <th>...</th>
                         </tr>
@@ -674,10 +671,7 @@ export default function Invoices() {
                                   <td>{s.invoiceNumber}</td>
                                   <td>{s.salesOrderNumber}</td>
                                   <td>{s.order?.customCustomer ? s.order.customCustomer.name : s.order?.customer?.bussinessName}</td>
-                                  <td>{s.order?.salesOrderNumber}</td>
                                   <td>{Math.floor(Number(fTotal(s))).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
-                                  <td>{Math.floor(Number(s.payAmount || 0)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
-                                  <td>{s.debt !== undefined ? Math.floor(Number(s.debt)).toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '-'}</td>
                                   <td>
                                     <span className={`badge badge - sm ${s.paid ? 'badge-success' : 'badge-warning'} `}>
                                       {s.paid ? 'paid' : 'unpaid'}
@@ -955,14 +949,14 @@ export default function Invoices() {
                       !closeInvoiceVoucherSearch ||
                       v.voucherNumber?.toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
                     ).length === 0 && (
-                    <p className="text-xs text-gray-400 text-center py-2">Tidak ada voucher tersedia</p>
-                  )}
+                      <p className="text-xs text-gray-400 text-center py-2">Tidak ada voucher tersedia</p>
+                    )}
                 </div>
               </>
             )}
           </div>
 
-          {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></> }
+          {closeInvoiceFn.noResult || closeInvoiceFn.error ? <label className="input-validator text-red-900" htmlFor="role">something went wrong</label> : <></>}
           <div className="flex flex-row gap-3 modal-action">
             <button type="button" className="btn" onClick={() => closeInvoiceModalRef.current?.close()}>Cancel</button>
             <button disabled={closeInvoiceFn.loading} className="btn bg-green-700 text-white hover:bg-green-800">
