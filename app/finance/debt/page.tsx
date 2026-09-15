@@ -25,6 +25,7 @@ export default function Debt() {
   const createInvoiceRef = useRef<HTMLDialogElement>(null)
   const listInvoiceRef = useRef<HTMLDialogElement>(null)
   const relatedInvoicesRef = useRef<HTMLDialogElement>(null)
+  const selectInvoicesRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<FilterType>('barang')
   const [statusFilter, setStatusFilter] = useState<'unpaid' | 'paid'>('unpaid')
@@ -66,6 +67,11 @@ export default function Debt() {
   })
   const [manualInvoices, setManualInvoices] = useState<any[]>([])
   const [manualInvoicesLoading, setManualInvoicesLoading] = useState(false)
+  const [candidateInvoices, setCandidateInvoices] = useState<any[]>([])
+  const [selectedCandidateInvoices, setSelectedCandidateInvoices] = useState<string[]>([])
+  const [candidateInvoicesLoading, setCandidateInvoicesLoading] = useState(false)
+  const [assigningInvoice, setAssigningInvoice] = useState<any>(null)
+  const [assigningSubmitting, setAssigningSubmitting] = useState(false)
 
   const router = useRouter()
 
@@ -192,6 +198,57 @@ export default function Debt() {
       fetchManualInvoices()
     } catch (e: any) {
       alert(e.message)
+    }
+  }
+
+  async function openSelectPurchases(inv: any) {
+    setAssigningInvoice(inv)
+    setSelectedCandidateInvoices([])
+    setCandidateInvoices([])
+    selectInvoicesRef.current?.showModal()
+
+    setCandidateInvoicesLoading(true)
+    try {
+      const res = await fetch(`/api/web/debt/invoice/assign?vendorId=${inv.vendorId}&masterAccountId=${masterAccountId}`)
+      const data = await res.json()
+      setCandidateInvoices(data.result || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setCandidateInvoicesLoading(false)
+    }
+  }
+
+  function toggleCandidateInvoice(id: string) {
+    setSelectedCandidateInvoices(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  async function submitAssignInvoices() {
+    if (selectedCandidateInvoices.length === 0) return alert("Pilih minimal 1 invoice")
+    if (!assigningInvoice) return
+
+    setAssigningSubmitting(true)
+    try {
+      const res = await fetch('/api/web/debt/invoice/assign', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceIds: selectedCandidateInvoices,
+          vendorInvoiceNumber: assigningInvoice.invoiceNumber
+        })
+      })
+      const json = await res.json()
+      if (json.error) return alert(json.message)
+
+      alert("Invoice berhasil diasosiasikan")
+      selectInvoicesRef.current?.close()
+      fetchManualInvoices()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setAssigningSubmitting(false)
     }
   }
 
@@ -1032,7 +1089,7 @@ export default function Debt() {
 
         {/* ─── List Invoice Manual Modal ─── */}
         <dialog id="list_invoice_modal" ref={listInvoiceRef} className="modal text-black">
-          <div className="modal-box w-11/12 max-w-4xl">
+          <div className="modal-box !w-[75vw] !max-w-[75vw]">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Daftar Invoice Vendor Manual</h3>
               <button className="btn btn-sm btn-circle" onClick={() => listInvoiceRef.current?.close()}>✕</button>
@@ -1065,6 +1122,7 @@ export default function Debt() {
                         <td className="flex flex-row gap-1">
                           <button className="btn btn-xs btn-warning" onClick={() => openEditInvoice(inv)}>Edit</button>
                           <button className="btn btn-xs btn-error" onClick={() => deleteManualInvoice(inv._id)}>Hapus</button>
+                          <button className="btn btn-xs btn-primary" onClick={() => openSelectPurchases(inv)}>Pilih Invoice Terkait</button>
                         </td>
                       </tr>
                     ))}
@@ -1073,10 +1131,10 @@ export default function Debt() {
               </div>
             )}
           </div>
-        </dialog>
+        </dialog >
 
         {/* ─── Related Invoices Modal ─── */}
-        <dialog id="related_invoices_modal" ref={relatedInvoicesRef} className="modal text-black">
+        < dialog id="related_invoices_modal" ref={relatedInvoicesRef} className="modal text-black" >
           <div className="modal-box w-11/12 max-w-4xl">
             <h3 className="font-bold text-lg mb-4">Rincian Hutang Invoice Terkait</h3>
             {selectedDebt && (
@@ -1148,9 +1206,101 @@ export default function Debt() {
               <button className="btn" onClick={() => relatedInvoicesRef.current?.close()}>Tutup</button>
             </div>
           </div>
-        </dialog>
+        </dialog >
 
-      </div>
+        {/* ─── Select Invoices to Assign Modal ─── */}
+        < dialog id="select_invoices_modal" ref={selectInvoicesRef} className="modal text-black" >
+          <div className="modal-box !w-[95vw] !max-w-[95vw] h-[90vh] flex flex-col">
+            <h3 className="font-bold text-lg mb-2">Pilih Invoice Terkait</h3>
+            {assigningInvoice && (
+              <p className="mb-4 text-sm text-gray-600">
+                Pilih invoice yang akan diasosiasikan dengan invoice manual <b>{assigningInvoice.invoiceNumber}</b>.
+              </p>
+            )}
+            {candidateInvoicesLoading ? (
+              <div className="flex flex-col justify-center items-center p-6"><span className="loading loading-spinner"></span></div>
+            ) : candidateInvoices.length === 0 ? (
+              <p className="py-4 text-gray-500">Tidak ada invoice yang bisa dipilih untuk vendor ini.</p>
+            ) : (
+              <div className="overflow-x-auto border rounded-lg flex-1 min-h-0">
+                <table className="table table-zebra w-full text-xs">
+                  <thead className="bg-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="w-10 text-center">
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-sm"
+                          checked={selectedCandidateInvoices.length === candidateInvoices.length && candidateInvoices.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCandidateInvoices(candidateInvoices.map((c: any) => c._id))
+                            } else {
+                              setSelectedCandidateInvoices([])
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>Tanggal</th>
+                      <th>No. Invoice</th>
+                      <th>No. Sales Order</th>
+                      <th>Customer</th>
+                      <th>Produk</th>
+                      <th className="text-right">Nilai</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {candidateInvoices.map((inv: any, idx: number) => (
+                      <tr key={idx} className="hover cursor-pointer" onClick={() => toggleCandidateInvoice(inv._id)}>
+                        <td className="text-center" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="checkbox checkbox-sm"
+                            checked={selectedCandidateInvoices.includes(inv._id)}
+                            onChange={() => toggleCandidateInvoice(inv._id)}
+                          />
+                        </td>
+                        <td className="whitespace-nowrap">{new Date(inv.date).toLocaleDateString('id-ID')}</td>
+                        <td className="font-medium whitespace-nowrap">{inv.invoiceNumber}</td>
+                        <td className="whitespace-nowrap">{inv.serviceOrder?.salesOrderNumber || inv.salesOrderNumber || '-'}</td>
+                        <td>
+                          <div className="font-medium">
+                            {inv.customer?.name || inv.serviceOrder?.customCustomer?.name || '-'}
+                          </div>
+                          {inv.customer?.bussinessName && (
+                            <div className="text-gray-500">{inv.customer.bussinessName}</div>
+                          )}
+                        </td>
+                        <td>{inv.product?.productName || '-'}</td>
+                        <td className="text-right font-semibold whitespace-nowrap">
+                          {(inv.serviceOrder?.vendorPrice ?? inv.debt ?? 0).toLocaleString('id-ID')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {selectedCandidateInvoices.length > 0 && (
+              <div className="mt-3 text-xs text-gray-500">
+                {selectedCandidateInvoices.length} invoice dipilih
+              </div>
+            )}
+            <div className="modal-action">
+              <button className="btn" onClick={() => selectInvoicesRef.current?.close()}>Batal</button>
+              <button
+                className="btn btn-primary"
+                disabled={assigningSubmitting || candidateInvoicesLoading || selectedCandidateInvoices.length === 0}
+                onClick={submitAssignInvoices}
+              >
+                {assigningSubmitting
+                  ? <span className="loading loading-spinner loading-sm"></span>
+                  : ('Simpan Asosiasi' + (selectedCandidateInvoices.length > 0 ? ` (${selectedCandidateInvoices.length})` : ''))}
+              </button>
+            </div>
+          </div>
+        </dialog >
+
+      </div >
     </>
   )
 }

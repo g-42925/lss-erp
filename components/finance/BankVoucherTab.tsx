@@ -279,7 +279,7 @@ export default function BankVoucherTab() {
       () => {
         showToast("success", `Voucher ${voucherNo} berhasil ${editingId ? 'diupdate' : 'disimpan'}!`);
         // Refresh list after save
-        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", () => {});
+        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", () => { });
       }
     );
   };
@@ -311,7 +311,7 @@ export default function BankVoucherTab() {
     if (/^\d+$/.test(parts[parts.length - 1])) {
       seq = '/' + parts.pop();
     }
-    
+
     const newCredential = `${bank}${accountNumber.slice(-4)}`;
 
     if (!voucherNumber.includes('-')) {
@@ -322,7 +322,7 @@ export default function BankVoucherTab() {
 
     const [trxType, ...restTokens] = parts.join('/').split('-');
     const rest = restTokens.join('-');
-    
+
     if (rest) {
       const restParts = rest.split('/');
       restParts.shift(); // remove the old credential
@@ -364,7 +364,7 @@ export default function BankVoucherTab() {
       { id: "2", keterangan: "", customer: "", jumlah: 0 },
       { id: "3", keterangan: "", customer: "", jumlah: 0 },
     ]);
-    
+
     // Regenerate voucher number sequence
     getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", (result) => {
       const nextSeq = String((result?.length || 0) + 1).padStart(3, '0');
@@ -389,13 +389,13 @@ export default function BankVoucherTab() {
     setDibayarDiterima(voucher.dibayarDiterima || "");
     setTanggal(voucher.date ? new Date(voucher.date).toISOString().split("T")[0] : "");
     setTerbilangValue(voucher.terbilang || "");
-    
+
     let newRows = [...(voucher.items || [])];
     while (newRows.length < 3) {
       newRows.push({ id: Math.random().toString(), keterangan: "", customer: "", jumlah: 0 });
     }
     setRows(newRows);
-    
+
     setMode("create");
   };
 
@@ -435,7 +435,8 @@ export default function BankVoucherTab() {
           </div>
         </div>
         <div className="flex flex-col items-center print:block print:w-full print:m-0 print:p-0">
-          <style dangerouslySetInnerHTML={{ __html: `
+          <style dangerouslySetInnerHTML={{
+            __html: `
             @media print {
               @page {
                 size: A4 portrait;
@@ -610,7 +611,9 @@ export default function BankVoucherTab() {
                     className="input input-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black font-medium"
                   />
                 </div>
-                <div className="grid grid-cols-[130px_10px_1fr] items-center">
+
+
+                <div className="grid grid-cols-[130px_10px_1fr] items-center">  {/* perhatian 1 */}
                   <span>Bank</span>
                   <span>:</span>
                   <div className="relative w-full">
@@ -635,13 +638,24 @@ export default function BankVoucherTab() {
                         }
                       }}
                     >
-                      {indonesianBanks.map(bank => (
-                        <option key={bank} value={bank}>{bank}</option>
-                      ))}
+                      {isMasuk ? (
+                        <>
+                          <option value="">Pilih Rekening...</option>
+                          {accounts.map(a => (
+                            <option key={a._id} value={`acc:${a._id}`}>
+                              {a.bank} - {a.accountName}
+                            </option>
+                          ))}
+                        </>
+                      ) : (
+                        indonesianBanks.map(bank => (
+                          <option key={bank} value={bank}>{bank}</option>
+                        ))
+                      )}
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-[130px_10px_1fr] items-center">
+                <div className="grid grid-cols-[130px_10px_1fr] items-center"> {/* perhatian 2 */}
                   <span>No. Rekening</span>
                   <span>:</span>
                   <input
@@ -653,7 +667,6 @@ export default function BankVoucherTab() {
                   />
                 </div>
               </div>
-
 
               <div className="space-y-3">
                 <div className="grid grid-cols-[80px_10px_1fr] items-center">
@@ -863,8 +876,8 @@ export default function BankVoucherTab() {
                     {/* Header Card: Tipe & Status */}
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                       <div className="flex items-center gap-2">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           className="checkbox checkbox-sm rounded"
                           checked={selectedVouchers.some(v => v._id === voucher._id)}
                           onChange={(e) => {
@@ -938,8 +951,8 @@ export default function BankVoucherTab() {
 
                     {/* Action Card */}
                     <div className="p-3 bg-white border-t border-slate-100 flex justify-end">
-                      <button 
-                        onClick={() => handleSelectVoucher(voucher)} 
+                      <button
+                        onClick={() => handleSelectVoucher(voucher)}
                         className="btn btn-sm btn-outline btn-primary"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -24,6 +24,14 @@ const PurchaseSchema = new mongoose.Schema({
   payAmount: { type: Number, Default: false },
   shippingCost: { type: Number, default: 0 },
   taxAmount: { type: Number, default: 0 },
+  appliedTaxes: [{
+    taxId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tax' },
+    name: String,
+    rate: Number,
+    isPPh: Boolean,
+    amount: Number
+  }],
+  grossFinalPrice: { type: Number, required: false },
   editable: { type: Boolean, required: true },
   unitCost: { type: Number, required: false },
   status: {

@@ -303,7 +303,55 @@ export async function GET(req: NextRequest) {
             $sum: {
               $subtract: ["$finalPrice", "$payAmount"]
             }
+          },
+          count: { $sum: 1 }
+        }
+      }
+    ])
+
+    const [totalVendorDebts] = await Invoice.aggregate([
+      { 
+        $match: { 
+          companyId: cid,
+          invoiceType: 'vendor_manual',
+          void: { $ne: true }
+        }
+      },
+      {
+        $lookup: {
+          from: 'invoices',
+          let: { manualInvoiceNumber: '$invoiceNumber' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$vendorInvoiceNumber', '$$manualInvoiceNumber'] },
+                void: { $ne: true }
+              }
+            }
+          ],
+          as: 'relatedInvoices'
+        }
+      },
+      {
+        $addFields: {
+          vendorPaid: { $ifNull: ['$vendorPaid', 0] },
+          totalVendorAmount: {
+            $sum: '$relatedInvoices.debt'
           }
+        }
+      },
+      {
+        $match: { $expr: { $gt: ['$totalVendorAmount', '$vendorPaid'] } }
+      },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $subtract: ['$totalVendorAmount', '$vendorPaid']
+            }
+          },
+          count: { $sum: 1 }
         }
       }
     ])
@@ -617,8 +665,8 @@ export async function GET(req: NextRequest) {
         purchaseChange,
         outstandingReceivable: outstandingInvoices?.total ?? 0,
         outstandingReceivableCount: outstandingInvoices?.total ?? 0,
-        totalDebt: totalDebts?.total ?? 0,
-        totalDebtCount: totalDebts?.total ?? 0,
+        totalDebt: (totalDebts?.total ?? 0) + (totalVendorDebts?.total ?? 0),
+        totalDebtCount: (totalDebts?.count ?? 0) + (totalVendorDebts?.count ?? 0),
         todayRevenue: todayInvoiceData?.total ?? 0,
         todayOrders: todayInvoiceData?.count ?? 0,
         expiringCount: expiringBatches[0]?.count ?? 0,

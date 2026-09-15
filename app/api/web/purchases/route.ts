@@ -36,12 +36,9 @@ export async function PUT(request: NextRequest) {
           await Purchase.findByIdAndUpdate(_id, {
             finalPrice: rest.finalPrice,
             grossFinalPrice: rest.grossFinalPrice,
-            pphTaxId: rest.pphTaxId,
-            pphTaxName: rest.pphTaxName,
-            pphTaxRate: rest.pphTaxRate,
-            pphDeduction: rest.pphDeduction,
+            appliedTaxes: rest.appliedTaxes,
           });
-          return NextResponse.json({ noResult: false, message: "PPh tax applied", result: true, error: false });
+          return NextResponse.json({ noResult: false, message: "Tax applied", result: true, error: false });
         case "approve_pr":
           await Purchase.findByIdAndUpdate(_id, { status: "approved", approvedBy: rest.userId, approvedAt: new Date() });
           return NextResponse.json({ noResult: false, message: "PR approved", result: true, error: false });
@@ -56,6 +53,8 @@ export async function PUT(request: NextRequest) {
             quantity: rest.quantity,
             shippingCost: rest.shippingCost || 0,
             taxAmount: rest.taxAmount || 0,
+            appliedTaxes: rest.appliedTaxes,
+            grossFinalPrice: rest.grossFinalPrice,
           };
           if (rest.purchaseType === 'product') {
             updateData.supplierId = rest.supplierId;
@@ -538,19 +537,22 @@ export async function POST(request: NextRequest) {
       masterAccountId: params.id
     })
 
-    const p = await Purchase.findOne({
-      companyId: company._id,
-      productId: params.productId,
-      status: 'requested'
-    })
-
-    if (p) {
-      return NextResponse.json({
-        noResult: true,
-        message: "product already ordered",
-        result: null,
-        error: true
+    // Only check for duplicate product PRs (service has no productId)
+    if (params.purchaseType !== 'service' && params.productId) {
+      const p = await Purchase.findOne({
+        companyId: company._id,
+        productId: params.productId,
+        status: 'requested'
       })
+
+      if (p) {
+        return NextResponse.json({
+          noResult: true,
+          message: "product already ordered",
+          result: null,
+          error: true
+        })
+      }
     }
 
     console.log({ p: params })
