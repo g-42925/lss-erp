@@ -92,6 +92,9 @@ function Purchases() {
   const newPrForm = useForm({
     defaultValues: {
       finalPrice: "",
+      description: "",
+      quantity: "",
+      vendorId: "",
     },
   })
 
