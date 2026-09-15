@@ -171,7 +171,7 @@ export default function CashVoucherTab() {
         const _month = now.getMonth() + 1;
         const year = now.getFullYear().toString().slice(-2);
         const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][_month - 1];
-        return `${parts}-${type}/${month}/${year}/${nextSeq}`
+        return `${parts}-${type}/${roman}/${year}/${number}`
       })
     }
   }, [isMasuk, isKeluar]);
