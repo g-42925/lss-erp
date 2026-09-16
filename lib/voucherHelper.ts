@@ -58,7 +58,7 @@ export async function shiftVoucherNumbers(
       .filter((v: any) => v.num >= insertedNum)
       .sort((a: any, b: any) => b.num - a.num); // descending to avoid collisions
 
-    console.log(`[voucherHelper] Will shift ${toUpdate.length} vouchers (those with num >= ${insertedNum}):`, toUpdate.map(v => `${v.oldNumber} (num=${v.num})`));
+    console.log(`[voucherHelper] Will shift ${toUpdate.length} vouchers (those with num >= ${insertedNum}):`, toUpdate.map((v: any) => `${v.oldNumber} (num=${v.num})`));
 
     for (const item of toUpdate) {
       const newNum = item.num + 1;
