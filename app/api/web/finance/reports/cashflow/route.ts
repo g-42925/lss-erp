@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
 						from: fromName,
 						bankVoucher: inv.bankVoucher ?? '-',
 						voucherNumber: payment.voucherNumber ?? null,
+						voucherId: payment.voucherId
 					});
 				}
 			}

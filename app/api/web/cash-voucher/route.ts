@@ -116,8 +116,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const vouchers = await CashVoucher.find({ companyId: company._id })
-      .sort({ createdAt: -1 });
+    const vouchers = await CashVoucher.find({ companyId: company._id }).sort()
+      .sort({ sequence: 1 });
 
     return NextResponse.json({
       noResult: false,
@@ -125,7 +125,8 @@ export async function GET(request: NextRequest) {
       result: vouchers,
       error: false,
     });
-  } catch (e: any) {
+  }
+  catch (e: any) {
     console.error("GET CashVoucher Error:", e);
     return NextResponse.json({
       noResult: true,
