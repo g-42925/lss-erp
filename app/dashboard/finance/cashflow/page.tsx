@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import PrintableCashVoucher from "@/components/finance/PrintableCashVoucher";
 import PrintableBankVoucher from "@/components/finance/PrintableBankVoucher";
 
-function fixBySequence(voucher: string, sequence: number) {
+function fixBySequence(voucher: string, sequence?: number) {
   if (!voucher) return voucher;
   const [type, month, year, number] = voucher.split('/');
   return `${type}/${month}/${year}/${String(sequence || 1).padStart(3, "0")}`
