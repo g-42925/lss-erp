@@ -603,13 +603,14 @@ export default function CashflowReportPage() {
 											<input type="checkbox" className="checkbox checkbox-sm"
 												onChange={(e) => {
 													if (e.target.checked) {
-														const eligible = transactions.filter(t => t.source === 'Sales Invoice' && t.voucherNumber);
+														const eligible = transactions.filter(t => t.source === 'Sales Invoice' && t.voucherId);
 														setSelectedTxs(eligible);
-													} else {
+													}
+													else {
 														setSelectedTxs([]);
 													}
 												}}
-												checked={selectedTxs.length > 0 && selectedTxs.length === transactions.filter(t => t.source === 'Sales Invoice' && t.voucherNumber).length}
+												checked={selectedTxs.length > 0 && selectedTxs.length === transactions.filter(t => t.source === 'Sales Invoice' && t.voucherId).length}
 											/>
 										</th>
 										<th className="p-3.5 whitespace-nowrap">Tanggal</th>
