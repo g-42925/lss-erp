@@ -11,13 +11,24 @@ export default function PrintableVoucher({ voucher, isLast, company }: { voucher
 
   const tanggal = voucher.date ? new Date(voucher.date).toISOString().split("T")[0] : "";
 
+  const fMonth = (_date: string) => {
+    const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const [year, month, date] = _date.split("-");
+    return `${date} ${months[Number(month) - 1]} ${year}`;
+  }
+
+  function fixBySequence(voucher: string, sequence: number) {
+    const [type, month, year, number] = voucher.split('/');
+    return `${type}/${month}/${year}/${String(sequence).padStart(3, "0")}`
+  }
+
   return (
-    <div className="voucher-print-page bg-white text-black w-full max-w-5xl mx-auto p-4 md:p-8 shadow-xl border border-gray-300 mb-8">
+    <div className="voucher-print-page bg-white text-black w-full max-w-5xl mx-auto p-3 md:p-6 print:py-8 print:px-6 shadow-xl border border-gray-300 mb-8 print:border-none print:shadow-none print:mb-0">
 
       {/* Header */}
-      <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+      <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-wider mb-4">BUKTI VOUCHER KAS</h2>
+          <h2 className="text-lg font-bold tracking-wider mb-2">BUKTI VOUCHER CASH</h2>
           <div className="flex space-x-6 text-sm font-semibold">
             <label className="flex items-center space-x-2">
               <input type="checkbox" checked={isKeluar} readOnly
@@ -46,31 +57,32 @@ export default function PrintableVoucher({ voucher, isLast, company }: { voucher
       </div>
 
       {/* Details Section */}
-      <div className="grid grid-cols-2 gap-4 md:gap-8 mb-4 text-sm font-medium">
-        <div className="space-y-3">
-          <div className="grid grid-cols-[130px_10px_1fr] items-center">
+      <div className="grid grid-cols-2 gap-3 md:gap-6 mb-2 text-xs font-medium">
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-[100px_10px_1fr] items-center">
             {isMasuk ? <span>Dibayar Oleh</span> : <span>Diterima Oleh</span>}
             <span>:</span>
             <div className="border-b border-dashed border-gray-400 px-1 w-full text-black font-medium h-6">{voucher.dibayarDiterima}</div>
           </div>
         </div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-[80px_10px_1fr] items-center">
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-[60px_10px_1fr] items-center">
             <span>No.</span>
             <span>:</span>
-            <div className="border-b border-dashed border-gray-400 px-1 w-full text-black font-medium h-6">{voucher.voucherNumber}</div>
+            <div className="border-b border-dashed border-gray-400 px-1 w-full text-black font-medium h-6">{fixBySequence(voucher.voucherNumber, voucher.sequence)}</div>
           </div>
-          <div className="grid grid-cols-[80px_10px_1fr] items-center">
+
+          <div className="grid grid-cols-[60px_10px_1fr] items-center">
             <span>Tgl.</span>
             <span>:</span>
-            <div className="border-b border-dashed border-gray-400 px-1 w-full text-black font-medium h-6">{tanggal}</div>
+            <div className="border-b border-dashed border-gray-400 px-1 w-full text-black font-medium h-6">{fMonth(tanggal)}</div>
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="border-2 border-black mb-4">
-        <table className="w-full text-sm">
+      <div className="border-2 border-black mb-2">
+        <table className="w-full text-xs">
           <thead className="border-b-2 border-black text-center font-bold">
             <tr>
               <th className="border-r-2 border-black py-2 w-[5%]">No.</th>
@@ -82,12 +94,12 @@ export default function PrintableVoucher({ voucher, isLast, company }: { voucher
           <tbody>
             {rows.map((row: any, index: number) => (
               <tr key={index} className="border-b border-black last:border-b-0">
-                <td className="border-r-2 border-black text-center align-top p-1 font-semibold">{index + 1}</td>
+                <td className="border-r-2 border-black text-center align-top p-0.5 font-semibold text-xs">{index + 1}</td>
                 <td className="border-r-2 border-black p-0">
-                  <div className="w-full min-h-[48px] px-2 py-1 text-black font-medium whitespace-pre-wrap">{row.keterangan}</div>
+                  <div className="w-full min-h-[32px] px-1 py-0.5 text-black font-medium whitespace-pre-wrap text-xs">{row.keterangan}</div>
                 </td>
                 <td className="border-r-2 border-black p-0 align-top">
-                  <div className="w-full min-h-[48px] px-2 py-1 text-center text-black font-medium">{row.customer}</div>
+                  <div className="w-full min-h-[32px] px-1 py-0.5 text-center text-black font-medium text-xs">{row.customer}</div>
                 </td>
                 <td className="p-1 align-top">
                   <div className="flex justify-between items-center h-full px-2">
@@ -97,9 +109,9 @@ export default function PrintableVoucher({ voucher, isLast, company }: { voucher
                 </td>
               </tr>
             ))}
-            <tr className="border-t-2 border-black font-semibold h-12">
-              <td colSpan={3} className="border-r-2 border-black px-4">
-                <div className="flex items-center space-x-4">
+            <tr className="border-t-2 border-black font-semibold h-8">
+              <td colSpan={3} className="border-r-2 border-black px-2">
+                <div className="flex items-center space-x-2">
                   <span>TERBILANG</span>
                   <div className="flex-1 border-b border-dashed border-gray-400 px-2 italic text-black font-medium h-6">{voucher.terbilang}</div>
                 </div>
@@ -113,18 +125,18 @@ export default function PrintableVoucher({ voucher, isLast, company }: { voucher
       </div>
 
       {/* Signatures */}
-      <div className="grid grid-cols-4 border-2 border-black text-sm h-32">
+      <div className="grid grid-cols-4 border-2 border-black text-xs h-24">
         {["DIBUKUKAN OLEH,", "DISETUJUI OLEH,", "DICEK OLEH,", "DIBUAT OLEH,"].map((title, i) => (
-          <div key={title} className={`flex flex-col justify-between p-2 ${i !== 3 ? 'border-r-2 border-black' : ''}`}>
-            <div className="text-center font-bold mb-4">{title}</div>
+          <div key={title} className={`flex flex-col justify-between p-1.5 ${i !== 3 ? 'border-r-2 border-black' : ''}`}>
+            <div className="text-center font-bold text-[10px] mb-1">{title}</div>
             <div className="mt-auto space-y-1 font-semibold">
               <div className="flex items-center">
-                <span className="w-12">Nama</span><span>:</span>
-                <div className="flex-1 border-b border-black ml-1 h-5" />
+                <span className="w-8 text-[10px]">Nama</span><span className="text-[10px]">:</span>
+                <div className="flex-1 border-b border-black ml-1 h-4" />
               </div>
               <div className="flex items-center">
-                <span className="w-12">Tgl.</span><span>:</span>
-                <div className="flex-1 border-b border-black ml-1 h-5" />
+                <span className="w-8 text-[10px]">Tgl.</span><span className="text-[10px]">:</span>
+                <div className="flex-1 border-b border-black ml-1 h-4" />
               </div>
             </div>
           </div>

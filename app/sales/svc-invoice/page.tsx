@@ -10,6 +10,12 @@ import Link from "next/link";
 import { useForm } from 'react-hook-form'
 import { useRef, useEffect, useState } from 'react'
 
+function fixBySequence(voucher: string, sequence: number) {
+  if (!voucher) return voucher;
+  const [type, month, year, number] = voucher.split('/');
+  return `${type}/${month}/${year}/${String(sequence || 1).padStart(3, "0")}`
+}
+
 export default function Invoices() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
@@ -90,11 +96,7 @@ export default function Invoices() {
       newMethod: data.method
     }
     if (selectedEditVoucher) {
-      if (isCash) {
-        params.cashVoucherNumber = selectedEditVoucher.voucherNumber
-      } else {
-        params.voucherNumber = selectedEditVoucher.voucherNumber
-      }
+      params.voucherId = selectedEditVoucher._id
     }
 
     closeInvoiceFn.fn('', JSON.stringify(params), (res) => {
@@ -342,14 +344,14 @@ export default function Invoices() {
       if (selectedCloseVoucher && selectedInvoice?._id) {
         const voucherBody: any = { _id: selectedInvoice._id }
         if (isCash) {
-          voucherBody.cashVoucherNumber = selectedCloseVoucher.voucherNumber
+          voucherBody.cashVoucherId = selectedCloseVoucher._id
         } else {
-          voucherBody.voucherNumber = selectedCloseVoucher.voucherNumber
+          voucherBody.bankVoucherId = selectedCloseVoucher._id
         }
         setVoucherFn.fn('', JSON.stringify(voucherBody), () => { })
       }
       const voucherUpdate = selectedCloseVoucher
-        ? (isCash ? { cashVoucher: selectedCloseVoucher.voucherNumber } : { voucherNumber: selectedCloseVoucher.voucherNumber })
+        ? (isCash ? { cashVoucherId: selectedCloseVoucher._id } : { bankVoucherId: selectedCloseVoucher._id })
         : {}
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
@@ -459,10 +461,10 @@ export default function Invoices() {
   function assignVoucher(voucher: any) {
     const body = JSON.stringify({
       _id: selectedInvoice._id,
-      voucherNumber: voucher.voucherNumber
+      bankVoucherId: voucher._id
     })
     setVoucherFn.fn('', body, () => {
-      const updated = { ...selectedInvoice, voucherNumber: voucher.voucherNumber }
+      const updated = { ...selectedInvoice, bankVoucherId: voucher._id }
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
           inv._id === selectedInvoice._id ? updated : inv
@@ -725,15 +727,6 @@ export default function Invoices() {
                                         )}
                                       </button>
                                     )}
-                                    <button
-                                      className={s.voucherNumber ? 'text-emerald-600 hover:text-emerald-800' : 'text-gray-400 hover:text-blue-700'}
-                                      onClick={() => openVoucherModal(s)}
-                                      title={s.voucherNumber ? `Voucher: ${s.voucherNumber}` : 'Assign Bank Voucher'}
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                                      </svg>
-                                    </button>
                                     {s.order?.handledBy !== 'internal' && (
                                       <>
                                         <button
@@ -928,7 +921,7 @@ export default function Invoices() {
                   <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
                 </svg>
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-green-800">{selectedCloseVoucher.voucherNumber}</span>
+                  <span className="text-sm font-semibold text-green-800">{fixBySequence(selectedCloseVoucher.voucherNumber, selectedCloseVoucher.sequence)}</span>
                   <span className="text-xs text-green-600">{fDate(selectedCloseVoucher.date)} · Rp {Number(selectedCloseVoucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                 </div>
               </div>
@@ -948,7 +941,7 @@ export default function Invoices() {
                   )
                     .filter((v: any) =>
                       !closeInvoiceVoucherSearch ||
-                      v.voucherNumber?.toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
+                      fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
                     )
                     .map((v: any) => (
                       <button
@@ -957,7 +950,7 @@ export default function Invoices() {
                         className="flex flex-row items-center justify-between px-3 py-2 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-left transition-colors"
                         onClick={() => setSelectedCloseVoucher(v)}
                       >
-                        <span className="text-sm font-medium">{v.voucherNumber}</span>
+                        <span className="text-sm font-medium">{fixBySequence(v.voucherNumber, v.sequence)}</span>
                         <span className="text-xs text-gray-500">{fDate(v.date)} · Rp {Number(v.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                       </button>
                     ))
@@ -968,7 +961,7 @@ export default function Invoices() {
                   {!getCashVouchersFn.loading && !getBankVouchersFn.loading &&
                     (closeInvoiceForm.watch('paymentMethod') === 'Cash' ? cashVouchers : bankVouchers).filter((v: any) =>
                       !closeInvoiceVoucherSearch ||
-                      v.voucherNumber?.toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
+                      fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(closeInvoiceVoucherSearch.toLowerCase())
                     ).length === 0 && (
                       <p className="text-xs text-gray-400 text-center py-2">Tidak ada voucher tersedia</p>
                     )}
@@ -1043,12 +1036,13 @@ export default function Invoices() {
                                   <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
                                 </svg>
                                 <div className="flex flex-col">
-                                  <span className="text-xs font-semibold text-green-800">{selectedEditVoucher.voucherNumber}</span>
+                                  <span className="text-xs font-semibold text-green-800">{fixBySequence(selectedEditVoucher.voucherNumber, selectedEditVoucher.sequence)}</span>
                                   <span className="text-xs text-green-600">{fDate(selectedEditVoucher.date)} · Rp {Number(selectedEditVoucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                                 </div>
                               </div>
                             ) : (
                               <>
+                                {/* bagian yang saya tandai */}
                                 <input
                                   type="text"
                                   placeholder="Cari nomor voucher..."
@@ -1056,6 +1050,7 @@ export default function Invoices() {
                                   value={editVoucherSearch}
                                   onChange={(e) => setEditVoucherSearch(e.target.value)}
                                 />
+                                {/* akhir bagian yang saya tandai */}
                                 <div className="max-h-[120px] overflow-y-auto flex flex-col gap-1">
                                   {(editPaymentForm.watch('method') === 'Cash'
                                     ? (getCashVouchersFn.loading ? [] : cashVouchers)
@@ -1063,7 +1058,7 @@ export default function Invoices() {
                                   )
                                     .filter((v: any) =>
                                       !editVoucherSearch ||
-                                      v.voucherNumber?.toLowerCase().includes(editVoucherSearch.toLowerCase())
+                                      fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(editVoucherSearch.toLowerCase())
                                     )
                                     .map((v: any) => (
                                       <button
@@ -1072,7 +1067,7 @@ export default function Invoices() {
                                         className="flex flex-row items-center justify-between px-2 py-1 rounded border border-gray-200 hover:border-blue-400 hover:bg-blue-50 text-left transition-colors"
                                         onClick={() => setSelectedEditVoucher(v)}
                                       >
-                                        <span className="text-xs font-medium">{v.voucherNumber}</span>
+                                        <span className="text-xs font-medium">{fixBySequence(v.voucherNumber, v.sequence)}</span>
                                         <span className="text-xs text-gray-500">{fDate(v.date)} · Rp {Number(v.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span>
                                       </button>
                                     ))
@@ -1082,7 +1077,7 @@ export default function Invoices() {
                                   )}
                                   {!getCashVouchersFn.loading && !getBankVouchersFn.loading &&
                                     (editPaymentForm.watch('method') === 'Cash' ? cashVouchers : bankVouchers).filter((v: any) =>
-                                      !editVoucherSearch || v.voucherNumber?.toLowerCase().includes(editVoucherSearch.toLowerCase())
+                                      !editVoucherSearch || fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(editVoucherSearch.toLowerCase())
                                     ).length === 0 && (
                                       <p className="text-xs text-gray-400 text-center py-1">Tidak ada voucher tersedia</p>
                                     )}
@@ -1324,9 +1319,11 @@ export default function Invoices() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bankVouchers.map((voucher: any) => (
+                  {bankVouchers
+                    .filter((v: any) => !voucherSearch || fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(voucherSearch.toLowerCase()))
+                    .map((voucher: any) => (
                     <tr key={voucher._id}>
-                      <td>{voucher.voucherNumber}</td>
+                      <td>{fixBySequence(voucher.voucherNumber, voucher.sequence)}</td>
                       <td>{fDate(voucher.date)}</td>
                       <td>{Number(voucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                       <td><button className="btn btn-sm" onClick={() => assignVoucher(voucher)}>Assign</button></td>

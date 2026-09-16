@@ -161,7 +161,8 @@ export async function GET(request: NextRequest) {
 						source: 'Sales Invoice',
 						type: 'in',
 						from: fromName,
-						bankVoucher: inv.bankVoucher ?? '-'
+						bankVoucher: inv.bankVoucher ?? '-',
+						voucherNumber: payment.voucherNumber ?? null,
 					});
 				}
 			}

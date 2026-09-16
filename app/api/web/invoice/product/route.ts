@@ -266,6 +266,7 @@ export async function PUT(request: NextRequest) {
           if (params.newAmount !== undefined) ph.amount = Number(params.newAmount);
           if (params.newDate) ph.date = new Date(params.newDate);
           if (params.newMethod) ph.method = params.newMethod;
+          if (params.voucherId !== undefined) ph.voucherId = params.voucherId;
         }
         if (!ph.reverted) {
           totalPayAmount += ph.amount;

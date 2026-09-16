@@ -29,7 +29,11 @@ const cashVoucherSchema = new mongoose.Schema(
       type: String,
       enum: ['draft', 'saved'],
       default: 'saved',
-    }
+    },
+    sequence: {
+      type: Number,
+      default: 1
+    },
   },
   { timestamps: true }
 );

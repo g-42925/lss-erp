@@ -71,6 +71,9 @@ const invoiceSchema = new mongoose.Schema({
       reverted: {
         type: Boolean,
         default: false
+      },
+      voucherId: {
+        type: mongoose.Schema.Types.ObjectId
       }
     }],
     default: []
@@ -113,8 +116,14 @@ const invoiceSchema = new mongoose.Schema({
     default: 0
   },
 
-  bankVoucher: String,
-  cashVoucher: String,
+  bankVoucherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BankVoucher'
+  },
+  cashVoucherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CashVoucher'
+  },
 
   price: Number,
 
@@ -144,6 +153,4 @@ const invoiceSchema = new mongoose.Schema({
   }
 });
 
-delete mongoose.models.Invoice;
-
-export default mongoose.model("Invoice", invoiceSchema);
+export default mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);

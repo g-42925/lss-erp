@@ -58,9 +58,16 @@ export default function BankVoucherTab() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [company, setCompany] = useState<any>(null);
 
-  const [mode, setMode] = useState("create");
+  const [mode, setMode] = useState("view");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedVouchers, setSelectedVouchers] = useState<any[]>([]);
+
+  // Sequence modal state
+  const [sequenceModal, setSequenceModal] = useState<{ open: boolean; voucher: any | null; newSeq: string }>({
+    open: false,
+    voucher: null,
+    newSeq: "",
+  });
 
   // Toast state
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -104,6 +111,17 @@ export default function BankVoucherTab() {
     onError: (msg) => showToast("error", msg),
   });
 
+  const patchSequenceFn = useFetch<any, any>({
+    url: '/api/web/bank-voucher',
+    method: "PATCH",
+    onError: (msg) => showToast("error", msg),
+  });
+
+  function fixBySequence(voucher: string, sequence: number) {
+    const [type, month, year, number] = voucher.split('/');
+    return `${type}/${month}/${year}/${String(sequence).padStart(3, "0")}`
+  }
+
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
       getFn.fn(`/api/web/bank-accounts?id=${masterAccountId}`, "{}", (result) => {
@@ -120,9 +138,8 @@ export default function BankVoucherTab() {
       getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", (result) => {
         const nextSeq = String((result?.length || 0) + 1).padStart(3, '0');
         setVoucherNo((prev) => {
-          // Replace or append the sequence number at the end
+          if (!prev) return prev;
           const parts = prev.split('/');
-          // Remove old seq if it's all digits
           if (/^\d+$/.test(parts[parts.length - 1])) parts.pop();
           return parts.join('/') + '/' + nextSeq;
         });
@@ -216,27 +233,22 @@ export default function BankVoucherTab() {
   const total = rows.reduce((acc, row) => acc + (Number(row.jumlah) || 0), 0);
 
   const [terbilangValue, setTerbilangValue] = useState("");
-  const [voucherNo, setVoucherNo] = useState("BM-BCA8838/V/26");
+  const [voucherNo, setVoucherNo] = useState(() => {
+    const now = new Date();
+    const romanMonth = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][now.getMonth()];
+    const year = now.getFullYear().toString().slice(-2);
+    return `BK-BANK/${romanMonth}/${year}`;
+  });
 
   const [month, setMonth] = useState('')
 
-
-
   useEffect(() => {
     setVoucherNo((prev) => {
-      if (prev.startsWith("BK-") && isMasuk) return prev.replace("BK-", "BM-");
-      if (prev.startsWith("BM-") && isKeluar) return prev.replace("BM-", "BK-");
-      return prev;
-    });
-
-    setVoucherNo((prev) => {
-      const now = new Date();
-      const [bank, ...rest] = prev.split('-')
-      const [credential, _, number] = rest.join('-').split('/')
-      const _month = now.getMonth() + 1;
-      const year = now.getFullYear().toString().slice(-2);
-      const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][_month - 1];
-      return `${bank}-${credential}/${roman}/${year}/${number}`;
+      if (!prev) return prev;
+      let newPrev = prev;
+      if (newPrev.startsWith("BK-") && isMasuk) newPrev = newPrev.replace("BK-", "BM-");
+      if (newPrev.startsWith("BM-") && isKeluar) newPrev = newPrev.replace("BM-", "BK-");
+      return newPrev;
     });
   }, [isMasuk, isKeluar]);
 
@@ -302,67 +314,36 @@ export default function BankVoucherTab() {
     console.log(bank)
   }
 
-  function makeVoucherNumber(voucherNumber: string) {
-    const tahunSekarang = new Date().getFullYear();
-    // Extract sequence (last segment if all digits)
-    const parts = voucherNumber.split('/');
-    let seq = '';
-    if (/^\d+$/.test(parts[parts.length - 1])) {
-      seq = '/' + parts.pop();
-    }
-    const base = parts.join('/');
-    return base.replace('V/26', `${month}/${tahunSekarang.toString().slice(-2)}`) + seq;
-  }
-
-  function onBankChange(accountNumber: string, bank: string, voucherNumber: string) {
+  function onBankChange(accountNumber: string, bank: string, currentVoucherNo: string) {
     if (!accountNumber || !bank) return;
-
-    const parts = voucherNumber.split('/');
-    // Extract sequence if last part is digits
-    let seq = '';
-    if (/^\d+$/.test(parts[parts.length - 1])) {
-      seq = '/' + parts.pop();
-    }
-
     const newCredential = `${bank}${accountNumber.slice(-4)}`;
 
-    if (!voucherNumber.includes('-')) {
-      const prefix = isMasuk ? 'BM' : 'BK';
-      setVoucherNo(`${prefix}-${newCredential}/V${seq}`);
-      return;
-    }
-
-    const [trxType, ...restTokens] = parts.join('/').split('-');
-    const rest = restTokens.join('-');
-
-    if (rest) {
-      const restParts = rest.split('/');
-      restParts.shift(); // remove the old credential
-      const joinedRest = restParts.length > 0 ? '/' + restParts.join('/') : '';
-      setVoucherNo(`${trxType}-${newCredential}${joinedRest}${seq}`);
-    } else {
-      setVoucherNo(`${trxType}-${newCredential}/V${seq}`);
-    }
-  }
-
-  useEffect(() => {
-    if (mode === 'create') {
-      (() => {
+    setVoucherNo((prev) => {
+      if (!prev || !prev.includes('-')) {
+        const seq = prev ? prev.split('/').pop() : '';
+        const finalSeq = /^\d+$/.test(seq || '') ? `/${seq}` : '';
+        const prefix = isMasuk ? 'BM' : 'BK';
         const now = new Date();
-        const rawMonth = now.getMonth(); // 0 - 11
-        const day = String(now.getDate()).padStart(2, '0');
-        const month = String(rawMonth + 1).padStart(2, '0');
+        const romanMonth = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][now.getMonth()];
         const year = now.getFullYear().toString().slice(-2);
-        const monthName = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-        const _month = monthName[rawMonth]; // Langsung pakai index 0 - 11
-        setMonth(_month)
-      })()
-    }
-  }, [mode]);
+        return `${prefix}-${newCredential}/${romanMonth}/${year}${finalSeq}`;
+      }
+
+      const parts = prev.split('-');
+      const prefix = parts[0];
+      const rest = parts.slice(1).join('-');
+      const slashParts = rest.split('/');
+      slashParts[0] = newCredential;
+      return `${prefix}-${slashParts.join('/')}`;
+    });
+  }
 
   const handleNewVoucher = () => {
     setEditingId(null);
-    setVoucherNo(""); // Will be auto-generated by the effect if empty, or we can just let it be
+    const now = new Date();
+    const romanMonth = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][now.getMonth()];
+    const year = now.getFullYear().toString().slice(-2);
+    setVoucherNo(`BK-BANK/${romanMonth}/${year}`);
     setIsMasuk(false);
     setIsKeluar(true);
     setSelectedBank("");
@@ -380,11 +361,10 @@ export default function BankVoucherTab() {
     // Regenerate voucher number sequence
     getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", (result) => {
       const nextSeq = String((result?.length || 0) + 1).padStart(3, '0');
-      setVoucherNo((prev) => {
-        const parts = prev.split('/');
-        if (/^\d+$/.test(parts[parts.length - 1])) parts.pop();
-        return parts.join('/') + '/' + nextSeq;
-      });
+      const now = new Date();
+      const romanMonth = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][now.getMonth()];
+      const year = now.getFullYear().toString().slice(-2);
+      setVoucherNo(`BK-BANK/${romanMonth}/${year}/${nextSeq}`);
     });
 
     setMode("create");
@@ -392,7 +372,7 @@ export default function BankVoucherTab() {
 
   const handleSelectVoucher = (voucher: any) => {
     setEditingId(voucher._id);
-    setVoucherNo(voucher.voucherNumber);
+    setVoucherNo(fixBySequence(voucher.voucherNumber, voucher.sequence));
     setIsMasuk(voucher.voucherType === "masuk");
     setIsKeluar(voucher.voucherType === "keluar");
     setSelectedBank(voucher.bank || voucher.bankAccountId?.bank || "");
@@ -464,33 +444,73 @@ export default function BankVoucherTab() {
                 margin: 0;
                 padding: 0;
               }
+              /* Setiap pasangan 2 voucher dalam satu halaman A4 */
+              .voucher-pair {
+                box-sizing: border-box;
+                width: 100%;
+                height: 297mm;
+                display: flex;
+                flex-direction: column;
+                page-break-after: always;
+                break-after: page;
+                overflow: hidden;
+              }
+              .voucher-pair:last-child {
+                page-break-after: auto;
+                break-after: auto;
+              }
+              /* Setiap voucher mengisi setengah halaman */
               .voucher-print-page {
                 box-sizing: border-box;
                 width: 100% !important;
-                height: 297mm !important;
+                height: 148mm !important;
                 max-width: none !important;
                 margin: 0 !important;
-                padding: 15mm !important;
+                padding: 6mm 10mm !important;
                 box-shadow: none !important;
                 border: none !important;
-                page-break-after: always;
-                break-after: page;
+                flex: 0 0 148mm;
+                overflow: hidden;
               }
-              .voucher-print-page:last-child {
-                page-break-after: auto;
-                break-after: auto;
+              /* Garis pemisah di antara 2 voucher dalam satu halaman */
+              .voucher-divider {
+                width: 100%;
+                height: 1mm;
+                border-top: 1px dashed #999;
+                flex: 0 0 1mm;
               }
             }
           `}} />
           <div className="voucher-print-wrapper">
-            {selectedVouchers.map((voucher, idx) => (
-              <PrintableVoucher
-                key={voucher._id || voucher.voucherNumber}
-                voucher={voucher}
-                isLast={idx === selectedVouchers.length - 1}
-                company={company}
-              />
-            ))}
+            {(() => {
+              const pairs: any[][] = [];
+              for (let i = 0; i < selectedVouchers.length; i += 2) {
+                pairs.push(selectedVouchers.slice(i, i + 2));
+              }
+              return pairs.map((pair, pairIdx) => (
+                <div
+                  key={pairIdx}
+                  className="voucher-pair mb-8 print:mb-0"
+                  style={{ display: 'flex', flexDirection: 'column' }}
+                >
+                  <PrintableVoucher
+                    key={pair[0]._id || pair[0].voucherNumber}
+                    voucher={pair[0]}
+                    company={company}
+                  />
+                  {pair[1] && (
+                    <>
+                      <div className="voucher-divider border-t border-dashed border-gray-400 my-4 print:my-0" />
+                      <PrintableVoucher
+                        key={pair[1]._id || pair[1].voucherNumber}
+                        voucher={pair[1]}
+                        company={company}
+                      />
+                    </>
+                  )}
+                </div>
+              ));
+            })()}
           </div>
         </div>
       </div>
@@ -686,7 +706,7 @@ export default function BankVoucherTab() {
                   <span>:</span>
                   <input
                     type="text"
-                    value={makeVoucherNumber(voucherNo)}
+                    value={voucherNo}
                     onChange={(e) => setVoucherNo(e.target.value)}
                     placeholder="BM-BCA8838/V/26"
                     className="input input-sm border-b border-dashed border-gray-400 bg-transparent rounded-none focus:outline-none focus:border-black px-1 print:border-none print:p-0 w-full text-black"
@@ -835,6 +855,83 @@ export default function BankVoucherTab() {
   )
     :
     <>
+      {/* Edit Sequence Modal */}
+      {sequenceModal.open && sequenceModal.voucher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-800">Edit Sequence</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Voucher: <span className="font-mono font-semibold text-slate-700">{fixBySequence(sequenceModal.voucher.voucherNumber, sequenceModal.voucher.sequence)}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs text-amber-700">
+              <span className="font-semibold">ℹ️ Catatan:</span> Semua voucher dengan sequence ≤ nilai baru akan otomatis bertambah 1.
+            </div>
+
+            <div className="mb-1">
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Sequence saat ini</label>
+              <div className="text-sm font-bold text-slate-800 bg-slate-100 rounded-lg px-3 py-2">
+                {sequenceModal.voucher.sequence ?? '-'}
+              </div>
+            </div>
+
+            <div className="mt-3 mb-5">
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Sequence baru</label>
+              <input
+                type="number"
+                min={1}
+                value={sequenceModal.newSeq}
+                onChange={(e) => setSequenceModal(prev => ({ ...prev, newSeq: e.target.value }))}
+                className="input input-bordered w-full text-sm"
+                placeholder="Masukkan sequence baru (misal: 1)"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => setSequenceModal({ open: false, voucher: null, newSeq: "" })}
+                disabled={patchSequenceFn.loading}
+              >
+                Batal
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={patchSequenceFn.loading || !sequenceModal.newSeq || Number(sequenceModal.newSeq) < 1}
+                onClick={() => {
+                  const payload = {
+                    masterAccountId,
+                    _id: sequenceModal.voucher._id,
+                    newSequence: Number(sequenceModal.newSeq),
+                  };
+                  patchSequenceFn.fn(
+                    '/api/web/bank-voucher',
+                    JSON.stringify(payload),
+                    () => {
+                      showToast("success", `Sequence voucher berhasil diubah ke ${sequenceModal.newSeq}`);
+                      setSequenceModal({ open: false, voucher: null, newSeq: "" });
+                      getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", () => { });
+                    }
+                  );
+                }}
+              >
+                {patchSequenceFn.loading ? <span className="loading loading-spinner loading-xs" /> : null}
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pb-6 print:p-0">
         <div className="flex justify-between items-center mb-6 print:hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200">
@@ -919,7 +1016,7 @@ export default function BankVoucherTab() {
                     {/* Body Card: Detail Informasi */}
                     <div className="p-4 space-y-3 flex-1">
                       <div>
-                        <p className="text-xs text-slate-400 font-mono">{voucher.voucherNumber}</p>
+                        <p className="text-xs text-slate-400 font-mono">{fixBySequence(voucher.voucherNumber, voucher.sequence)}</p>
                         <h3 className="text-base font-bold text-slate-800 truncate">
                           {voucher.dibayarDiterima || 'Tanpa Nama'}
                         </h3>
@@ -962,7 +1059,17 @@ export default function BankVoucherTab() {
                     </div>
 
                     {/* Action Card */}
-                    <div className="p-3 bg-white border-t border-slate-100 flex justify-end">
+                    <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => setSequenceModal({ open: true, voucher, newSeq: String(voucher.sequence ?? "") })}
+                        className="btn btn-sm btn-outline btn-secondary"
+                        title={`Sequence: ${voucher.sequence ?? '-'}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                        </svg>
+                        #{voucher.sequence ?? '-'}
+                      </button>
                       <button
                         onClick={() => handleSelectVoucher(voucher)}
                         className="btn btn-sm btn-outline btn-primary"

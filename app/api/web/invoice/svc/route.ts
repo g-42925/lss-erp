@@ -115,8 +115,8 @@ export async function PATCH(request: NextRequest) {
 
     if (!invoice) throw new Error("Invoice not found");
 
-    if (params.voucherNumber !== undefined) invoice.bankVoucher = params.voucherNumber;
-    if (params.cashVoucherNumber !== undefined) invoice.cashVoucher = params.cashVoucherNumber;
+    if (params.bankVoucherId !== undefined) invoice.bankVoucherId = params.bankVoucherId;
+    if (params.cashVoucherId !== undefined) invoice.cashVoucherId = params.cashVoucherId;
     if (params.vendorInvoiceNumber !== undefined) invoice.vendorInvoiceNumber = params.vendorInvoiceNumber;
 
     await invoice.save();

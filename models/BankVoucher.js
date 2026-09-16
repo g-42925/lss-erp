@@ -14,6 +14,7 @@ const bankVoucherSchema = new mongoose.Schema(
       ref: 'Companie',
       required: true,
     },
+    sequence: { type: Number, required: true, default: 1 },
     voucherNumber: { type: String, required: true },
     voucherType: {
       type: String,

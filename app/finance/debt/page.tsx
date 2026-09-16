@@ -10,6 +10,12 @@ import { NumericFormat } from "react-number-format";
 
 
 
+function fixBySequence(voucher: string, sequence: number) {
+  if (!voucher) return voucher;
+  const [type, month, year, number] = voucher.split('/');
+  return `${type}/${month}/${year}/${String(sequence || 1).padStart(3, "0")}`
+}
+
 type FilterType = 'barang' | 'jasa' | 'vendor'
 
 export default function Debt() {
@@ -840,10 +846,10 @@ export default function Debt() {
                   <option value="">-- Tidak menggunakan voucher --</option>
                   {payFormData.paymentMethod === 'Cash'
                     ? cashVouchers.map((v: any) => (
-                      <option key={v._id} value={v.voucherNumber}>{v.voucherNumber} ({v.voucherType})</option>
+                      <option key={v._id} value={v.voucherNumber}>{fixBySequence(v.voucherNumber, v.sequence)} ({v.voucherType})</option>
                     ))
                     : bankVouchers.map((v: any) => (
-                      <option key={v._id} value={v.voucherNumber}>{v.voucherNumber} ({v.voucherType})</option>
+                      <option key={v._id} value={v.voucherNumber}>{fixBySequence(v.voucherNumber, v.sequence)} ({v.voucherType})</option>
                     ))
                   }
                 </select>

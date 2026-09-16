@@ -50,13 +50,19 @@ export async function POST(request: NextRequest) {
       companyId: company._id,
       voucherNumber,
     });
+
     if (existing) {
-      return NextResponse.json({
-        noResult: true,
-        message: `Nomor voucher "${voucherNumber}" sudah ada`,
-        result: null,
-        error: true,
-      });
+      const { shiftVoucherNumbers } = await import("@/lib/voucherHelper");
+      const shiftResult = await shiftVoucherNumbers(BankVoucher, company._id, voucherNumber);
+
+      if (!shiftResult.success) {
+        return NextResponse.json({
+          noResult: true,
+          message: shiftResult.message || `Nomor voucher "${voucherNumber}" sudah ada`,
+          result: null,
+          error: true,
+        });
+      }
     }
 
     const voucher = await BankVoucher.create({
@@ -76,6 +82,7 @@ export async function POST(request: NextRequest) {
       })),
       total: Number(total) || 0,
       terbilang: terbilang || "",
+      sequence: voucherCount + 1,
     });
 
     return NextResponse.json({
@@ -244,3 +251,97 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+
+export async function PATCH(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+
+    const { _id, masterAccountId, newSequence } = body;
+
+    if (!_id || !masterAccountId || newSequence === undefined || newSequence === null) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Field wajib tidak boleh kosong (_id, masterAccountId, newSequence)",
+        result: null,
+        error: true,
+      });
+    }
+
+    const seqNum = Number(newSequence);
+    if (!Number.isInteger(seqNum) || seqNum < 1) {
+      return NextResponse.json({
+        noResult: true,
+        message: "newSequence harus berupa bilangan bulat positif",
+        result: null,
+        error: true,
+      });
+    }
+
+    const company = await Companie.findOne({ masterAccountId });
+    if (!company) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Perusahaan tidak ditemukan",
+        result: null,
+        error: true,
+      });
+    }
+
+    // Fetch the target voucher to get its current sequence
+    const targetVoucher = await BankVoucher.findById(_id);
+    if (!targetVoucher) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Voucher tidak ditemukan",
+        result: null,
+        error: true,
+      });
+    }
+
+    const currentSequence = targetVoucher.sequence;
+
+    // Increment sequence of ALL vouchers with sequence < currentSequence
+    // (semua entitas yang lebih kecil dari sequence target saat ini)
+    await BankVoucher.updateMany(
+      {
+        companyId: company._id,
+        _id: { $ne: _id },
+        sequence: { $lt: currentSequence },
+      },
+      { $inc: { sequence: 1 } }
+    );
+
+    // Set the target voucher's sequence to newSequence
+    const voucher = await BankVoucher.findByIdAndUpdate(
+      _id,
+      { sequence: seqNum },
+      { new: true }
+    );
+
+    if (!voucher) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Voucher tidak ditemukan setelah update",
+        result: null,
+        error: true,
+      });
+    }
+
+
+    return NextResponse.json({
+      noResult: false,
+      message: `Sequence voucher berhasil diubah ke ${seqNum}`,
+      result: voucher,
+      error: false,
+    });
+  } catch (e: any) {
+    console.error("PATCH BankVoucher Sequence Error:", e);
+    return NextResponse.json({
+      noResult: true,
+      message: e.message || "Terjadi kesalahan",
+      result: null,
+      error: true,
+    });
+  }
+}
