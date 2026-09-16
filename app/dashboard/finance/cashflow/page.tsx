@@ -37,6 +37,7 @@ type Voucher = {
 	_id: string;
 	voucherNumber: string;
 	voucherType: string;
+	sequence?: number;
 };
 
 type Summary = {
