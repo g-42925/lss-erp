@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json({
         noResult: true,
-        message: shiftResult.message || `Nomor voucher "${voucherNumber}" sudah ada`,
+        message: `Nomor voucher "${voucherNumber}" sudah ada`,
         result: null,
         error: true,
       });
