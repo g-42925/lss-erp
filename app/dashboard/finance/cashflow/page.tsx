@@ -154,19 +154,22 @@ export default function CashflowReportPage() {
 		const notFound: string[] = [];
 
 		selectedTxs.forEach(t => {
-			const vNum = t.voucherNumber;
-			if (!vNum) return;
-			const cashMatch = cashVouchers.find(v => v.voucherNumber === vNum);
+			const vId = t.voucherId;
+			if (!vId) {
+				if (t.voucherNumber) notFound.push(t.voucherNumber);
+				return;
+			}
+			const cashMatch = cashVouchers.find(v => v._id === vId);
 			if (cashMatch) {
 				toPrint.push({ voucher: cashMatch, type: 'cash' });
 				return;
 			}
-			const bankMatch = bankVouchers.find(v => v.voucherNumber === vNum);
+			const bankMatch = bankVouchers.find(v => v._id === vId);
 			if (bankMatch) {
 				toPrint.push({ voucher: bankMatch, type: 'bank' });
 				return;
 			}
-			notFound.push(vNum);
+			notFound.push(t.voucherNumber || vId);
 		});
 
 		if (notFound.length > 0) {
@@ -638,7 +641,7 @@ export default function CashflowReportPage() {
 										(sortOrder === 'desc' ? [...transactions].reverse() : transactions).map((t: any, idx: number) => (
 											<tr key={t._id + idx} className="hover:bg-slate-50/60 transition-colors">
 												<td className="p-3.5 whitespace-nowrap text-slate-700">
-													{t.source === 'Sales Invoice' && t.voucherNumber ? (
+													{t.source === 'Sales Invoice' && t.voucherId ? (
 														<input type="checkbox" className="checkbox checkbox-sm"
 															checked={selectedTxs.some(x => x._id === t._id)}
 															onChange={() => toggleSelectTx(t)}
@@ -1191,19 +1194,6 @@ export default function CashflowReportPage() {
 						</div>
 					)}
 
-					{/* Hidden print-only voucher area */}
-					{printVouchersList.length > 0 && (
-						<div className="hidden print:block">
-							{printVouchersList.map((pv, idx) => (
-								<div key={pv.voucher._id + idx} style={idx < printVouchersList.length - 1 ? { pageBreakAfter: 'always' } : {}}>
-									{pv.type === 'cash'
-										? <PrintableCashVoucher voucher={pv.voucher} isLast={true} company={company} />
-										: <PrintableBankVoucher voucher={pv.voucher} isLast={true} company={company} />
-									}
-								</div>
-							))}
-						</div>
-					)}
 
 				</div>
 			</div>
@@ -1212,7 +1202,11 @@ export default function CashflowReportPage() {
 			{printVouchersList.length > 0 && (
 				<div className="hidden print:block">
 					{printVouchersList.map((pv, idx) => (
-						<div key={pv.voucher._id + idx} style={idx < printVouchersList.length - 1 ? { pageBreakAfter: 'always' } : {}}>
+						<div 
+							key={pv.voucher._id + idx} 
+							className={(idx + 1) % 2 === 0 && idx < printVouchersList.length - 1 ? 'break-after-page' : 'break-after-avoid'}
+							style={(idx + 1) % 2 === 0 && idx < printVouchersList.length - 1 ? { pageBreakAfter: 'always' } : {}}
+						>
 							{pv.type === 'cash'
 								? <PrintableCashVoucher voucher={pv.voucher} isLast={true} company={company} />
 								: <PrintableBankVoucher voucher={pv.voucher} isLast={true} company={company} />

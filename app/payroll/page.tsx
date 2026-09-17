@@ -381,9 +381,25 @@ export default function PayrollPage() {
         `/payroll/${masterAccountId}/${filterYear}/${filterMonth}`,
         null as any,
         (data) => {
-          setPayroll(data);
-          if (data?.months?.length) {
-            setSelectedMonth(data.months[0].key);
+          let finalData = data;
+          
+          // Debug or fallback for year: check year or tahun
+          const returnedYear = data?.filter?.year || data?.filter?.tahun || data?.year || data?.tahun;
+          if (returnedYear && String(returnedYear) !== String(filterYear)) {
+            finalData = { ...data, employees: [], thpGrandTotal: 0 };
+          }
+          
+          setPayroll(finalData);
+          
+          if (finalData?.months?.length) {
+            const currentMonthValid = finalData.months.some((m: Month) => Number(m.key) === Number(filterMonth));
+            if (!currentMonthValid) {
+              const newMonth = finalData.months[0].key;
+              setSelectedMonth(newMonth);
+              setFilterMonth(newMonth);
+            } else {
+              setSelectedMonth(filterMonth);
+            }
           }
         }
       );
@@ -397,9 +413,26 @@ export default function PayrollPage() {
         `/payroll/${masterAccountId}/${filterYear}/${filterMonth}`,
         null as any,
         (data) => {
-          setPayroll(data);
-          if (data?.months?.length) {
-            setSelectedMonth(data.months[0].key);
+          let finalData = data;
+
+          const returnedYear = data?.filter?.year || data?.filter?.tahun || data?.year || data?.tahun;
+          if (returnedYear && String(returnedYear) !== String(filterYear)) {
+            finalData = { ...data, employees: [], thpGrandTotal: 0 };
+          }
+
+          setPayroll(finalData);
+
+          if (finalData?.months?.length) {
+            const currentMonthValid = finalData.months.some((m: Month) => Number(m.key) === Number(filterMonth));
+            if (!currentMonthValid) {
+              const newMonth = finalData.months[0].key;
+              setSelectedMonth(newMonth);
+              if (filterMonth !== newMonth) {
+                setFilterMonth(newMonth);
+              }
+            } else {
+              setSelectedMonth(filterMonth);
+            }
           }
         }
       );
