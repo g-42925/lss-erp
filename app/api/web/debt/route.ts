@@ -183,11 +183,41 @@ export async function GET(request: NextRequest) {
           }
         },
         {
+          $lookup: {
+            from: 'taxes',
+            localField: 'vendor.taxes',
+            foreignField: '_id',
+            as: 'vendor.populatedTaxes'
+          }
+        },
+        {
           $addFields: {
             vendorPaid: { $ifNull: ['$vendorPaid', 0] },
-            totalVendorAmount: {
+            baseVendorAmount: {
               $sum: '$relatedInvoices.debt'
             }
+          }
+        },
+        {
+          $addFields: {
+            taxRatePct: {
+              $reduce: {
+                input: { $ifNull: ['$vendor.populatedTaxes', []] },
+                initialValue: 0,
+                in: {
+                  $cond: {
+                    if: '$$this.isPPh',
+                    then: { $subtract: ['$$value', '$$this.value'] },
+                    else: { $add: ['$$value', '$$this.value'] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            totalVendorAmount: '$baseVendorAmount'
           }
         },
         {
@@ -202,11 +232,23 @@ export async function GET(request: NextRequest) {
         },
         // Filter status lunas / belum lunas
         {
-          $match: status === 'unpaid' 
+          $match: status === 'unpaid'
             ? { $expr: { $gt: ['$totalVendorAmount', '$vendorPaid'] } }
             : { $expr: { $lte: ['$totalVendorAmount', '$vendorPaid'] } }
+        },
+        {
+          $addFields: {
+            debt: {
+              $add: [
+                '$debt',
+                { $divide: [{ $multiply: ['$totalVendorAmount', '$taxRatePct'] }, 100] }
+              ]
+            }
+          }
         }
       ])
+
+      console.log(invoices)
 
       if (invoices.length === 0) {
         return NextResponse.json({ noResult: true, message: "Tidak ada hutang vendor", result: [], error: false })
@@ -243,7 +285,24 @@ export async function POST(request: NextRequest) {
 
     // Hitung total hutang vendor dari Invoice lain (akumulatif debt)
     const relatedInvoices = await Invoice.find({ vendorInvoiceNumber: invoice.invoiceNumber, void: { $ne: true } }).lean()
-    const totalVendorAmount = relatedInvoices.reduce((sum, inv: any) => sum + (inv.debt || 0), 0);
+    const baseVendorAmount = relatedInvoices.reduce((sum, inv: any) => sum + (inv.debt || 0), 0);
+
+    let totalVendorAmount = baseVendorAmount;
+    if (invoice.vendorId) {
+      const Vendor = (await import('@/models/Vendor')).default;
+      const vendor = await Vendor.findById(invoice.vendorId).populate('taxes').lean() as any;
+      if (vendor && vendor.taxes && vendor.taxes.length > 0) {
+        let taxRatePct = 0;
+        for (const tax of vendor.taxes) {
+          if (tax.isPPh) {
+            taxRatePct -= tax.value;
+          } else {
+            taxRatePct += tax.value;
+          }
+        }
+        totalVendorAmount = baseVendorAmount + (baseVendorAmount * taxRatePct / 100);
+      }
+    }
 
     const currentVendorPaid = (invoice.vendorPaid ?? 0)
     const amt = Number(payAmount)
@@ -253,7 +312,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ noResult: true, message: `Jumlah bayar melebihi hutang (max: ${totalVendorAmount - currentVendorPaid})`, result: null, error: true })
     }
 
-    await Invoice.findByIdAndUpdate(invoiceId, { 
+    await Invoice.findByIdAndUpdate(invoiceId, {
       vendorPaid: newVendorPaid,
       ...(voucher ? { bankVoucher: voucher } : {})
     })

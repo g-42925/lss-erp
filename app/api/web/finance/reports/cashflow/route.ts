@@ -152,6 +152,25 @@ export async function GET(request: NextRequest) {
 				}
 
 				if (include) {
+					let fetchedVoucherNumber = payment.voucherNumber ?? null;
+					let fetchedSequence = undefined;
+					
+					if (!fetchedVoucherNumber && payment.voucherId) {
+						if (mode === 'cash') {
+							const cv = await CashVoucher.findById(payment.voucherId).select('voucherNumber sequence').lean();
+							if (cv) {
+								fetchedVoucherNumber = cv.voucherNumber;
+								fetchedSequence = cv.sequence;
+							}
+						} else {
+							const bv = await BankVoucher.findById(payment.voucherId).select('voucherNumber sequence').lean();
+							if (bv) {
+								fetchedVoucherNumber = bv.voucherNumber;
+								fetchedSequence = bv.sequence;
+							}
+						}
+					}
+
 					allTransactions.push({
 						_id: new mongoose.Types.ObjectId().toString(),
 						date: paymentDate,
@@ -162,7 +181,8 @@ export async function GET(request: NextRequest) {
 						type: 'in',
 						from: fromName,
 						bankVoucher: inv.bankVoucher ?? '-',
-						voucherNumber: payment.voucherNumber ?? null,
+						voucherNumber: fetchedVoucherNumber,
+						voucherSequence: fetchedSequence,
 						voucherId: payment.voucherId
 					});
 				}

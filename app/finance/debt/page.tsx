@@ -61,6 +61,8 @@ export default function Debt() {
     description: '',
     voucher: ''
   })
+  const [voucherSearch, setVoucherSearch] = useState("")
+  const [showVoucherDropdown, setShowVoucherDropdown] = useState(false)
 
   const [createInvoiceSubmitting, setCreateInvoiceSubmitting] = useState(false)
   const [createInvoiceData, setCreateInvoiceData] = useState({
@@ -145,6 +147,7 @@ export default function Debt() {
       description: '',
       voucher: ''
     })
+    setVoucherSearch("")
     payRef.current?.showModal()
   }
 
@@ -580,7 +583,7 @@ export default function Debt() {
   if (!isSuperAdmin) router.push('/dashboard')
 
   const remaining = (debt: any) => {
-    if (filterType === 'vendor') return (debt.totalVendorAmount ?? 0) - (debt.vendorPaid ?? 0)
+    if (filterType === 'vendor') return (debt.debt ?? 0) - (debt.vendorPaid ?? 0)
     return (debt.finalPrice ?? 0) - (debt.payAmount ?? 0)
   }
 
@@ -715,6 +718,15 @@ export default function Debt() {
                               {(filterType === 'vendor'
                                 ? d.debt
                                 : d.finalPrice)?.toLocaleString('id-ID')}
+                              {d.vendor?.populatedTaxes && d.vendor.populatedTaxes.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {d.vendor.populatedTaxes.map((t: any) => (
+                                    <span key={t._id} className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${t.isPPh ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-600 border-green-200'}`} title={t.name}>
+                                      {t.name} {t.isPPh ? '-' : '+'}{t.value}%
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </td>
                             {filterType === 'vendor' && (
                               <td>
@@ -725,6 +737,7 @@ export default function Debt() {
                                 >
                                   {d.totalVendorAmount?.toLocaleString('id-ID')}
                                 </button>
+
                               </td>
                             )}
                             <td>
@@ -823,6 +836,7 @@ export default function Debt() {
                       bankAccountId: matchedBank?._id || '',
                       voucher: '' // reset voucher saat ganti metode
                     }))
+                    setVoucherSearch('')
                   }}
                 >
                   <option value="Cash">Cash</option>
@@ -838,21 +852,74 @@ export default function Debt() {
                 <legend className="fieldset-legend">
                   {payFormData.paymentMethod === 'Cash' ? 'Pilih Voucher Cash' : 'Pilih Voucher Bank'}
                 </legend>
-                <select
-                  className="select w-full"
-                  value={payFormData.voucher}
-                  onChange={e => setPayFormData(p => ({ ...p, voucher: e.target.value }))}
-                >
-                  <option value="">-- Tidak menggunakan voucher --</option>
-                  {payFormData.paymentMethod === 'Cash'
-                    ? cashVouchers.map((v: any) => (
-                      <option key={v._id} value={v.voucherNumber}>{fixBySequence(v.voucherNumber, v.sequence)} ({v.voucherType})</option>
-                    ))
-                    : bankVouchers.map((v: any) => (
-                      <option key={v._id} value={v.voucherNumber}>{fixBySequence(v.voucherNumber, v.sequence)} ({v.voucherType})</option>
-                    ))
-                  }
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className="input w-full"
+                    placeholder="Cari nomor voucher..."
+                    value={voucherSearch}
+                    onChange={e => {
+                      setVoucherSearch(e.target.value)
+                      setShowVoucherDropdown(true)
+                    }}
+                    onFocus={() => setShowVoucherDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowVoucherDropdown(false), 200)}
+                  />
+                  {showVoucherDropdown && (
+                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <div
+                        className="p-3 hover:bg-gray-100 cursor-pointer border-b"
+                        onClick={() => {
+                          setPayFormData(p => ({ ...p, voucher: '' }))
+                          setVoucherSearch('')
+                          setShowVoucherDropdown(false)
+                        }}
+                      >
+                        -- Tidak menggunakan voucher --
+                      </div>
+                      {(payFormData.paymentMethod === 'Cash' ? cashVouchers : bankVouchers)
+                        .filter(v =>
+                          !voucherSearch ||
+                          fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(voucherSearch.toLowerCase()) ||
+                          v.voucherType.toLowerCase().includes(voucherSearch.toLowerCase())
+                        )
+                        .map((v: any) => (
+                          <div
+                            key={v._id}
+                            className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                            onClick={() => {
+                              setPayFormData(p => ({ ...p, voucher: v.voucherNumber }))
+                              setVoucherSearch(fixBySequence(v.voucherNumber, v.sequence))
+                              setShowVoucherDropdown(false)
+                            }}
+                          >
+                            <div className="font-bold text-sm text-blue-900">{fixBySequence(v.voucherNumber, v.sequence)}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Tipe: <span className="font-medium">{v.voucherType}</span> |
+                              Tgl: <span className="font-medium">{new Date(v.date).toLocaleDateString('id-ID')}</span>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-0.5">
+                              Total: <span className="font-bold">Rp {v.total?.toLocaleString('id-ID')}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+                {/* View target voucher details if selected */}
+                {payFormData.voucher && (
+                  <div className="mt-2 text-xs p-3 bg-blue-50 text-blue-900 rounded-lg border border-blue-200">
+                    <div className="font-semibold mb-1">Voucher Terpilih:</div>
+                    <div className="flex justify-between items-center">
+                      <span>{
+                        (payFormData.paymentMethod === 'Cash' ? cashVouchers : bankVouchers)
+                          .find(v => v.voucherNumber === payFormData.voucher)?.voucherType || 'Unknown'
+                      }</span>
+                      <span className="font-bold">Rp {(payFormData.paymentMethod === 'Cash' ? cashVouchers : bankVouchers)
+                        .find(v => v.voucherNumber === payFormData.voucher)?.total?.toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
+                )}
               </fieldset>
 
               <fieldset className="fieldset">

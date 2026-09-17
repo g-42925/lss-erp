@@ -233,7 +233,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                   <SidebarItem href="/sales/refund">Refund Log</SidebarItem>
                   <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
                   <SidebarItem href="/sales/svc-invoice">Service Invoice</SidebarItem>
-                  <SidebarItem href="/sales/taxes">Taxes</SidebarItem>
                   <SidebarItem href="/sales/quotation">Quotation</SidebarItem>
                 </ul>
               </details>
@@ -279,7 +278,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             {/* Payroll */}
             <li>
               <details>
-                <summary>Payroll</summary>
+                <summary>HMR</summary>
                 <ul>
                   <SidebarItem href="/payroll">Payroll</SidebarItem>
                 </ul>
@@ -305,7 +304,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 </ul>
               </details>
             </li>
-
+            <SidebarItem href="/sales/taxes">Taxes</SidebarItem>
             <li>
               <details>
                 <summary>Report</summary>

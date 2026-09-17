@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       {
         vendorOf: company[0]._id
       }
-    )
+    ).populate('taxes')
 
     return NextResponse.json(
       {
@@ -104,5 +104,52 @@ export async function GET(request: NextRequest) {
         error: true
       }
     )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const body = await request.json()
+  const { _id } = body
+
+  try {
+    await connectToDatabase()
+
+    const vendor = await Vendor.findByIdAndUpdate(
+      _id,
+      {
+        $set: {
+          pph23: true
+        }
+      },
+      {
+        new: true
+      }
+    )
+
+    if (!vendor) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Vendor tidak ditemukan",
+        result: null,
+        error: true
+      })
+    }
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Vendor berhasil ditandai sebagai pengusaha PPh 23",
+      result: vendor,
+      error: false
+    })
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: e instanceof Error
+        ? e.message
+        : "Something went wrong",
+      result: null,
+      error: true
+    })
   }
 }

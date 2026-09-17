@@ -31,6 +31,7 @@ type CashflowTransaction = {
 	bankVoucherId?: string;
 	bankVoucherNumber?: string;
 	voucherNumber?: string;
+	voucherSequence?: number;
 	voucherId?: string;
 };
 
@@ -670,6 +671,11 @@ export default function CashflowReportPage() {
 													{t.source === 'Manual Entry' && (t.cashVoucherNumber || t.bankVoucherNumber) && (
 														<span className="block text-[10px] text-slate-400 font-normal">
 															Voucher: {t.cashVoucherNumber || t.bankVoucherNumber}
+														</span>
+													)}
+													{t.source === 'Sales Invoice' && t.voucherNumber && (
+														<span className="block text-[10px] text-slate-400 font-normal">
+															Voucher: {fixBySequence(t.voucherNumber, t.voucherSequence)}
 														</span>
 													)}
 												</td>

@@ -314,7 +314,7 @@ function TaxModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 text-black relative">
         <h3 className="font-bold text-lg mb-4 text-black">{title}</h3>
-        
+
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
           {isEdit && <input type="hidden" {...form.register("_id")} />}
 
@@ -355,7 +355,7 @@ function TaxModal({
               />
               <span className="text-sm font-medium text-black">Is this PPh?</span>
             </label>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-3 cursor-pointer hidden">
               <input
                 {...form.register("isLiability")}
                 type="checkbox"
