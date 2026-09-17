@@ -415,7 +415,7 @@ export default function PayrollPage() {
         (data) => {
           let finalData = data;
 
-          const returnedYear = data?.filter?.year || data?.filter?.tahun || data?.year || data?.tahun;
+          const returnedYear = data?.filter?.year || data?.filter?.tahun;
           if (returnedYear && String(returnedYear) !== String(filterYear)) {
             finalData = { ...data, employees: [], thpGrandTotal: 0 };
           }
