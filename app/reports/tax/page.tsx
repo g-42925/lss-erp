@@ -147,7 +147,7 @@ export default function TaxReportPage() {
     const worksheet = XLSX.utils.json_to_sheet(data)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Tax Report')
-    XLSX.writeFile(workbook, `tax-report-${new Date().toISOString().slice(0,10)}.xlsx`)
+    XLSX.writeFile(workbook, `tax-report-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -276,9 +276,7 @@ export default function TaxReportPage() {
                   <th className="px-4 py-3 text-left">Produk / Layanan</th>
                   <th className="px-4 py-3 text-left">Tipe Pajak</th>
                   <th className="px-4 py-3 text-right">Tax Base (Subtotal)</th>
-                  <th className="px-4 py-3 text-right">Nilai Pajak (%)</th>
                   <th className="px-4 py-3 text-right">Nominal Pajak</th>
-                  <th className="px-4 py-3 text-right">Faktur Pajak</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -292,7 +290,6 @@ export default function TaxReportPage() {
                     <td className="px-4 py-3.5 text-slate-700 truncate max-w-[200px] text-xs">{row.productName}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-700 text-xs">{row.taxName}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-slate-600 text-xs">{fmtMoney(row.subTotal)}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-slate-500 text-xs">{row.taxValue}%</td>
                     <td className="px-4 py-3.5 text-right font-mono font-bold text-emerald-600 text-xs">+{fmtMoney(row.taxAmount)}</td>
                     <td className="px-4 py-3.5 text-right font-mono text-slate-500 text-xs">{row.taxInvoiceNumber === '' ? '-' : row.taxInvoiceNumber}</td>
                   </tr>
@@ -302,7 +299,7 @@ export default function TaxReportPage() {
           </div>
         )}
       </div>
-    </div>  
+    </div>
   )
 }
 
