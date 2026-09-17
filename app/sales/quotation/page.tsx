@@ -318,10 +318,10 @@ function QuotationListContent() {
                 <td>
                   <span
                     className={`badge ${quo.status === "draft"
-                        ? "badge-neutral"
-                        : quo.status === "accepted"
-                          ? "badge-success"
-                          : "badge-info"
+                      ? "badge-neutral"
+                      : quo.status === "accepted"
+                        ? "badge-success"
+                        : "badge-info"
                       } `}
                   >
                     {quo.status}
@@ -338,7 +338,7 @@ function QuotationListContent() {
                     </button>
 
                     <Link
-                      href={`/ sales / quotation / edit / ${quo._id} `}
+                      href={`/sales/quotation/edit/${quo._id}`}
                       className="btn btn-sm btn-outline btn-warning"
                     >
                       <HugeiconsIcon
@@ -349,7 +349,7 @@ function QuotationListContent() {
                     </Link>
 
                     <Link
-                      href={`/ sales / quotation / print / ${quo._id} `}
+                      href={`/sales/quotation/print/${quo._id}`}
                       className="btn btn-sm btn-outline btn-info"
                     >
                       Print/Preview
