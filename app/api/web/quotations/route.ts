@@ -115,8 +115,8 @@ export async function GET(request: NextRequest) {
     }
 
     const quotations = await Quotation.find(filter)
-      .populate("customerId")
-      .populate("productId")
+      .populate({ path: "customerId", model: Customer })
+      .populate({ path: "productId", model: Product })
       .sort({ createdAt: -1 });
 
     return NextResponse.json({
