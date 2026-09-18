@@ -412,12 +412,12 @@ export default function Invoices() {
   }
 
   function fTotal(invoice: any) {
-    function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number, taxValue) {
+    function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number, taxValue: number) {
       if (invoice.missing < 1) return baseTotal - taxValue
       return baseTotal - baseTotal * (taxPercentage / 100)
     }
 
-    function recalculatePPN(invoice: any, taxPercentage: number, baseTotal: number, taxValue) {
+    function recalculatePPN(invoice: any, taxPercentage: number, baseTotal: number, taxValue: number) {
       if (invoice.missing < 1) return baseTotal + taxValue
 
     }
