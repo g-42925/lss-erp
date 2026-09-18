@@ -414,15 +414,14 @@ export default function Invoices() {
   function fTotal(invoice: any) {
     function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number, taxValue: number) {
       if (invoice.missing < 1) return baseTotal - taxValue
-      return baseTotal - baseTotal * (taxPercentage / 100)
+      return baseTotal - (baseTotal * (taxPercentage / 100))
     }
 
     function recalculatePPN(invoice: any, taxPercentage: number, baseTotal: number, taxValue: number) {
       if (invoice.missing < 1) return baseTotal + taxValue
+      return baseTotal + (baseTotal * (taxPercentage / 100))
 
     }
-
-
 
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
     const price = invoice?.price ?? invoice?.order?.price
