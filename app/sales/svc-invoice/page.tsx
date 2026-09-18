@@ -821,13 +821,13 @@ export default function Invoices() {
       </dialog>
 
       <dialog ref={editInvoiceModalRef} id="edit_invoice_modal" className="modal h-full text-black print:hidden">
-        <form onSubmit={editInvoiceForm.handleSubmit(submitEdit)} className="h-[480px] modal-box flex flex-col gap-3 overflow-y-auto">
+        <form onSubmit={editInvoiceForm.handleSubmit(submitEdit)} className="h-[350px] modal-box flex flex-col gap-3 overflow-y-auto">
           <h3 className="text-lg font-bold">Edit invoice</h3>
           <div className="flex flex-row items-center gap-3">
             <label className="w-[70px]">Date</label>
             <input {...editInvoiceForm.register("date", { required: true })} type="date" className="input flex-1" />
           </div>
-          <div className="flex flex-row items-center gap-3">
+          <div className="flex flex-row items-center gap-3 hidden">
             <label className="w-[70px]">Pay Amount</label>
             <label className="input flex-1">
               <input {...editInvoiceForm.register('payAmount')} type="number" />
@@ -839,7 +839,7 @@ export default function Invoices() {
               <input {...editInvoiceForm.register('missing')} type="number" />
             </label>
           </div>
-          <div className="flex flex-row items-center gap-2">
+          <div className="flex flex-row items-center gap-2 hidden">
             <label className="w-[70px]">Paid</label>
             <select {...editInvoiceForm.register("paid")} className="select flex-1">
               <option value="false">false</option>

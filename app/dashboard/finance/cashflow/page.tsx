@@ -89,6 +89,7 @@ export default function CashflowReportPage() {
 
 	// Modal Add state
 	const [showModal, setShowModal] = useState(false);
+	const [addSaving, setAddSaving] = useState(false);
 	const [modalData, setModalData] = useState({
 		type: 'in', // 'in', 'out', 'initial'
 		amount: '',
@@ -101,6 +102,21 @@ export default function CashflowReportPage() {
 		cashVoucherId: '',
 		bankVoucherId: '',
 	});
+
+	function getInitialModalData(currentMode: string) {
+		return {
+			type: 'in',
+			amount: '',
+			reference: '',
+			date: new Date().toISOString().split('T')[0],
+			accountType: currentMode,
+			bankAccountId: '',
+			from: '',
+			to: '',
+			cashVoucherId: '',
+			bankVoucherId: '',
+		};
+	}
 
 	// Modal Edit state
 	const [showEditModal, setShowEditModal] = useState(false);
@@ -279,11 +295,15 @@ export default function CashflowReportPage() {
 
 	const handleAddSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!modalData.amount || Number(modalData.amount) <= 0) {
+			alert('Nominal harus diisi dan lebih dari 0');
+			return;
+		}
+		setAddSaving(true);
 		try {
 			const isInitial = modalData.type === 'initial';
 			const additional: any = isInitial ? {} : (modalData.type === 'out' ? { to: modalData.to } : { from: modalData.from });
-			const reference = isInitial && !modalData.reference ? `Saldo Awal-${selectedReference}` : modalData.reference;
-
+			const reference = isInitial && !modalData.reference ? `Saldo Awal-${selectedReference}` : `${modalData.reference}-${selectedReference}`;
 			const res = await fetch('/api/web/finance/reports/cashflow', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -291,9 +311,10 @@ export default function CashflowReportPage() {
 					masterAccountId,
 					accountType: modalData.accountType === 'cash' ? 'Cash' : 'Bank',
 					bankAccountId: modalData.accountType === 'bank' ? modalData.bankAccountId : null,
+					reference: modalData.accountType === 'bank' ? reference : modalData.reference,
+
 					type: modalData.type,
 					amount: Number(modalData.amount),
-					reference: reference,
 					date: modalData.date,
 					recordedBy: null,
 					cashVoucherId: modalData.accountType === 'cash' ? modalData.cashVoucherId : null,
@@ -306,11 +327,17 @@ export default function CashflowReportPage() {
 				alert(json.message);
 			}
 			else {
-				window.location.href = '/dashboard/finance/cashflow';
+				setShowModal(false);
+				setIsCashOut(false);
+				setSelectedReference('');
+				fetchCashflow();
 			}
 		}
 		catch (e: any) {
 			alert("Error: " + e.message);
+		}
+		finally {
+			setAddSaving(false);
 		}
 	};
 
@@ -467,7 +494,9 @@ export default function CashflowReportPage() {
 							<button
 								type="button"
 								onClick={() => {
-									setModalData({ ...modalData, accountType: mode });
+									setModalData(getInitialModalData(mode));
+									setIsCashOut(false);
+									setSelectedReference('');
 									setShowModal(true);
 								}}
 								className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-1.5"
@@ -667,7 +696,7 @@ export default function CashflowReportPage() {
 													</span>
 												</td>
 												<td className="p-3.5 font-medium text-slate-700">
-													{t.type === "initial" ? t.reference.split('-')[0] : t.reference}
+													{t.type === "initial" || t.type === "out" ? t.reference.split('-')[0] : t.reference}
 													{t.source === 'Manual Entry' && (t.cashVoucherNumber || t.bankVoucherNumber) && (
 														<span className="block text-[10px] text-slate-400 font-normal">
 															Voucher: {t.cashVoucherNumber || t.bankVoucherNumber}
@@ -680,7 +709,7 @@ export default function CashflowReportPage() {
 													)}
 												</td>
 												<td className="p-3.5 font-medium text-slate-600 capitalize whitespace-nowrap">
-													{t.type === 'initial' ? `${t.method} - ${t.reference.split('-')[1] || ''}` : t.method}
+													{t.type === 'initial' || t.type === "out" ? `${t.method} - ${t.reference.split('-')[1] || ''}` : t.method}
 												</td>
 												<td className="p-3.5 whitespace-nowrap">
 													{t.type === 'in' && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">IN</span>}
@@ -764,190 +793,197 @@ export default function CashflowReportPage() {
 
 					{/* Modal Edit Manual Entry */}
 					{showEditModal && (
-						<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-							<div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100">
-								<div className="px-6 py-5 border-b border-amber-100 bg-amber-50/60 flex items-center justify-between">
+						<div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-sm">
+							<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
+								{/* Header */}
+								<div className="px-4 py-3 border-b border-amber-100 bg-amber-50/60 flex items-center justify-between shrink-0">
 									<div className="flex items-center gap-2">
-										<span className="bg-amber-500 text-white rounded-lg p-1.5">
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+										<span className="bg-amber-500 text-white rounded-md p-1">
+											<svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
 												<path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
 											</svg>
 										</span>
-										<h2 className="text-lg font-bold text-slate-800">Edit Entri Manual</h2>
+										<h2 className="text-sm font-bold text-slate-800">Edit Entri Manual</h2>
 									</div>
 									<button
 										type="button"
 										onClick={() => setShowEditModal(false)}
-										className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors"
+										className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full transition-colors"
 									>
-										<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
 											<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
 										</svg>
 									</button>
 								</div>
 
-								<form onSubmit={handleEditSubmit} className="p-6 space-y-4">
-									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Jenis Aliran</label>
-										<select
-											required
-											value={editData.type}
-											onChange={(e) => setEditData({ ...editData, type: e.target.value })}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-										>
-											<option value="in">Uang Masuk (Cash In)</option>
-											<option value="out">Uang Keluar (Cash Out)</option>
-											<option value="initial">Saldo Awal</option>
-										</select>
-									</div>
+								<form onSubmit={handleEditSubmit} className="overflow-y-auto">
+									<div className="p-4 space-y-3">
+										{/* Jenis Aliran */}
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jenis Aliran</label>
+											<select
+												required
+												value={editData.type}
+												onChange={(e) => setEditData({ ...editData, type: e.target.value })}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+											>
+												<option value="in">Uang Masuk (Cash In)</option>
+												<option value="out">Uang Keluar (Cash Out)</option>
+												<option value="initial">Saldo Awal</option>
+											</select>
+										</div>
 
-									<div className="grid grid-cols-2 gap-4">
+										{/* Tipe Akun + Bank / Voucher */}
+										<div className="grid grid-cols-2 gap-3">
+											{editData.type !== 'initial' && (
+												<div>
+													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tipe Akun</label>
+													<select
+														value={editData.accountType}
+														onChange={(e) => setEditData({ ...editData, accountType: e.target.value })}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+													>
+														<option value="cash">Kas Tunai</option>
+														<option value="bank">Rekening Bank</option>
+													</select>
+												</div>
+											)}
+											{editData.accountType === 'bank' && (
+												<div className={editData.type === 'initial' ? 'col-span-2' : ''}>
+													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Pilih Bank</label>
+													<select
+														required
+														value={editData.bankAccountId}
+														onChange={(e) => setEditData({ ...editData, bankAccountId: e.target.value })}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+													>
+														<option value="">-- Pilih Bank --</option>
+														{bankAccounts.map(b => (
+															<option key={b._id} value={b._id}>{b.accountName} ({b.bank})</option>
+														))}
+													</select>
+												</div>
+											)}
+											{editData.type !== 'initial' && editData.accountType === 'cash' && (
+												<div>
+													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Cash Voucher</label>
+													<select
+														value={editData.cashVoucherId}
+														onChange={(e) => setEditData({ ...editData, cashVoucherId: e.target.value })}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+													>
+														<option value="">-- Tanpa Voucher --</option>
+														{cashVouchers
+															.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
+															.map(v => (
+																<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
+															))}
+													</select>
+												</div>
+											)}
+											{editData.type !== 'initial' && editData.accountType === 'bank' && (
+												<div>
+													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Bank Voucher</label>
+													<select
+														value={editData.bankVoucherId}
+														onChange={(e) => setEditData({ ...editData, bankVoucherId: e.target.value })}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+													>
+														<option value="">-- Tanpa Voucher --</option>
+														{bankVouchers
+															.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
+															.map(v => (
+																<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
+															))}
+													</select>
+												</div>
+											)}
+										</div>
+
+										{/* Nominal + Tanggal side by side */}
+										<div className="grid grid-cols-2 gap-3">
+											<div>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
+												<NumericFormat
+													thousandSeparator="."
+													decimalSeparator=","
+													decimalScale={0}
+													allowNegative={false}
+													value={editData.amount}
+													onValueChange={(values) => setEditData({ ...editData, amount: values.floatValue?.toString() ?? '' })}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-amber-400 bg-slate-50"
+													placeholder="Nominal"
+												/>
+											</div>
+											<div>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</label>
+												<input
+													type="date"
+													required
+													value={editData.date}
+													onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+												/>
+											</div>
+										</div>
+
+										{/* Referensi */}
 										{editData.type !== 'initial' && (
 											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tipe Akun</label>
-												<select
-													value={editData.accountType}
-													onChange={(e) => setEditData({ ...editData, accountType: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-												>
-													<option value="cash">Kas Tunai</option>
-													<option value="bank">Rekening Bank</option>
-												</select>
-											</div>
-										)}
-										{editData.accountType === 'bank' && (
-											<div className={editData.type === 'initial' ? 'col-span-2' : ''}>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Pilih Bank</label>
-												<select
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Referensi / Keterangan</label>
+												<input
+													type="text"
 													required
-													value={editData.bankAccountId}
-													onChange={(e) => setEditData({ ...editData, bankAccountId: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-												>
-													<option value="">-- Pilih Bank --</option>
-													{bankAccounts.map(b => (
-														<option key={b._id} value={b._id}>{b.accountName} ({b.bank})</option>
-													))}
-												</select>
-											</div>
-										)}
-
-										{editData.type !== 'initial' && editData.accountType === 'cash' && (
-											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Cash Voucher</label>
-												<select
-													value={editData.cashVoucherId}
-													onChange={(e) => setEditData({ ...editData, cashVoucherId: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-												>
-													<option value="">-- Tanpa Voucher --</option>
-													{cashVouchers
-														.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
-														.map(v => (
-															<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-														))}
-												</select>
-											</div>
-										)}
-
-										{editData.type !== 'initial' && editData.accountType === 'bank' && (
-											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Bank Voucher</label>
-												<select
-													value={editData.bankVoucherId}
-													onChange={(e) => setEditData({ ...editData, bankVoucherId: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-												>
-													<option value="">-- Tanpa Voucher --</option>
-													{bankVouchers
-														.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
-														.map(v => (
-															<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-														))}
-												</select>
-											</div>
-										)}
-									</div>
-
-									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nominal (Rp)</label>
-										<NumericFormat
-											thousandSeparator="."
-											decimalSeparator=","
-											decimalScale={2}
-											fixedDecimalScale
-											allowNegative={false}
-											value={editData.amount}
-											onValueChange={(values) => setEditData({ ...editData, amount: values.floatValue?.toString() ?? '' })}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-amber-400 bg-slate-50"
-											placeholder="Contoh: 150000"
-										/>
-									</div>
-
-									{editData.type !== 'initial' && (
-										<div>
-											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Referensi / Keterangan</label>
-											<input
-												type="text"
-												required
-												value={editData.reference}
-												onChange={(e) => setEditData({ ...editData, reference: e.target.value })}
-												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-												placeholder="Contoh: Bayar Listrik Bulan Ini"
-											/>
-										</div>
-									)}
-
-									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tanggal</label>
-										<input
-											type="date"
-											required
-											value={editData.date}
-											onChange={(e) => setEditData({ ...editData, date: e.target.value })}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-										/>
-									</div>
-
-									{editData.type !== 'initial' && (
-										editData.type === 'out' ? (
-											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
-												<input
-													type="text"
-													value={editData.to}
-													onChange={(e) => setEditData({ ...editData, to: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-													placeholder="Contoh: Ke Siapa"
+													value={editData.reference}
+													onChange={(e) => setEditData({ ...editData, reference: e.target.value })}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+													placeholder="Contoh: Bayar Listrik Bulan Ini"
 												/>
 											</div>
-										) : (
-											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
-												<input
-													type="text"
-													value={editData.from}
-													onChange={(e) => setEditData({ ...editData, from: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-amber-400 bg-slate-50"
-													placeholder="Contoh: Dari Siapa"
-												/>
-											</div>
-										)
-									)}
+										)}
 
-									<div className="pt-4 flex justify-end gap-3">
+										{/* Dari / Kepada */}
+										{editData.type !== 'initial' && (
+											editData.type === 'out' ? (
+												<div>
+													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Kepada</label>
+													<input
+														type="text"
+														value={editData.to}
+														onChange={(e) => setEditData({ ...editData, to: e.target.value })}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+														placeholder="Ke Siapa"
+													/>
+												</div>
+											) : (
+												<div>
+													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Dari</label>
+													<input
+														type="text"
+														value={editData.from}
+														onChange={(e) => setEditData({ ...editData, from: e.target.value })}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+														placeholder="Dari Siapa"
+													/>
+												</div>
+											)
+										)}
+									</div>
+
+									{/* Footer Buttons */}
+									<div className="px-4 py-3 border-t border-slate-100 bg-slate-50/60 flex justify-end gap-2 shrink-0">
 										<button
 											type="button"
 											onClick={() => setShowEditModal(false)}
 											disabled={editSaving}
-											className="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+											className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"
 										>
 											Batal
 										</button>
 										<button
 											type="submit"
 											disabled={editSaving}
-											className="px-6 py-2.5 rounded-xl text-white font-semibold shadow-md focus:outline-none transition-all active:scale-95 bg-amber-500 hover:bg-amber-600 shadow-amber-500/30 disabled:opacity-60 flex items-center gap-2"
+											className="px-5 py-2 rounded-lg text-xs text-white font-semibold bg-amber-500 hover:bg-amber-600 shadow-sm shadow-amber-500/30 disabled:opacity-60 flex items-center gap-1.5 transition-all active:scale-95"
 										>
 											{editSaving && <span className="loading loading-spinner loading-xs" />}
 											Simpan Perubahan
@@ -960,24 +996,24 @@ export default function CashflowReportPage() {
 
 					{/* Modal Catat Kas Manual */}
 					{showModal && (
-						<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-							<div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100">
-								<div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-									<h2 className="text-lg font-bold text-slate-800">Catat Kas (Manual)</h2>
+						<div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-sm">
+							<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
+								<div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+									<h2 className="text-sm font-bold text-slate-800">Catat Kas (Manual)</h2>
 									<button
 										type="button"
 										onClick={() => setShowModal(false)}
-										className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition-colors"
+										className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full transition-colors"
 									>
-										<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
 											<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
 										</svg>
 									</button>
 								</div>
 
-								<form onSubmit={handleAddSubmit} className="p-6 space-y-4">
+								<form onSubmit={handleAddSubmit} className="p-4 space-y-3">
 									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Jenis Aliran</label>
+										<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jenis Aliran</label>
 										<select
 											required
 											value={modalData.type}
@@ -985,7 +1021,7 @@ export default function CashflowReportPage() {
 												setModalData({ ...modalData, type: e.target.value });
 												onTransactionChange(e.target.value as 'in' | 'out' | 'initial');
 											}}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+											className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 										>
 											<option value="in">Uang Masuk (Cash In)</option>
 											<option value="out">Uang Keluar (Cash Out)</option>
@@ -993,15 +1029,15 @@ export default function CashflowReportPage() {
 										</select>
 									</div>
 
-									<div className="grid grid-cols-2 gap-4">
+									<div className="grid grid-cols-2 gap-3">
 										{modalData.type !== 'initial' && (
 											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tujuan/Sumber</label>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tipe Akun</label>
 												<select
 													required={modalData.type !== 'initial'}
 													value={modalData.accountType}
 													onChange={(e) => setModalData({ ...modalData, accountType: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												>
 													<option value="cash">Kas Tunai</option>
 													<option value="bank">Rekening Bank</option>
@@ -1010,14 +1046,14 @@ export default function CashflowReportPage() {
 										)}
 										{modalData.accountType === 'bank' && (
 											<div className={modalData.type === 'initial' ? 'col-span-2' : ''}>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Pilih Bank</label>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Pilih Bank</label>
 												<select
 													required
 													onChange={(e) => {
 														setModalData({ ...modalData, bankAccountId: e.target.value.split('-')[0] });
-														if (modalData.type === 'initial') setSelectedReference(e.target.value.split('-')[1]);
+														if (modalData.type === 'initial' || modalData.type === 'in' || modalData.type === 'out') setSelectedReference(e.target.value.split('-')[1]);
 													}}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												>
 													<option value="">-- Pilih Bank --</option>
 													{bankAccounts.map(b => (
@@ -1029,11 +1065,11 @@ export default function CashflowReportPage() {
 
 										{modalData.type !== 'initial' && modalData.accountType === 'cash' && (
 											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Cash Voucher</label>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Cash Voucher</label>
 												<select
 													value={modalData.cashVoucherId}
 													onChange={(e) => setModalData({ ...modalData, cashVoucherId: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												>
 													<option value="">-- Tanpa Voucher --</option>
 													{cashVouchers
@@ -1047,11 +1083,11 @@ export default function CashflowReportPage() {
 
 										{modalData.type !== 'initial' && modalData.accountType === 'bank' && (
 											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Bank Voucher</label>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Bank Voucher</label>
 												<select
 													value={modalData.bankVoucherId}
 													onChange={(e) => setModalData({ ...modalData, bankVoucherId: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												>
 													<option value="">-- Tanpa Voucher --</option>
 													{bankVouchers
@@ -1064,84 +1100,87 @@ export default function CashflowReportPage() {
 										)}
 									</div>
 
-									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Nominal (Rp)</label>
-										<NumericFormat
-											thousandSeparator="."
-											decimalSeparator=","
-											decimalScale={2}
-											fixedDecimalScale
-											allowNegative={false}
-											value={modalData.amount}
-											onValueChange={(values) => setModalData({ ...modalData, amount: values.floatValue?.toString() ?? "" })}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-indigo-500 bg-slate-50"
-											placeholder="Contoh: 150000"
-										/>
+									<div className="grid grid-cols-2 gap-3">
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
+											<NumericFormat
+												thousandSeparator="."
+												decimalSeparator=","
+												decimalScale={0}
+												allowNegative={false}
+												value={modalData.amount}
+												onValueChange={(values) => setModalData({ ...modalData, amount: values.floatValue?.toString() ?? "" })}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-indigo-500 bg-slate-50"
+												placeholder="Contoh: 150.000"
+											/>
+										</div>
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</label>
+											<input
+												type="date"
+												required
+												value={modalData.date}
+												onChange={(e) => setModalData({ ...modalData, date: e.target.value })}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+											/>
+										</div>
 									</div>
 
 									{modalData.type !== 'initial' && (
 										<div>
-											<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Referensi / Keterangan</label>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Referensi / Keterangan</label>
 											<input
 												type="text"
 												required={modalData.type !== 'initial'}
 												value={modalData.reference}
 												onChange={(e) => setModalData({ ...modalData, reference: e.target.value })}
-												className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												placeholder="Contoh: Bayar Listrik Bulan Ini"
 											/>
 										</div>
 									)}
 
-									<div>
-										<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Tanggal</label>
-										<input
-											type="date"
-											required
-											value={modalData.date}
-											onChange={(e) => setModalData({ ...modalData, date: e.target.value })}
-											className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
-										/>
-									</div>
-
 									{modalData.type !== 'initial' && (
 										isCashOut ? (
 											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Kepada</label>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Kepada</label>
 												<input
 													type="text"
 													value={modalData.to}
 													onChange={(e) => setModalData({ ...modalData, to: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 													placeholder="Contoh: Ke Siapa"
 												/>
 											</div>
 										) : (
 											<div>
-												<label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1.5">Dari</label>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Dari</label>
 												<input
 													type="text"
 													value={modalData.from}
 													onChange={(e) => setModalData({ ...modalData, from: e.target.value })}
-													className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-indigo-500 bg-slate-50"
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 													placeholder="Contoh: Dari Siapa"
 												/>
 											</div>
 										)
 									)}
 
-									<div className="pt-4 flex justify-end gap-3">
+									<div className="pt-2 flex justify-end gap-2">
 										<button
 											type="button"
 											onClick={() => setShowModal(false)}
-											className="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+											disabled={addSaving}
+											className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
 										>
 											Batal
 										</button>
 										<button
 											type="submit"
-											className="px-6 py-2.5 rounded-xl text-white font-semibold shadow-md focus:outline-none transition-all active:scale-95 bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30"
+											disabled={addSaving}
+											className="px-4 py-2 rounded-lg text-xs text-white font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-600/30 disabled:opacity-60 flex items-center gap-1.5 transition-all active:scale-95"
 										>
+											{addSaving && <span className="loading loading-spinner loading-xs" />}
 											Simpan Entri
 										</button>
 									</div>
@@ -1208,8 +1247,8 @@ export default function CashflowReportPage() {
 			{printVouchersList.length > 0 && (
 				<div className="hidden print:block">
 					{printVouchersList.map((pv, idx) => (
-						<div 
-							key={pv.voucher._id + idx} 
+						<div
+							key={pv.voucher._id + idx}
 							className={(idx + 1) % 2 === 0 && idx < printVouchersList.length - 1 ? 'break-after-page' : 'break-after-avoid'}
 							style={(idx + 1) % 2 === 0 && idx < printVouchersList.length - 1 ? { pageBreakAfter: 'always' } : {}}
 						>
