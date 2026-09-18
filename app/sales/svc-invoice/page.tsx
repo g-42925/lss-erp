@@ -412,6 +412,17 @@ export default function Invoices() {
   }
 
   function fTotal(invoice: any) {
+    function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number) {
+      if (invoice.missing < 1) return baseTotal
+      return baseTotal - baseTotal * (taxPercentage / 100)
+    }
+
+    function recalculatePPN() {
+
+    }
+
+
+
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
     const price = invoice?.price ?? invoice?.order?.price
     const qty = invoice?.qty ?? invoice?.order?.qty
@@ -422,8 +433,12 @@ export default function Invoices() {
     if (taxes) {
       taxes.forEach((tax: any) => {
         if (tax.isPPh) {
-          totalWithTax -= tax.taxValue;
-        } else {
+          const taxValue = tax.taxValue
+          const price = invoice.price
+          const taxPercentage = (taxValue / price) * 100
+          totalWithTax = recalculatePPH(invoice, taxPercentage, baseTotal)
+        }
+        else {
           totalWithTax += tax.taxValue;
         }
       });
@@ -729,15 +744,6 @@ export default function Invoices() {
                                     )}
                                     {s.order?.handledBy !== 'internal' && (
                                       <>
-                                        <button
-                                          className={s.vendorInvoiceNumber ? 'text-purple-600 hover:text-purple-800' : 'text-gray-400 hover:text-purple-700'}
-                                          onClick={() => openVendorInvoiceModal(s)}
-                                          title={s.vendorInvoiceNumber ? `Vendor Invoice: ${s.vendorInvoiceNumber}` : 'Assign Vendor Invoice'}
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                                          </svg>
-                                        </button>
                                         <button
                                           className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
                                           onClick={() => handleSyncDebt(s)}
@@ -1322,13 +1328,13 @@ export default function Invoices() {
                   {bankVouchers
                     .filter((v: any) => !voucherSearch || fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(voucherSearch.toLowerCase()))
                     .map((voucher: any) => (
-                    <tr key={voucher._id}>
-                      <td>{fixBySequence(voucher.voucherNumber, voucher.sequence)}</td>
-                      <td>{fDate(voucher.date)}</td>
-                      <td>{Number(voucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
-                      <td><button className="btn btn-sm" onClick={() => assignVoucher(voucher)}>Assign</button></td>
-                    </tr>
-                  ))}
+                      <tr key={voucher._id}>
+                        <td>{fixBySequence(voucher.voucherNumber, voucher.sequence)}</td>
+                        <td>{fDate(voucher.date)}</td>
+                        <td>{Number(voucher.total).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                        <td><button className="btn btn-sm" onClick={() => assignVoucher(voucher)}>Assign</button></td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

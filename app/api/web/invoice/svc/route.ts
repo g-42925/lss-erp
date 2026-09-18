@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Companie from "@/models/Companie";
 import Invoice from "@/models/Invoice";
 import ServiceOrder from "@/models/ServiceOrder";
+import Tax from "@/models/Tax";
 
 function formatNumber(x: number) {
   return String(x).padStart(4, "0");
@@ -181,13 +182,15 @@ export async function PUT(request: NextRequest) {
         }
       );
 
-      if (
-        existingInvoice.invoiceNumber === "xxx" ||
-        !existingInvoice.invoiceNumber
-      ) {
+      if (existingInvoice.invoiceNumber === "xxx" || !existingInvoice.invoiceNumber) {
         const invoiceCount = await Invoice.countDocuments({
-          companyId: company._id
+          invoiceType: { $ne: "vendor_manual" },
+          companyId: company._id,
         });
+
+        console.log({
+          invoiceCount
+        })
 
         existingInvoice.invoiceNumber = getInvoiceNumber(
           company.invoiceCode,
@@ -228,7 +231,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const invoiceCount = await Invoice.countDocuments({
-      companyId: company._id
+      companyId: company._id,
+      invoiceType: { $ne: "vendor_manual" },
     });
 
     const invoiceNumber = getInvoiceNumber(

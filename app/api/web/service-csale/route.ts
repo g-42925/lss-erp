@@ -129,7 +129,8 @@ async function createInvoice({
   taxes: Tax[];
 }) {
   const invoiceCount = await Invoice.countDocuments({
-    companyId: company._id
+    companyId: company._id,
+    invoiceType: { $ne: "vendor_manual" },
   });
 
   return Invoice.create({
@@ -889,9 +890,9 @@ export async function PUT(
         invoice.invoiceNumber === "xxx" ||
         !invoice.invoiceNumber
       ) {
-        const count =
-          await Invoice.countDocuments({
-            companyId: company._id
+        const count = await Invoice.countDocuments({
+            companyId: company._id,
+            invoiceType: { $ne: "vendor_manual" },
           });
 
         invoice.invoiceNumber =

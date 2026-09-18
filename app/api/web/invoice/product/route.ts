@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
 
     const invoiceCount = await Invoice.countDocuments({
       companyId: company._id,
+      invoiceType: { $ne: "vendor_manual" },
     })
 
     const now = new Date();
