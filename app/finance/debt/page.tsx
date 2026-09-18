@@ -574,7 +574,7 @@ export default function Debt() {
       return invoice.debt / invoice.qty * (invoice.qty - invoice.missing)
     })
 
-    return debts.reduce((sum, n) => sum + n, 0)
+    return debts.reduce((sum: number, n: number) => sum + n, 0)
   }
 
   useEffect(() => {
@@ -608,7 +608,7 @@ export default function Debt() {
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
-        <div clasRincian Hutang Invoice TerkaitsName="flex justify-between items-center gap-2">
+        <div className="flex justify-between items-center gap-2">
           <span className="page-title">Debts</span>
           <div className="flex gap-2">
             {filterType === 'vendor' && (
