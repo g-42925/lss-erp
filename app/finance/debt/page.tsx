@@ -630,7 +630,7 @@ export default function Debt() {
             <div className="flex flex-row gap-2 flex-wrap">
               {filterTabs.map(tab => (
                 <button
-                  Rincian Hutang Invoice Terkait key={tab.key}
+                  key={tab.key}
                   onClick={() => handleFilterChange(tab.key)}
                   className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${filterType === tab.key
                     ? 'bg-blue-900 text-white border-blue-900'
