@@ -412,12 +412,13 @@ export default function Invoices() {
   }
 
   function fTotal(invoice: any) {
-    function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number) {
-      if (invoice.missing < 1) return baseTotal
+    function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number, taxValue) {
+      if (invoice.missing < 1) return baseTotal - taxValue
       return baseTotal - baseTotal * (taxPercentage / 100)
     }
 
-    function recalculatePPN() {
+    function recalculatePPN(invoice: any, taxPercentage: number, baseTotal: number, taxValue) {
+      if (invoice.missing < 1) return baseTotal + taxValue
 
     }
 
@@ -436,10 +437,13 @@ export default function Invoices() {
           const taxValue = tax.taxValue
           const price = invoice.price
           const taxPercentage = (taxValue / price) * 100
-          totalWithTax = recalculatePPH(invoice, taxPercentage, baseTotal)
+          totalWithTax = recalculatePPH(invoice, taxPercentage, baseTotal, taxValue)
         }
         else {
-          totalWithTax += tax.taxValue;
+          const taxValue = tax.taxValue
+          const price = invoice.price
+          const taxPercentage = (taxValue / price) * 100
+          totalWithTax = recalculatePPN(invoice, taxPercentage, baseTotal, taxValue)
         }
       });
     }
@@ -1183,7 +1187,7 @@ export default function Invoices() {
               <thead>
                 <tr className="border-b-2 border-gray-200">
                   <th className="py-2 text-sm text-gray-600 uppercase">No</th>
-                  <th className="py-2 text-sm text-gray-600 uppercase">Nama Item</th>
+                  <th className="py-2 text-sm text-gray-600 uppercase">Product</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Price</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Qty</th>
                   <th className="py-2 text-sm text-gray-600 uppercase text-right">Amount</th>
@@ -1211,7 +1215,9 @@ export default function Invoices() {
                     selectedInvoice?.order?.contractType === "One Time" && selectedInvoice?.order?.frequency === "Once" ? (
                       <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(selectedInvoice?.price ?? selectedInvoice?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(selectedInvoice)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <>
+                        <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number((((selectedInvoice?.qty ?? selectedInvoice?.order?.qty) || 1) - (selectedInvoice?.missing || 0)) * ((selectedInvoice?.price ?? selectedInvoice?.order?.price) / (selectedInvoice?.qty ?? selectedInvoice?.order?.qty))).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      </>
                     )
                   }
                 </tr>
@@ -1234,7 +1240,7 @@ export default function Invoices() {
               <div className="w-1/2 flex flex-col justify-center">
                 {bankAccounts && bankAccounts.length > 0 && (
                   <div>
-                    {bankAccounts.map((acc: any, idx: number) => (
+                    {bankAccounts.filter((acc: any) => acc.main).map((acc: any, idx: number) => (
                       <div key={idx} className="flex flex-col py-1">
                         <span className="text-sm text-black">Pembayaran melalui transfer ke:</span>
                         <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} A/N {acc.accountName}</span>
@@ -1260,12 +1266,17 @@ export default function Invoices() {
                     const appliedTax = taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
                     const taxVal = appliedTax ? appliedTax.taxValue : 0;
                     const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
-                    return (
-                      <div key={idx} className="flex flex-row">
-                        <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
-                      </div>
-                    )
+                    if (appliedTax) {
+                      return (
+                        <div key={idx} className="flex flex-row">
+                          <span className="text-gray-700 text-sm">{tax.name}</span>
+                          <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
+                        </div>
+                      )
+                    }
+                    else {
+                      return <></>
+                    }
                   })
                   : <></>
                 }
@@ -1422,6 +1433,7 @@ export default function Invoices() {
               <div className="flex flex-col">
                 <span className="text-2xl font-bold">Invoice</span>
                 <span className="text-xl text-gray-500">No: {invoiceToPrint?.invoiceNumber}</span>
+                <span className="text-gray-500">Date: {invoiceToPrint?.date}</span>
                 {
                   invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
                     <span className="text-lg text-gray-500">Termin: {fTermin(invoiceToPrint)}</span>
@@ -1475,7 +1487,13 @@ export default function Invoices() {
                     invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
                       <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(invoiceToPrint?.price ?? invoiceToPrint?.order?.price).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
                     ) : (
-                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">{Number(fSubtotal(invoiceToPrint)).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</td>
+                      <td className="py-[5px] text-sm text-gray-800 text-right font-medium">
+                        {(
+                          (((invoiceToPrint?.qty ?? invoiceToPrint?.order?.qty) || 1) - (invoiceToPrint?.missing || 0)) *
+                          ((invoiceToPrint?.price ?? invoiceToPrint?.order?.price) || 0) /
+                          ((invoiceToPrint?.qty ?? invoiceToPrint?.order?.qty) || 1)
+                        ).toLocaleString('id-ID', { maximumFractionDigits: 0 })}
+                      </td>
                     )
                   }
                 </tr>
@@ -1495,7 +1513,7 @@ export default function Invoices() {
             {/* Totals + Bank accounts */}
             <div className="flex flex-row mt-3">
               <div className="w-7/12 flex flex-col justify-center bank-accounts-section pr-4">
-                {bankAccounts && bankAccounts.length > 0 && bankAccounts.map((acc: any, idx: number) => (
+                {bankAccounts && bankAccounts.length > 0 && bankAccounts.filter((acc: any) => acc.main).map((acc: any, idx: number) => (
                   <div key={idx} className="py-1">
                     <p className="text-sm text-black">Pembayaran melalui transfer ke:</p>
                     <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} A/N {acc.accountName}</span>
@@ -1517,14 +1535,18 @@ export default function Invoices() {
                   ? getTaxesFn.result.map((tax: any, idx: number) => {
                     const taxes = invoiceToPrint?.taxes ?? invoiceToPrint?.order?.taxes;
                     const appliedTax = taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
-                    const taxVal = appliedTax ? appliedTax.taxValue : 0;
-                    const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
-                    return (
-                      <div key={idx} className="flex flex-row">
-                        <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
-                      </div>
-                    )
+                    if (appliedTax) {
+                      const sign = appliedTax ? (tax.isPPh ? '-' : '+') : '';
+                      return (
+                        <div key={idx} className="flex flex-row">
+                          <span className="text-gray-700 text-sm">{tax.name}</span>
+                          <span className="text-gray-800 ml-auto text-sm">{`${sign}${appliedTax ? tax.value : 0}%`}</span>
+                        </div>
+                      )
+                    }
+                    else {
+                      return <></>
+                    }
                   })
                   : <></>
                 }

@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { Edit03Icon, StarIcon } from '@hugeicons/core-free-icons';
 
 const BANKS = [
   "BCA", "BRI", "BNI", "Mandiri", "CIMB Niaga", "Danamon",
@@ -55,6 +55,12 @@ export default function BankAccounts() {
     onError: (m) => alert(m),
   })
 
+  const patchFn = useFetch<any, any>({
+    url: "/api/web/bank-accounts",
+    method: "PATCH",
+    onError: (m) => alert(m),
+  })
+
   useEffect(() => {
     if (hasHydrated) {
       getFn.fn(`/api/web/bank-accounts?id=${masterAccountId}`, "{}", (result) => {
@@ -84,6 +90,16 @@ export default function BankAccounts() {
     if (!confirm("Delete this bank account?")) return
     await deleteFn.fn(`/api/web/bank-accounts?id=${_id}`, "{}", (result) => {
       setAccounts(accounts.filter((a) => a._id !== result))
+    })
+  }
+
+  async function setMainAccount(_id: string) {
+    if (!confirm("Tandai sebagai bank utama?")) return
+    await patchFn.fn("", JSON.stringify({ id: _id }), (result) => {
+      setAccounts(accounts.map((a) => ({
+        ...a,
+        main: a._id === _id
+      })));
     })
   }
 
@@ -161,6 +177,7 @@ export default function BankAccounts() {
                       <td className="text-gray-400 text-sm">{index + 1}</td>
                       <td>
                         <span className="font-semibold text-blue-900">{a.bank}</span>
+                        {a.main && <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full border border-blue-200">Utama</span>}
                       </td>
                       <td>
                         <span className="font-mono tracking-wider">{a.accountNumber}</span>
@@ -168,6 +185,14 @@ export default function BankAccounts() {
                       <td>{a.accountName}</td>
                       <td>
                         <div className="flex flex-row gap-2">
+                          <button
+                            title="Set as Main Bank"
+                            disabled={patchFn.loading}
+                            onClick={() => setMainAccount(a._id)}
+                            className={a.main ? "text-yellow-500" : "text-gray-400 hover:text-yellow-500"}
+                          >
+                            <HugeiconsIcon icon={StarIcon} size={24} color="currentColor" strokeWidth={1.5} />
+                          </button>
                           <button
                             id={`btn-edit-${a._id}`} onClick={() => openEdit(a)}>
                             <HugeiconsIcon

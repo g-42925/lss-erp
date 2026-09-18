@@ -114,3 +114,30 @@ export async function DELETE(request: NextRequest) {
     });
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  const body = await request.json();
+  const { id } = body;
+  try {
+    await connectToDatabase();
+    const account = await BankAccount.findById(id);
+    if (!account) throw new Error("Account not found");
+
+    await BankAccount.updateMany({ addedBy: account.addedBy }, { main: false });
+    const updated = await BankAccount.findByIdAndUpdate(id, { main: true }, { new: true });
+
+    return NextResponse.json({
+      noResult: false,
+      message: "",
+      result: updated,
+      error: false,
+    });
+  } catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: e instanceof Error ? e.message : "Something went wrong",
+      result: null,
+      error: true,
+    });
+  }
+}

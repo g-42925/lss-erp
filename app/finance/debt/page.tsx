@@ -565,6 +565,18 @@ export default function Debt() {
     }
   }
 
+  function recalculateDebt(invoice: any, debt: number) {
+    return debt / invoice.qty * (invoice.qty - invoice.missing)
+  }
+
+  function calculateTotalVendorAmount(invoices: any) {
+    const debts = invoices.map((invoice: any) => {
+      return invoice.debt / invoice.qty * (invoice.qty - invoice.missing)
+    })
+
+    return debts.reduce((sum, n) => sum + n, 0)
+  }
+
   useEffect(() => {
     if (hasHydrated) {
       const bankUrl = `/api/web/bank-accounts?id=${masterAccountId}`
@@ -596,7 +608,7 @@ export default function Debt() {
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
-        <div className="flex justify-between items-center gap-2">
+        <div clasRincian Hutang Invoice TerkaitsName="flex justify-between items-center gap-2">
           <span className="page-title">Debts</span>
           <div className="flex gap-2">
             {filterType === 'vendor' && (
@@ -618,7 +630,7 @@ export default function Debt() {
             <div className="flex flex-row gap-2 flex-wrap">
               {filterTabs.map(tab => (
                 <button
-                  key={tab.key}
+                  Rincian Hutang Invoice Terkait key={tab.key}
                   onClick={() => handleFilterChange(tab.key)}
                   className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${filterType === tab.key
                     ? 'bg-blue-900 text-white border-blue-900'
@@ -813,7 +825,7 @@ export default function Debt() {
                   allowNegative={false}
                   value={payFormData.payAmount}
                   onValueChange={(values) => {
-                    // if empty string, floatValue is undefined
+                    // if empty string, floatValue is un defined
                     setPayFormData(p => ({ ...p, payAmount: values.floatValue ?? "" }))
                   }}
                   className="input w-full"
@@ -1244,7 +1256,7 @@ export default function Debt() {
                             <td className="font-medium">{inv.invoiceNumber}</td>
                             <td>{inv.description || '-'}</td>
                             <td className="text-right font-semibold">
-                              {inv.debt?.toLocaleString('id-ID')}
+                              {recalculateDebt(inv, inv.debt)?.toLocaleString('id-ID')}
                             </td>
                           </tr>
                         ))
@@ -1260,14 +1272,14 @@ export default function Debt() {
                       <tr>
                         <td colSpan={3} className="text-right py-3">Total Hutang Akumulatif:</td>
                         <td className="text-right text-red-600 text-base py-3">
-                          Rp {selectedDebt.totalVendorAmount?.toLocaleString('id-ID')}
+                          Rp {Number(calculateTotalVendorAmount(selectedDebt.relatedInvoices)).toLocaleString('id-ID')}
                         </td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
 
-                {selectedDebt.debt !== selectedDebt.totalVendorAmount && (
+                {selectedDebt.debt !== calculateTotalVendorAmount(selectedDebt.relatedInvoices) && (
                   <div className="alert alert-warning text-sm shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                     <span><strong>Perhatian:</strong> Terdapat selisih antara nominal tagihan dan total hutang akumulatif!</span>

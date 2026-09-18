@@ -495,7 +495,7 @@ export default function Invoices() {
               <div className="w-1/2 flex flex-col justify-center">
                 {bankAccounts && bankAccounts.length > 0 && (
                   <div className="">
-                    {bankAccounts.map((acc: any, idx: number) => (
+                    {bankAccounts.filter((acc: any) => acc.main).map((acc: any, idx: number) => (
                       <div key={idx} className="flex items-center py-1">
                         <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} ({acc.accountName}) </span>
                       </div>
@@ -677,7 +677,7 @@ export default function Invoices() {
             {/* Totals + Bank accounts */}
             <div className="flex flex-row mt-6">
               <div className="w-1/2 flex flex-col justify-center bank-accounts-section">
-                {bankAccounts && bankAccounts.length > 0 && bankAccounts.map((acc: any, idx: number) => (
+                {bankAccounts && bankAccounts.length > 0 && bankAccounts.filter((acc: any) => acc.main).map((acc: any, idx: number) => (
                   <div key={idx} className="py-1">
                     <span className="text-sm text-black">{acc.bank} · {acc.accountNumber} ({acc.accountName})</span>
                   </div>

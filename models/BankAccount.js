@@ -6,6 +6,7 @@ const BankAccountSchema = new mongoose.Schema(
     accountNumber: { type: String, required: true },
     accountName: { type: String, required: true },
     addedBy: { type: mongoose.Schema.Types.ObjectId, required: true },
+    main: { type: Boolean, default: false }
   },
   {
     timestamps: true
