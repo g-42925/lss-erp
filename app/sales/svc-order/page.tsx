@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/utils"
 
 import { useRouter, useSearchParams } from 'next/navigation'
 
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from "react-hook-form";
 import { useRef, useEffect, useState, useMemo, Suspense } from 'react'
 import { ContractsIcon } from '@hugeicons/core-free-icons'
 import { AddInvoiceIcon } from '@hugeicons/core-free-icons';
@@ -773,13 +773,34 @@ function XOrderContent() {
               {/* Price */}
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[110px] text-sm font-medium">Price</label>
-                <input
-                  {...directOrderForm.register("price")}
-                  type="number"
-                  placeholder="Service price"
-                  className="input flex-1"
-                  required
+                <Controller
+                  control={directOrderForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <NumericFormat
+                      value={field.value}
+                      onValueChange={(values) => field.onChange(values.floatValue ?? "")}
+                      thousandSeparator="."
+                      decimalSeparator=","
+                      decimalScale={0}
+                      allowNegative={false}
+                      placeholder="Service price"
+                      className="input flex-1"
+                    />
+                  )}
                 />
+                {
+                  /*
+                    <input
+                      {...directOrderForm.register("price")}
+                      type="number"
+                      placeholder="Service price"
+                      className="input flex-1"
+                      required
+                    />
+                  */
+                }
+
               </div>
 
               {/* Handled By */}
@@ -1422,7 +1443,21 @@ function XOrderContent() {
 
           <div className="flex flex-row items-center gap-3">
             <label className="w-[110px] text-sm font-medium">Price</label>
-            <input {...editOrderForm.register("price")} type="number" className="input flex-1" />
+            <Controller
+              control={editOrderForm.control}
+              name="price"
+              render={({ field }) => (
+                <NumericFormat
+                  value={field.value ?? ""}
+                  onValueChange={({ floatValue }) => field.onChange(floatValue ?? 0)}
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  decimalScale={0}
+                  allowNegative={false}
+                  className="input flex-1"
+                />
+              )}
+            />
           </div>
 
           <div className="flex flex-row items-center gap-3">

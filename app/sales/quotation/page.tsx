@@ -12,6 +12,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import Swal from "sweetalert2"
 import { formatDate } from "@/lib/utils"
+import { usePermission } from "@/hooks/usePermission"
 
 export default function QuotationList() {
   return (
@@ -25,6 +26,7 @@ function QuotationListContent() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const { canCreate, canEdit, canDelete } = usePermission()
 
   const [quotations, setQuotations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -229,13 +231,15 @@ function QuotationListContent() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Quotations</h1>
 
-        <Link
-          href="/sales/quotation/create"
-          className="btn btn-primary"
-        >
-          <HugeiconsIcon icon={AddCircleHalfDotIcon} />
-          Create Quotation
-        </Link>
+        {canCreate("/sales/quotation") && (
+          <Link
+            href="/sales/quotation/create"
+            className="btn btn-primary"
+          >
+            <HugeiconsIcon icon={AddCircleHalfDotIcon} />
+            Create Quotation
+          </Link>
+        )}
       </div>
 
       {/* Filter */}
@@ -330,23 +334,27 @@ function QuotationListContent() {
 
                 <td>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => openCopyModal(quo)}
-                      className="btn btn-sm btn-outline btn-secondary"
-                    >
-                      Salin
-                    </button>
+                    {canCreate("/sales/quotation") && (
+                      <button
+                        onClick={() => openCopyModal(quo)}
+                        className="btn btn-sm btn-outline btn-secondary"
+                      >
+                        Salin
+                      </button>
+                    )}
 
-                    <Link
-                      href={`/sales/quotation/edit/${quo._id}`}
-                      className="btn btn-sm btn-outline btn-warning"
-                    >
-                      <HugeiconsIcon
-                        icon={Edit03Icon}
-                        size={16}
-                      />
-                      Edit
-                    </Link>
+                    {canEdit("/sales/quotation") && (
+                      <Link
+                        href={`/sales/quotation/edit/${quo._id}`}
+                        className="btn btn-sm btn-outline btn-warning"
+                      >
+                        <HugeiconsIcon
+                          icon={Edit03Icon}
+                          size={16}
+                        />
+                        Edit
+                      </Link>
+                    )}
 
                     <Link
                       href={`/sales/quotation/print/${quo._id}`}
@@ -355,15 +363,17 @@ function QuotationListContent() {
                       Print/Preview
                     </Link>
 
-                    <button
-                      onClick={() => handleDelete(quo._id)}
-                      className="btn btn-sm btn-outline btn-error"
-                    >
-                      <HugeiconsIcon
-                        icon={Delete01Icon}
-                        size={16}
-                      />
-                    </button>
+                    {canDelete("/sales/quotation") && (
+                      <button
+                        onClick={() => handleDelete(quo._id)}
+                        className="btn btn-sm btn-outline btn-error"
+                      >
+                        <HugeiconsIcon
+                          icon={Delete01Icon}
+                          size={16}
+                        />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

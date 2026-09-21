@@ -413,14 +413,14 @@ export default function Invoices() {
 
   function fTotal(invoice: any) {
     function recalculatePPH(invoice: any, taxPercentage: number, baseTotal: number, taxValue: number) {
-      if (invoice.missing < 1) return baseTotal - taxValue
-      return baseTotal - (baseTotal * (taxPercentage / 100))
+      if (invoice.missing < 1) return taxValue
+      return baseTotal * (taxPercentage / 100)
     }
 
     function recalculatePPN(invoice: any, taxPercentage: number, baseTotal: number, taxValue: number) {
-      if (invoice.missing < 1) return baseTotal + taxValue
-      return baseTotal + (baseTotal * (taxPercentage / 100))
+      if (invoice.missing < 1) return taxValue
 
+      return baseTotal * (taxPercentage / 100)
     }
 
     const isOneTimeService = invoice?.order?.contractType === "One Time" && invoice?.order?.frequency === "Once"
@@ -436,13 +436,13 @@ export default function Invoices() {
           const taxValue = tax.taxValue
           const price = invoice.price
           const taxPercentage = (taxValue / price) * 100
-          totalWithTax = recalculatePPH(invoice, taxPercentage, baseTotal, taxValue)
+          totalWithTax -= recalculatePPH(invoice, taxPercentage, baseTotal, taxValue)
         }
         else {
           const taxValue = tax.taxValue
           const price = invoice.price
           const taxPercentage = (taxValue / price) * 100
-          totalWithTax = recalculatePPN(invoice, taxPercentage, baseTotal, taxValue)
+          totalWithTax += recalculatePPN(invoice, taxPercentage, baseTotal, taxValue)
         }
       });
     }

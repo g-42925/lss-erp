@@ -941,47 +941,6 @@ function Purchases() {
                                   filterType !==
                                   "product" && (
                                     <div className="flex flex-row justify-center gap-2">
-                                      {filterType ===
-                                        "procurement" && (
-                                          <>
-                                            <button
-                                              className="text-green-600"
-                                              onClick={() =>
-                                                approve(
-                                                  purchase._id
-                                                )
-                                              }
-                                              title="Approve"
-                                            >
-                                              <HugeiconsIcon
-                                                icon={
-                                                  CheckmarkCircle01Icon
-                                                }
-                                                size={24}
-                                                color="currentColor"
-                                              />
-                                            </button>
-
-                                            <button
-                                              className="text-red-600"
-                                              onClick={() =>
-                                                reject(
-                                                  purchase._id
-                                                )
-                                              }
-                                              title="Reject"
-                                            >
-                                              <HugeiconsIcon
-                                                icon={
-                                                  MultiplicationSignIcon
-                                                }
-                                                size={24}
-                                                color="currentColor"
-                                              />
-                                            </button>
-                                          </>
-                                        )}
-
                                       <button
                                         className="text-blue-600"
                                         onClick={() =>

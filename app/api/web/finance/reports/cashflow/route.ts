@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
 		const startDate = url.searchParams.get("startDate");
 		const endDate = url.searchParams.get("endDate");
 		const bankAccountId = url.searchParams.get("bankAccountId");
-
 		const search = url.searchParams.get("search")?.trim().toLowerCase() || "";
 
 		if (!id) {
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		const company = await Companie.findOne({ masterAccountId: id });
+		const company = await Companie.findOne({ masterAccountId: id }).lean();
 		if (!company) {
 			return NextResponse.json({
 				noResult: true,
@@ -47,22 +46,12 @@ export async function GET(request: NextRequest) {
 
 		const bankAccounts = await BankAccount.find({ addedBy: company._id }).lean();
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const allTransactions: any[] = [];
-
-		// Helper to check if a method is cash or bank
 		const isCashMethod = (method: string) => {
 			if (!method) return false;
 			const m = method.toLowerCase();
 			return m.includes('cash') || m === 'tunai';
 		};
 
-		/**
-		 * For non-initial transactions, method field has format: "BankName - AccountNumber"
-		 * Extract account number by splitting on " - " and taking index 1.
-		 * If a specific bankAccountId is selected, match by account number.
-		 * If no specific bank (Semua Bank), just check that method contains " - " pattern (bank format).
-		 */
 		const extractAccountNumberFromMethod = (method: string): string => {
 			if (!method) return '';
 			const parts = method.split(' - ');
@@ -72,22 +61,17 @@ export async function GET(request: NextRequest) {
 		const isBankMethod = (method: string, targetAccountNumber?: string) => {
 			if (!method) return false;
 			if (targetAccountNumber) {
-				// Match by account number extracted from method
-				const extracted = extractAccountNumberFromMethod(method);
-				return extracted === targetAccountNumber;
+				return extractAccountNumberFromMethod(method) === targetAccountNumber;
 			}
-			// Semua Bank: method must have the "bank - accountNumber" format
 			return method.includes(' - ');
 		};
 
-		// Pre-resolve target bank's account number once
 		let targetAccountNumber: string | undefined = undefined;
 		if (mode === 'bank' && bankAccountId) {
 			const targetBank = bankAccounts.find(b => b._id.toString() === bankAccountId);
 			targetAccountNumber = targetBank?.accountNumber;
 		}
 
-		// Date filtering if provided
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let dateFilter: any = {};
 		if (startDate || endDate) {
@@ -102,72 +86,93 @@ export async function GET(request: NextRequest) {
 			dateFilter = df;
 		}
 
-		// 1. Fetch Invoices (Money IN)
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const invoiceQuery: any = {
+		// 1. Fetch Invoices
+		const invoices = await Invoice.find({
 			companyId: company._id,
 			paymentHistory: { $exists: true, $not: { $size: 0 } }
-		};
-		const invoices = await Invoice.find(invoiceQuery).populate('salesOrderId').lean();
+		}).lean();
 
+		// OPTIMASI: Kumpulkan semua kunci pencarian untuk Batch Fetching
+		const salesOrderNumbers = Array.from(new Set(invoices.map(i => i.salesOrderNumber).filter(Boolean)));
+
+		// Kumpulkan voucherId yang dibutuhkan
+		const cashVoucherIds: string[] = [];
+		const bankVoucherIds: string[] = [];
+
+		invoices.forEach(inv => {
+			inv.paymentHistory?.forEach((p: any) => {
+				if (!p.reverted && !p.voucherNumber && p.voucherId) {
+					if (mode === 'cash') cashVoucherIds.push(p.voucherId);
+					else bankVoucherIds.push(p.voucherId);
+				}
+			});
+		});
+
+		// Jalankan Query Pendukung secara Pararel (Batch Processing)
+		const [orders, serviceOrders, cashVouchers, bankVouchers] = await Promise.all([
+			Order.find({ salesOrderNumber: { $in: salesOrderNumbers } }).lean(),
+			ServiceOrder.find({ salesOrderNumber: { $in: salesOrderNumbers } }).lean(),
+			cashVoucherIds.length ? CashVoucher.find({ _id: { $in: cashVoucherIds } }).select('voucherNumber sequence').lean() : [],
+			bankVoucherIds.length ? BankVoucher.find({ _id: { $in: bankVoucherIds } }).select('voucherNumber sequence').lean() : []
+		]);
+
+		// Kumpulkan Customer ID
+		const customerIds = Array.from(new Set([
+			...orders.map(o => o.customerId).filter(Boolean),
+			...serviceOrders.map(s => s.customerId).filter(Boolean)
+		]));
+
+		const customers = customerIds.length
+			? await Customer.find({ _id: { $in: customerIds } }).select('bussinessName name').lean()
+			: [];
+
+		// Buat Map di Memory untuk lookup Instan (O(1) time complexity)
+		const orderMap = new Map([...orders, ...serviceOrders].map(o => [o.salesOrderNumber, o]));
+		const customerMap = new Map(customers.map(c => [c._id.toString(), c.bussinessName || c.name]));
+		const cashVoucherMap = new Map(cashVouchers.map(v => [v._id.toString(), v]));
+		const bankVoucherMap = new Map(bankVouchers.map(v => [v._id.toString(), v]));
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const allTransactions: any[] = [];
+
+		// Olah Invoices di Memory (Tanpa query DB lagi)
 		for (const inv of invoices) {
 			if (!inv.paymentHistory) continue;
+
+			const order = orderMap.get(inv.salesOrderNumber);
+			let fromName = 'Customer';
+			if (order) {
+				if (order.customCustomer?.name) {
+					fromName = order.customCustomer.name;
+				} else if (order.customerId) {
+					fromName = customerMap.get(order.customerId.toString()) || fromName;
+				}
+			}
 
 			for (const payment of inv.paymentHistory) {
 				if (payment.reverted) continue;
 
-				// search related order
-				let order = await Order.findOne({ salesOrderNumber: inv.salesOrderNumber });
-				if (!order) {
-					order = await ServiceOrder.findOne({ salesOrderNumber: inv.salesOrderNumber });
-				}
-
-				let fromName = 'Customer';
-				if (order) {
-					if (order.customCustomer?.name) {
-						fromName = order.customCustomer.name;
-					} else if (order.customerId) {
-						const customer = await Customer.findById(order.customerId);
-						if (customer) {
-							fromName = customer.bussinessName || customer.name || fromName;
-						}
-					}
-				}
-
-				// Apply date filter
 				const paymentDate = new Date(payment.date);
 				if (dateFilter && Object.keys(dateFilter).length > 0) {
 					if (dateFilter.$gte && paymentDate < dateFilter.$gte) continue;
 					if (dateFilter.$lte && paymentDate > dateFilter.$lte) continue;
 				}
 
-				let include = false;
 				const pMethod = payment.method || '';
-
-				if (mode === 'cash') {
-					include = isCashMethod(pMethod);
-				} else {
-					// Non-initial: filter by account number extracted from method (format: "bank - accountNumber")
-					include = isBankMethod(pMethod, targetAccountNumber);
-				}
+				const include = mode === 'cash'
+					? isCashMethod(pMethod)
+					: isBankMethod(pMethod, targetAccountNumber);
 
 				if (include) {
 					let fetchedVoucherNumber = payment.voucherNumber ?? null;
 					let fetchedSequence = undefined;
-					
+
 					if (!fetchedVoucherNumber && payment.voucherId) {
-						if (mode === 'cash') {
-							const cv = await CashVoucher.findById(payment.voucherId).select('voucherNumber sequence').lean();
-							if (cv) {
-								fetchedVoucherNumber = cv.voucherNumber;
-								fetchedSequence = cv.sequence;
-							}
-						} else {
-							const bv = await BankVoucher.findById(payment.voucherId).select('voucherNumber sequence').lean();
-							if (bv) {
-								fetchedVoucherNumber = bv.voucherNumber;
-								fetchedSequence = bv.sequence;
-							}
+						const voucherMap = mode === 'cash' ? cashVoucherMap : bankVoucherMap;
+						const v = voucherMap.get(payment.voucherId.toString());
+						if (v) {
+							fetchedVoucherNumber = v.voucherNumber;
+							fetchedSequence = v.sequence;
 						}
 					}
 
@@ -189,37 +194,31 @@ export async function GET(request: NextRequest) {
 			}
 		}
 
-		// 2. Fetch Logs for Purchases (Money OUT)
+		// 2. Fetch Purchases & Logs (Pararel Query)
 		const purchases = await Purchase.find({ companyId: company._id }).select('_id purchaseOrderNumber').lean();
 		const purchaseIds = purchases.map((p) => p._id);
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const logQuery: any = { purchaseId: { $in: purchaseIds }, amount: { $gt: 0 } };
-		if (Object.keys(dateFilter).length > 0) {
-			logQuery.date = dateFilter;
-		}
+		if (Object.keys(dateFilter).length > 0) logQuery.date = dateFilter;
 
 		const logs = await Log.find(logQuery).lean();
+		const purchaseMap = new Map(purchases.map(p => [p._id.toString(), p.purchaseOrderNumber]));
 
 		logs.forEach((log) => {
 			const pMethod = log.paymentMethod || '';
-			let include = false;
-
-			if (mode === 'cash') {
-				include = isCashMethod(pMethod);
-			} else {
-				// Non-initial: filter by account number extracted from method (format: "bank - accountNumber")
-				include = isBankMethod(pMethod, targetAccountNumber);
-			}
+			const include = mode === 'cash'
+				? isCashMethod(pMethod)
+				: isBankMethod(pMethod, targetAccountNumber);
 
 			if (include) {
-				const relatedPurchase = purchases.find(p => p._id.toString() === log.purchaseId.toString());
+				const poNumber = purchaseMap.get(log.purchaseId.toString());
 				allTransactions.push({
 					_id: log._id.toString(),
 					date: log.date,
 					amount: log.type === 'adjustment' ? log.amount : Math.abs(log.amount),
 					method: log.paymentMethod,
-					reference: (log.paymentNumber || '') + (relatedPurchase ? ` (${relatedPurchase.purchaseOrderNumber})` : ''),
+					reference: (log.paymentNumber || '') + (poNumber ? ` (${poNumber})` : ''),
 					source: 'Purchase Payment',
 					type: 'out',
 					to: log.to?.name
@@ -238,16 +237,14 @@ export async function GET(request: NextRequest) {
 				manualQuery.bankAccountId = new mongoose.Types.ObjectId(bankAccountId);
 			}
 		}
-
-		if (Object.keys(dateFilter).length > 0) {
-			manualQuery.date = dateFilter;
-		}
+		if (Object.keys(dateFilter).length > 0) manualQuery.date = dateFilter;
 
 		const manualLogs = await Cashflow.find(manualQuery)
-			.populate('bankAccountId')
-			.populate('cashVoucherId')
-			.populate('bankVoucherId')
+			.populate('bankAccountId', 'bank')
+			.populate('cashVoucherId', 'voucherNumber')
+			.populate('bankVoucherId', 'voucherNumber')
 			.lean();
+
 		manualLogs.forEach(entry => {
 			let methodName = 'Cash';
 			if (entry.accountType === 'Bank') {
@@ -262,7 +259,7 @@ export async function GET(request: NextRequest) {
 				method: methodName,
 				reference: entry.reference,
 				source: 'Manual Entry',
-				type: entry.type, // 'in', 'out', or 'initial'
+				type: entry.type,
 				from: entry.from,
 				to: entry.to,
 				cashVoucherId: entry.cashVoucherId ? (entry.cashVoucherId as any)._id : null,
@@ -272,30 +269,23 @@ export async function GET(request: NextRequest) {
 			});
 		});
 
+		// 4. Filtering Search & Sorting
+		let finalTransactions = allTransactions;
 		if (search) {
-			const keyword = search.toLowerCase();
-
-			const matchesSearch = (value: unknown) =>
-				String(value || '').toLowerCase().includes(keyword);
-
-			const filteredTransactions = allTransactions.filter(t =>
-				matchesSearch(t.from) ||
-				matchesSearch(t.to) ||
-				matchesSearch(t.reference)
+			finalTransactions = allTransactions.filter(t =>
+				String(t.from || '').toLowerCase().includes(search) ||
+				String(t.to || '').toLowerCase().includes(search) ||
+				String(t.reference || '').toLowerCase().includes(search)
 			);
-
-			allTransactions.length = 0;
-			allTransactions.push(...filteredTransactions);
 		}
 
-		// 4. Sort and Calculate Summaries
-		allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+		finalTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
 		let totalIn = 0;
 		let totalOut = 0;
 		let initialBalance = 0;
 
-		allTransactions.forEach(t => {
+		finalTransactions.forEach(t => {
 			if (t.type === 'in') totalIn += t.amount;
 			else if (t.type === 'out') totalOut += t.amount;
 			else if (t.type === 'initial') initialBalance += t.amount;
@@ -304,10 +294,10 @@ export async function GET(request: NextRequest) {
 		const netCashflow = totalIn - totalOut;
 
 		return NextResponse.json({
-			noResult: allTransactions.length === 0,
+			noResult: finalTransactions.length === 0,
 			message: "success",
 			result: {
-				transactions: allTransactions,
+				transactions: finalTransactions,
 				summary: {
 					totalIn,
 					totalOut,
@@ -326,124 +316,6 @@ export async function GET(request: NextRequest) {
 			message: e instanceof Error ? e.message : "Something went wrong",
 			result: null,
 			error: true,
-		});
-	}
-}
-
-export async function PUT(request: NextRequest) {
-	try {
-		await connectToDatabase();
-
-		const body = await request.json();
-		const { id, masterAccountId, accountType, bankAccountId, type, amount, reference, date, from, to, cashVoucherId, bankVoucherId } = body;
-
-		if (!id || !masterAccountId) {
-			return NextResponse.json({
-				noResult: true,
-				message: "Missing id or masterAccountId",
-				error: true
-			});
-		}
-
-		const company = await Companie.findOne({ masterAccountId });
-		if (!company) return NextResponse.json({
-			noResult: true,
-			message: "Company not found",
-			error: true
-		});
-
-		const entry = await Cashflow.findOne({ _id: id, companyId: company._id });
-		if (!entry) return NextResponse.json({
-			noResult: true,
-			message: "Entry not found",
-			error: true
-		});
-
-		// Update fields
-		if (accountType !== undefined) entry.accountType = accountType;
-		if (bankAccountId !== undefined) entry.bankAccountId = bankAccountId || null;
-		if (type !== undefined) entry.type = type;
-		if (amount !== undefined) entry.amount = Number(amount);
-		if (reference !== undefined) entry.reference = reference;
-		if (date !== undefined) entry.date = new Date(date);
-		if (from !== undefined) entry.from = from;
-		if (to !== undefined) entry.to = to;
-		if (cashVoucherId !== undefined) entry.cashVoucherId = cashVoucherId || null;
-		if (bankVoucherId !== undefined) entry.bankVoucherId = bankVoucherId || null;
-
-		await entry.save();
-
-		return NextResponse.json({
-			noResult: false,
-			message: "Cashflow entry updated successfully",
-			result: entry,
-			error: false
-		});
-	}
-	catch (e: unknown) {
-		console.error("Cashflow PUT Error:", e);
-		return NextResponse.json({
-			noResult: true,
-			message: e instanceof Error ? e.message : "Something went wrong",
-			error: true
-		});
-	}
-}
-
-export async function POST(request: NextRequest) {
-	try {
-		await connectToDatabase();
-
-		const body = await request.json();
-
-		const { masterAccountId, accountType, bankAccountId, type, amount, reference, date, recordedBy, additional, cashVoucherId, bankVoucherId } = body;
-
-		if (!masterAccountId || !accountType || !type || amount === undefined || !reference) {
-			return NextResponse.json({
-				noResult: true,
-				message: "Missing required fields",
-				error: true
-			});
-		}
-
-		const company = await Companie.findOne({ masterAccountId });
-
-		if (!company) return NextResponse.json({
-			noResult: true,
-			message: "Company not found",
-			error: true
-		});
-
-		const newEntry = new Cashflow({
-			companyId: company._id,
-			accountType,
-			bankAccountId: bankAccountId || null,
-			type,
-			amount,
-			reference,
-			date: date || new Date(),
-			recordedBy: recordedBy || null,
-			cashVoucherId: cashVoucherId || null,
-			bankVoucherId: bankVoucherId || null,
-			...additional
-		});
-
-		await newEntry.save();
-
-		return NextResponse.json({
-			noResult: false,
-			message: "Cashflow entry added successfully",
-			result: newEntry,
-			error: false
-		});
-
-	}
-	catch (e: unknown) {
-		console.error("Cashflow POST Error:", e);
-		return NextResponse.json({
-			noResult: true,
-			message: e instanceof Error ? e.message : "Something went wrong",
-			error: true
 		});
 	}
 }

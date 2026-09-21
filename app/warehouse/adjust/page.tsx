@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
+import { usePermission } from "@/hooks/usePermission"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Warehouse = { _id: string; name: string; code: string }
@@ -48,6 +49,7 @@ export default function AdjustmentsPage() {
   const loggedIn = useAuth((s) => s.loggedIn)
   const masterAccountId = useAuth((s) => s.masterAccountId)
   const userId = useAuth((s) => s.userId)
+  const { canCreate, canEdit } = usePermission()
 
   // ── Data state ──
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -348,17 +350,19 @@ export default function AdjustmentsPage() {
           </div>
           <p className="ml-13 text-sm text-slate-500">Pencatatan penyusutan/penyesuaian stok gudang</p>
         </div>
-        <button
-          id="btn-add-adjust-item"
-          onClick={openAddModal}
-          disabled={!warehouseId}
-          className="flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-200 transition-all hover:bg-orange-700 active:scale-95 disabled:opacity-50"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Tambah Adjust Entry
-        </button>
+        {canCreate('/warehouse/adjust') && (
+          <button
+            id="btn-add-adjust-item"
+            onClick={openAddModal}
+            disabled={!warehouseId}
+            className="flex items-center gap-2 rounded-xl bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-200 transition-all hover:bg-orange-700 active:scale-95 disabled:opacity-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Tambah Adjust Entry
+          </button>
+        )}
       </div>
 
       {/* ── Success Banner ── */}
@@ -505,24 +509,28 @@ export default function AdjustmentsPage() {
                         <div className="flex items-center justify-center gap-2">
                           {log.status !== "STORED_BACK" ? (
                             <>
-                              <button
-                                onClick={() => openEditModalAction(log)}
-                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-orange-600 transition-colors"
-                                title="Edit Qty"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => openStoreBackModalAction(log)}
-                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
-                                title="Return to Warehouse (Store Back)"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
-                                </svg>
-                              </button>
+                              {canEdit('/warehouse/adjust') && (
+                                <button
+                                  onClick={() => openEditModalAction(log)}
+                                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-orange-600 transition-colors"
+                                  title="Edit Qty"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                  </svg>
+                                </button>
+                              )}
+                              {canEdit('/warehouse/adjust') && (
+                                <button
+                                  onClick={() => openStoreBackModalAction(log)}
+                                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-colors"
+                                  title="Return to Warehouse (Store Back)"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                                  </svg>
+                                </button>
+                              )}
                             </>
                           ) : (
                             <span className="text-[10px] font-bold uppercase text-slate-400 border border-slate-200 rounded-full px-2 py-0.5" title="Fully Stored Back">Done</span>

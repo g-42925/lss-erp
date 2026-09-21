@@ -9,6 +9,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AddCircleHalfDotIcon, Edit03Icon } from '@hugeicons/core-free-icons';
+import { usePermission } from "@/hooks/usePermission"
 
 
 
@@ -18,6 +19,7 @@ export default function Suppliers() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const pages = useAuth((state) => state.pages)
+  const { canCreate, canEdit } = usePermission()
 
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -157,7 +159,7 @@ export default function Suppliers() {
               onChange={(e) => search(e.target.value)}
             />
             <button
-              disabled={!isSuperAdmin && !pages['/suppliers']?.includes('create')}
+              disabled={!canCreate('/suppliers')}
               onClick={() => { newSupplierForm.reset(); modalRef.current?.show() }}
               className="ml-auto"
             >
@@ -203,7 +205,7 @@ export default function Suppliers() {
                         <td className="max-w-[16ch] truncate">{s.address}</td>
                         <td>
                           <button
-                            disabled={!isSuperAdmin && !pages['/suppliers']?.includes('edit')}
+                            disabled={!canEdit('/suppliers')}
                             onClick={() => edit(s._id)}
                           >
                             <HugeiconsIcon icon={Edit03Icon} size={24} color="currentColor" strokeWidth={1.5} />

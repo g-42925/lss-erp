@@ -557,6 +557,9 @@ export async function POST(request: NextRequest) {
 
     console.log({ p: params })
 
+    if (params.vendorId === "") delete params.vendorId;
+    if (params.supplierId === "") delete params.supplierId;
+
     const result = await Purchase.create({
       ...params,
       companyId: company._id,

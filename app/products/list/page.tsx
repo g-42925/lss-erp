@@ -8,6 +8,7 @@ import useFetch from "@/hooks/useFetch";
 import { useForm } from "react-hook-form"
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
+import { usePermission } from "@/hooks/usePermission"
 
 
 export default function List() {
@@ -15,6 +16,7 @@ export default function List() {
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const { canCreate, canEdit, canDelete } = usePermission()
 
   const [products, setProducts] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -168,15 +170,17 @@ export default function List() {
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           <div className="flex flex-row">
             <span className="self-center">All product</span>
-            <button disabled onClick={() => {
-              const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
-              if (modal) modal.showModal();
-            }} className="btn ml-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add
-            </button>
+            {canCreate("/products/list") && (
+              <button disabled onClick={() => {
+                const modal = document.getElementById('my_modal_1') as HTMLDialogElement;
+                if (modal) modal.showModal();
+              }} className="btn ml-auto">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add
+              </button>
+            )}
           </div>
           {
             getFn.loading
@@ -219,14 +223,16 @@ export default function List() {
                                 <td>{p.sellingPriceTaxType}</td>
                                 <td>{Math.round(p.stockValue / (p.remain + p.allocated))}</td>
                                 <td>
-                                  <button>
-                                    <Link href={p.productType === 'service' ? `/products/xedit?id=${p._id}` : `/products/edit?id=${p._id}`}>
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
-                                        <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
-                                        <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
-                                      </svg>
-                                    </Link>
-                                  </button>
+                                  {canEdit("/products/list") && (
+                                    <button>
+                                      <Link href={p.productType === 'service' ? `/products/xedit?id=${p._id}` : `/products/edit?id=${p._id}`}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
+                                          <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                                          <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                                        </svg>
+                                      </Link>
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             )
@@ -237,18 +243,22 @@ export default function List() {
                               <tr key={index}>
                                 <td>{p.productName}</td>
                                 <td className="flex flex-row gap-3">
-                                  <button className="btn" onClick={() => edit(p._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn" onClick={() => del(p._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Delete
-                                  </button>
+                                  {canEdit("/products/list") && (
+                                    <button className="btn" onClick={() => edit(p._id)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                      </svg>
+                                      Edit
+                                    </button>
+                                  )}
+                                  {canDelete("/products/list") && (
+                                    <button className="btn" onClick={() => del(p._id)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                      </svg>
+                                      Delete
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             )

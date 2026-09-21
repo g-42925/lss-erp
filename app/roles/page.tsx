@@ -1,358 +1,882 @@
 "use client"
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import withAuth from "@/hofs/withAuth"
 import useAuth from "@/store/auth"
-import useFetch from "@/hooks/useFetch";
+import useFetch from "@/hooks/useFetch"
 import { useForm } from "react-hook-form"
-import { useRef, useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+
+interface RolePage {
+  link: string
+  permissions: string[]
+}
 
 interface RoleData {
-  _id: string;
-  name: string;
-  pages: Array<{
-    link: string;
-    permissions: string[];
-  }>;
+  _id: string
+  name: string
+  pages: RolePage[]
 }
 
 interface Feature {
-  _id: string;
-  name: string;
-  link: string;
+  _id: string
+  name: string
+  link: string
 }
 
 interface FeatureGroup {
-  _id: string;
-  features: Feature[];
+  _id: string
+  features: Feature[]
 }
 
+interface RoleForm {
+  name: string
+}
+
+interface EditRoleForm extends RoleForm {
+  _id: string
+}
+
+const PERMISSIONS = [
+  { value: "view", label: "View" },
+  { value: "create", label: "Add" },
+  { value: "edit", label: "Edit" },
+  { value: "delete", label: "Delete" },
+]
+
+/* =========================================================
+   Permission Checkbox
+   ========================================================= */
+
+function PermissionCheckbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  label: string
+  onChange: () => void
+}) {
+  return (
+    <label className="flex items-center justify-center gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="w-4 h-4 cursor-pointer accent-blue-600"
+      />
+
+      <span className="text-xs text-gray-600">
+        {label}
+      </span>
+    </label>
+  )
+}
+
+/* =========================================================
+   Permission Group
+   ========================================================= */
+
+function PermissionGroup({
+  group,
+  selectedPages,
+  togglePermission,
+}: {
+  group: FeatureGroup
+  selectedPages: Record<string, string[]>
+  togglePermission: (link: string, permission: string) => void
+}) {
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+
+      {/* Group title */}
+      <div className="px-4 py-3 bg-gray-50 border-b">
+        <span className="font-bold text-sm text-blue-800 uppercase">
+          {group._id}
+        </span>
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden md:grid grid-cols-[minmax(0,1fr)_80px_80px_80px_80px] border-b bg-gray-50">
+        <div className="px-4 py-2 text-xs font-semibold text-gray-500">
+          Feature
+        </div>
+
+        {PERMISSIONS.map((permission) => (
+          <div
+            key={permission.value}
+            className="flex items-center justify-center px-2 py-2 text-xs font-semibold text-gray-500"
+          >
+            {permission.label}
+          </div>
+        ))}
+      </div>
+
+      {/* Features */}
+      <div>
+        {group.features.map((feature) => (
+          <div
+            key={feature._id}
+            className="
+              border-b
+              last:border-b-0
+              border-gray-100
+              px-4
+              py-3
+            "
+          >
+
+            {/* Desktop */}
+            <div className="hidden md:grid grid-cols-[minmax(0,1fr)_80px_80px_80px_80px] items-center">
+
+              <div className="text-sm font-medium text-gray-700">
+                {feature.name}
+              </div>
+
+              {PERMISSIONS.map((permission) => (
+                <PermissionCheckbox
+                  key={permission.value}
+                  label=""
+                  checked={
+                    selectedPages[feature.link]?.includes(
+                      permission.value
+                    ) ?? false
+                  }
+                  onChange={() =>
+                    togglePermission(
+                      feature.link,
+                      permission.value
+                    )
+                  }
+                />
+              ))}
+            </div>
+
+            {/* Mobile */}
+            <div className="md:hidden">
+
+              <div className="text-sm font-medium text-gray-700 mb-3">
+                {feature.name}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {PERMISSIONS.map((permission) => (
+                  <PermissionCheckbox
+                    key={permission.value}
+                    label={permission.label}
+                    checked={
+                      selectedPages[feature.link]?.includes(
+                        permission.value
+                      ) ?? false
+                    }
+                    onChange={() =>
+                      togglePermission(
+                        feature.link,
+                        permission.value
+                      )
+                    }
+                  />
+                ))}
+              </div>
+
+            </div>
+
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   Permission Panel
+   ========================================================= */
+
+function PermissionPanel({
+  features,
+  selectedPages,
+  togglePermission,
+  selectAllPermissions,
+  clearAllPermissions,
+}: {
+  features: FeatureGroup[]
+  selectedPages: Record<string, string[]>
+  togglePermission: (link: string, permission: string) => void
+  selectAllPermissions: () => void
+  clearAllPermissions: () => void
+}) {
+  return (
+    <div className="border border-gray-300 rounded-lg overflow-hidden">
+
+      {/* Panel header */}
+      <div className="px-4 py-3 border-b bg-white">
+        <div className="flex items-center justify-between gap-3">
+
+          <div>
+            <div className="text-sm font-semibold text-gray-800">
+              Feature Access & Actions
+            </div>
+
+            <div className="text-xs text-gray-500 mt-0.5">
+              Configure permissions for this role
+            </div>
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={selectAllPermissions}
+              className="px-3 py-1.5 text-xs border border-blue-500 text-blue-600 rounded-md hover:bg-blue-50"
+            >
+              Select All
+            </button>
+
+            <button
+              type="button"
+              onClick={clearAllPermissions}
+              className="px-3 py-1.5 text-xs border border-red-400 text-red-500 rounded-md hover:bg-red-50"
+            >
+              Clear All
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Groups */}
+      <div className="p-3 bg-gray-50 space-y-3">
+        {features.map((group) => (
+          <PermissionGroup
+            key={group._id}
+            group={group}
+            selectedPages={selectedPages}
+            togglePermission={togglePermission}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   Role Modal
+   ========================================================= */
+
+function RoleModal({
+  modalRef,
+  title,
+  submitLabel,
+  name,
+  onNameChange,
+  onSubmit,
+  onClose,
+  features,
+  selectedPages,
+  togglePermission,
+  selectAllPermissions,
+  clearAllPermissions,
+}: {
+  modalRef: React.RefObject<HTMLDialogElement | null>
+  title: string
+  submitLabel: string
+  name: string
+  onNameChange: (value: string) => void
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  onClose: () => void
+  features: FeatureGroup[]
+  selectedPages: Record<string, string[]>
+  togglePermission: (link: string, permission: string) => void
+  selectAllPermissions: () => void
+  clearAllPermissions: () => void
+}) {
+  return (
+    <dialog
+      ref={modalRef}
+      className="modal"
+    >
+      <div
+        className="
+          modal-box
+          !w-[900px]
+          !max-w-[95vw]
+          !h-[90vh]
+          !max-h-[900px]
+          p-0
+          flex
+          flex-col
+          overflow-hidden
+          text-black
+        "
+      >
+
+        {/* =================================================
+            Header
+            ================================================= */}
+
+        <div className="shrink-0 px-6 py-5 border-b bg-white">
+          <h3 className="text-lg font-bold">
+            {title}
+          </h3>
+        </div>
+
+        {/* =================================================
+            Form
+            ================================================= */}
+
+        <form
+          onSubmit={onSubmit}
+          className="flex flex-col flex-1 min-h-0"
+        >
+
+          {/* =================================================
+              Scrollable body
+              ================================================= */}
+
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="p-6 space-y-5">
+
+              {/* Role name */}
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-800">
+                  Role Name
+                </label>
+
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) =>
+                    onNameChange(e.target.value)
+                  }
+                  placeholder="e.g. Sales Manager"
+                  className="
+                    w-full
+                    h-10
+                    px-3
+                    border
+                    border-gray-300
+                    rounded-md
+                    outline-none
+                    focus:border-blue-500
+                    focus:ring-1
+                    focus:ring-blue-500
+                  "
+                />
+              </div>
+
+              {/* Permissions */}
+              <PermissionPanel
+                features={features}
+                selectedPages={selectedPages}
+                togglePermission={togglePermission}
+                selectAllPermissions={selectAllPermissions}
+                clearAllPermissions={clearAllPermissions}
+              />
+
+            </div>
+          </div>
+
+          {/* =================================================
+              Footer
+              ================================================= */}
+
+          <div className="shrink-0 px-6 py-4 border-t bg-white">
+            <div className="flex justify-end gap-3">
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="
+                  px-5
+                  py-2
+                  text-sm
+                  font-medium
+                  text-gray-700
+                  rounded-md
+                  hover:bg-gray-100
+                "
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="
+                  px-6
+                  py-2
+                  text-sm
+                  font-medium
+                  text-white
+                  bg-blue-700
+                  rounded-md
+                  hover:bg-blue-800
+                "
+              >
+                {submitLabel}
+              </button>
+
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </dialog>
+  )
+}
+
+/* =========================================================
+   Main
+   ========================================================= */
+
 function Roles() {
+  const router = useRouter()
+
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  const hasHydrated = useAuth((s) => s._hasHydrated)
+  const hasHydrated = useAuth((state) => state._hasHydrated)
+
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
 
   const [roles, setRoles] = useState<RoleData[]>([])
-  const [searchResult, setSearchResult] = useState<RoleData[]>([])
-  const [selectedPages, setSelectedPages] = useState<Record<string, string[]>>({})
+  const [selectedPages, setSelectedPages] = useState<
+    Record<string, string[]>
+  >({})
 
-  const newRoleForm = useForm<{ name: string }>()
-  const editRoleForm = useForm<{ _id: string, name: string }>()
-  const router = useRouter()
-
-  const putFn = useFetch<RoleData, any>({
-    url: '/api/web/roles',
-    method: 'PUT'
+  const newRoleForm = useForm<RoleForm>({
+    defaultValues: {
+      name: "",
+    },
   })
 
-  const addFn = useFetch<RoleData, any>({
-    url: '/api/web/roles',
-    method: 'POST',
-    onError: (m) => {
-      alert(m)
-    }
+  const editRoleForm = useForm<EditRoleForm>({
+    defaultValues: {
+      _id: "",
+      name: "",
+    },
   })
+
+  /* =======================================================
+     API
+     ======================================================= */
 
   const getFn = useFetch<RoleData[], any>({
-    url: '',
-    method: 'GET'
+    url: "",
+    method: "GET",
   })
 
   const getFeaturesFn = useFetch<FeatureGroup[], any>({
-    url: `/api/web/features`,
-    method: 'GET'
+    url: "/api/web/features",
+    method: "GET",
+  })
+
+  const addFn = useFetch<RoleData, any>({
+    url: "/api/web/roles",
+    method: "POST",
+    onError: (message) => {
+      alert(message)
+    },
+  })
+
+  const putFn = useFetch<RoleData, any>({
+    url: "/api/web/roles",
+    method: "PUT",
   })
 
   const deleteFn = useFetch<string, any>({
-    url: '',
-    method: 'DELETE',
-    onError: (m) => {
-      alert(m)
-    }
+    url: "",
+    method: "DELETE",
+    onError: (message) => {
+      alert(message)
+    },
   })
 
-  const submit = async (data: { name: string }) => {
-    const pagesArray = Object.entries(selectedPages)
-      .filter(([_, perms]) => perms.length > 0)
-      .map(([link, perms]) => ({ link, permissions: perms }))
+  const features = getFeaturesFn.result ?? []
 
-    const body = JSON.stringify({
-      name: data.name,
-      pages: pagesArray,
-      id: masterAccountId,
-    })
+  /* =======================================================
+     Permissions
+     ======================================================= */
 
-    await addFn.fn('', body, (role) => {
-      modalRef.current?.close()
-      setRoles([...roles, { ...role, pages: pagesArray }])
-      setSelectedPages({})
-      newRoleForm.reset()
-    })
-  }
+  const togglePermission = (
+    link: string,
+    permission: string
+  ) => {
+    setSelectedPages((prev) => {
+      const current = prev[link] ?? []
 
-  const search = (v: string) => {
-    if (v.length > 0) {
-      const result = roles.filter((r) => r.name.toLowerCase().includes(v.toLowerCase()))
-      setSearchResult(result)
-    } else {
-      setSearchResult([])
-    }
-  }
+      if (current.includes(permission)) {
+        const updated = current.filter(
+          (item) => item !== permission
+        )
 
-  const editSubmit = async (data: { _id: string, name: string }) => {
-    const pagesArray = Object.entries(selectedPages)
-      .filter(([_, perms]) => perms.length > 0)
-      .map(([link, perms]) => ({ link, permissions: perms }))
+        if (updated.length === 0) {
+          const next = { ...prev }
+          delete next[link]
+          return next
+        }
 
-    const body = JSON.stringify({
-      _id: data._id,
-      name: data.name,
-      pages: pagesArray
-    })
+        return {
+          ...prev,
+          [link]: updated,
+        }
+      }
 
-    await putFn.fn('', body, (result) => {
-      setRoles(roles.map(r => r._id === result._id ? { ...r, ...result } : r))
-      setSearchResult([])
-      editRef.current?.close()
-      setSelectedPages({})
-    })
-  }
-
-  const del = async (_id: string) => {
-    if (!confirm("Are you sure you want to delete this role?")) return
-    const url = `/api/web/roles?id=${_id}`
-    const body = JSON.stringify({})
-
-    await deleteFn.fn(url, body, (result) => {
-      setRoles(roles.filter((r) => r._id != result))
-    })
-  }
-
-  const handleEdit = (_id: string) => {
-    const filter = roles.find((r) => r._id == _id)
-    if (!filter) return
-
-    editRoleForm.reset({
-      _id: filter._id,
-      name: filter.name,
-    })
-
-    const initialPages: Record<string, string[]> = {}
-    filter.pages?.forEach((p) => {
-      initialPages[p.link] = p.permissions
-    })
-    setSelectedPages(initialPages)
-    editRef.current?.showModal()
-  }
-
-  const togglePermission = (link: string, permission: string) => {
-    setSelectedPages(prev => {
-      const current = prev[link] || []
-      const updated = current.includes(permission)
-        ? current.filter(p => p !== permission)
-        : [...current, permission]
-
-      return { ...prev, [link]: updated }
+      return {
+        ...prev,
+        [link]: [...current, permission],
+      }
     })
   }
 
   const selectAllPermissions = () => {
-    if (!getFeaturesFn?.result) return;
-    const allSelected: Record<string, string[]> = {};
-    getFeaturesFn.result.forEach(group => {
-      group.features.forEach(f => {
-        allSelected[f.link] = ["view", "create", "edit", "delete"];
-      });
-    });
-    setSelectedPages(allSelected);
-  };
+    const all: Record<string, string[]> = {}
+
+    features.forEach((group) => {
+      group.features.forEach((feature) => {
+        all[feature.link] = PERMISSIONS.map(
+          (permission) => permission.value
+        )
+      })
+    })
+
+    setSelectedPages(all)
+  }
 
   const clearAllPermissions = () => {
-    setSelectedPages({});
-  };
-
-  const PermissionToggle = ({ link, permission, label }: { link: string, permission: string, label: string }) => (
-    <label className="flex items-center gap-1 text-xs cursor-pointer hover:bg-gray-100 p-1 rounded">
-      <input
-        type="checkbox"
-        className="checkbox checkbox-xs"
-        checked={selectedPages[link]?.includes(permission) || false}
-        onChange={() => togglePermission(link, permission)}
-      />
-      {label}
-    </label>
-  )
-
-  function newRole() {
     setSelectedPages({})
-    newRoleForm.reset()
+  }
+
+  const buildPages = (): RolePage[] => {
+    return Object.entries(selectedPages)
+      .filter(([, permissions]) => permissions.length)
+      .map(([link, permissions]) => ({
+        link,
+        permissions,
+      }))
+  }
+
+  /* =======================================================
+     Add
+     ======================================================= */
+
+  const newRole = () => {
+    newRoleForm.reset({
+      name: "",
+    })
+
+    setSelectedPages({})
     modalRef.current?.showModal()
   }
 
-  useEffect(() => {
-    if (hasHydrated) {
-      const url = `/api/web/roles?id=${masterAccountId}`
-      const featuresUrl = `/api/web/features`
-      const body = JSON.stringify({})
+  const submit = async (data: RoleForm) => {
+    const pages = buildPages()
 
-      getFeaturesFn.fn(featuresUrl, body, () => { })
-      getFn.fn(url, body, (result) => { setRoles(result) })
+    const body = JSON.stringify({
+      name: data.name,
+      pages,
+      id: masterAccountId,
+    })
+
+    await addFn.fn("", body, (role) => {
+      setRoles((prev) => [
+        ...prev,
+        {
+          ...role,
+          pages,
+        },
+      ])
+
+      newRoleForm.reset()
+      setSelectedPages({})
+      modalRef.current?.close()
+    })
+  }
+
+  /* =======================================================
+     Edit
+     ======================================================= */
+
+  const handleEdit = (_id: string) => {
+    const role = roles.find(
+      (item) => item._id === _id
+    )
+
+    if (!role) return
+
+    editRoleForm.reset({
+      _id: role._id,
+      name: role.name,
+    })
+
+    const pages: Record<string, string[]> = {}
+
+    role.pages?.forEach((page) => {
+      pages[page.link] = page.permissions
+    })
+
+    setSelectedPages(pages)
+
+    editRef.current?.showModal()
+  }
+
+  const editSubmit = async (
+    data: EditRoleForm
+  ) => {
+    const pages = buildPages()
+
+    const body = JSON.stringify({
+      _id: data._id,
+      name: data.name,
+      pages,
+    })
+
+    await putFn.fn("", body, (result) => {
+      setRoles((prev) =>
+        prev.map((role) =>
+          role._id === result._id
+            ? {
+              ...role,
+              ...result,
+              pages,
+            }
+            : role
+        )
+      )
+
+      editRoleForm.reset()
+      setSelectedPages({})
+      editRef.current?.close()
+    })
+  }
+
+  /* =======================================================
+     Delete
+     ======================================================= */
+
+  const del = async (_id: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this role?"
+      )
+    ) {
+      return
     }
+
+    await deleteFn.fn(
+      `/api/web/roles?id=${_id}`,
+      JSON.stringify({}),
+      (result) => {
+        setRoles((prev) =>
+          prev.filter(
+            (role) => role._id !== result
+          )
+        )
+      }
+    )
+  }
+
+  /* =======================================================
+     Fetch
+     ======================================================= */
+
+  useEffect(() => {
+    if (!hasHydrated || !masterAccountId) {
+      return
+    }
+
+    const body = JSON.stringify({})
+
+    getFeaturesFn.fn(
+      "/api/web/features",
+      body,
+      () => { }
+    )
+
+    getFn.fn(
+      `/api/web/roles?id=${masterAccountId}`,
+      body,
+      (result) => {
+        setRoles(result)
+      }
+    )
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, masterAccountId])
 
-  if (!hasHydrated) return null
-  if (!loggedIn) router.push('/login')
-  if (!isSuperAdmin) router.push('/dashboard')
+  /* =======================================================
+     Auth
+     ======================================================= */
+
+  useEffect(() => {
+    if (!hasHydrated) return
+
+    if (!loggedIn) {
+      router.push("/login")
+      return
+    }
+
+    if (!isSuperAdmin) {
+      router.push("/dashboard")
+    }
+  }, [
+    hasHydrated,
+    loggedIn,
+    isSuperAdmin,
+    router,
+  ])
+
+  if (
+    !hasHydrated ||
+    !loggedIn ||
+    !isSuperAdmin
+  ) {
+    return null
+  }
+
+  /* =======================================================
+     Render
+     ======================================================= */
 
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3">
-        <span className="text-2xl font-bold text-gray-800">Role Management</span>
+
+        <span className="text-2xl font-bold text-gray-800">
+          Role Management
+        </span>
+
         <div className="bg-white h-full border-t-4 border-blue-900 rounded-lg shadow-lg flex flex-col p-6 gap-6">
-          <div className="flex flex-row items-center">
-            <h2 className="text-xl font-semibold text-gray-700">Existing Roles</h2>
-            <button onClick={() => newRole()} className="btn btn-primary ml-auto shadow-md">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+
+          <div className="flex items-center">
+            <h2 className="text-xl font-semibold text-gray-700">
+              Existing Roles
+            </h2>
+
+            <button
+              onClick={newRole}
+              className="btn btn-primary ml-auto shadow-md"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="1.5"
+                stroke="currentColor"
+                className="size-5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4.5v15m7.5-7.5h-15"
+                />
               </svg>
             </button>
           </div>
 
           <div className="overflow-x-auto">
             {getFn.loading ? (
-              <div className="flex justify-center p-10"><span className="loading loading-spinner loading-lg text-primary"></span></div>
+              <div className="flex justify-center p-10">
+                <span className="loading loading-spinner loading-lg text-primary" />
+              </div>
             ) : (
-              <div className="overflow-x-auto w-full">
               <table className="table table-zebra w-full text-black">
                 <thead className="bg-gray-50 text-black">
                   <tr>
                     <th>Role Name</th>
-                    <th className="text-right">Actions</th>
+                    <th className="text-right">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
+
                 <tbody>
-                  {roles.map((role, index) => (
-                    <tr key={index}>
-                      <td className="font-medium text-blue-900">{role.name}</td>
-                      <td className="text-right flex justify-end gap-2">
-                        <button className="btn btn-sm btn-outline btn-info" onClick={() => handleEdit(role._id)}>
-                          Edit
-                        </button>
-                        <button className="btn btn-sm btn-outline btn-error" onClick={() => del(role._id)}>
-                          Delete
-                        </button>
+                  {roles.map((role) => (
+                    <tr key={role._id}>
+                      <td className="font-medium text-blue-900">
+                        {role.name}
+                      </td>
+
+                      <td>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            className="btn btn-sm btn-outline btn-info"
+                            onClick={() =>
+                              handleEdit(role._id)
+                            }
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            className="btn btn-sm btn-outline btn-error"
+                            onClick={() =>
+                              del(role._id)
+                            }
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Edit Role Modal */}
-      <dialog ref={editRef} className="modal text-black">
-        <div className="modal-box w-11/24 max-w-5xl h-[80vh] flex flex-col">
-          <h3 className="font-bold text-lg mb-4">Edit Role Permissions</h3>
-          <form onSubmit={(e) => { e.preventDefault(); editRoleForm.handleSubmit(editSubmit)(e); }} className="flex-1 flex flex-col gap-4 overflow-hidden">
-            <input {...editRoleForm.register('_id')} type="hidden" />
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold">Role Name</label>
-              <input {...editRoleForm.register("name")} type="text" className="input input-bordered w-full" />
-            </div>
+      {/* =====================================================
+          Edit Modal
+          ===================================================== */}
 
-            <div className="flex-1 overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-semibold block">Feature Access & Actions</span>
-                <div className="flex gap-2">
-                  <button type="button" onClick={selectAllPermissions} className="btn btn-xs btn-outline btn-primary">Select All</button>
-                  <button type="button" onClick={clearAllPermissions} className="btn btn-xs btn-outline btn-error">Clear All</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getFeaturesFn?.result?.map((group, gIdx) => (
-                  <div key={gIdx} className="card bg-white shadow-sm border p-3">
-                    <h4 className="font-bold text-blue-800 text-sm mb-2 border-b uppercase pb-1">{group._id}</h4>
-                    <div className="flex flex-col gap-3">
-                      {group.features.map((f, fIdx) => (
-                        <div key={fIdx} className="flex flex-col gap-1">
-                          <span className="text-xs font-medium text-gray-700">{f.name}</span>
-                          <div className="flex flex-wrap gap-2 ml-1">
-                            <PermissionToggle link={f.link} permission="view" label="View" />
-                            <PermissionToggle link={f.link} permission="create" label="Add" />
-                            <PermissionToggle link={f.link} permission="edit" label="Edit" />
-                            <PermissionToggle link={f.link} permission="delete" label="Del" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <RoleModal
+        modalRef={editRef}
+        title="Edit Role Permissions"
+        submitLabel="Save Changes"
+        name={editRoleForm.watch("name")}
+        onNameChange={(value) =>
+          editRoleForm.setValue("name", value)
+        }
+        onSubmit={editRoleForm.handleSubmit(editSubmit)}
+        onClose={() => {
+          editRef.current?.close()
+          editRoleForm.reset()
+          setSelectedPages({})
+        }}
+        features={features}
+        selectedPages={selectedPages}
+        togglePermission={togglePermission}
+        selectAllPermissions={selectAllPermissions}
+        clearAllPermissions={clearAllPermissions}
+      />
 
-            <div className="modal-action mt-auto pt-4">
-              <button type="button" className="btn btn-ghost" onClick={() => editRef.current?.close()}>Cancel</button>
-              <button type="submit" className="btn btn-primary px-8">Save Changes</button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+      {/* =====================================================
+          Add Modal
+          ===================================================== */}
 
-      {/* Add Role Modal */}
-      <dialog ref={modalRef} className="modal text-black">
-        <div className="modal-box w-11/24 max-w-5xl h-[80vh] flex flex-col">
-          <h3 className="font-bold text-lg mb-4">Create New Role</h3>
-          <form onSubmit={(e) => { e.preventDefault(); newRoleForm.handleSubmit(submit)(e); }} className="flex-1 flex flex-col gap-4 overflow-hidden">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold">Role Name</label>
-              <input {...newRoleForm.register("name")} type="text" placeholder="e.g. Sales Manager" className="input input-bordered w-full" />
-            </div>
-
-            <div className="flex-1 overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-semibold block">Configure Permissions</span>
-                <div className="flex gap-2">
-                  <button type="button" onClick={selectAllPermissions} className="btn btn-xs btn-outline btn-primary">Select All</button>
-                  <button type="button" onClick={clearAllPermissions} className="btn btn-xs btn-outline btn-error">Clear All</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {getFeaturesFn?.result?.map((group, gIdx) => (
-                  <div key={gIdx} className="card bg-white shadow-sm border p-3">
-                    <h4 className="font-bold text-blue-800 text-sm mb-2 border-b uppercase pb-1">{group._id}</h4>
-                    <div className="flex flex-col gap-3">
-                      {group.features.map((f, fIdx) => (
-                        <div key={fIdx} className="flex flex-col gap-1">
-                          <span className="text-xs font-medium text-gray-700">{f.name}</span>
-                          <div className="flex flex-wrap gap-2 ml-1">
-                            <PermissionToggle link={f.link} permission="view" label="View" />
-                            <PermissionToggle link={f.link} permission="create" label="Add" />
-                            <PermissionToggle link={f.link} permission="edit" label="Edit" />
-                            <PermissionToggle link={f.link} permission="delete" label="Del" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="modal-action mt-auto pt-4">
-              <button type="button" className="btn btn-ghost" onClick={() => modalRef.current?.close()}>Cancel</button>
-              <button type="submit" className="btn btn-primary px-8">Create Role</button>
-            </div>
-          </form>
-        </div>
-      </dialog>
+      <RoleModal
+        modalRef={modalRef}
+        title="Create New Role"
+        submitLabel="Create Role"
+        name={newRoleForm.watch("name")}
+        onNameChange={(value) =>
+          newRoleForm.setValue("name", value)
+        }
+        onSubmit={newRoleForm.handleSubmit(submit)}
+        onClose={() => {
+          modalRef.current?.close()
+          newRoleForm.reset()
+          setSelectedPages({})
+        }}
+        features={features}
+        selectedPages={selectedPages}
+        togglePermission={togglePermission}
+        selectAllPermissions={selectAllPermissions}
+        clearAllPermissions={clearAllPermissions}
+      />
     </>
   )
 }

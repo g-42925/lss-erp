@@ -8,8 +8,9 @@ import { useForm } from "react-hook-form";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
-import { AddCircleHalfDotIcon } from '@hugeicons/core-free-icons';
-import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { AddCircleHalfDotIcon, Edit03Icon, FileUploadIcon } from '@hugeicons/core-free-icons';
+import { usePermission } from "@/hooks/usePermission";
+import * as XLSX from 'xlsx';
 
 
 
@@ -20,6 +21,7 @@ export default function Customers() {
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const roleDetail = useAuth((state) => state.roleDetail)
   const pages = useAuth((state) => state.pages)
+  const { canCreate, canEdit } = usePermission()
 
   const [customers, setCustomers] = useState<any[]>([])
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -27,6 +29,7 @@ export default function Customers() {
 
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const newCustomerForm = useForm();
   const editCustomerForm = useForm();
@@ -56,6 +59,14 @@ export default function Customers() {
     }
   })
 
+  const uploadFn = useFetch<any, any>({
+    url: '/api/web/customers/bulk',
+    method: 'POST',
+    onError: (m) => {
+      alert(m)
+    }
+  })
+
 
 
   async function submit(data: any) {
@@ -75,6 +86,41 @@ export default function Customers() {
       )
     })
   }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const data = event.target?.result;
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(worksheet);
+
+      if (json.length === 0) {
+        alert("File Excel kosong.");
+        return;
+      }
+
+      await uploadFn.fn('', JSON.stringify({
+        masterAccountId,
+        customers: json
+      }), (result) => {
+        const url1 = `/api/web/customers?id=${masterAccountId}`;
+        getCustomersFn.fn(url1, JSON.stringify({}), (r) => {
+          setCustomers(r);
+        });
+        alert("Upload berhasil!");
+      });
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   async function search(v: string) {
     if (v.length > 0) {
@@ -196,14 +242,41 @@ export default function Customers() {
               <option value="yes">Active</option>
               <option value="no">Inactive</option>
             </select>
-            <button disabled={!isSuperAdmin && !pages['/customers']?.includes('create')} onClick={() => modalRef.current?.show()} className="ml-auto">
-              <HugeiconsIcon
-                icon={AddCircleHalfDotIcon}
-                size={24}
-                color="currentColor"
-                strokeWidth={1.5}
+            <div className="ml-auto flex gap-2">
+              <input
+                type="file"
+                accept=".xlsx, .xls"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
               />
-            </button>
+              <button
+                type="button"
+                disabled={!canCreate('/customers') || uploadFn.loading}
+                onClick={() => fileInputRef.current?.click()}
+                className="btn btn-sm btn-circle text-white bg-green-700 border-none hover:bg-green-600"
+                title="Upload Excel"
+              >
+                {uploadFn.loading ? (
+                  <span className="loading loading-spinner loading-xs"></span>
+                ) : (
+                  <HugeiconsIcon
+                    icon={FileUploadIcon}
+                    size={20}
+                    color="currentColor"
+                    strokeWidth={1.5}
+                  />
+                )}
+              </button>
+              <button disabled={!canCreate('/customers')} onClick={() => modalRef.current?.show()}>
+                <HugeiconsIcon
+                  icon={AddCircleHalfDotIcon}
+                  size={24}
+                  color="currentColor"
+                  strokeWidth={1.5}
+                />
+              </button>
+            </div>
           </div>
           {
             getCustomersFn.loading
@@ -237,7 +310,7 @@ export default function Customers() {
                               <td className="w-auto">{c.address}</td>
                               <td className="w-auto">{c.mobile}</td>
                               <td>
-                                <button disabled={!isSuperAdmin && !pages['/customers']?.includes('edit')} onClick={() => edit(c._id)}>
+                                <button disabled={!canEdit('/customers')} onClick={() => edit(c._id)}>
                                   <HugeiconsIcon
                                     icon={Edit03Icon}
                                     size={24}

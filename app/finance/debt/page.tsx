@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 import { NumericFormat } from "react-number-format";
+import { usePermission } from "@/hooks/usePermission"
 
 
 
@@ -24,6 +25,7 @@ export default function Debt() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const userId = useAuth((state) => state.userId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const { canCreate, canEdit, canDelete } = usePermission()
 
   const payRef = useRef<HTMLDialogElement>(null)
   const logsRef = useRef<HTMLDialogElement>(null)
@@ -321,17 +323,23 @@ export default function Debt() {
     })
 
 
-    // setPaySubmitting(true)
-    // await putFn.fn('', payload, (result) => {
-    //   setDebts(prev => {
-    //     const updated = [...prev]
-    //     const idx = updated.findIndex(d => d._id === selectedDebt._id)
-    //     if (idx >= 0) updated[idx].payAmount = selectedDebt.payAmount + newPayAmt
-    //     return updated.filter(d => d.finalPrice > d.payAmount)
-    //   })
-    //   payRef.current?.close()
-    // })
-    // setPaySubmitting(false)
+    setPaySubmitting(true)
+    try {
+      const res = await fetch('/api/web/purchases', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload
+      })
+      const json = await res.json()
+      if (json.error) return alert(json.message)
+
+      fetchDebts()
+      payRef.current?.close()
+    } catch (e: any) {
+      alert(e.message)
+    } finally {
+      setPaySubmitting(false)
+    }
   }
 
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
@@ -570,8 +578,9 @@ export default function Debt() {
   }
 
   function calculateTotalVendorAmount(invoices: any) {
+    if (!Array.isArray(invoices)) return 0;
     const debts = invoices.map((invoice: any) => {
-      return invoice.debt / invoice.qty * (invoice.qty - invoice.missing)
+      return (invoice.debt || 0) / (invoice.qty || 1) * ((invoice.qty || 0) - (invoice.missing || 0))
     })
 
     return debts.reduce((sum: number, n: number) => sum + n, 0)
@@ -616,7 +625,7 @@ export default function Debt() {
                 List Invoice Manual
               </button>
             )}
-            {filterType === 'vendor' && (
+            {filterType === 'vendor' && canCreate('/finance/debt') && (
               <button className="btn btn-sm btn-primary" onClick={openCreateInvoice}>
                 + Buat Invoice Vendor
               </button>
@@ -762,7 +771,7 @@ export default function Debt() {
                             </td>
                             <td>
                               <div className="flex flex-row gap-1">
-                                {remaining(d) > 0 && (
+                                {remaining(d) > 0 && canCreate('/finance/debt') && (
                                   <button
                                     className="btn btn-xs btn-primary"
                                     onClick={() => openPay(d)}

@@ -11,6 +11,7 @@ import { useRef, useState, useEffect, useCallback } from "react"
 import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
 import { DeliveryBox01Icon } from '@hugeicons/core-free-icons';
+import { usePermission } from "@/hooks/usePermission"
 
 export default function Delivery() {
   const loggedIn = useAuth((state) => state.loggedIn)
@@ -18,6 +19,7 @@ export default function Delivery() {
   const userId = useAuth((state) => state.userId)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const { canCreate } = usePermission()
   const modalRef = useRef<HTMLDialogElement>(null)
   const [orderItems, setOrderItems] = useState<any[]>([])
   const [deliveries, setDeliveries] = useState<any[]>([])
@@ -216,12 +218,14 @@ export default function Delivery() {
           </div>
           <div className="flex flex-row items-center border-b pb-4 print:hidden">
             <span className="text-lg font-semibold">Processed Deliveries</span>
-            <button onClick={() => modalRef.current?.showModal()} className="btn btn-primary ml-auto flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="size-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              New Delivery
-            </button>
+            {canCreate('/warehouse/movement') && (
+              <button onClick={() => modalRef.current?.showModal()} className="btn btn-primary ml-auto flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="size-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                New Delivery
+              </button>
+            )}
           </div>
           <div className="flex flex-row gap-4 items-center print:hidden">
             <div className="flex flex-row gap-2 items-center">
@@ -295,9 +299,11 @@ export default function Delivery() {
                               <td>{x.payTerm ? new Date(x.payTerm).toLocaleString("id-ID") : '-'}</td>
                               <td>{x.pickupDate ? new Date(x.pickupDate).toLocaleString("id-ID") : '-'}</td>
                               <td>
-                                <button onClick={() => openDeliveryModal(x.salesOrderNumber)}>
-                                  <HugeiconsIcon icon={DeliveryBox01Icon} />
-                                </button>
+                                {canCreate('/warehouse/movement') && (
+                                  <button onClick={() => openDeliveryModal(x.salesOrderNumber)}>
+                                    <HugeiconsIcon icon={DeliveryBox01Icon} />
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           )

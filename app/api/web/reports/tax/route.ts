@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
             if (!taxSummary[tn]) taxSummary[tn] = 0;
             taxSummary[tn] += taxAmount;
 
+
             reportData.push({
               id: `${order._id.toString()}-${i}-${tn}`,
               transactionNumber: order.salesOrderNumber,
@@ -99,7 +100,7 @@ export async function GET(request: NextRequest) {
 
       const sOrderId = inv.salesOrderId ? inv.salesOrderId.toString() : null;
       const sOrder = sOrderId ? serviceOrderMap.get(sOrderId) : null;
-      
+
       const customerName = sOrder?.customerId?.customerName || sOrder?.customCustomer?.name || 'Walk-in Customer';
       const productName = sOrder?.productId?.productName || 'Service';
 
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
 
       for (let i = 0; i < inv.taxes.length; i++) {
         const t = inv.taxes[i];
-        
+
         // nominal pajak literally based on t.taxValue
         const taxAmount = t.taxValue ?? 0;
         if (taxAmount <= 0) continue;
@@ -117,6 +118,19 @@ export async function GET(request: NextRequest) {
         if (!taxSummary[tn]) taxSummary[tn] = 0;
         taxSummary[tn] += taxAmount;
 
+        function recalculateBase(invoice: any, taxBase: number) {
+          if (invoice.missing < 1) return taxBase;
+          return (invoice.price / invoice.qty) * (invoice.qty - invoice.missing)
+        }
+
+        function recalculateTax(base, invoice: any, taxValue: number) {
+          if (invoice.missing < 1) return taxValue
+
+          const taxPercentage = taxValue / invoice.price
+
+          return base * taxPercentage
+        }
+
         reportData.push({
           id: `${inv._id.toString()}-${i}-${tn}`,
           transactionNumber: inv.salesOrderNumber || inv.invoiceNumber,
@@ -124,10 +138,10 @@ export async function GET(request: NextRequest) {
           customerName,
           productName,
           taxName: tn,
-          taxAmount,
-          subTotal: taxBase,
           source: 'Service Order',
           taxInvoiceNumber: '',
+          taxAmount: recalculateTax(recalculateBase(inv, taxBase), inv, taxAmount),
+          subTotal: recalculateBase(inv, taxBase)
         });
       }
     }

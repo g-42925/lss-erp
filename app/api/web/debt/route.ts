@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (filterType === 'barang') {
       const matchQuery: any = {
         companyId: cmp._id,
-        purchaseType: 'product',
+        purchaseType: { $in: ['product', 'procurement'] },
       }
       if (status === 'unpaid') {
         matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
