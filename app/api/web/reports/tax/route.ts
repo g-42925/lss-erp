@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
           return (invoice.price / invoice.qty) * (invoice.qty - invoice.missing)
         }
 
-        function recalculateTax(base, invoice: any, taxValue: number) {
+        function recalculateTax(base: any, invoice: any, taxValue: number) {
           if (invoice.missing < 1) return taxValue
 
           const taxPercentage = taxValue / invoice.price
