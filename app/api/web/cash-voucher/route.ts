@@ -240,7 +240,70 @@ export async function PATCH(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
 
-    const { _id, masterAccountId, newSequence } = body;
+    const { action, masterAccountId } = body;
+
+    // ── SWAP ACTION: tukar sequence & trailing number antara dua voucher ──
+    if (action === "swap") {
+      const { voucherId1, voucherId2 } = body;
+
+      if (!voucherId1 || !voucherId2 || !masterAccountId) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Field wajib tidak boleh kosong (masterAccountId, voucherId1, voucherId2)",
+          result: null,
+          error: true,
+        });
+      }
+
+      const company = await Companie.findOne({ masterAccountId });
+      if (!company) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Perusahaan tidak ditemukan",
+          result: null,
+          error: true,
+        });
+      }
+
+      const [v1, v2] = await Promise.all([
+        CashVoucher.findOne({ _id: voucherId1, companyId: company._id }),
+        CashVoucher.findOne({ _id: voucherId2, companyId: company._id }),
+      ]);
+
+      if (!v1 || !v2) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Salah satu atau kedua voucher tidak ditemukan",
+          result: null,
+          error: true,
+        });
+      }
+
+      const seq1 = v1.sequence as number;
+      const seq2 = v2.sequence as number;
+
+      // Ganti hanya bagian angka di akhir voucherNumber (mis. /001 → /002)
+      const replaceTrailing = (voucherNum: string, newSeq: number) =>
+        voucherNum.replace(/\/(\d+)$/, `/${String(newSeq).padStart(3, "0")}`);
+
+      const newNum1 = replaceTrailing(v1.voucherNumber as string, seq2);
+      const newNum2 = replaceTrailing(v2.voucherNumber as string, seq1);
+
+      await Promise.all([
+        CashVoucher.findByIdAndUpdate(voucherId1, { sequence: seq2, voucherNumber: newNum1 }),
+        CashVoucher.findByIdAndUpdate(voucherId2, { sequence: seq1, voucherNumber: newNum2 }),
+      ]);
+
+      return NextResponse.json({
+        noResult: false,
+        message: `Nomor voucher berhasil ditukar antara #${seq1} dan #${seq2}`,
+        result: { swapped: [voucherId1, voucherId2] },
+        error: false,
+      });
+    }
+
+    // ── CHANGE SEQUENCE ACTION (default) ──
+    const { _id, newSequence } = body;
 
     if (!_id || !masterAccountId || newSequence === undefined || newSequence === null) {
       return NextResponse.json({
@@ -320,6 +383,50 @@ export async function PATCH(request: NextRequest) {
     });
   } catch (e: any) {
     console.error("PATCH CashVoucher Sequence Error:", e);
+    return NextResponse.json({
+      noResult: true,
+      message: e.message || "Terjadi kesalahan",
+      result: null,
+      error: true,
+    });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const url = new URL(request.url);
+    const id = url.searchParams.get("id"); // masterAccountId
+
+    if (!id) {
+      return NextResponse.json({
+        noResult: true,
+        message: "masterAccountId wajib diisi",
+        result: null,
+        error: true,
+      });
+    }
+
+    const company = await Companie.findOne({ masterAccountId: id });
+    if (!company) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Perusahaan tidak ditemukan",
+        result: null,
+        error: true,
+      });
+    }
+
+    await CashVoucher.deleteMany({ companyId: company._id });
+
+    return NextResponse.json({
+      noResult: false,
+      message: "Semua voucher berhasil dihapus",
+      result: null,
+      error: false,
+    });
+  } catch (e: any) {
+    console.error("DELETE CashVoucher Error:", e);
     return NextResponse.json({
       noResult: true,
       message: e.message || "Terjadi kesalahan",

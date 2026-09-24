@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AddMaleIcon } from '@hugeicons/core-free-icons';
 import { Edit03Icon } from '@hugeicons/core-free-icons';
+import { LockPasswordIcon } from '@hugeicons/core-free-icons';
 
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
@@ -19,6 +20,7 @@ export default function Users() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
+  const userId = useAuth((state) => state.userId)
   const router = useRouter()
 
   const [roles, setRoles] = useState<any[]>([])
@@ -26,11 +28,15 @@ export default function Users() {
   const [searchResult, setSearchResult] = useState<any[]>([])
   const modalRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const resetAdminRef = useRef<HTMLDialogElement>(null)
 
   const [selected, setSelected] = useState<any>({})
+  const [resetAdminMsg, setResetAdminMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [resetAdminLoading, setResetAdminLoading] = useState(false)
 
   const newUserForm = useForm();
   const editForm = useForm();
+  const resetAdminForm = useForm();
 
   const getUsersFn = useFetch<any[], any>({
     url: '',
@@ -70,6 +76,43 @@ export default function Users() {
       alert(deleteFn.message)
     }
   })
+
+  async function handleResetAdmin(data: any) {
+    setResetAdminMsg(null)
+    if (!data.currentPassword) {
+      setResetAdminMsg({ text: 'Password saat ini wajib diisi', ok: false })
+      return
+    }
+    if (!data.newEmail && !data.newPassword) {
+      setResetAdminMsg({ text: 'Isi minimal email baru atau password baru', ok: false })
+      return
+    }
+    setResetAdminLoading(true)
+    try {
+      const res = await fetch('/api/web/super-admin', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          currentPassword: data.currentPassword,
+          newEmail: data.newEmail || undefined,
+          newPassword: data.newPassword || undefined,
+        }),
+      })
+      const json = await res.json()
+      if (json.error || json.noResult) {
+        setResetAdminMsg({ text: json.message, ok: false })
+      } else {
+        setResetAdminMsg({ text: 'Berhasil diperbarui!', ok: true })
+        resetAdminForm.reset()
+        setTimeout(() => resetAdminRef.current?.close(), 1200)
+      }
+    } catch (e: any) {
+      setResetAdminMsg({ text: e.message, ok: false })
+    } finally {
+      setResetAdminLoading(false)
+    }
+  }
 
 
   async function search(v: string) {
@@ -218,15 +261,24 @@ export default function Users() {
       <div className="h-full p-3 md:p-6 flex flex-col gap-3">
         <span className="text-2xl text-black">Users <span className="text-sm leading-loose">Manage users</span></span>
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
-          <div className="flex flex-row ">
+          <div className="flex flex-row gap-2">
             <span className="self-center text-black">All users</span>
-            <button onClick={() => modalRef.current?.showModal()} className="ml-auto">
+            <button
+              onClick={() => { setResetAdminMsg(null); resetAdminForm.reset(); resetAdminRef.current?.showModal() }}
+              className="ml-auto btn btn-sm bg-yellow-600 hover:bg-yellow-700 text-white border-none gap-1 flex items-center"
+              title="Reset Kredensial Super Admin"
+            >
+              <HugeiconsIcon icon={LockPasswordIcon} size={16} color="currentColor" strokeWidth={1.5} />
+              Reset Admin
+            </button>
+            <button onClick={() => modalRef.current?.showModal()} className="btn btn-sm bg-blue-900 hover:bg-blue-800 text-white border-none">
               <HugeiconsIcon
                 icon={AddMaleIcon}
-                size={24}
+                size={16}
                 color="currentColor"
                 strokeWidth={1.5}
               />
+              Tambah User
             </button>
           </div>
           {
@@ -398,6 +450,67 @@ export default function Users() {
             </form>
           </div>
         </div>
+      </dialog>
+      {/* Modal Reset Kredensial Super Admin */}
+      <dialog ref={resetAdminRef} className="modal text-black">
+        <div className="modal-box bg-white text-black w-11/12 max-w-md">
+          <h3 className="font-bold text-lg mb-4 text-blue-900">Reset Kredensial Super Admin</h3>
+          <form onSubmit={resetAdminForm.handleSubmit(handleResetAdmin)} className="flex flex-col gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Password Saat Ini <span className="text-red-500">*</span></label>
+              <input
+                {...resetAdminForm.register('currentPassword')}
+                type="password"
+                placeholder="Masukkan password saat ini"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+            </div>
+            <hr className="my-1 border-gray-200" />
+            <p className="text-xs text-gray-500">Kosongkan field yang tidak ingin diubah.</p>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Email / Username Baru</label>
+              <input
+                {...resetAdminForm.register('newEmail')}
+                type="email"
+                placeholder="Email baru (opsional)"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Password Baru</label>
+              <input
+                {...resetAdminForm.register('newPassword')}
+                type="password"
+                placeholder="Password baru (opsional)"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+            </div>
+            {resetAdminMsg && (
+              <p className={`text-sm font-medium ${resetAdminMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
+                {resetAdminMsg.text}
+              </p>
+            )}
+            <div className="modal-action mt-2 flex gap-2 justify-end">
+              <button
+                type="button"
+                className="btn btn-ghost text-gray-500"
+                onClick={() => resetAdminRef.current?.close()}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={resetAdminLoading}
+                className="btn bg-blue-900 hover:bg-blue-800 text-white border-none"
+              >
+                {resetAdminLoading ? <span className="loading loading-spinner loading-sm"></span> : 'Simpan'}
+              </button>
+            </div>
+          </form>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
       </dialog>
     </>
   )

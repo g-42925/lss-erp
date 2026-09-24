@@ -332,6 +332,7 @@ export default function Invoices() {
 
   function submitCloseInvoice(data: any) {
     const params = {
+      _id: selectedInvoice?._id,
       salesOrderNumber: data.salesOrderNumber,
       paid: true,
       payAmount: Number(data.payAmount),
@@ -355,14 +356,14 @@ export default function Invoices() {
         : {}
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
-          inv.salesOrderNumber === data.salesOrderNumber
+          inv._id === selectedInvoice?._id
             ? { ...inv, paid: true, payAmount: Number(data.payAmount), ...voucherUpdate }
             : inv
         )
       )
       setSearchResult(
         searchResult.map((inv: any) =>
-          inv.salesOrderNumber === data.salesOrderNumber
+          inv._id === selectedInvoice?._id
             ? { ...inv, paid: true, payAmount: Number(data.payAmount), ...voucherUpdate }
             : inv
         )
@@ -1274,10 +1275,10 @@ export default function Invoices() {
                       )
                     }
                     else {
-                      return <></>
+                      return null;
                     }
                   })
-                  : <></>
+                  : null
                 }
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Grand Total</span>

@@ -1,10 +1,19 @@
 "use client";
 
 import { NumericFormat } from "react-number-format";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
 import PrintableVoucher from "./PrintableBankVoucher";
+
+type ImportModalState = {
+  open: boolean;
+  file: File | null;
+  dragging: boolean;
+  loading: boolean;
+  result: { created: number; skipped: string[]; errors: string[]; linked: string[] } | null;
+  error: string | null;
+};
 
 type ItemRow = {
   id: string;
@@ -69,6 +78,21 @@ export default function BankVoucherTab() {
     newSeq: "",
   });
 
+  // Drag & drop state for swapping voucher sequences
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // Import Excel modal state
+  const [importModal, setImportModal] = useState<ImportModalState>({
+    open: false,
+    file: null,
+    dragging: false,
+    loading: false,
+    result: null,
+    error: null,
+  });
+  const importFileRef = useRef<HTMLInputElement>(null);
+
   // Toast state
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -114,6 +138,18 @@ export default function BankVoucherTab() {
   const patchSequenceFn = useFetch<any, any>({
     url: '/api/web/bank-voucher',
     method: "PATCH",
+    onError: (msg) => showToast("error", msg),
+  });
+
+  const swapSequenceFn = useFetch<any, any>({
+    url: '/api/web/bank-voucher',
+    method: "PATCH",
+    onError: (msg) => showToast("error", msg),
+  });
+
+  const deleteAllFn = useFetch<any, any>({
+    url: `/api/web/bank-voucher?id=${masterAccountId}`,
+    method: "DELETE",
     onError: (msg) => showToast("error", msg),
   });
 
@@ -338,6 +374,59 @@ export default function BankVoucherTab() {
     });
   }
 
+  // ---- Excel Import Handlers ----
+  const handleImportFile = useCallback((f: File | null) => {
+    if (!f) return;
+    const ext = f.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'xls') {
+      setImportModal((prev) => ({ ...prev, error: 'Hanya file .xlsx atau .xls yang didukung', file: null }));
+      return;
+    }
+    setImportModal((prev) => ({ ...prev, file: f, error: null, result: null }));
+  }, []);
+
+  const handleImportSubmit = async () => {
+    if (!importModal.file || !masterAccountId) return;
+    setImportModal((prev) => ({ ...prev, loading: true, error: null, result: null }));
+    try {
+      const fd = new FormData();
+      fd.append('file', importModal.file);
+      fd.append('masterAccountId', masterAccountId);
+      const res = await fetch('/api/web/bank-voucher/import', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.error && !data.result) {
+        setImportModal((prev) => ({ ...prev, loading: false, error: data.message }));
+      } else {
+        setImportModal((prev) => ({ ...prev, loading: false, result: data.result, file: null }));
+        showToast('success', data.message);
+        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, '{}', () => { });
+      }
+    } catch (e: any) {
+      setImportModal((prev) => ({ ...prev, loading: false, error: e.message || 'Terjadi kesalahan' }));
+    }
+  };
+
+  const handleImportDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setImportModal((prev) => ({ ...prev, dragging: false }));
+    const f = e.dataTransfer.files?.[0] ?? null;
+    handleImportFile(f);
+  }, [handleImportFile]);
+
+  const handleDeleteAll = () => {
+    if (!masterAccountId) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus semua voucher bank? Aksi ini tidak dapat dibatalkan.")) return;
+    deleteAllFn.fn(
+      `/api/web/bank-voucher?id=${masterAccountId}`,
+      "{}",
+      () => {
+        showToast("success", "Semua voucher bank berhasil dihapus");
+        getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, "{}", () => { });
+        setSelectedVouchers([]);
+      }
+    );
+  };
+
   const handleNewVoucher = () => {
     setEditingId(null);
     const now = new Date();
@@ -375,8 +464,18 @@ export default function BankVoucherTab() {
     setVoucherNo(fixBySequence(voucher.voucherNumber, voucher.sequence));
     setIsMasuk(voucher.voucherType === "masuk");
     setIsKeluar(voucher.voucherType === "keluar");
-    setSelectedBank(voucher.bank || voucher.bankAccountId?.bank || "");
-    setSelectedBankAccountId(voucher.bankAccountId?._id || voucher.bankAccountId || "");
+
+    // For Bank Masuk: dropdown options use value="acc:{_id}", so we need that format
+    // For Bank Keluar: dropdown options use plain bank name strings
+    const bankAccountIdVal = voucher.bankAccountId?._id || voucher.bankAccountId || "";
+    if (voucher.voucherType === "masuk" && bankAccountIdVal) {
+      setSelectedBank(`acc:${bankAccountIdVal}`);
+      setSelectedBankAccountId(bankAccountIdVal);
+    } else {
+      setSelectedBank(voucher.bank || voucher.bankAccountId?.bank || "");
+      setSelectedBankAccountId(bankAccountIdVal);
+    }
+
     setSelectedRekening(voucher.noRekening || "");
     setDibayarDiterima(voucher.dibayarDiterima || "");
     setTanggal(voucher.date ? new Date(voucher.date).toISOString().split("T")[0] : "");
@@ -760,7 +859,7 @@ export default function BankVoucherTab() {
                 </thead>
                 <tbody>
                   {rows.map((row, index) => (
-                    <tr key={row.id} className="border-b border-black last:border-b-0">
+                    <tr key={row.id ? `${row.id}-${index}` : index} className="border-b border-black last:border-b-0">
                       <td className="border-r-2 border-black text-center align-top p-1 font-semibold">
                         {index + 1}
                       </td>
@@ -855,6 +954,221 @@ export default function BankVoucherTab() {
   )
     :
     <>
+      {/* ===== Import Excel Modal ===== */}
+      {importModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-auto overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Import dari Excel</h3>
+                  <p className="text-xs text-slate-500">Upload file .xlsx untuk membuat voucher bank secara massal</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setImportModal({ open: false, file: null, dragging: false, loading: false, result: null, error: null })}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Format Info */}
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
+                <p className="font-semibold mb-1">📋 Format Kolom Excel yang Diharapkan:</p>
+                <div className="overflow-x-auto">
+                  <table className="text-[11px] border-collapse w-full">
+                    <thead>
+                      <tr className="bg-blue-100">
+                        <th className="border border-blue-200 px-2 py-1">Tanggal</th>
+                        <th className="border border-blue-200 px-2 py-1" colSpan={2}>No. Voucher</th>
+                        <th className="border border-blue-200 px-2 py-1">Customer</th>
+                        <th className="border border-blue-200 px-2 py-1">No. Rekening</th>
+                        <th className="border border-blue-200 px-2 py-1">Deskripsi</th>
+                        <th className="border border-blue-200 px-2 py-1">Debit</th>
+                        <th className="border border-blue-200 px-2 py-1">Kredit</th>
+                      </tr>
+                      <tr className="bg-blue-50">
+                        <th className="border border-blue-200 px-2 py-1"></th>
+                        <th className="border border-blue-200 px-2 py-1">Bank Masuk</th>
+                        <th className="border border-blue-200 px-2 py-1">Bank Keluar</th>
+                        <th className="border border-blue-200 px-2 py-1"></th>
+                        <th className="border border-blue-200 px-2 py-1"></th>
+                        <th className="border border-blue-200 px-2 py-1"></th>
+                        <th className="border border-blue-200 px-2 py-1"></th>
+                        <th className="border border-blue-200 px-2 py-1"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className="border border-blue-200 px-2 py-1">2026-01-06</td>
+                        <td className="border border-blue-200 px-2 py-1">BM-BCA7738/I/26/001</td>
+                        <td className="border border-blue-200 px-2 py-1"></td>
+                        <td className="border border-blue-200 px-2 py-1">Swiss Bellin</td>
+                        <td className="border border-blue-200 px-2 py-1"></td>
+                        <td className="border border-blue-200 px-2 py-1">Pelunasan Toko : LR251200001</td>
+                        <td className="border border-blue-200 px-2 py-1">750000</td>
+                        <td className="border border-blue-200 px-2 py-1">0</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-[10px] text-blue-600">
+                  • <strong>Bank Masuk</strong>: voucher number (mis. <code>BM-BCA7738/I/26/002</code>) menentukan rekening perusahaan penerima.<br />
+                  • <strong>Bank Keluar</strong>: kolom <strong>No. Rekening</strong> diisi format <code>Nama Bank - Nomor Rekening</code> (mis. <code>BCA - 773852921</code>).<br />
+                  • Kolom <strong>Customer</strong> → field Dibayar/Diterima Oleh pada voucher.<br />
+                  • Baris tanpa No. Voucher akan dikelompokkan ke voucher terakhir sebagai item tambahan.
+                </p>
+              </div>
+
+              {/* Drop Zone */}
+              {!importModal.result && (
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setImportModal(p => ({ ...p, dragging: true })); }}
+                  onDragLeave={() => setImportModal(p => ({ ...p, dragging: false }))}
+                  onDrop={handleImportDrop}
+                  onClick={() => importFileRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200 ${importModal.dragging
+                    ? 'border-indigo-400 bg-indigo-50 scale-[1.01]'
+                    : importModal.file
+                      ? 'border-indigo-400 bg-indigo-50'
+                      : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+                    }`}
+                >
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => handleImportFile(e.target.files?.[0] ?? null)}
+                  />
+                  {importModal.file ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 text-indigo-500">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-indigo-700">{importModal.file.name}</p>
+                        <p className="text-xs text-indigo-500">{(importModal.file.size / 1024).toFixed(1)} KB · Klik untuk ganti</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 mx-auto text-slate-400 mb-2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      <p className="text-sm font-medium text-slate-600">Drag &amp; drop file Excel di sini</p>
+                      <p className="text-xs text-slate-400 mt-1">atau klik untuk memilih file (.xlsx, .xls)</p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Error */}
+              {importModal.error && (
+                <div className="flex items-start gap-2 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 flex-shrink-0 mt-0.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                  <span>{importModal.error}</span>
+                </div>
+              )}
+
+              {/* Result */}
+              {importModal.result && (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 text-emerald-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm font-semibold text-emerald-700">Import Selesai</p>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      <div className="bg-white rounded-lg p-2 border border-emerald-100">
+                        <p className="text-xl font-bold text-emerald-600">{importModal.result.created}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-medium">Dibuat</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border border-blue-100">
+                        <p className="text-xl font-bold text-blue-500">{importModal.result.linked?.length ?? 0}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-medium">Invoice</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border border-amber-100">
+                        <p className="text-xl font-bold text-amber-500">{importModal.result.skipped.length}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-medium">Dilewati</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-2 border border-rose-100">
+                        <p className="text-xl font-bold text-rose-500">{importModal.result.errors.length}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-medium">Error/Warning</p>
+                      </div>
+                    </div>
+                    {importModal.result.linked?.length > 0 && (
+                      <div className="mt-2 text-xs text-blue-600">
+                        <span className="font-semibold">Invoice terhubung:</span> {importModal.result.linked.join(', ')}
+                      </div>
+                    )}
+                    {importModal.result.skipped.length > 0 && (
+                      <div className="mt-2 text-xs text-amber-600">
+                        <span className="font-semibold">Dilewati (duplikat):</span> {importModal.result.skipped.join(', ')}
+                      </div>
+                    )}
+                    {importModal.result.errors.length > 0 && (
+                      <div className="mt-2 text-xs text-rose-600">
+                        <span className="font-semibold">Error/Warning:</span> {importModal.result.errors.join('; ')}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setImportModal({ open: false, file: null, dragging: false, loading: false, result: null, error: null })}
+                    className="btn btn-success w-full"
+                  >
+                    Selesai
+                  </button>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              {!importModal.result && (
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setImportModal({ open: false, file: null, dragging: false, loading: false, result: null, error: null })}
+                    className="btn btn-sm btn-ghost"
+                    disabled={importModal.loading}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleImportSubmit}
+                    disabled={!importModal.file || importModal.loading}
+                    className="btn btn-sm btn-primary"
+                  >
+                    {importModal.loading ? (
+                      <><span className="loading loading-spinner loading-xs" /> Mengimpor...</>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                        Import Sekarang
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Sequence Modal */}
       {sequenceModal.open && sequenceModal.voucher && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -906,6 +1220,7 @@ export default function BankVoucherTab() {
                 Batal
               </button>
               <button
+
                 className="btn btn-sm btn-primary"
                 disabled={patchSequenceFn.loading || !sequenceModal.newSeq || Number(sequenceModal.newSeq) < 1}
                 onClick={() => {
@@ -970,17 +1285,80 @@ export default function BankVoucherTab() {
           </div>
         </div>
 
+        {/* ── Hint Banner Drag & Drop ── */}
+        {(getAllVouchersFn.result?.length ?? 0) > 1 && (
+          <div className="mx-4 mb-2 flex items-center gap-2 text-xs text-violet-600 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2 select-none">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 4v8m0 0l4-4m-4 4l-4-4" />
+            </svg>
+            <span>Seret (drag) kartu voucher ke kartu lain untuk <strong>menukar nomor voucher</strong> di antara keduanya.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-12 gap-4">
           <div className="col-span-12">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
               {getAllVouchersFn.result?.map((voucher) => {
                 const isMasuk = voucher.voucherType === 'masuk';
                 const isSaved = voucher.status === 'saved';
+                const isDragging = draggedId === voucher._id;
+                const isDropTarget = dragOverId === voucher._id && draggedId !== voucher._id;
 
                 return (
                   <div
                     key={voucher._id || voucher.voucherNumber}
-                    className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col justify-between overflow-hidden"
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedId(voucher._id);
+                      // Set drag image opacity via ghost
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (draggedId && draggedId !== voucher._id) {
+                        setDragOverId(voucher._id);
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      // Only clear if leaving the card itself (not a child element)
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setDragOverId(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!draggedId || draggedId === voucher._id) return;
+                      swapSequenceFn.fn(
+                        '/api/web/bank-voucher',
+                        JSON.stringify({
+                          action: 'swap',
+                          masterAccountId,
+                          voucherId1: draggedId,
+                          voucherId2: voucher._id,
+                        }),
+                        () => {
+                          showToast('success', 'Nomor voucher berhasil ditukar!');
+                          getAllVouchersFn.fn(`/api/web/bank-voucher?id=${masterAccountId}`, '{}', () => { });
+                        }
+                      );
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
+                    className={[
+                      'relative bg-white rounded-xl border shadow-sm flex flex-col justify-between overflow-hidden',
+                      'transition-all duration-200',
+                      isDragging
+                        ? 'opacity-40 scale-95 shadow-none cursor-grabbing'
+                        : 'cursor-grab hover:shadow-md',
+                      isDropTarget
+                        ? 'border-violet-400 ring-2 ring-violet-300 shadow-lg scale-[1.02]'
+                        : 'border-slate-200',
+                    ].join(' ')}
                   >
                     {/* Header Card: Tipe & Status */}
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -996,6 +1374,8 @@ export default function BankVoucherTab() {
                               setSelectedVouchers(selectedVouchers.filter(v => v._id !== voucher._id));
                             }
                           }}
+                          // Prevent checkbox click from triggering drag
+                          onMouseDown={(e) => e.stopPropagation()}
                         />
                         <span className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wider ${isMasuk
                           ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
@@ -1005,7 +1385,16 @@ export default function BankVoucherTab() {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
+                        {/* Drag handle icon */}
+                        <span
+                          title="Seret untuk tukar nomor"
+                          className={`text-slate-300 transition-colors ${isDropTarget ? 'text-violet-400' : 'group-hover:text-slate-400'}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
+                          </svg>
+                        </span>
                         <span className={`w-2 h-2 rounded-full ${isSaved ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
                         <span className="text-xs font-medium text-slate-600 capitalize">
                           {voucher.status}
@@ -1013,8 +1402,20 @@ export default function BankVoucherTab() {
                       </div>
                     </div>
 
+                    {/* Drop target overlay hint */}
+                    {isDropTarget && (
+                      <div className="absolute inset-0 pointer-events-none rounded-xl flex items-center justify-center z-10" style={{ background: 'rgba(139,92,246,0.08)' }}>
+                        <div className="bg-violet-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                          </svg>
+                          Tukar di sini
+                        </div>
+                      </div>
+                    )}
+
                     {/* Body Card: Detail Informasi */}
-                    <div className="p-4 space-y-3 flex-1">
+                    <div className="p-4 space-y-3 flex-1 relative">
                       <div>
                         <p className="text-xs text-slate-400 font-mono">{fixBySequence(voucher.voucherNumber, voucher.sequence)}</p>
                         <h3 className="text-base font-bold text-slate-800 truncate">
@@ -1061,18 +1462,21 @@ export default function BankVoucherTab() {
                     {/* Action Card */}
                     <div className="p-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
                       <button
+                        disabled
                         onClick={() => setSequenceModal({ open: true, voucher, newSeq: String(voucher.sequence ?? "") })}
                         className="btn btn-sm btn-outline btn-secondary"
                         title={`Sequence: ${voucher.sequence ?? '-'}`}
+                        onMouseDown={(e) => e.stopPropagation()}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                         </svg>
                         #{voucher.sequence ?? '-'}
-                      </button>
+                      </button>s
                       <button
                         onClick={() => handleSelectVoucher(voucher)}
                         className="btn btn-sm btn-outline btn-primary"
+                        onMouseDown={(e) => e.stopPropagation()}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
