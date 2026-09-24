@@ -355,7 +355,7 @@ export default function CashVoucherTab() {
     setTanggal(voucher.date ? new Date(voucher.date).toISOString().split("T")[0] : "");
     setTerbilangValue(voucher.terbilang || "");
 
-    let newRows = [...(voucher.items || [])];
+    const newRows = [...(voucher.items || [])];
     while (newRows.length < 3) {
       newRows.push({ id: Math.random().toString(), keterangan: "", customer: "", jumlah: 0 });
     }

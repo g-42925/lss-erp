@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       error: false
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
   } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,

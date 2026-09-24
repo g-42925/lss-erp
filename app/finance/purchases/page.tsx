@@ -261,7 +261,11 @@ export default function PurchasesApproval() {
                           (searchResult.length > 0 ? searchResult : pr).map((p, index) => {
                             const itemName = filterType === 'service' ? p.description : p.product?.productName || p.product?.name || '-';
                             const unit = filterType === 'procurement' ? p.product?.unit : p.product?.conversionRatioX;
-                            const suppName = filterType === 'service' ? p.vendor?.name : p.supplier?.bussinessName || "-";
+                            const suppName = filterType === 'service' 
+                              ? p.vendor?.name || "-" 
+                              : filterType === 'procurement'
+                                ? p.customSupplier || "-"
+                                : p.supplier?.bussinessName || p.customSupplier || "-";
                             return (
                               <tr key={index}>
                                 <td>{new Date(p.date).toLocaleString('id-ID')}</td>
@@ -270,13 +274,7 @@ export default function PurchasesApproval() {
                                 <td>{p.finalPrice}</td>
                                 <td>{p.payAmount}</td>
                                 <td>
-                                  {
-                                    p.status === "ordered" || p.status === "completed"
-                                      ?
-                                      suppName
-                                      :
-                                      "-"
-                                  }
+                                  {suppName}
                                 </td>
                                 <td>{filterType === 'service' ? '-' : `${p.receivedQty || 0} (${unit || '-'})`}</td>
                                 <td>{p.status}</td>

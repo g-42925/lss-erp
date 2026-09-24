@@ -8,6 +8,7 @@ import ServiceOrder from '@/models/ServiceOrder'
 import Companie from '@/models/Companie'
 import Log from '@/models/Log'
 import Cashflow from '@/models/Cashflow'
+import { getAvailableBalance } from '@/lib/finance/balance'
 
 
 export async function GET(request: NextRequest) {
@@ -61,6 +62,15 @@ export async function GET(request: NextRequest) {
           }
         },
         { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: 'invitems',
+            localField: 'productId',
+            foreignField: '_id',
+            as: 'invItem'
+          }
+        },
+        { $unwind: { path: '$invItem', preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: 'suppliers',
@@ -312,6 +322,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ noResult: true, message: `Jumlah bayar melebihi hutang (max: ${totalVendorAmount - currentVendorPaid})`, result: null, error: true })
     }
 
+    const isCash = !paymentMethod || paymentMethod === 'Cash'
+    const cmp = masterAccountId ? await Companie.findOne({ masterAccountId }) : null
+    
+    if (cmp) {
+      const balance = await getAvailableBalance(cmp._id, paymentMethod, bankAccountId);
+      if (balance < amt) {
+        return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia: ${balance}`, result: null, error: true })
+      }
+    }
+
     await Invoice.findByIdAndUpdate(invoiceId, {
       vendorPaid: newVendorPaid,
       ...(voucher ? { bankVoucher: voucher } : {})
@@ -332,8 +352,6 @@ export async function POST(request: NextRequest) {
     })
 
     // ─── Catat Cashflow ──────────────────────────────────────────────────────
-    const isCash = !paymentMethod || paymentMethod === 'Cash'
-    const cmp = masterAccountId ? await Companie.findOne({ masterAccountId }) : null
 
     if (cmp) {
       await Cashflow.create({

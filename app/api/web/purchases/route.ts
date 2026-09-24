@@ -16,6 +16,7 @@ import Location from '@/models/Location'
 import InvItem from '@/models/InvItem'
 import InboundLog from '@/models/InboundLog'
 import Packaging from '@/models/Packaging'
+import { getAvailableBalance } from '@/lib/finance/balance'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -46,6 +47,14 @@ export async function PUT(request: NextRequest) {
           await Purchase.findByIdAndUpdate(_id, { status: "rejected" });
           return NextResponse.json({ noResult: false, message: "PR rejected", result: true, error: false });
         case "convert_to_po":
+          const prForBal = await Purchase.findById(_id);
+          if (rest.payAmount && rest.payAmount > 0 && prForBal) {
+            const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId);
+            if (balance < rest.payAmount) {
+              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia: ${balance}`, result: null, error: true });
+            }
+          }
+
           const updateData: any = {
             status: "ordered",
             finalPrice: rest.finalPrice,
@@ -203,6 +212,12 @@ export async function PUT(request: NextRequest) {
 
         const amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
 
+        if (rest.type === "payment" && amt > 0) {
+          // Validasi saldo tidak dilakukan di sini karena pembayaran hutang
+          // adalah mencatat transaksi yang sudah terjadi — saldo dikelola
+          // secara terpisah melalui Cashflow Report.
+        }
+
         if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement' || rest.purchaseType === 'service') {
 
           await Log.create({
@@ -275,6 +290,15 @@ export async function PUT(request: NextRequest) {
 
       if (rest.status === '_approved') {
 
+        if (rest.payAmount && rest.payAmount > 0) {
+          const prForBal = await Purchase.findById(_id);
+          if (prForBal) {
+            const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId);
+            if (balance < rest.payAmount) {
+              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia: ${balance}`, result: null, error: true });
+            }
+          }
+        }
 
         await Log.create({
           purchaseId: _id,
@@ -389,7 +413,7 @@ export async function PUT(request: NextRequest) {
         
         if (rest.saveAs === 'asset') {
           // Create Asset records (1 per received qty since qty field was removed)
-          let companyId = purchase.companyId;
+          const companyId = purchase.companyId;
 
           if (companyId) {
              const invItem = await InvItem.findById(purchase.productId);

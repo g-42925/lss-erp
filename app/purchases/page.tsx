@@ -37,6 +37,8 @@ function Purchases() {
   const [vendors, setVendors] = useState<any[]>([])
   const [taxes, setTaxes] = useState<any[]>([])
   const [selectedPrForTax, setSelectedPrForTax] = useState<any>(null)
+  const [poAvailableBalance, setPoAvailableBalance] = useState<number | null>(null)
+  const [poBalanceLoading, setPoBalanceLoading] = useState(false)
 
   const bankAccount = useFetch<any[], any>({
     url: "",
@@ -96,13 +98,34 @@ function Purchases() {
       quantity: "",
       vendorId: "",
       productId: "",
+      supplierId: "",
+      customSupplier: "",
     },
   })
 
   const taxForm = useForm()
 
   const watchPayAmount = orderForm.watch("payAmount")
+  const watchPaymentMethod = orderForm.watch("paymentMethod")
   const watchTaxFormTaxIds = taxForm.watch("taxIds") || []
+
+  // ─── Fetch saldo tersedia untuk form Buat PO ─────────────────────────────────
+  async function fetchPoBalance(method: string, bankAccountId?: string) {
+    if (!masterAccountId) return
+    setPoBalanceLoading(true)
+    try {
+      const params = new URLSearchParams({ id: masterAccountId, paymentMethod: method })
+      if (bankAccountId) params.set('bankAccountId', bankAccountId)
+      const res = await fetch(`/api/web/finance/balance?${params}`)
+      const json = await res.json()
+      if (!json.error) setPoAvailableBalance(json.result ?? 0)
+      else setPoAvailableBalance(null)
+    } catch {
+      setPoAvailableBalance(null)
+    } finally {
+      setPoBalanceLoading(false)
+    }
+  }
 
   function getPurchaseName(purchase: any) {
     return (
@@ -430,6 +453,15 @@ function Purchases() {
       return
     }
 
+    if (payAmount > 0 && poAvailableBalance !== null && payAmount > poAvailableBalance) {
+      alert(
+        `Saldo ${watchPaymentMethod || 'Cash'} tidak mencukupi.\n` +
+        `Saldo tersedia: Rp ${poAvailableBalance.toLocaleString('id-ID')}\n` +
+        `Jumlah pembayaran: Rp ${payAmount.toLocaleString('id-ID')}`
+      )
+      return
+    }
+
     const payload = JSON.stringify({
       ...data,
       finalPrice,
@@ -510,6 +542,8 @@ function Purchases() {
     }
 
     orderRef.current?.showModal()
+    setPoAvailableBalance(null)
+    fetchPoBalance('Cash')
   }
 
   function openEdit(id: string) {
@@ -1212,6 +1246,54 @@ function Purchases() {
                     </select>
                   </fieldset>
                 )}
+
+                {filterType === "product" && (
+                  <fieldset className="fieldset flex-1">
+                    <legend className="fieldset-legend">
+                      Supplier
+                    </legend>
+
+                    <select
+                      {...editForm.register(
+                        "supplierId"
+                      )}
+                      className="select w-full"
+                    >
+                      <option value="">
+                        -- Pilih Supplier --
+                      </option>
+
+                      {suppliers.map(
+                        (supplier) => (
+                          <option
+                            key={supplier._id}
+                            value={supplier._id}
+                          >
+                            {
+                              supplier.bussinessName
+                            }
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </fieldset>
+                )}
+
+                {filterType === "procurement" && (
+                  <fieldset className="fieldset flex-1">
+                    <legend className="fieldset-legend">
+                      Supplier / Asal
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...editForm.register(
+                        "customSupplier"
+                      )}
+                      type="text"
+                    />
+                  </fieldset>
+                )}
               </div>
 
               {(editFn.noResult ||
@@ -1414,6 +1496,54 @@ function Purchases() {
                         )
                       )}
                     </select>
+                  </fieldset>
+                )}
+
+                {filterType === "product" && (
+                  <fieldset className="fieldset flex-1">
+                    <legend className="fieldset-legend">
+                      Supplier
+                    </legend>
+
+                    <select
+                      {...newPrForm.register(
+                        "supplierId"
+                      )}
+                      className="select w-full"
+                    >
+                      <option value="">
+                        -- Pilih Supplier --
+                      </option>
+
+                      {suppliers.map(
+                        (supplier) => (
+                          <option
+                            key={supplier._id}
+                            value={supplier._id}
+                          >
+                            {
+                              supplier.bussinessName
+                            }
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </fieldset>
+                )}
+
+                {filterType === "procurement" && (
+                  <fieldset className="fieldset flex-1">
+                    <legend className="fieldset-legend">
+                      Supplier / Asal
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...newPrForm.register(
+                        "customSupplier"
+                      )}
+                      type="text"
+                    />
                   </fieldset>
                 )}
               </div>
@@ -1631,6 +1761,14 @@ function Purchases() {
                       "paymentMethod"
                     )}
                     className="select w-full"
+                    onChange={e => {
+                      const val = e.target.value
+                      orderForm.setValue('paymentMethod', val)
+                      const matchedBank = bankAccount.result?.find(
+                        (b: any) => `Transfer - ${b.bank}` === val
+                      )
+                      fetchPoBalance(val, matchedBank?._id)
+                    }}
                   >
                     <option value="Cash">
                       Cash
@@ -1654,6 +1792,30 @@ function Purchases() {
                       )
                     )}
                   </select>
+
+                  {/* Tampilan sisa saldo */}
+                  {watchPayAmount > 0 && (
+                    <div className="mt-2">
+                      {poBalanceLoading ? (
+                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                          <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+                        </span>
+                      ) : poAvailableBalance !== null ? (
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
+                          poAvailableBalance <= 0
+                            ? 'bg-red-50 border-red-200 text-red-700'
+                            : parseFloat(String(watchPayAmount)) > poAvailableBalance
+                              ? 'bg-orange-50 border-orange-200 text-orange-700'
+                              : 'bg-green-50 border-green-200 text-green-700'
+                        }`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                          </svg>
+                          <span>Saldo tersedia: <strong>Rp {poAvailableBalance.toLocaleString('id-ID')}</strong></span>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
                 </fieldset>
               </div>
 
@@ -1676,8 +1838,17 @@ function Purchases() {
 
                 <button
                   type="submit"
-                  className="p-3 rounded-md text-white bg-blue-900"
-                  disabled={editFn.loading}
+                  className="p-3 rounded-md text-white bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={editFn.loading || (
+                    watchPayAmount > 0 &&
+                    poAvailableBalance !== null &&
+                    parseFloat(String(watchPayAmount)) > poAvailableBalance
+                  )}
+                  title={
+                    watchPayAmount > 0 && poAvailableBalance !== null && parseFloat(String(watchPayAmount)) > poAvailableBalance
+                      ? `Saldo tidak mencukupi. Tersedia: Rp ${poAvailableBalance.toLocaleString('id-ID')}`
+                      : ''
+                  }
                 >
                   {editFn.loading
                     ? "Processing..."

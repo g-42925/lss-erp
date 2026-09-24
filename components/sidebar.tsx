@@ -207,7 +207,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <ul>
                   <SidebarItem href="/inventory/items">Items</SidebarItem>
                   <SidebarItem href="/inventory/usage">Usage Logs</SidebarItem>
-                  <SidebarItem href="/batches">Batch Management</SidebarItem>
                 </ul>
               </details>
             </li>
@@ -218,7 +217,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <summary>Purchases</summary>
                 <ul>
                   <SidebarItem href="/purchases">Requisition</SidebarItem>
-                  <SidebarItem href="/purchases/purchase-return">Purchase Return</SidebarItem>
+                  {/*<SidebarItem href="/purchases/purchase-return">Purchase Return</SidebarItem>*/}
                 </ul>
               </details>
             </li>
@@ -244,7 +243,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 <summary>Finance</summary>
                 <ul>
                   <SidebarItem href="/finance/purchases">Purchases Approval</SidebarItem>
-                  <SidebarItem href="/finance/purchase-return">Purchase Return Approval</SidebarItem>
+                  {/*<SidebarItem href="/finance/purchase-return">Purchase Return Approval</SidebarItem>*/}
                   <SidebarItem href="/finance/debt">Debts</SidebarItem>
                   {/*<SidebarItem href="/finance/receivable">Receivable</SidebarItem>*/}
                   {/*<SidebarItem href="/finance/svc-receivable">Service Receivable</SidebarItem>*/}

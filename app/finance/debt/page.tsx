@@ -65,6 +65,8 @@ export default function Debt() {
   })
   const [voucherSearch, setVoucherSearch] = useState("")
   const [showVoucherDropdown, setShowVoucherDropdown] = useState(false)
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null)
+  const [balanceLoading, setBalanceLoading] = useState(false)
 
   const [createInvoiceSubmitting, setCreateInvoiceSubmitting] = useState(false)
   const [createInvoiceData, setCreateInvoiceData] = useState({
@@ -150,7 +152,27 @@ export default function Debt() {
       voucher: ''
     })
     setVoucherSearch("")
+    setAvailableBalance(null)
+    fetchAvailableBalance('Cash', '')
     payRef.current?.showModal()
+  }
+
+  // ─── Fetch saldo tersedia dari API ───────────────────────────────────────────
+  async function fetchAvailableBalance(method: string, bankAccountId: string) {
+    if (!masterAccountId) return
+    setBalanceLoading(true)
+    try {
+      const params = new URLSearchParams({ id: masterAccountId, paymentMethod: method })
+      if (bankAccountId) params.set('bankAccountId', bankAccountId)
+      const res = await fetch(`/api/web/finance/balance?${params}`)
+      const json = await res.json()
+      if (!json.error) setAvailableBalance(json.result ?? 0)
+      else setAvailableBalance(null)
+    } catch {
+      setAvailableBalance(null)
+    } finally {
+      setBalanceLoading(false)
+    }
   }
 
   function openCreateInvoice() {
@@ -308,6 +330,10 @@ export default function Debt() {
     const remaining = selectedDebt.finalPrice - selectedDebt.payAmount
     if (newPayAmt > remaining) return alert("Jumlah bayar melebihi sisa hutang")
 
+    if (availableBalance !== null && newPayAmt > availableBalance) {
+      return alert(`Jumlah bayar melebihi saldo tersedia (Rp ${availableBalance.toLocaleString('id-ID')})`)
+    }
+
     const payload = JSON.stringify({
       _id: selectedDebt._id,
       type: "payment",
@@ -351,6 +377,10 @@ export default function Debt() {
 
     const rem = selectedDebt.totalVendorAmount - (selectedDebt.vendorPaid ?? 0)
     if (newPayAmt > rem) return alert("Jumlah bayar melebihi sisa hutang vendor")
+
+    if (availableBalance !== null && newPayAmt > availableBalance) {
+      return alert(`Jumlah bayar melebihi saldo tersedia (Rp ${availableBalance.toLocaleString('id-ID')})`)
+    }
 
     setPaySubmitting(true)
     try {
@@ -727,13 +757,13 @@ export default function Debt() {
                         {debts.map((d, index) => (
                           <tr key={index}>
                             <td>{new Date(d.date).toLocaleDateString('id-ID')}</td>
-                            {filterType === 'barang' && <td>{d.product?.productName ?? '-'}</td>}
+                            {filterType === 'barang' && <td>{d.product?.productName || d.invItem?.name || d.description || '-'}</td>}
                             {filterType === 'jasa' && <td>{d.description ?? '-'}</td>}
                             {filterType === 'vendor' && <td>{d.invoiceNumber}</td>}
                             <td>
                               {filterType === 'vendor'
-                                ? d.vendor?.name ?? '-'
-                                : d.supplier?.bussinessName ?? d.vendor?.name ?? '-'}
+                                ? (d.vendor?.name || '-')
+                                : (d.supplier?.bussinessName || d.vendor?.name || d.customSupplier || '-')}
                             </td>
                             <td>
                               {(filterType === 'vendor'
@@ -798,20 +828,39 @@ export default function Debt() {
 
         {/* ─── Pay Modal ─── */}
         <dialog id="pay_modal" ref={payRef} className="modal text-black">
-          <div className="modal-box w-11/12 max-w-2xl">
-            <h3 className="font-bold text-lg mb-4">
+          <div className="modal-box w-11/12 max-w-3xl">
+            <h3 className="font-bold text-lg mb-4 pb-3 border-b">
               {filterType === 'vendor' ? 'Bayar Hutang Vendor' : 'Tambah Pembayaran'}
             </h3>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {selectedDebt && (
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
-                  {filterType === 'barang' && <div><b>Produk:</b> {selectedDebt.product?.productName}</div>}
-                  {filterType === 'jasa' && <div><b>Deskripsi:</b> {selectedDebt.description}</div>}
-                  {filterType === 'vendor' && <div><b>Invoice:</b> {selectedDebt.invoiceNumber}</div>}
-                  <div><b>Vendor/Supplier:</b> {filterType === 'vendor' ? (selectedDebt.vendor?.name ?? '-') : (selectedDebt.supplier?.bussinessName ?? selectedDebt.vendor?.name ?? '-')}</div>
-                  <div><b>Sisa Hutang:</b> <span className="text-red-700 font-semibold">{remaining(selectedDebt)?.toLocaleString('id-ID')}</span></div>
+                <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-5 mb-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">
+                        {filterType === 'vendor' ? 'No. Invoice' : 'Produk / Deskripsi'}
+                      </span>
+                      <span className="font-semibold text-gray-800 text-base">
+                        {filterType === 'barang' ? (selectedDebt.product?.productName || selectedDebt.invItem?.name || selectedDebt.description || '-') : 
+                         filterType === 'jasa' ? (selectedDebt.description || '-') : 
+                         (selectedDebt.invoiceNumber || '-')}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Vendor / Supplier</span>
+                      <span className="font-semibold text-gray-800 text-base">
+                        {filterType === 'vendor' ? (selectedDebt.vendor?.name || '-') : (selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || selectedDebt.customSupplier || '-')}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-blue-200 flex flex-col gap-1">
+                    <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Sisa Hutang</span>
+                    <span className="text-red-600 font-bold text-2xl">Rp {remaining(selectedDebt)?.toLocaleString('id-ID')}</span>
+                  </div>
                 </div>
               )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Tanggal Pembayaran</legend>
@@ -851,13 +900,15 @@ export default function Debt() {
                     const val = e.target.value
                     // Cari bankAccountId yang sesuai
                     const matchedBank = bankAccountFn.result?.find((b: any) => `transfer from ${b.bank}` === val)
+                    const newBankAccountId = matchedBank?._id || ''
                     setPayFormData(p => ({
                       ...p,
                       paymentMethod: val,
-                      bankAccountId: matchedBank?._id || '',
+                      bankAccountId: newBankAccountId,
                       voucher: '' // reset voucher saat ganti metode
                     }))
                     setVoucherSearch('')
+                    fetchAvailableBalance(val, newBankAccountId)
                   }}
                 >
                   <option value="Cash">Cash</option>
@@ -867,6 +918,27 @@ export default function Debt() {
                     </option>
                   ))}
                 </select>
+                {/* Tampilan sisa saldo */}
+                <div className="mt-2">
+                  {balanceLoading ? (
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+                    </span>
+                  ) : availableBalance !== null ? (
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
+                      availableBalance <= 0
+                        ? 'bg-red-50 border-red-200 text-red-700'
+                        : Number(payFormData.payAmount) > availableBalance
+                          ? 'bg-orange-50 border-orange-200 text-orange-700'
+                          : 'bg-green-50 border-green-200 text-green-700'
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                      </svg>
+                      <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
+                    </div>
+                  ) : null}
+                </div>
               </fieldset>
 
               <fieldset className="fieldset">
@@ -942,8 +1014,9 @@ export default function Debt() {
                   </div>
                 )}
               </fieldset>
+              </div>
 
-              <fieldset className="fieldset">
+              <fieldset className="fieldset mt-2">
                 <legend className="fieldset-legend">Keterangan Tambahan</legend>
                 <input
                   className="input w-full"
@@ -959,7 +1032,8 @@ export default function Debt() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={paySubmitting}
+                  disabled={paySubmitting || (availableBalance !== null && Number(payFormData.payAmount) > availableBalance)}
+                  title={availableBalance !== null && Number(payFormData.payAmount) > availableBalance ? `Saldo tidak mencukupi. Tersedia: Rp ${availableBalance.toLocaleString('id-ID')}` : ''}
                   onClick={handlePay}
                 >
                   {paySubmitting ? <span className="loading loading-spinner loading-sm"></span> : 'Simpan Pembayaran'}

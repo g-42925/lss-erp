@@ -249,7 +249,7 @@ export async function PUT(request: NextRequest) {
     delete safeParams._id
     delete safeParams.invoiceNumber
 
-    let updateQuery: any = { $set: safeParams }
+    const updateQuery: any = { $set: safeParams }
 
     if (params.action === 'editPayment' && params.paymentHistoryId) {
       const mongoose = (await import('mongoose')).default;

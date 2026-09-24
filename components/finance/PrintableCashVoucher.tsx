@@ -4,7 +4,7 @@ export default function PrintableVoucher({ voucher, isLast, company }: { voucher
   const isMasuk = voucher.voucherType === "masuk";
   const isKeluar = voucher.voucherType === "keluar";
 
-  let rows = [...(voucher.items || [])];
+  const rows = [...(voucher.items || [])];
   while (rows.length < 3) {
     rows.push({ id: Math.random().toString(), keterangan: "", customer: "", jumlah: 0 });
   }
