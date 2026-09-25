@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
 
         invoices.forEach((inv: any) => {
           inv.paymentHistory?.forEach((ph: any) => {
-            if (!ph.voucherId) {
+            // Voucher Cash hanya untuk pembayaran metode Cash
+            const isCash = (ph.method || "").toLowerCase() === "cash";
+            if (!ph.voucherId && isCash) {
               results.invoicePayments.push({
                 invoiceId: inv._id,
                 invoiceNumber: inv.invoiceNumber,
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
           purchaseId: { $in: purchaseIds },
           type: "payment",
           paymentNumber: { $regex: /^PL-/ },
+          paymentMethod: { $regex: /^cash$/i },
           voucherId: { $exists: false }
         }).lean();
         
@@ -79,6 +82,7 @@ export async function GET(request: NextRequest) {
           purchaseId: { $in: vendorInvoiceIds },
           type: "payment",
           paymentNumber: { $regex: /^VL-/ },
+          paymentMethod: { $regex: /^cash$/i },
           voucherId: { $exists: false }
         }).lean();
 

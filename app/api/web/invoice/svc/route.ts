@@ -184,11 +184,8 @@ export async function PUT(request: NextRequest) {
         const invoiceCount = await Invoice.countDocuments({
           invoiceType: { $ne: "vendor_manual" },
           companyId: company._id,
-        });
 
-        console.log({
-          invoiceCount
-        })
+        });
 
         existingInvoice.invoiceNumber = getInvoiceNumber(
           company.invoiceCode,
@@ -228,9 +225,27 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    const now = new Date();
+
+    const startOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    );
+
+    const startOfNextMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1
+    );
+
     const invoiceCount = await Invoice.countDocuments({
       companyId: company._id,
       invoiceType: { $ne: "vendor_manual" },
+      date: {
+        $gte: startOfMonth,
+        $lt: startOfNextMonth
+      }
     });
 
     const invoiceNumber = getInvoiceNumber(
