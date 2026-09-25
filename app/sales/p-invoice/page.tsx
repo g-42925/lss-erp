@@ -226,7 +226,7 @@ export default function Invoices() {
             margin: 10mm;
             size: A4;
             /* Suppress browser-native header/footer (URL, date, page number) */
-            margin-top: 0;
+            margin-top: 15mm;
             margin-bottom: 0;
           }
           thead { display: table-header-group !important; }
