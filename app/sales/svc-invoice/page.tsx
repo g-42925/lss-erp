@@ -1144,7 +1144,7 @@ export default function Invoices() {
               <div className="flex flex-col">
                 <span className="text-2xl font-bold">Invoice</span>
                 <span className="text-xl text-gray-500">No: {invoiceToPrint?.invoiceNumber}</span>
-                <span className="text-gray-500">Date: {new Date(invoiceToPrint.date).toLocaleDateString("id-ID").replaceAll("/", "-")}</span>
+                <span className="text-gray-500">Date: {invoiceToPrint?.date && new Date(invoiceToPrint.date).toLocaleDateString("en-GB").replaceAll("/", "-")}</span>
                 {
                   invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
                     <span className="text-lg text-gray-500">Termin: {fTermin(invoiceToPrint)}</span>
