@@ -9,8 +9,8 @@ import Cashflow from "@/models/Cashflow";
 import Order from "@/models/Order";
 import ServiceOrder from "@/models/ServiceOrder";
 import Customer from "@/models/Customer";
-import CashVoucher from "@/models/CashVoucher";
-import BankVoucher from "@/models/BankVoucher";
+import CashVoucher from "@/models/VoucherCash";
+import BankVoucher from "@/models/VoucherBank";
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -317,5 +317,57 @@ export async function GET(request: NextRequest) {
 			result: null,
 			error: true,
 		});
+	}
+}
+
+export async function POST(request: NextRequest) {
+	try {
+		await connectToDatabase();
+		const body = await request.json();
+		const { masterAccountId, additional, ...rest } = body;
+		
+		if (!masterAccountId) {
+			return NextResponse.json({ error: true, message: "Missing masterAccountId" });
+		}
+		
+		const company = await Companie.findOne({ masterAccountId }).lean();
+		if (!company) {
+			return NextResponse.json({ error: true, message: "Company not found" });
+		}
+		
+		const cashflowData = {
+			companyId: company._id,
+			...rest,
+			...additional
+		};
+		
+		await Cashflow.create(cashflowData);
+		return NextResponse.json({ error: false, message: "success" });
+	} catch (e: any) {
+		console.error("Cashflow POST Error:", e);
+		return NextResponse.json({ error: true, message: e.message || "Failed to save cashflow" });
+	}
+}
+
+export async function PUT(request: NextRequest) {
+	try {
+		await connectToDatabase();
+		const body = await request.json();
+		const { id, masterAccountId, additional, ...rest } = body;
+		
+		if (!id) {
+			return NextResponse.json({ error: true, message: "Missing id" });
+		}
+		
+		const cashflowData = {
+			...rest,
+			...additional
+		};
+		
+		await Cashflow.findByIdAndUpdate(id, cashflowData);
+		return NextResponse.json({ error: false, message: "success" });
+	} catch (e: any) {
+		console.error("Cashflow PUT Error:", e);
+		return NextResponse.json({ error: true, message: e.message || "Failed to update cashflow" });
 	}
 }

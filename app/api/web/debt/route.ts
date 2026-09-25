@@ -203,8 +203,14 @@ export async function GET(request: NextRequest) {
         {
           $addFields: {
             vendorPaid: { $ifNull: ['$vendorPaid', 0] },
+            // Jika ada relatedInvoices, total hutang = jumlah debt dari invoice terkait.
+            // Jika tidak ada, fallback ke debt invoice manual itu sendiri.
             baseVendorAmount: {
-              $sum: '$relatedInvoices.debt'
+              $cond: {
+                if: { $gt: [{ $size: { $ifNull: ['$relatedInvoices', []] } }, 0] },
+                then: { $sum: '$relatedInvoices.debt' },
+                else: { $ifNull: ['$debt', 0] }
+              }
             }
           }
         },
@@ -227,7 +233,15 @@ export async function GET(request: NextRequest) {
         },
         {
           $addFields: {
-            totalVendorAmount: '$baseVendorAmount'
+            // totalVendorAmount = baseVendorAmount + pajak
+            totalVendorAmount: {
+              $add: [
+                '$baseVendorAmount',
+                { $divide: [{ $multiply: ['$baseVendorAmount', '$taxRatePct'] }, 100] }
+              ]
+            },
+            // Simpan nominal asli invoice manual (sebelum overwrite)
+            originalDebt: '$debt'
           }
         },
         {
@@ -243,18 +257,8 @@ export async function GET(request: NextRequest) {
         // Filter status lunas / belum lunas
         {
           $match: status === 'unpaid'
-            ? { $expr: { $gt: ['$totalVendorAmount', '$vendorPaid'] } }
-            : { $expr: { $lte: ['$totalVendorAmount', '$vendorPaid'] } }
-        },
-        {
-          $addFields: {
-            debt: {
-              $add: [
-                '$debt',
-                { $divide: [{ $multiply: ['$totalVendorAmount', '$taxRatePct'] }, 100] }
-              ]
-            }
-          }
+            ? { remaining: { $gt: 0 } }
+            : { remaining: { $lte: 0 } }
         }
       ])
 

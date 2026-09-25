@@ -49,7 +49,23 @@ export default function useAbsensiFetch<R, B>(config: Conf<B>) {
 
 			if (!_request.ok) throw new Error(`HTTP error status ${_request.status}`);
 
-			const response = await _request.json()
+			const responseText = await _request.text()
+			let response: R;
+			try {
+				response = JSON.parse(responseText)
+			} catch (err) {
+				// Coba ekstrak JSON jika ada peringatan PHP (CodeIgniter HTML error) di awal teks
+				const jsonStartIndex = responseText.indexOf('{') !== -1 ? responseText.indexOf('{') : responseText.indexOf('[');
+				if (jsonStartIndex !== -1) {
+					try {
+						response = JSON.parse(responseText.substring(jsonStartIndex));
+					} catch (e2) {
+						throw new Error(`Server mengembalikan respon tidak valid (bukan JSON). Status: ${_request.status}`);
+					}
+				} else {
+					throw new Error(`Server mengembalikan respon tidak valid (bukan JSON). Status: ${_request.status}`);
+				}
+			}
 			
 			setResult(response)
 			callback(response)

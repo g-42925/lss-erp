@@ -73,7 +73,12 @@ const invoiceSchema = new mongoose.Schema({
         default: false
       },
       voucherId: {
-        type: mongoose.Schema.Types.ObjectId
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'VoucherCash'
+      },
+      bankVoucherId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'VoucherBank'
       }
     }],
     default: []
@@ -116,14 +121,6 @@ const invoiceSchema = new mongoose.Schema({
     default: 0
   },
 
-  bankVoucherId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'BankVoucher'
-  },
-  cashVoucherId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'CashVoucher'
-  },
 
   price: Number,
 

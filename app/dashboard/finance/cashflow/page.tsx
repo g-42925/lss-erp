@@ -4,15 +4,7 @@
 import { NumericFormat } from "react-number-format";
 import { useState, useEffect, useCallback } from "react";
 import useAuth from "@/store/auth";
-import * as XLSX from 'xlsx';
-import PrintableCashVoucher from "@/components/finance/PrintableCashVoucher";
-import PrintableBankVoucher from "@/components/finance/PrintableBankVoucher";
-
-function fixBySequence(voucher: string, sequence?: number) {
-	if (!voucher) return voucher;
-	const [type, month, year, number] = voucher.split('/');
-	return `${type}/${month}/${year}/${String(sequence || 1).padStart(3, "0")}`
-}
+import * as XLSX from "xlsx";
 
 // -- Typings --
 type CashflowTransaction = {
@@ -26,20 +18,13 @@ type CashflowTransaction = {
 	to?: string;
 	from?: string;
 	balance?: number;
+	voucherId?: string;
+	voucherNumber?: string;
+	voucherSequence?: string | number;
 	cashVoucherId?: string;
 	cashVoucherNumber?: string;
 	bankVoucherId?: string;
 	bankVoucherNumber?: string;
-	voucherNumber?: string;
-	voucherSequence?: number;
-	voucherId?: string;
-};
-
-type Voucher = {
-	_id: string;
-	voucherNumber: string;
-	voucherType: string;
-	sequence?: number;
 };
 
 type Summary = {
@@ -61,6 +46,11 @@ type BankAccount = {
 const IDR = (v: number) =>
 	new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v);
 
+const fixBySequence = (voucherNumber: string, sequence?: number | string) => {
+	if (sequence === undefined || sequence === null) return voucherNumber;
+	return `${voucherNumber}-${sequence}`;
+};
+
 export default function CashflowReportPage() {
 	const hasHydrated = useAuth(s => s._hasHydrated);
 	const loggedIn = useAuth(s => s.loggedIn);
@@ -74,10 +64,9 @@ export default function CashflowReportPage() {
 	const [company, setCompany] = useState<any>(null);
 
 	const [transactions, setTransactions] = useState<CashflowTransaction[]>([]);
-	const [summary, setSummary] = useState<Summary>({ totalIn: 0, totalOut: 0, initialBalance: 0, netCashflow: 0, finalBalance: 0 });
-	const [cashVouchers, setCashVouchers] = useState<Voucher[]>([]);
-	const [bankVouchers, setBankVouchers] = useState<Voucher[]>([]);
-	const [loading, setLoading] = useState(false);
+	const [cashVouchers, setCashVouchers] = useState<any[]>([]);
+	const [bankVouchers, setBankVouchers] = useState<any[]>([]);
+	const [summary, setSummary] = useState<Summary>({ totalIn: 0, totalOut: 0, initialBalance: 0, netCashflow: 0, finalBalance: 0 });	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 
 	const [isCashOut, setIsCashOut] = useState(false);
@@ -99,8 +88,6 @@ export default function CashflowReportPage() {
 		bankAccountId: '',
 		from: '',
 		to: '',
-		cashVoucherId: '',
-		bankVoucherId: '',
 	});
 
 	function getInitialModalData(currentMode: string) {
@@ -113,8 +100,6 @@ export default function CashflowReportPage() {
 			bankAccountId: '',
 			from: '',
 			to: '',
-			cashVoucherId: '',
-			bankVoucherId: '',
 		};
 	}
 
@@ -130,73 +115,11 @@ export default function CashflowReportPage() {
 		bankAccountId: '',
 		from: '',
 		to: '',
-		cashVoucherId: '',
-		bankVoucherId: '',
 	});
 	const [editSaving, setEditSaving] = useState(false);
 
 	const [selectedTxs, setSelectedTxs] = useState<CashflowTransaction[]>([]);
-	const [printVouchersList, setPrintVouchersList] = useState<Array<{ voucher: any, type: 'cash' | 'bank' }>>([]);
 
-	function handlePrintInvoiceVoucher(t: CashflowTransaction) {
-		const vId = t.voucherId;
-		if (!vId) return;
-
-		// Try to find in cashVouchers first, then bankVouchers
-		const cashMatch = cashVouchers.find(v => v._id === vId);
-		if (cashMatch) {
-			setPrintVouchersList([{ voucher: cashMatch, type: 'cash' }]);
-			return;
-		}
-		const bankMatch = bankVouchers.find(v => v._id === vId);
-		if (bankMatch) {
-			setPrintVouchersList([{ voucher: bankMatch, type: 'bank' }]);
-			return;
-		}
-
-		// Voucher not loaded in state — inform user
-		alert(`Voucher dengan ID "${vId}" tidak ditemukan dalam daftar voucher. Pastikan voucher telah dibuat.`);
-	}
-
-	function toggleSelectTx(t: CashflowTransaction) {
-		if (selectedTxs.find(x => x._id === t._id)) {
-			setSelectedTxs(selectedTxs.filter(x => x._id !== t._id));
-		} else {
-			setSelectedTxs([...selectedTxs, t]);
-		}
-	}
-
-	function handleBulkPrint() {
-		const toPrint: Array<{ voucher: any, type: 'cash' | 'bank' }> = [];
-		const notFound: string[] = [];
-
-		selectedTxs.forEach(t => {
-			const vId = t.voucherId;
-			if (!vId) {
-				if (t.voucherNumber) notFound.push(t.voucherNumber);
-				return;
-			}
-			const cashMatch = cashVouchers.find(v => v._id === vId);
-			if (cashMatch) {
-				toPrint.push({ voucher: cashMatch, type: 'cash' });
-				return;
-			}
-			const bankMatch = bankVouchers.find(v => v._id === vId);
-			if (bankMatch) {
-				toPrint.push({ voucher: bankMatch, type: 'bank' });
-				return;
-			}
-			notFound.push(t.voucherNumber || vId);
-		});
-
-		if (notFound.length > 0) {
-			alert(`Voucher berikut tidak ditemukan: ${notFound.join(', ')}`);
-		}
-
-		if (toPrint.length > 0) {
-			setPrintVouchersList(toPrint);
-		}
-	}
 
 	const fetchBankAccounts = useCallback(async () => {
 		if (!masterAccountId) return;
@@ -218,18 +141,7 @@ export default function CashflowReportPage() {
 		} catch (e) { }
 	}, [masterAccountId]);
 
-	const fetchVouchers = useCallback(async () => {
-		if (!masterAccountId) return;
-		try {
-			const resCash = await fetch(`/api/web/cash-voucher?id=${masterAccountId}`);
-			const dataCash = await resCash.json();
-			if (!dataCash.error) setCashVouchers(dataCash.result || []);
 
-			const resBank = await fetch(`/api/web/bank-voucher?id=${masterAccountId}`);
-			const dataBank = await resBank.json();
-			if (!dataBank.error) setBankVouchers(dataBank.result || []);
-		} catch (e) { }
-	}, [masterAccountId]);
 
 	const fetchCashflow = useCallback(async () => {
 		if (!masterAccountId) return;
@@ -284,14 +196,56 @@ export default function CashflowReportPage() {
 		}
 	}, [masterAccountId, mode, startDate, endDate, bankAccountId, search]);
 
+	const fetchVouchers = useCallback(async () => {
+		if (!masterAccountId) return;
+		try {
+			const [cashRes, bankRes] = await Promise.all([
+				fetch(`/api/web/voucher-cash?id=${masterAccountId}`),
+				fetch(`/api/web/voucher-bank?id=${masterAccountId}`),
+			]);
+			const cashData = await cashRes.json();
+			const bankData = await bankRes.json();
+			if (!cashData.error) setCashVouchers(cashData.result || []);
+			if (!bankData.error) setBankVouchers(bankData.result || []);
+		} catch (e) { }
+	}, [masterAccountId]);
+
 	useEffect(() => {
 		if (hasHydrated && loggedIn) {
 			fetchCompany();
 			fetchBankAccounts();
-			fetchVouchers();
 			fetchCashflow();
+			fetchVouchers();
 		}
-	}, [hasHydrated, loggedIn, fetchCashflow, fetchBankAccounts, fetchVouchers, fetchCompany]);
+	}, [hasHydrated, loggedIn, fetchCashflow, fetchBankAccounts, fetchCompany, fetchVouchers]);
+
+	const toggleSelectTx = (t: CashflowTransaction) => {
+		setSelectedTxs(prev =>
+			prev.some(x => x._id === t._id)
+				? prev.filter(x => x._id !== t._id)
+				: [...prev, t]
+		);
+	};
+
+	const handlePrintInvoiceVoucher = (t: CashflowTransaction) => {
+		if (!t.voucherId) return;
+		window.open(`/dashboard/finance/voucher-cash/${t.voucherId}/print`, '_blank');
+	};
+
+	const handleInlineVoucherChange = async (t: CashflowTransaction, voucherId: string) => {
+		setInlineSavingId(t._id);
+		try {
+			const field = mode === 'cash' ? 'cashVoucherId' : 'bankVoucherId';
+			const res = await fetch('/api/web/finance/reports/cashflow', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id: t._id, [field]: voucherId || null }),
+			});
+			const json = await res.json();
+			if (!json.error) fetchCashflow();
+		} catch (e) { }
+		finally { setInlineSavingId(null); }
+	};
 
 	const handleAddSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -317,8 +271,6 @@ export default function CashflowReportPage() {
 					amount: Number(modalData.amount),
 					date: modalData.date,
 					recordedBy: null,
-					cashVoucherId: modalData.accountType === 'cash' ? modalData.cashVoucherId : null,
-					bankVoucherId: modalData.accountType === 'bank' ? modalData.bankVoucherId : null,
 					additional
 				})
 			});
@@ -350,31 +302,7 @@ export default function CashflowReportPage() {
 		}
 	}
 
-	const handleInlineVoucherChange = async (t: any, voucherId: string) => {
-		setInlineSavingId(t._id);
-		try {
-			const res = await fetch('/api/web/finance/reports/cashflow', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					id: t._id,
-					masterAccountId,
-					cashVoucherId: mode === 'cash' ? (voucherId || null) : undefined,
-					bankVoucherId: mode === 'bank' ? (voucherId || null) : undefined,
-				})
-			});
-			const json = await res.json();
-			if (json.error) {
-				alert(json.message);
-			} else {
-				fetchCashflow();
-			}
-		} catch (e: any) {
-			alert('Error: ' + e.message);
-		} finally {
-			setInlineSavingId(null);
-		}
-	};
+
 
 	function openEditModal(t: any) {
 		// Determine accountType from method
@@ -391,8 +319,6 @@ export default function CashflowReportPage() {
 			bankAccountId: matchedBank?._id || '',
 			from: t.from || '',
 			to: t.to || '',
-			cashVoucherId: t.cashVoucherId || '',
-			bankVoucherId: t.bankVoucherId || '',
 		});
 		setShowEditModal(true);
 	}
@@ -415,8 +341,6 @@ export default function CashflowReportPage() {
 					date: editData.date,
 					from: editData.type === 'in' ? editData.from : undefined,
 					to: editData.type === 'out' ? editData.to : undefined,
-					cashVoucherId: editData.accountType === 'cash' ? editData.cashVoucherId : null,
-					bankVoucherId: editData.accountType === 'bank' ? editData.bankVoucherId : null,
 				})
 			});
 			const json = await res.json();
@@ -478,18 +402,7 @@ export default function CashflowReportPage() {
 								<span>Export Excel</span>
 							</button>
 
-							{selectedTxs.length > 0 && (
-								<button
-									type="button"
-									onClick={handleBulkPrint}
-									className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 flex items-center gap-2"
-								>
-									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
-										<path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
-									</svg>
-									<span>Print {selectedTxs.length} Voucher</span>
-								</button>
-							)}
+
 
 							<button
 								type="button"
@@ -768,10 +681,10 @@ export default function CashflowReportPage() {
 																			>
 																				<option value="">-- Tanpa Voucher --</option>
 																				{mode === 'cash'
-																					? cashVouchers.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar')).map(v => (
+																					? cashVouchers?.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar'))?.map(v => (
 																						<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
 																					))
-																					: bankVouchers.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar')).map(v => (
+																					: bankVouchers?.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar'))?.map(v => (
 																						<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
 																					))
 																				}
@@ -864,40 +777,7 @@ export default function CashflowReportPage() {
 													</select>
 												</div>
 											)}
-											{editData.type !== 'initial' && editData.accountType === 'cash' && (
-												<div>
-													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Cash Voucher</label>
-													<select
-														value={editData.cashVoucherId}
-														onChange={(e) => setEditData({ ...editData, cashVoucherId: e.target.value })}
-														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
-													>
-														<option value="">-- Tanpa Voucher --</option>
-														{cashVouchers
-															.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
-															.map(v => (
-																<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-															))}
-													</select>
-												</div>
-											)}
-											{editData.type !== 'initial' && editData.accountType === 'bank' && (
-												<div>
-													<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Bank Voucher</label>
-													<select
-														value={editData.bankVoucherId}
-														onChange={(e) => setEditData({ ...editData, bankVoucherId: e.target.value })}
-														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
-													>
-														<option value="">-- Tanpa Voucher --</option>
-														{bankVouchers
-															.filter(v => v.voucherType === (editData.type === 'in' ? 'masuk' : 'keluar'))
-															.map(v => (
-																<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-															))}
-													</select>
-												</div>
-											)}
+
 										</div>
 
 										{/* Nominal + Tanggal side by side */}
@@ -1063,41 +943,7 @@ export default function CashflowReportPage() {
 											</div>
 										)}
 
-										{modalData.type !== 'initial' && modalData.accountType === 'cash' && (
-											<div>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Cash Voucher</label>
-												<select
-													value={modalData.cashVoucherId}
-													onChange={(e) => setModalData({ ...modalData, cashVoucherId: e.target.value })}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
-												>
-													<option value="">-- Tanpa Voucher --</option>
-													{cashVouchers
-														.filter(v => v.voucherType === (modalData.type === 'in' ? 'masuk' : 'keluar'))
-														.map(v => (
-															<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-														))}
-												</select>
-											</div>
-										)}
 
-										{modalData.type !== 'initial' && modalData.accountType === 'bank' && (
-											<div>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Bank Voucher</label>
-												<select
-													value={modalData.bankVoucherId}
-													onChange={(e) => setModalData({ ...modalData, bankVoucherId: e.target.value })}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
-												>
-													<option value="">-- Tanpa Voucher --</option>
-													{bankVouchers
-														.filter(v => v.voucherType === (modalData.type === 'in' ? 'masuk' : 'keluar'))
-														.map(v => (
-															<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-														))}
-												</select>
-											</div>
-										)}
 									</div>
 
 									<div className="grid grid-cols-2 gap-3">
@@ -1189,77 +1035,12 @@ export default function CashflowReportPage() {
 						</div>
 					)}
 
-					{/* ===== Print Preview Modal untuk Invoice Voucher ===== */}
-					{printVouchersList.length > 0 && (
-						<div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
-							<div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-100 p-6">
-								<div className="flex items-center gap-3 mb-4">
-									<span className="bg-indigo-100 text-indigo-700 rounded-xl p-2">
-										<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-											<path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-										</svg>
-									</span>
-									<div>
-										<h3 className="text-base font-bold text-slate-800">Print Voucher</h3>
-										<p className="text-xs text-slate-500">
-											{printVouchersList.length === 1
-												? <span>No. Voucher: <span className="font-semibold text-indigo-600">{fixBySequence(printVouchersList[0].voucher.voucherNumber, printVouchersList[0].voucher.sequence)}</span></span>
-												: <span><span className="font-semibold text-indigo-600">{printVouchersList.length}</span> Voucher Terpilih</span>
-											}
-										</p>
-									</div>
-								</div>
-								<p className="text-sm text-slate-600 mb-5">
-									{printVouchersList.length === 1
-										? <>Voucher <span className="font-semibold">{printVouchersList[0].type === 'cash' ? 'Cash' : 'Bank'}</span> akan dicetak.</>
-										: <>{printVouchersList.length} Voucher akan dicetak sekaligus.</>
-									}
-									<br />Klik <strong>Print</strong> untuk melanjutkan.
-								</p>
-								<div className="flex justify-end gap-3">
-									<button
-										type="button"
-										onClick={() => setPrintVouchersList([])}
-										className="px-4 py-2 rounded-xl text-slate-600 font-semibold hover:bg-slate-100 transition-colors text-sm"
-									>
-										Batal
-									</button>
-									<button
-										type="button"
-										onClick={() => setTimeout(() => window.print(), 100)}
-										className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95 text-sm flex items-center gap-2"
-									>
-										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-											<path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-										</svg>
-										Print
-									</button>
-								</div>
-							</div>
-						</div>
-					)}
 
 
 				</div>
 			</div>
 
-			{/* Hidden print-only voucher area — di luar container print:hidden */}
-			{printVouchersList.length > 0 && (
-				<div className="hidden print:block">
-					{printVouchersList.map((pv, idx) => (
-						<div
-							key={pv.voucher._id + idx}
-							className={(idx + 1) % 2 === 0 && idx < printVouchersList.length - 1 ? 'break-after-page' : 'break-after-avoid'}
-							style={(idx + 1) % 2 === 0 && idx < printVouchersList.length - 1 ? { pageBreakAfter: 'always' } : {}}
-						>
-							{pv.type === 'cash'
-								? <PrintableCashVoucher voucher={pv.voucher} isLast={true} company={company} />
-								: <PrintableBankVoucher voucher={pv.voucher} isLast={true} company={company} />
-							}
-						</div>
-					))}
-				</div>
-			)}
+
 		</>
 	);
 }

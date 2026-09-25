@@ -11,11 +11,6 @@ import { usePermission } from "@/hooks/usePermission"
 
 
 
-function fixBySequence(voucher: string, sequence: number) {
-  if (!voucher) return voucher;
-  const [type, month, year, number] = voucher.split('/');
-  return `${type}/${month}/${year}/${String(sequence || 1).padStart(3, "0")}`
-}
 
 type FilterType = 'barang' | 'jasa' | 'vendor'
 
@@ -40,8 +35,6 @@ export default function Debt() {
   const [monthFilter, setMonthFilter] = useState<string>("")
   const [vendorFilter, setVendorFilter] = useState<string>("")
   const [vendors, setVendors] = useState<any[]>([])
-  const [cashVouchers, setCashVouchers] = useState<any[]>([])
-  const [bankVouchers, setBankVouchers] = useState<any[]>([])
   const [debts, setDebts] = useState<any[]>([])
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
@@ -61,10 +54,7 @@ export default function Debt() {
     bankAccountId: '',
     payDate: new Date().toISOString().split('T')[0],
     description: '',
-    voucher: ''
   })
-  const [voucherSearch, setVoucherSearch] = useState("")
-  const [showVoucherDropdown, setShowVoucherDropdown] = useState(false)
   const [availableBalance, setAvailableBalance] = useState<number | null>(null)
   const [balanceLoading, setBalanceLoading] = useState(false)
 
@@ -149,9 +139,7 @@ export default function Debt() {
       bankAccountId: '',
       payDate: new Date().toISOString().split('T')[0],
       description: '',
-      voucher: ''
     })
-    setVoucherSearch("")
     setAvailableBalance(null)
     fetchAvailableBalance('Cash', '')
     payRef.current?.showModal()
@@ -323,7 +311,7 @@ export default function Debt() {
   // ─── Pay: barang or jasa (via Purchase) ─────────────────────────────────────
   async function payPurchase() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, payDate, description, voucher } = payFormData
+    const { payAmount, paymentMethod, payDate, description } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
@@ -340,7 +328,7 @@ export default function Debt() {
       newPayAmt,
       payAmount: selectedDebt.payAmount + newPayAmt,
       status: '___approved',
-      reference: description ? `${description} ${voucher ? `(Voucher: ${voucher})` : ''}` : voucher ? `Voucher: ${voucher}` : null,
+      reference: description || null,
       purchaseType: selectedDebt.purchaseType,
       paymentMethod,
       date: payDate ? new Date(payDate).toISOString() : new Date().toISOString(),
@@ -371,11 +359,11 @@ export default function Debt() {
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
   async function payVendorDebt() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, bankAccountId, payDate, description, voucher } = payFormData
+    const { payAmount, paymentMethod, bankAccountId, payDate, description } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
-    const rem = selectedDebt.totalVendorAmount - (selectedDebt.vendorPaid ?? 0)
+    const rem = (selectedDebt.totalVendorAmount ?? selectedDebt.debt ?? 0) - (selectedDebt.vendorPaid ?? 0)
     if (newPayAmt > rem) return alert("Jumlah bayar melebihi sisa hutang vendor")
 
     if (availableBalance !== null && newPayAmt > availableBalance) {
@@ -396,7 +384,6 @@ export default function Debt() {
           userId,
           masterAccountId,
           description,
-          voucher
         })
       })
       const json = await res.json()
@@ -623,9 +610,6 @@ export default function Debt() {
       getVendorsFn.fn(`/api/web/vendor?id=${masterAccountId}`, "{}", setVendors)
       fetchDebts('barang', 'unpaid', '', '')
 
-      // Fetch vouchers
-      fetch(`/api/web/cash-voucher?id=${masterAccountId}`).then(r => r.json()).then(d => setCashVouchers(d.result || []))
-      fetch(`/api/web/bank-voucher?id=${masterAccountId}`).then(r => r.json()).then(d => setBankVouchers(d.result || []))
     }
   }, [masterAccountId, hasHydrated])
 
@@ -634,7 +618,11 @@ export default function Debt() {
   if (!isSuperAdmin) router.push('/dashboard')
 
   const remaining = (debt: any) => {
-    if (filterType === 'vendor') return (debt.debt ?? 0) - (debt.vendorPaid ?? 0)
+    // Untuk vendor: gunakan `remaining` yang sudah dihitung API, atau hitung dari totalVendorAmount
+    if (filterType === 'vendor') {
+      if (debt.remaining !== undefined) return debt.remaining
+      return (debt.totalVendorAmount ?? debt.debt ?? 0) - (debt.vendorPaid ?? 0)
+    }
     return (debt.finalPrice ?? 0) - (debt.payAmount ?? 0)
   }
 
@@ -767,7 +755,7 @@ export default function Debt() {
                             </td>
                             <td>
                               {(filterType === 'vendor'
-                                ? d.debt
+                                ? (d.originalDebt ?? d.debt)
                                 : d.finalPrice)?.toLocaleString('id-ID')}
                               {d.vendor?.populatedTaxes && d.vendor.populatedTaxes.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
@@ -792,7 +780,7 @@ export default function Debt() {
                               </td>
                             )}
                             <td>
-                              {(filterType === 'vendor'
+                            {(filterType === 'vendor'
                                 ? (d.vendorPaid ?? 0)
                                 : d.payAmount)?.toLocaleString('id-ID')}
                             </td>
@@ -905,9 +893,7 @@ export default function Debt() {
                       ...p,
                       paymentMethod: val,
                       bankAccountId: newBankAccountId,
-                      voucher: '' // reset voucher saat ganti metode
                     }))
-                    setVoucherSearch('')
                     fetchAvailableBalance(val, newBankAccountId)
                   }}
                 >
@@ -941,79 +927,6 @@ export default function Debt() {
                 </div>
               </fieldset>
 
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">
-                  {payFormData.paymentMethod === 'Cash' ? 'Pilih Voucher Cash' : 'Pilih Voucher Bank'}
-                </legend>
-                <div className="relative">
-                  <input
-                    type="text"
-                    className="input w-full"
-                    placeholder="Cari nomor voucher..."
-                    value={voucherSearch}
-                    onChange={e => {
-                      setVoucherSearch(e.target.value)
-                      setShowVoucherDropdown(true)
-                    }}
-                    onFocus={() => setShowVoucherDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowVoucherDropdown(false), 200)}
-                  />
-                  {showVoucherDropdown && (
-                    <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      <div
-                        className="p-3 hover:bg-gray-100 cursor-pointer border-b"
-                        onClick={() => {
-                          setPayFormData(p => ({ ...p, voucher: '' }))
-                          setVoucherSearch('')
-                          setShowVoucherDropdown(false)
-                        }}
-                      >
-                        -- Tidak menggunakan voucher --
-                      </div>
-                      {(payFormData.paymentMethod === 'Cash' ? cashVouchers : bankVouchers)
-                        .filter(v =>
-                          !voucherSearch ||
-                          fixBySequence(v.voucherNumber, v.sequence).toLowerCase().includes(voucherSearch.toLowerCase()) ||
-                          v.voucherType.toLowerCase().includes(voucherSearch.toLowerCase())
-                        )
-                        .map((v: any) => (
-                          <div
-                            key={v._id}
-                            className="p-3 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
-                            onClick={() => {
-                              setPayFormData(p => ({ ...p, voucher: v.voucherNumber }))
-                              setVoucherSearch(fixBySequence(v.voucherNumber, v.sequence))
-                              setShowVoucherDropdown(false)
-                            }}
-                          >
-                            <div className="font-bold text-sm text-blue-900">{fixBySequence(v.voucherNumber, v.sequence)}</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Tipe: <span className="font-medium">{v.voucherType}</span> |
-                              Tgl: <span className="font-medium">{new Date(v.date).toLocaleDateString('id-ID')}</span>
-                            </div>
-                            <div className="text-xs text-gray-600 mt-0.5">
-                              Total: <span className="font-bold">Rp {v.total?.toLocaleString('id-ID')}</span>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-                {/* View target voucher details if selected */}
-                {payFormData.voucher && (
-                  <div className="mt-2 text-xs p-3 bg-blue-50 text-blue-900 rounded-lg border border-blue-200">
-                    <div className="font-semibold mb-1">Voucher Terpilih:</div>
-                    <div className="flex justify-between items-center">
-                      <span>{
-                        (payFormData.paymentMethod === 'Cash' ? cashVouchers : bankVouchers)
-                          .find(v => v.voucherNumber === payFormData.voucher)?.voucherType || 'Unknown'
-                      }</span>
-                      <span className="font-bold">Rp {(payFormData.paymentMethod === 'Cash' ? cashVouchers : bankVouchers)
-                        .find(v => v.voucherNumber === payFormData.voucher)?.total?.toLocaleString('id-ID')}</span>
-                    </div>
-                  </div>
-                )}
-              </fieldset>
               </div>
 
               <fieldset className="fieldset mt-2">

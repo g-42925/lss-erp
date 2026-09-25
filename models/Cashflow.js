@@ -48,18 +48,18 @@ const cashflowSchema = new mongoose.Schema({
     type: String,
     required: false
   },
+  voucherId: {
+    type: mongoose.Schema.Types.ObjectId
+  },
   cashVoucherId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'CashVoucher',
-    required: false,
-    default: null
+    ref: 'VoucherCash'
   },
   bankVoucherId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'BankVoucher',
-    required: false,
-    default: null
-  },
+    ref: 'VoucherBank'
+  }
+
 }, { timestamps: true });
 
 // prevent Next.js HMR reload issues

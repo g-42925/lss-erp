@@ -248,11 +248,19 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                   {/*<SidebarItem href="/finance/receivable">Receivable</SidebarItem>*/}
                   {/*<SidebarItem href="/finance/svc-receivable">Service Receivable</SidebarItem>*/}
                   <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>
-                  <SidebarItem href="/finance/voucher">Voucher</SidebarItem>
                   <SidebarItem href="/finance/bank-report">Bank Report</SidebarItem>
                   <SidebarItem href="/finance/log">Finance Log</SidebarItem>
                   <SidebarItem href="/finance/svc-log">Service Log</SidebarItem>
                   <SidebarItem href="/finance/inv-logs">Inventory Logs</SidebarItem>
+                  <li>
+                    <details>
+                      <summary>Voucher</summary>
+                      <ul>
+                        <SidebarItem href="/finance/voucher/cash">Voucher Cash</SidebarItem>
+                        <SidebarItem href="/finance/voucher/bank">Voucher Bank</SidebarItem>
+                      </ul>
+                    </details>
+                  </li>
                   <li>
                     <details>
                       <summary>Accounting</summary>
@@ -277,7 +285,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             {/* Payroll */}
             <li>
               <details>
-                <summary>HMR</summary>
+                <summary>HRM</summary>
                 <ul>
                   <SidebarItem href="/payroll">Payroll</SidebarItem>
                 </ul>

@@ -66,6 +66,14 @@ const logSchema = new mongoose.Schema({
       required: false
     }
   },
+  voucherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false
+  },
+  bankVoucherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false
+  }
 });
 
 

@@ -1,0 +1,18 @@
+--- models/VoucherBank.js
++++ models/VoucherBank.js
+@@ -24,6 +24,16 @@
+     default: Date.now,
+     required: true
+   },
++  companyBankAccountId: {
++    type: mongoose.Schema.Types.ObjectId,
++    ref: 'BankAccount'
++  },
++  externalBankName: {
++    type: String
++  },
++  externalAccountNumber: {
++    type: String
++  },
+   items: [{
+     description: {

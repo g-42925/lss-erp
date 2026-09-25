@@ -349,10 +349,10 @@ export default function PayrollPage() {
   const masterAccountId = useAuth((s) => s.masterAccountId);
 
   const currentYear = new Date().getFullYear();
-  const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+  const currentMonth = String(new Date().getMonth() + 1); // No zero-padding, matches API keys like '9'
 
   const [payroll, setPayroll] = useState<PayrollData | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
   const [filterYear, setFilterYear] = useState<string>(String(currentYear));
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
@@ -374,7 +374,7 @@ export default function PayrollPage() {
     method: "GET",
   });
 
-  // Fetch on mount
+  // Single consolidated fetch effect — fires on mount and when filters change
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
       payrollFetch.fn(
@@ -382,15 +382,15 @@ export default function PayrollPage() {
         null as any,
         (data) => {
           let finalData = data;
-          
+
           // Debug or fallback for year: check year or tahun
           const returnedYear = data?.filter?.year || data?.filter?.tahun;
           if (returnedYear && String(returnedYear) !== String(filterYear)) {
             finalData = { ...data, employees: [], thpGrandTotal: 0 };
           }
-          
+
           setPayroll(finalData);
-          
+
           if (finalData?.months?.length) {
             const currentMonthValid = finalData.months.some((m: Month) => Number(m.key) === Number(filterMonth));
             if (!currentMonthValid) {
@@ -404,40 +404,7 @@ export default function PayrollPage() {
         }
       );
     }
-  }, [hasHydrated, masterAccountId]);
-
-  // Refetch when year or month filter changes
-  useEffect(() => {
-    if (hasHydrated && masterAccountId) {
-      payrollFetch.fn(
-        `/payroll/${masterAccountId}/${filterYear}/${filterMonth}`,
-        null as any,
-        (data) => {
-          let finalData = data;
-
-          const returnedYear = data?.filter?.year || data?.filter?.tahun;
-          if (returnedYear && String(returnedYear) !== String(filterYear)) {
-            finalData = { ...data, employees: [], thpGrandTotal: 0 };
-          }
-
-          setPayroll(finalData);
-
-          if (finalData?.months?.length) {
-            const currentMonthValid = finalData.months.some((m: Month) => Number(m.key) === Number(filterMonth));
-            if (!currentMonthValid) {
-              const newMonth = finalData.months[0].key;
-              setSelectedMonth(newMonth);
-              if (filterMonth !== newMonth) {
-                setFilterMonth(newMonth);
-              }
-            } else {
-              setSelectedMonth(filterMonth);
-            }
-          }
-        }
-      );
-    }
-  }, [filterYear, filterMonth]);
+  }, [hasHydrated, masterAccountId, filterYear, filterMonth]);
 
   const filteredEmployees = useMemo(() => {
     if (!payroll?.employees) return [];
@@ -483,21 +450,32 @@ export default function PayrollPage() {
             ))}
           </select>
 
-          {/* Month filter */}
-          {payroll?.months?.length ? (
-            <select
-              value={selectedMonth}
-              onChange={(e) => {
-                setSelectedMonth(e.target.value);
-                setFilterMonth(e.target.value);
-              }}
-              className="select select-bordered select-sm text-black bg-white w-full sm:w-56"
-            >
-              {payroll.months.map((m) => (
-                <option key={m.key} value={m.key}>{m.month}</option>
-              ))}
-            </select>
-          ) : null}
+          {/* Month filter — always visible, uses API months or static fallback */}
+          <select
+            value={selectedMonth || filterMonth}
+            onChange={(e) => {
+              setSelectedMonth(e.target.value);
+              setFilterMonth(e.target.value);
+            }}
+            className="select select-bordered select-sm text-black bg-white w-full sm:w-56"
+          >
+            {(payroll?.months?.length ? payroll.months : [
+              { key: "1", month: "Januari" },
+              { key: "2", month: "Februari" },
+              { key: "3", month: "Maret" },
+              { key: "4", month: "April" },
+              { key: "5", month: "Mei" },
+              { key: "6", month: "Juni" },
+              { key: "7", month: "Juli" },
+              { key: "8", month: "Agustus" },
+              { key: "9", month: "September" },
+              { key: "10", month: "Oktober" },
+              { key: "11", month: "November" },
+              { key: "12", month: "Desember" },
+            ]).map((m) => (
+              <option key={m.key} value={m.key}>{m.month}</option>
+            ))}
+          </select>
 
           {/* Search */}
           <div className="relative flex-1 max-w-sm">
