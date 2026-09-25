@@ -1119,7 +1119,7 @@ export default function Invoices() {
       {/* Rendered as a regular div so browsers include it in print (dialog top-layer is excluded) */}
       <div id="invoice-print-area" className="hidden print:block bg-white text-black w-full">
         {invoicesToPrint.map((invoiceToPrint, invoiceIdx) => (
-          <div key={invoiceIdx} className={`w-full px-16 pt-16 pb-10 ${invoiceIdx < invoicesToPrint.length - 1 ? 'page-break' : ''}`}>
+          <div key={invoiceIdx} className={`w-full px-16 pt-10 pb-10 ${invoiceIdx < invoicesToPrint.length - 1 ? 'page-break' : ''}`}>
             {/* Header */}
             <div className="grid gap-4 w-full items-start border-b-2 border-gray-200 pb-2 mb-3 invoice-header" style={{ gridTemplateColumns: '5fr 3fr 4fr' }}>
               <div className="flex flex-row gap-3">
