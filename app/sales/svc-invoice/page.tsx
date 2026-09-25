@@ -469,7 +469,7 @@ export default function Invoices() {
       <style jsx global>{`
       @media print {
         @page {
-          margin: 10mm;
+          margin-top: 10mm;
           size: A4;
           margin - top: 0;
           margin - bottom: 0;
@@ -1112,7 +1112,7 @@ export default function Invoices() {
       {/* ========== PRINT-ONLY INVOICE AREA ========== */}
       <style type="text/css" media="print">
         {`
-  @page { margin-top: 15mm; margin-left: 0; margin-right: 0; margin-bottom: 0; size: auto; }
+  @page { margin-top: 10mm; margin-left: 0; margin-right: 0; margin-bottom: 0; size: auto; }
           body { margin: 0; padding: 0; }
   `}
       </style>
