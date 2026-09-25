@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import Companie from "@/models/Companie"
 import Vendor from "@/models/Vendor"
+import "@/models/Tax"
 
 export async function POST(request: NextRequest) {
   const body = await request.json()

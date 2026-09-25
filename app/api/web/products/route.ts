@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import Product from '@/models/Product'
 import Companie from '@/models/Companie'
+import "@/models/Tax"
 
 export async function PUT(request: NextRequest) {
   try {

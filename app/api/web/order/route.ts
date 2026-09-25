@@ -13,6 +13,7 @@ import Batche from '@/models/Batche'
 import Reservation from '@/models/Reservation'
 import Deliverie from '@/models/Deliverie'
 import OutboundLog from '@/models/OutboundLog'
+import "@/models/Tax"
 
 
 export async function POST(request: NextRequest) {

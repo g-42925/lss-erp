@@ -10,6 +10,7 @@ import Invoice from "@/models/Invoice";
 import ServiceOrder from "@/models/ServiceOrder";
 import Companie from "@/models/Companie";
 import Customer from "@/models/Customer";
+import "@/models/Tax";
 
 type Tax = {
   isPPh?: boolean;

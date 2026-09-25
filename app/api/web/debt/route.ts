@@ -8,6 +8,7 @@ import ServiceOrder from '@/models/ServiceOrder'
 import Companie from '@/models/Companie'
 import Log from '@/models/Log'
 import Cashflow from '@/models/Cashflow'
+import "@/models/Tax"
 import { getAvailableBalance } from '@/lib/finance/balance'
 
 
