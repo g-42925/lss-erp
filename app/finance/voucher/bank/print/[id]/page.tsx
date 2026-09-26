@@ -175,7 +175,7 @@ export default function PrintVoucherBank({
   const sigKeys = [
     { key: "dibukukanOleh", label: "DIBUKUKAN OLEH," },
     { key: "disetujuiOleh", label: "DISETUJUI OLEH," },
-    { key: "dicekOleh", label: "DICEK OLEH," },
+    { key: "dicekOleh", label: "DITERIMA OLEH," },
     { key: "dibuatOleh", label: "DIBUAT OLEH," },
   ] as const;
 

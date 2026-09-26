@@ -854,7 +854,7 @@ export default function VoucherBankPage() {
                 const labels: Record<string, string> = {
                   dibukukanOleh: "Dibukukan Oleh",
                   disetujuiOleh: "Disetujui Oleh",
-                  dicekOleh: "Dicek Oleh",
+                  dicekOleh: "Diterima Oleh",
                   dibuatOleh: "Dibuat Oleh",
                 };
                 return (
