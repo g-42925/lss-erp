@@ -29,6 +29,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const existing = await VoucherBank.findById(id);
     if (!existing) return NextResponse.json({ noResult: true, message: "Not found", result: null, error: true });
 
+    if (body.voucherNumber && body.voucherNumber !== existing.voucherNumber) {
+      const dup = await VoucherBank.findOne({ companyId: existing.companyId, voucherNumber: body.voucherNumber });
+      if (dup) {
+        return NextResponse.json({ noResult: true, message: `Nomor voucher ${body.voucherNumber} sudah digunakan`, result: null, error: true });
+      }
+    }
+
     const session = await mongoose.startSession();
     session.startTransaction();
 

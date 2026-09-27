@@ -21,6 +21,20 @@ export async function GET(request: NextRequest) {
     const company = await Companie.findOne({ masterAccountId });
     if (!company) return NextResponse.json({ noResult: true, message: "Company not found", result: null, error: true });
 
+    if (mode === "generate-number") {
+      const dateObj = new Date();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const year = String(dateObj.getFullYear()).slice(-2);
+      
+      const count = await VoucherCash.countDocuments({ companyId: company._id, type });
+      const seq = String(count + 1).padStart(2, '0');
+      
+      const prefix = type === 'in' ? 'KM-KAS' : 'KK-KAS';
+      const generatedVoucherNumber = `${prefix}/${month}/${year}/${seq}`;
+      
+      return NextResponse.json({ noResult: false, result: { voucherNumber: generatedVoucherNumber }, error: false });
+    }
+
     if (mode === "refs") {
       // Return unlinked references for relation picker
       const results: any = { invoicePayments: [], cashflows: [], purchasePayments: [], debtPayments: [] };
@@ -124,7 +138,7 @@ export async function GET(request: NextRequest) {
 
     // Default: list vouchers
     const vouchers = await VoucherCash.find({ companyId: company._id, type })
-      .sort({ date: -1, createdAt: -1 })
+      .sort({ voucherNumber: -1, createdAt: -1 })
       .lean();
 
     return NextResponse.json({ noResult: false, result: vouchers, error: false });
@@ -152,12 +166,30 @@ export async function POST(request: NextRequest) {
     session.startTransaction();
 
     try {
+      const dateObj = new Date(date);
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const year = String(dateObj.getFullYear()).slice(-2);
+      
+      let finalVoucherNumber = voucherNumber;
+      if (!finalVoucherNumber || finalVoucherNumber === "[Otomatis]") {
+        const count = await VoucherCash.countDocuments({ companyId: company._id, type }).session(session);
+        const seq = String(count + 1).padStart(2, '0');
+        
+        const prefix = type === 'in' ? 'KM-KAS' : 'KK-KAS';
+        finalVoucherNumber = `${prefix}/${month}/${year}/${seq}`;
+      }
+
+      const dup = await VoucherCash.findOne({ companyId: company._id, voucherNumber: finalVoucherNumber }).session(session);
+      if (dup) {
+        throw new Error(`Nomor voucher ${finalVoucherNumber} sudah digunakan`);
+      }
+
       const voucher = await VoucherCash.create([{
         companyId: company._id,
         type,
         contactName,
-        voucherNumber,
-        date: new Date(date),
+        voucherNumber: finalVoucherNumber,
+        date: dateObj,
         items,
         signatures,
       }], { session });

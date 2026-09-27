@@ -416,8 +416,6 @@ export default function ProductSellReportPage() {
                   <th className="px-4 py-3 text-center">Customer</th>
                   <th className="px-4 py-3 text-center">Product</th>
                   <th className="px-4 py-3 text-center">Value</th>
-                  <th className="px-4 py-3 text-center">Pay Amount</th>
-                  <th className="px-4 py-3 text-center">Paid</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -429,12 +427,6 @@ export default function ProductSellReportPage() {
                     <td className="px-4 py-3.5 font-medium truncate text-xs">{row.customerName}</td>
                     <td className="px-4 py-3.5 text-xs font-medium">{row.productName}</td>
                     <td className="px-4 py-3.5 font-mono text-xs">{fmtMoney(row.value)}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs">{fmtMoney(row.payAmount)}</td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className={`px-2 py-0.5 rounded text-white text-[10px] uppercase font-bold tracking-wide ${row.paid ? 'bg-emerald-500' : 'bg-amber-500'}`}>
-                        {row.paid ? 'Paid' : 'Unpaid'}
-                      </span>
-                    </td>
                   </tr>
                 ))}
               </tbody>

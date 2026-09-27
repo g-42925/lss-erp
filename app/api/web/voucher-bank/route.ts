@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
 
     // Default: list vouchers
     const vouchers = await VoucherBank.find({ companyId: company._id, type })
-      .sort({ date: -1, createdAt: -1 })
+      .sort({ voucherNumber: -1, createdAt: -1 })
       .lean();
 
     return NextResponse.json({ noResult: false, result: vouchers, error: false });
@@ -156,6 +156,11 @@ export async function POST(request: NextRequest) {
     session.startTransaction();
 
     try {
+      const dup = await VoucherBank.findOne({ companyId: company._id, voucherNumber }).session(session);
+      if (dup) {
+        throw new Error(`Nomor voucher ${voucherNumber} sudah digunakan`);
+      }
+
       const voucher = await VoucherBank.create([{
         companyId: company._id,
         type,

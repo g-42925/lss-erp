@@ -66,7 +66,7 @@ export default function CashflowReportPage() {
 	const [transactions, setTransactions] = useState<CashflowTransaction[]>([]);
 	const [cashVouchers, setCashVouchers] = useState<any[]>([]);
 	const [bankVouchers, setBankVouchers] = useState<any[]>([]);
-	const [summary, setSummary] = useState<Summary>({ totalIn: 0, totalOut: 0, initialBalance: 0, netCashflow: 0, finalBalance: 0 });	const [loading, setLoading] = useState(false);
+	const [summary, setSummary] = useState<Summary>({ totalIn: 0, totalOut: 0, initialBalance: 0, netCashflow: 0, finalBalance: 0 }); const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 
 	const [isCashOut, setIsCashOut] = useState(false);
@@ -229,7 +229,7 @@ export default function CashflowReportPage() {
 
 	const handlePrintInvoiceVoucher = (t: CashflowTransaction) => {
 		if (!t.voucherId) return;
-		window.open(`/dashboard/finance/voucher-cash/${t.voucherId}/print`, '_blank');
+		window.open(`/finance/voucher/cash/print/${t.voucherId}`, '_blank');
 	};
 
 	const handleInlineVoucherChange = async (t: CashflowTransaction, voucherId: string) => {

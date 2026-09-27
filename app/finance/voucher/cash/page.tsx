@@ -7,6 +7,7 @@ import useAuth from "@/store/auth";
 // ──────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────
+
 type VoucherItem = {
   description: string;
   customerName: string;
@@ -76,45 +77,84 @@ type DebtPaymentRef = {
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
-const IDR = (v: number) =>
-  new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v ?? 0);
 
-const fmtDate = (d: string) => {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" });
+const IDR = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value ?? 0);
+
+const fmtDate = (value: string) => {
+  if (!value) return "-";
+
+  return new Date(value).toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 };
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 const emptySignatures = (): Signatures => ({
-  dibukukanOleh: { name: "", date: todayStr() },
-  disetujuiOleh: { name: "", date: todayStr() },
-  dicekOleh: { name: "", date: todayStr() },
-  dibuatOleh: { name: "", date: todayStr() },
+  dibukukanOleh: {
+    name: "",
+    date: todayStr(),
+  },
+  disetujuiOleh: {
+    name: "",
+    date: todayStr(),
+  },
+  dicekOleh: {
+    name: "",
+    date: todayStr(),
+  },
+  dibuatOleh: {
+    name: "",
+    date: todayStr(),
+  },
 });
 
 // ──────────────────────────────────────────────
 // Main Page
 // ──────────────────────────────────────────────
-export default function VoucherCashPage() {
-  const masterAccountId = useAuth((s) => s.masterAccountId);
-  const hasHydrated = useAuth((s) => s._hasHydrated);
 
-  const [activeTab, setActiveTab] = useState<"in" | "out">("in");
+export default function VoucherCashPage() {
+  const masterAccountId = useAuth((state) => state.masterAccountId);
+  const hasHydrated = useAuth((state) => state._hasHydrated);
+
+  const [activeTab, setActiveTab] =
+    useState<"in" | "out">("in");
+
   const [vouchers, setVouchers] = useState<VoucherCash[]>([]);
   const [loadingList, setLoadingList] = useState(false);
 
-  // Refs available for linking
-  const [invoiceRefs, setInvoiceRefs] = useState<InvoicePaymentRef[]>([]);
-  const [cashflowRefs, setCashflowRefs] = useState<CashflowRef[]>([]);
-  const [purchaseRefs, setPurchaseRefs] = useState<PurchasePaymentRef[]>([]);
-  const [debtRefs, setDebtRefs] = useState<DebtPaymentRef[]>([]);
+  // References
+  const [invoiceRefs, setInvoiceRefs] =
+    useState<InvoicePaymentRef[]>([]);
+
+  const [cashflowRefs, setCashflowRefs] =
+    useState<CashflowRef[]>([]);
+
+  const [purchaseRefs, setPurchaseRefs] =
+    useState<PurchasePaymentRef[]>([]);
+
+  const [debtRefs, setDebtRefs] =
+    useState<DebtPaymentRef[]>([]);
+
   const [loadingRefs, setLoadingRefs] = useState(false);
 
-  // Modal state
-  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  // Customers
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  // Modal
+  const [modalMode, setModalMode] =
+    useState<"create" | "edit" | null>(null);
+
+  const [editId, setEditId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] =
+    useState<string | null>(null);
 
   // Form
   const [form, setForm] = useState({
@@ -125,19 +165,29 @@ export default function VoucherCashPage() {
     signatures: emptySignatures(),
   });
 
-  const [editId, setEditId] = useState<string | null>(null);
-
-  // Ref search filter
   const [refSearch, setRefSearch] = useState("");
 
-  // ─── Fetch vouchers ───────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // Fetch vouchers
+  // ──────────────────────────────────────────────
+
   const fetchVouchers = useCallback(async () => {
     if (!masterAccountId) return;
+
     setLoadingList(true);
+
     try {
-      const res = await fetch(`/api/web/voucher-cash?id=${masterAccountId}&type=${activeTab}`);
-      const data = await res.json();
-      setVouchers(data.error ? [] : data.result ?? []);
+      const response = await fetch(
+        `/api/web/voucher-cash?id=${masterAccountId}&type=${activeTab}`
+      );
+
+      const data = await response.json();
+
+      setVouchers(
+        data.error
+          ? []
+          : data.result ?? []
+      );
     } catch {
       setVouchers([]);
     } finally {
@@ -146,611 +196,1775 @@ export default function VoucherCashPage() {
   }, [masterAccountId, activeTab]);
 
   useEffect(() => {
-    if (hasHydrated) fetchVouchers();
+    if (hasHydrated) {
+      fetchVouchers();
+    }
   }, [hasHydrated, fetchVouchers]);
 
-  // ─── Fetch refs for picker ────────────────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // Fetch customers
+  // ──────────────────────────────────────────────
+
+  const fetchCustomers = useCallback(async () => {
+    if (!masterAccountId) return;
+
+    try {
+      const response = await fetch(
+        `/api/web/customers?id=${masterAccountId}`
+      );
+
+      const data = await response.json();
+
+      setCustomers(
+        data.error
+          ? []
+          : data.result ?? []
+      );
+    } catch {
+      // silent
+    }
+  }, [masterAccountId]);
+
+  useEffect(() => {
+    if (hasHydrated) {
+      fetchCustomers();
+    }
+  }, [hasHydrated, fetchCustomers]);
+
+  // ──────────────────────────────────────────────
+  // Fetch references
+  // ──────────────────────────────────────────────
+
   const fetchRefs = useCallback(async () => {
     if (!masterAccountId) return;
+
     setLoadingRefs(true);
+
     try {
-      const res = await fetch(`/api/web/voucher-cash?id=${masterAccountId}&type=${activeTab}&mode=refs`);
-      const data = await res.json();
+      const response = await fetch(
+        `/api/web/voucher-cash?id=${masterAccountId}&type=${activeTab}&mode=refs`
+      );
+
+      const data = await response.json();
+
       if (!data.error && data.result) {
-        setInvoiceRefs(data.result.invoicePayments ?? []);
-        setCashflowRefs(data.result.cashflows ?? []);
-        setPurchaseRefs(data.result.purchasePayments ?? []);
-        setDebtRefs(data.result.debtPayments ?? []);
+        setInvoiceRefs(
+          data.result.invoicePayments ?? []
+        );
+
+        setCashflowRefs(
+          data.result.cashflows ?? []
+        );
+
+        setPurchaseRefs(
+          data.result.purchasePayments ?? []
+        );
+
+        setDebtRefs(
+          data.result.debtPayments ?? []
+        );
       }
     } catch {
-      /* silent */
+      // silent
     } finally {
       setLoadingRefs(false);
     }
   }, [masterAccountId, activeTab]);
 
-  // ─── Open create modal ────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // Modal
+  // ──────────────────────────────────────────────
+
   const openCreate = async () => {
-    const num = `VC-${Date.now().toString().slice(-6)}`;
-    setForm({ voucherNumber: num, contactName: "", date: todayStr(), items: [], signatures: emptySignatures() });
+    setForm({
+      voucherNumber: "Memuat...",
+      contactName: "",
+      date: todayStr(),
+      items: [],
+      signatures: emptySignatures(),
+    });
+
     setEditId(null);
     setRefSearch("");
     setModalMode("create");
+
     await fetchRefs();
+
+    try {
+      if (masterAccountId) {
+        const response = await fetch(
+          `/api/web/voucher-cash?id=${masterAccountId}&type=${activeTab}&mode=generate-number`
+        );
+        const data = await response.json();
+        if (!data.error && data.result?.voucherNumber) {
+          setForm(f => ({ ...f, voucherNumber: data.result.voucherNumber }));
+        } else {
+          setForm(f => ({ ...f, voucherNumber: data.message || "[Gagal get number]" }));
+        }
+      } else {
+        setForm(f => ({ ...f, voucherNumber: "[No Master Account ID]" }));
+      }
+    } catch (e: any) {
+      setForm(f => ({ ...f, voucherNumber: e?.message || "[Catch Error]" }));
+    }
   };
 
-  // ─── Open edit modal ──────────────────────────────────────────────────────
-  const openEdit = async (v: VoucherCash) => {
+  const openEdit = async (voucher: VoucherCash) => {
     setForm({
-      voucherNumber: v.voucherNumber,
-      contactName: v.contactName,
-      date: v.date ? v.date.split("T")[0] : todayStr(),
-      items: v.items ?? [],
-      signatures: v.signatures ?? emptySignatures(),
+      voucherNumber: voucher.voucherNumber,
+      contactName: voucher.contactName,
+      date: voucher.date
+        ? voucher.date.split("T")[0]
+        : todayStr(),
+      items: voucher.items ?? [],
+      signatures:
+        voucher.signatures ??
+        emptySignatures(),
     });
-    setEditId(v._id);
+
+    setEditId(voucher._id);
     setRefSearch("");
     setModalMode("edit");
+
     await fetchRefs();
   };
 
-  // ─── Add item from ref ────────────────────────────────────────────────────
-  const addFromInvoice = (ref: InvoicePaymentRef) => {
-    // prevent duplicate
-    if (form.items.find((i) => i.paymentHistoryId === ref.paymentHistoryId)) return;
-    setForm((f) => ({
-      ...f,
+  const closeModal = () => {
+    if (saving) return;
+
+    setModalMode(null);
+    setEditId(null);
+    setRefSearch("");
+  };
+
+  // ──────────────────────────────────────────────
+  // Item helpers
+  // ──────────────────────────────────────────────
+
+  const addItem = (item: VoucherItem) => {
+    setForm((current) => ({
+      ...current,
       items: [
-        ...f.items,
-        {
-          description: `Invoice ${ref.invoiceNumber} – ${ref.method}`,
-          customerName: "",
-          amount: ref.amount,
-          refModel: "Invoice",
-          refId: ref.invoiceId,
-          paymentHistoryId: ref.paymentHistoryId,
-        },
+        ...current.items,
+        item,
       ],
     }));
   };
 
-  const addFromCashflow = (ref: CashflowRef) => {
-    if (form.items.find((i) => i.refId === ref.cashflowId)) return;
-    setForm((f) => ({
-      ...f,
-      items: [
-        ...f.items,
-        {
-          description: ref.reference || (activeTab === "in" ? ref.from : ref.to) || "Manual Cashflow",
-          customerName: activeTab === "in" ? (ref.from ?? "") : (ref.to ?? ""),
-          amount: ref.amount,
-          refModel: "Cashflow",
-          refId: ref.cashflowId,
-        },
-      ],
-    }));
-  };
-
-  const addFromPurchase = (ref: PurchasePaymentRef) => {
-    if (form.items.find((i) => i.paymentHistoryId === ref.paymentHistoryId)) return;
-    setForm((f) => ({
-      ...f,
-      items: [
-        ...f.items,
-        {
-          description: `Purchase ${ref.purchaseOrderNumber} - ${ref.paymentNumber}`,
-          customerName: "",
-          amount: ref.amount,
-          refModel: "Purchase",
-          refId: ref.purchaseId,
-          paymentHistoryId: ref.paymentHistoryId,
-        },
-      ],
-    }));
-  };
-
-  const addFromDebt = (ref: DebtPaymentRef) => {
-    if (form.items.find((i) => i.paymentHistoryId === ref.paymentHistoryId)) return;
-    setForm((f) => ({
-      ...f,
-      items: [
-        ...f.items,
-        {
-          description: `Vendor Debt ${ref.invoiceNumber} - ${ref.paymentNumber}`,
-          customerName: "",
-          amount: ref.amount,
-          refModel: "Debt",
-          refId: ref.invoiceId,
-          paymentHistoryId: ref.paymentHistoryId,
-        },
-      ],
-    }));
-  };
-
-  const removeItem = (idx: number) =>
-    setForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
-
-  const updateItem = (idx: number, field: keyof VoucherItem, value: any) =>
-    setForm((f) => {
-      const items = [...f.items];
-      items[idx] = { ...items[idx], [field]: value };
-      return { ...f, items };
+  const addManualItem = () => {
+    addItem({
+      description: "",
+      customerName: "",
+      amount: 0,
     });
+  };
 
-  const updateSig = (key: keyof Signatures, field: "name" | "date", value: string) =>
-    setForm((f) => ({ ...f, signatures: { ...f.signatures, [key]: { ...f.signatures[key], [field]: value } } }));
+  const removeItem = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.filter(
+        (_, itemIndex) =>
+          itemIndex !== index
+      ),
+    }));
+  };
 
-  // ─── Save ─────────────────────────────────────────────────────────────────
+  const updateItem = (
+    index: number,
+    field: keyof VoucherItem,
+    value: any
+  ) => {
+    setForm((current) => {
+      const items = [...current.items];
+
+      items[index] = {
+        ...items[index],
+        [field]: value,
+      };
+
+      return {
+        ...current,
+        items,
+      };
+    });
+  };
+
+  // ──────────────────────────────────────────────
+  // Add references
+  // ──────────────────────────────────────────────
+
+  const addFromInvoice = (
+    ref: InvoicePaymentRef
+  ) => {
+    if (
+      form.items.some(
+        (item) =>
+          item.paymentHistoryId ===
+          ref.paymentHistoryId
+      )
+    ) {
+      return;
+    }
+
+    addItem({
+      description: `Invoice ${ref.invoiceNumber} – ${ref.method}`,
+      customerName: "",
+      amount: ref.amount,
+      refModel: "Invoice",
+      refId: ref.invoiceId,
+      paymentHistoryId:
+        ref.paymentHistoryId,
+    });
+  };
+
+  const addFromCashflow = (
+    ref: CashflowRef
+  ) => {
+    if (
+      form.items.some(
+        (item) =>
+          item.refId === ref.cashflowId
+      )
+    ) {
+      return;
+    }
+
+    addItem({
+      description:
+        ref.reference ||
+        (activeTab === "in"
+          ? ref.from
+          : ref.to) ||
+        "Manual Cashflow",
+      customerName:
+        activeTab === "in"
+          ? ref.from ?? ""
+          : ref.to ?? "",
+      amount: ref.amount,
+      refModel: "Cashflow",
+      refId: ref.cashflowId,
+    });
+  };
+
+  const addFromPurchase = (
+    ref: PurchasePaymentRef
+  ) => {
+    if (
+      form.items.some(
+        (item) =>
+          item.paymentHistoryId ===
+          ref.paymentHistoryId
+      )
+    ) {
+      return;
+    }
+
+    addItem({
+      description: `Purchase ${ref.purchaseOrderNumber} - ${ref.paymentNumber}`,
+      customerName: "",
+      amount: ref.amount,
+      refModel: "Purchase",
+      refId: ref.purchaseId,
+      paymentHistoryId:
+        ref.paymentHistoryId,
+    });
+  };
+
+  const addFromDebt = (
+    ref: DebtPaymentRef
+  ) => {
+    if (
+      form.items.some(
+        (item) =>
+          item.paymentHistoryId ===
+          ref.paymentHistoryId
+      )
+    ) {
+      return;
+    }
+
+    addItem({
+      description: `Vendor Debt ${ref.invoiceNumber} - ${ref.paymentNumber}`,
+      customerName: "",
+      amount: ref.amount,
+      refModel: "Debt",
+      refId: ref.invoiceId,
+      paymentHistoryId:
+        ref.paymentHistoryId,
+    });
+  };
+
+  // ──────────────────────────────────────────────
+  // Signature
+  // ──────────────────────────────────────────────
+
+  const updateSignature = (
+    key: keyof Signatures,
+    field: "name" | "date",
+    value: string
+  ) => {
+    setForm((current) => ({
+      ...current,
+      signatures: {
+        ...current.signatures,
+        [key]: {
+          ...current.signatures[key],
+          [field]: value,
+        },
+      },
+    }));
+  };
+
+  // ──────────────────────────────────────────────
+  // Save
+  // ──────────────────────────────────────────────
+
   const handleSave = async () => {
-    if (!form.contactName.trim()) { alert("Nama harus diisi"); return; }
-    if (!form.voucherNumber.trim()) { alert("Nomor voucher harus diisi"); return; }
-    if (form.items.length === 0) { alert("Tambahkan minimal 1 item"); return; }
+    if (!form.contactName.trim()) {
+      alert("Nama harus diisi");
+      return;
+    }
+
+    if (!form.voucherNumber.trim()) {
+      alert(
+        "Nomor voucher harus diisi"
+      );
+      return;
+    }
+
+    if (form.items.length === 0) {
+      alert(
+        "Tambahkan minimal 1 item"
+      );
+      return;
+    }
 
     setSaving(true);
+
     try {
-      const payload = { ...form, type: activeTab, masterAccountId };
-      const isEdit = modalMode === "edit" && editId;
-      const res = await fetch(
-        isEdit ? `/api/web/voucher-cash/${editId}` : "/api/web/voucher-cash",
-        { method: isEdit ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+      const payload = {
+        ...form,
+        type: activeTab,
+        masterAccountId,
+      };
+
+      const isEdit =
+        modalMode === "edit" &&
+        editId;
+
+      const response = await fetch(
+        isEdit
+          ? `/api/web/voucher-cash/${editId}`
+          : "/api/web/voucher-cash",
+        {
+          method: isEdit
+            ? "PUT"
+            : "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify(
+            payload
+          ),
+        }
       );
-      const data = await res.json();
-      if (data.error) throw new Error(data.message);
-      setModalMode(null);
+
+      const data =
+        await response.json();
+
+      if (data.error) {
+        throw new Error(
+          data.message
+        );
+      }
+
+      closeModal();
       fetchVouchers();
-    } catch (e: any) {
-      alert("Error: " + e.message);
+    } catch (error: any) {
+      alert(
+        "Error: " +
+        error.message
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // ─── Delete ───────────────────────────────────────────────────────────────
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus voucher ini? Relasi ke Invoice/Cashflow akan dilepas.")) return;
+  // ──────────────────────────────────────────────
+  // Delete
+  // ──────────────────────────────────────────────
+
+  const handleDelete = async (
+    id: string
+  ) => {
+    if (
+      !confirm(
+        "Hapus voucher ini? Relasi ke Invoice/Cashflow akan dilepas."
+      )
+    ) {
+      return;
+    }
+
     setDeletingId(id);
+
     try {
-      const res = await fetch(`/api/web/voucher-cash/${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.error) throw new Error(data.message);
+      const response = await fetch(
+        `/api/web/voucher-cash/${id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (data.error) {
+        throw new Error(
+          data.message
+        );
+      }
+
       fetchVouchers();
-    } catch (e: any) {
-      alert("Error: " + e.message);
+    } catch (error: any) {
+      alert(
+        "Error: " +
+        error.message
+      );
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ─── Totals ───────────────────────────────────────────────────────────────
-  const grandTotal = form.items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  // ──────────────────────────────────────────────
+  // Derived data
+  // ──────────────────────────────────────────────
 
-  // ─── Filtered refs ────────────────────────────────────────────────────────
-  const filteredInvoiceRefs = invoiceRefs.filter(
-    (r) =>
-      r.invoiceNumber.toLowerCase().includes(refSearch.toLowerCase()) ||
-      r.method.toLowerCase().includes(refSearch.toLowerCase())
-  );
-  const filteredCashflowRefs = cashflowRefs.filter(
-    (r) =>
-      (r.reference ?? "").toLowerCase().includes(refSearch.toLowerCase()) ||
-      (r.from ?? "").toLowerCase().includes(refSearch.toLowerCase()) ||
-      (r.to ?? "").toLowerCase().includes(refSearch.toLowerCase())
-  );
-  const filteredPurchaseRefs = purchaseRefs.filter(
-    (r) =>
-      r.purchaseOrderNumber.toLowerCase().includes(refSearch.toLowerCase()) ||
-      r.paymentNumber.toLowerCase().includes(refSearch.toLowerCase())
-  );
-  const filteredDebtRefs = debtRefs.filter(
-    (r) =>
-      r.invoiceNumber.toLowerCase().includes(refSearch.toLowerCase()) ||
-      r.paymentNumber.toLowerCase().includes(refSearch.toLowerCase())
-  );
+  const grandTotal =
+    form.items.reduce(
+      (sum, item) =>
+        sum +
+        (Number(item.amount) || 0),
+      0
+    );
 
-  if (!hasHydrated) return <div className="p-8 text-center">Loading...</div>;
+  const search =
+    refSearch
+      .toLowerCase()
+      .trim();
+
+  const filteredInvoiceRefs =
+    invoiceRefs.filter(
+      (ref) =>
+        ref.invoiceNumber
+          .toLowerCase()
+          .includes(search) ||
+        ref.method
+          .toLowerCase()
+          .includes(search)
+    );
+
+  const filteredCashflowRefs =
+    cashflowRefs.filter(
+      (ref) =>
+        (ref.reference ?? "")
+          .toLowerCase()
+          .includes(search) ||
+        (ref.from ?? "")
+          .toLowerCase()
+          .includes(search) ||
+        (ref.to ?? "")
+          .toLowerCase()
+          .includes(search)
+    );
+
+  const filteredPurchaseRefs =
+    purchaseRefs.filter(
+      (ref) =>
+        ref.purchaseOrderNumber
+          .toLowerCase()
+          .includes(search) ||
+        ref.paymentNumber
+          .toLowerCase()
+          .includes(search)
+    );
+
+  const filteredDebtRefs =
+    debtRefs.filter(
+      (ref) =>
+        ref.invoiceNumber
+          .toLowerCase()
+          .includes(search) ||
+        ref.paymentNumber
+          .toLowerCase()
+          .includes(search)
+    );
+
+  // ──────────────────────────────────────────────
+  // Loading
+  // ──────────────────────────────────────────────
+
+  if (!hasHydrated) {
+    return (
+      <div className="p-8 text-center">
+        Loading...
+      </div>
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* ── Header ── */}
+      {/* ───────────────────────────────
+          Page Header
+      ─────────────────────────────── */}
+
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Voucher</h1>
-          <p className="text-sm text-gray-500">Bukti Voucher Cash Masuk / Keluar</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Voucher
+          </h1>
+
+          <p className="text-sm text-gray-500">
+            Bukti Voucher Cash Masuk /
+            Keluar
+          </p>
         </div>
+
         <button
           onClick={openCreate}
           className="btn btn-primary gap-2"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+
           Buat Voucher
         </button>
       </div>
 
-      {/* ── Sub-menu tabs ── */}
+      {/* ───────────────────────────────
+          Tabs
+      ─────────────────────────────── */}
+
       <div className="tabs tabs-boxed bg-gray-100 mb-6 w-fit">
         <button
-          className={`tab font-semibold ${activeTab === "in" ? "tab-active" : ""}`}
-          onClick={() => setActiveTab("in")}
+          className={`tab font-semibold ${activeTab === "in"
+              ? "tab-active"
+              : ""
+            }`}
+          onClick={() =>
+            setActiveTab("in")
+          }
         >
           💰 Voucher Cash Masuk
         </button>
+
         <button
-          className={`tab font-semibold ${activeTab === "out" ? "tab-active" : ""}`}
-          onClick={() => setActiveTab("out")}
+          className={`tab font-semibold ${activeTab === "out"
+              ? "tab-active"
+              : ""
+            }`}
+          onClick={() =>
+            setActiveTab("out")
+          }
         >
           💸 Voucher Cash Keluar
         </button>
       </div>
 
-      {/* ── Table ── */}
+      {/* ───────────────────────────────
+          Voucher Table
+      ─────────────────────────────── */}
+
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="table table-zebra w-full text-sm">
           <thead>
             <tr className="bg-gray-50">
-              <th className="w-12 text-center">No</th>
+              <th className="w-12 text-center">
+                No
+              </th>
               <th>No. Voucher</th>
               <th>Tanggal</th>
-              <th>{activeTab === "in" ? "Diterima dari" : "Dibayarkan kepada"}</th>
-              <th className="text-right">Total (Rp)</th>
-              <th className="text-center">Aksi</th>
+              <th>
+                {activeTab === "in"
+                  ? "Diterima dari"
+                  : "Dibayarkan kepada"}
+              </th>
+              <th className="text-right">
+                Total (Rp)
+              </th>
+              <th className="text-center">
+                Aksi
+              </th>
             </tr>
           </thead>
+
           <tbody>
             {loadingList ? (
-              <tr><td colSpan={6} className="text-center py-8"><span className="loading loading-spinner" /></td></tr>
+              <tr>
+                <td
+                  colSpan={6}
+                  className="text-center py-8"
+                >
+                  <span className="loading loading-spinner" />
+                </td>
+              </tr>
             ) : vouchers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-gray-400">
+                <td
+                  colSpan={6}
+                  className="text-center py-10 text-gray-400"
+                >
                   <div className="flex flex-col items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    <span>Belum ada data voucher</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-10 h-10 opacity-30"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+
+                    <span>
+                      Belum ada data voucher
+                    </span>
                   </div>
                 </td>
               </tr>
             ) : (
-              vouchers.map((v, idx) => (
-                <tr key={v._id}>
-                  <td className="text-center">{idx + 1}</td>
-                  <td className="font-mono font-semibold">{v.voucherNumber}</td>
-                  <td>{fmtDate(v.date)}</td>
-                  <td>{v.contactName}</td>
-                  <td className="text-right font-medium">
-                    {IDR(v.items?.reduce((s, i) => s + (i.amount || 0), 0) ?? 0)}
-                  </td>
-                  <td>
-                    <div className="flex gap-1 justify-center">
-                      <button
-                        className="btn btn-xs btn-outline"
-                        onClick={() => window.open(`/finance/voucher/cash/print/${v._id}`, "_blank")}
-                        title="Print"
-                      >🖨️</button>
-                      <button
-                        className="btn btn-xs btn-ghost"
-                        onClick={() => openEdit(v)}
-                        title="Edit"
-                      >✏️</button>
-                      <button
-                        className="btn btn-xs btn-error btn-outline"
-                        onClick={() => handleDelete(v._id)}
-                        disabled={deletingId === v._id}
-                        title="Hapus"
-                      >
-                        {deletingId === v._id ? <span className="loading loading-spinner loading-xs" /> : "🗑️"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+              vouchers.map(
+                (voucher, index) => (
+                  <tr
+                    key={voucher._id}
+                  >
+                    <td className="text-center">
+                      {index + 1}
+                    </td>
+
+                    <td className="font-mono font-semibold">
+                      {
+                        voucher.voucherNumber
+                      }
+                    </td>
+
+                    <td>
+                      {fmtDate(
+                        voucher.date
+                      )}
+                    </td>
+
+                    <td>
+                      {
+                        voucher.contactName
+                      }
+                    </td>
+
+                    <td className="text-right font-medium">
+                      {IDR(
+                        voucher.items?.reduce(
+                          (
+                            sum,
+                            item
+                          ) =>
+                            sum +
+                            (item.amount ||
+                              0),
+                          0
+                        ) ?? 0
+                      )}
+                    </td>
+
+                    <td>
+                      <div className="flex gap-1 justify-center">
+                        <button
+                          className="btn btn-xs btn-outline"
+                          onClick={() =>
+                            window.open(
+                              `/finance/voucher/cash/print/${voucher._id}`,
+                              "_blank"
+                            )
+                          }
+                          title="Print"
+                        >
+                          🖨️
+                        </button>
+
+                        <button
+                          className="btn btn-xs btn-ghost"
+                          onClick={() =>
+                            openEdit(
+                              voucher
+                            )
+                          }
+                          title="Edit"
+                        >
+                          ✏️
+                        </button>
+
+                        <button
+                          className="btn btn-xs btn-error btn-outline"
+                          onClick={() =>
+                            handleDelete(
+                              voucher._id
+                            )
+                          }
+                          disabled={
+                            deletingId ===
+                            voucher._id
+                          }
+                          title="Hapus"
+                        >
+                          {deletingId ===
+                            voucher._id ? (
+                            <span className="loading loading-spinner loading-xs" />
+                          ) : (
+                            "🗑️"
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              )
             )}
           </tbody>
         </table>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          MODAL CREATE / EDIT
-      ══════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════
+          CUSTOM MODAL
+          
+          IMPORTANT:
+          Tidak menggunakan `modal-box` DaisyUI.
+          ═══════════════════════════════════════ */}
+
       {modalMode && (
-        <div className="modal modal-open z-50">
-          <div className="modal-box w-11/12 max-w-5xl max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">
-                {modalMode === "create" ? "Buat" : "Edit"} Bukti Voucher Cash{" "}
-                <span className={activeTab === "in" ? "text-success" : "text-error"}>
-                  {activeTab === "in" ? "Masuk" : "Keluar"}
-                </span>
-              </h3>
-              <button className="btn btn-sm btn-ghost" onClick={() => setModalMode(null)}>✕</button>
-            </div>
+        <div className="modal modal-open z-[999]">
+          {/* Overlay */}
 
-            {/* ── Basic Info ── */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="form-control">
-                <label className="label label-text font-semibold">No. Voucher</label>
-                <input
-                  className="input input-bordered input-sm font-mono"
-                  value={form.voucherNumber}
-                  onChange={(e) => setForm((f) => ({ ...f, voucherNumber: e.target.value }))}
-                />
-              </div>
-              <div className="form-control">
-                <label className="label label-text font-semibold">Tanggal</label>
-                <input
-                  type="date"
-                  className="input input-bordered input-sm"
-                  value={form.date}
-                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                />
-              </div>
-              <div className="form-control md:col-span-1">
-                <label className="label label-text font-semibold">
-                  {activeTab === "in" ? "Diterima dari" : "Dibayarkan kepada"}
-                </label>
-                <input
-                  className="input input-bordered input-sm"
-                  placeholder="Nama penerima / pembayar..."
-                  value={form.contactName}
-                  onChange={(e) => setForm((f) => ({ ...f, contactName: e.target.value }))}
-                />
-              </div>
-            </div>
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={closeModal}
+          />
 
-            <div className="divider text-sm">Pilih Relasi Item</div>
+          {/* Custom Modal Panel */}
 
-            {/* ── Ref Picker ── */}
-            <div className="mb-3">
-              <input
-                className="input input-bordered input-sm w-full mb-2"
-                placeholder="Cari referensi..."
-                value={refSearch}
-                onChange={(e) => setRefSearch(e.target.value)}
-              />
-              {loadingRefs ? (
-                <div className="flex justify-center py-4"><span className="loading loading-spinner" /></div>
-              ) : (
-                <div className="flex gap-3">
-                  {/* Invoice Payment (only for Masuk) */}
-                  {activeTab === "in" && (
-                    <div className="flex-1 border rounded-lg p-3 max-h-44 overflow-y-auto">
-                      <p className="font-semibold text-xs text-gray-500 mb-2 uppercase tracking-wide">
-                        📄 Invoice (Payment History)
-                      </p>
-                      {filteredInvoiceRefs.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">Tidak ada data</p>
-                      ) : (
-                        filteredInvoiceRefs.map((ref) => {
-                          const alreadyAdded = form.items.some((i) => i.paymentHistoryId === ref.paymentHistoryId);
-                          return (
-                            <div key={ref.paymentHistoryId} className="flex items-center justify-between gap-2 text-xs border-b py-1.5 last:border-0">
-                              <div className="flex-1 min-w-0">
-                                <span className="font-semibold">{ref.invoiceNumber}</span>
-                                <span className="text-gray-400 ml-1">({ref.method})</span>
-                                <span className="block text-gray-500">{fmtDate(ref.date)} · Rp {IDR(ref.amount)}</span>
-                              </div>
-                              <button
-                                className="btn btn-xs btn-primary shrink-0"
-                                disabled={alreadyAdded}
-                                onClick={() => addFromInvoice(ref)}
-                              >
-                                {alreadyAdded ? "✓" : "+ Tambah"}
-                              </button>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
+          <div
+            className="
+              relative
+              z-10
+              flex
+              flex-col
+              w-[95vw]
+              max-w-[1500px]
+              h-[92vh]
+              max-h-[92vh]
+              bg-white
+              rounded-2xl
+              shadow-2xl
+              overflow-hidden
+            "
+          >
+            {/* ─────────────────────────
+                Modal Header
+            ───────────────────────── */}
 
-                  {/* Purchase Payment (only for Keluar) */}
-                  {activeTab === "out" && (
-                    <div className="flex-1 border rounded-lg p-3 max-h-44 overflow-y-auto">
-                      <p className="font-semibold text-xs text-gray-500 mb-2 uppercase tracking-wide">
-                        🛒 Purchase Payment
-                      </p>
-                      {filteredPurchaseRefs.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">Tidak ada data</p>
-                      ) : (
-                        filteredPurchaseRefs.map((ref) => {
-                          const alreadyAdded = form.items.some((i) => i.paymentHistoryId === ref.paymentHistoryId);
-                          return (
-                            <div key={ref.paymentHistoryId} className="flex items-center justify-between gap-2 text-xs border-b py-1.5 last:border-0">
-                              <div className="flex-1 min-w-0">
-                                <span className="font-semibold">{ref.purchaseOrderNumber}</span>
-                                <span className="text-gray-400 ml-1">({ref.method})</span>
-                                <span className="block text-gray-500">{fmtDate(ref.date)} · Rp {IDR(ref.amount)}</span>
-                              </div>
-                              <button
-                                className="btn btn-xs btn-primary shrink-0"
-                                disabled={alreadyAdded}
-                                onClick={() => addFromPurchase(ref)}
-                              >
-                                {alreadyAdded ? "✓" : "+ Tambah"}
-                              </button>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
+            <div className="shrink-0 px-8 py-5 border-b bg-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-gray-800">
+                      {modalMode === "create"
+                        ? "Buat"
+                        : "Edit"}{" "}
+                      Bukti Voucher Cash
+                    </h2>
 
-                  {/* Debt Payment (only for Keluar) */}
-                  {activeTab === "out" && (
-                    <div className="flex-1 border rounded-lg p-3 max-h-44 overflow-y-auto">
-                      <p className="font-semibold text-xs text-gray-500 mb-2 uppercase tracking-wide">
-                        🤝 Hutang Vendor
-                      </p>
-                      {filteredDebtRefs.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-2">Tidak ada data</p>
-                      ) : (
-                        filteredDebtRefs.map((ref) => {
-                          const alreadyAdded = form.items.some((i) => i.paymentHistoryId === ref.paymentHistoryId);
-                          return (
-                            <div key={ref.paymentHistoryId} className="flex items-center justify-between gap-2 text-xs border-b py-1.5 last:border-0">
-                              <div className="flex-1 min-w-0">
-                                <span className="font-semibold">{ref.invoiceNumber}</span>
-                                <span className="text-gray-400 ml-1">({ref.method})</span>
-                                <span className="block text-gray-500">{fmtDate(ref.date)} · Rp {IDR(ref.amount)}</span>
-                              </div>
-                              <button
-                                className="btn btn-xs btn-primary shrink-0"
-                                disabled={alreadyAdded}
-                                onClick={() => addFromDebt(ref)}
-                              >
-                                {alreadyAdded ? "✓" : "+ Tambah"}
-                              </button>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cashflow Manual */}
-                  <div className="flex-1 border rounded-lg p-3 max-h-44 overflow-y-auto">
-                    <p className="font-semibold text-xs text-gray-500 mb-2 uppercase tracking-wide">
-                      💵 Cashflow Manual
-                    </p>
-                    {filteredCashflowRefs.length === 0 ? (
-                      <p className="text-xs text-gray-400 text-center py-2">Tidak ada data</p>
-                    ) : (
-                      filteredCashflowRefs.map((ref) => {
-                        const alreadyAdded = form.items.some((i) => i.refId === ref.cashflowId);
-                        return (
-                          <div key={ref.cashflowId} className="flex items-center justify-between gap-2 text-xs border-b py-1.5 last:border-0">
-                            <div className="flex-1 min-w-0">
-                              <span className="font-semibold">{ref.reference || (activeTab === "in" ? ref.from : ref.to) || "—"}</span>
-                              <span className="block text-gray-500">{fmtDate(ref.date)} · Rp {IDR(ref.amount)}</span>
-                            </div>
-                            <button
-                              className="btn btn-xs btn-primary shrink-0"
-                              disabled={alreadyAdded}
-                              onClick={() => addFromCashflow(ref)}
-                            >
-                              {alreadyAdded ? "✓" : "+ Tambah"}
-                            </button>
-                          </div>
-                        );
-                      })
-                    )}
+                    <span
+                      className={`badge ${activeTab === "in"
+                          ? "badge-success"
+                          : "badge-error"
+                        } badge-outline`}
+                    >
+                      {activeTab === "in"
+                        ? "Cash Masuk"
+                        : "Cash Keluar"}
+                    </span>
                   </div>
+
+                  <p className="text-sm text-gray-500 mt-1">
+                    Lengkapi informasi voucher,
+                    transaksi, dan tanda tangan
+                  </p>
                 </div>
-              )}
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-circle btn-ghost"
+                  onClick={closeModal}
+                  disabled={saving}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            <div className="divider text-sm">Item Voucher</div>
+            {/* ─────────────────────────
+                Modal Body
+            ───────────────────────── */}
 
-            {/* ── Items Table ── */}
-            <div className="overflow-x-auto mb-4">
-              <table className="table table-sm w-full border">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="w-8 text-center">No</th>
-                    <th>Keterangan</th>
-                    <th className="w-44">Nama Customer</th>
-                    <th className="w-40 text-right">Jumlah (Rp)</th>
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.items.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="text-center text-gray-400 py-4 text-sm">
-                        Belum ada item – pilih relasi di atas atau tambah manual
-                      </td>
-                    </tr>
-                  ) : (
-                    form.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="text-center text-gray-400">{idx + 1}</td>
-                        <td>
-                          <input
-                            className="input input-xs input-ghost w-full"
-                            value={item.description}
-                            onChange={(e) => updateItem(idx, "description", e.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            className="input input-xs input-ghost w-full"
-                            value={item.customerName}
-                            placeholder="Customer..."
-                            onChange={(e) => updateItem(idx, "customerName", e.target.value)}
-                          />
-                        </td>
-                        <td className="text-right">
-                          <input
-                            type="number"
-                            className="input input-xs input-ghost w-full text-right"
-                            value={item.amount}
-                            onChange={(e) => updateItem(idx, "amount", parseFloat(e.target.value) || 0)}
-                          />
-                        </td>
-                        <td>
-                          <button className="btn btn-xs btn-ghost text-error" onClick={() => removeItem(idx)}>✕</button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-                <tfoot>
-                  <tr className="font-bold bg-gray-50">
-                    <td colSpan={3} className="text-right pr-4 text-sm">TERBILANG:</td>
-                    <td className="text-right">Rp {IDR(grandTotal)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-              <button
-                className="btn btn-xs btn-ghost mt-2 border border-dashed w-full text-gray-400"
-                onClick={() => setForm((f) => ({
-                  ...f,
-                  items: [...f.items, { description: "", customerName: "", amount: 0 }],
-                }))}
-              >
-                + Tambah Item Manual
-              </button>
-            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="px-8 py-7 space-y-8">
 
-            {/* ── Signatures ── */}
-            <div className="divider text-sm">Tanda Tangan</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              {(["dibukukanOleh", "disetujuiOleh", "dicekOleh", "dibuatOleh"] as const).map((key) => {
-                const labels: Record<string, string> = {
-                  dibukukanOleh: "Dibukukan Oleh",
-                  disetujuiOleh: "Disetujui Oleh",
-                  dicekOleh: "Diterima Oleh",
-                  dibuatOleh: "Dibuat Oleh",
-                };
-                return (
-                  <div key={key} className="border rounded-lg p-3">
-                    <p className="text-xs font-semibold text-gray-500 mb-2">{labels[key]}</p>
+                {/* ═════════════════════
+                    1. BASIC INFO
+                ═════════════════════ */}
+
+                <section>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-content font-bold">
+                      1
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-gray-800">
+                        Informasi Voucher
+                      </h3>
+
+                      <p className="text-xs text-gray-500">
+                        Informasi dasar bukti voucher
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text font-semibold">
+                          No. Voucher
+                        </span>
+                      </label>
+
+                      <input
+                        className="input input-bordered w-full font-mono"
+                        value={
+                          form.voucherNumber
+                        }
+                        onChange={(event) =>
+                          setForm(
+                            (current) => ({
+                              ...current,
+                              voucherNumber:
+                                event.target
+                                  .value,
+                            })
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text font-semibold">
+                          Tanggal
+                        </span>
+                      </label>
+
+                      <input
+                        type="date"
+                        className="input input-bordered w-full"
+                        value={form.date}
+                        onChange={(event) =>
+                          setForm(
+                            (current) => ({
+                              ...current,
+                              date: event.target
+                                .value,
+                            })
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className="form-control md:col-span-2">
+                      <label className="label">
+                        <span className="label-text font-semibold">
+                          {activeTab === "in"
+                            ? "Diterima dari"
+                            : "Dibayarkan kepada"}
+                        </span>
+                      </label>
+
+                      <input
+                        className="input input-bordered w-full"
+                        placeholder={
+                          activeTab === "in"
+                            ? "Nama pihak yang menyerahkan uang..."
+                            : "Nama pihak yang menerima uang..."
+                        }
+                        value={
+                          form.contactName
+                        }
+                        onChange={(event) =>
+                          setForm(
+                            (current) => ({
+                              ...current,
+                              contactName:
+                                event.target
+                                  .value,
+                            })
+                          )
+                        }
+                        list="voucher-cash-customers"
+                      />
+
+                      <datalist id="voucher-cash-customers">
+                        {customers.map(
+                          (customer: any) => (
+                            <option
+                              key={
+                                customer._id
+                              }
+                              value={
+                                customer.bussinessName ||
+                                customer.name
+                              }
+                            />
+                          )
+                        )}
+                      </datalist>
+                    </div>
+                  </div>
+                </section>
+
+                {/* ═════════════════════
+                    2. REFERENCES
+                ═════════════════════ */}
+
+                <section>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-content font-bold">
+                      2
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-gray-800">
+                        Relasi Transaksi
+                      </h3>
+
+                      <p className="text-xs text-gray-500">
+                        Pilih transaksi yang akan dimasukkan
+                        ke voucher
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-5">
                     <input
-                      className="input input-xs input-bordered w-full mb-1"
-                      placeholder="Nama..."
-                      value={form.signatures[key].name}
-                      onChange={(e) => updateSig(key, "name", e.target.value)}
-                    />
-                    <input
-                      type="date"
-                      className="input input-xs input-bordered w-full"
-                      value={form.signatures[key].date}
-                      onChange={(e) => updateSig(key, "date", e.target.value)}
+                      className="input input-bordered w-full"
+                      placeholder="Cari invoice, purchase order, cashflow, metode pembayaran..."
+                      value={refSearch}
+                      onChange={(event) =>
+                        setRefSearch(
+                          event.target.value
+                        )
+                      }
                     />
                   </div>
-                );
-              })}
+
+                  {loadingRefs ? (
+                    <div className="flex justify-center py-16">
+                      <span className="loading loading-spinner loading-lg" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+
+                      {/* Invoice */}
+
+                      {activeTab === "in" && (
+                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="px-5 py-4 bg-gray-50 border-b">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-bold text-gray-700">
+                                  📄 Invoice Payment
+                                </h4>
+
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Payment History Invoice
+                                </p>
+                              </div>
+
+                              <span className="badge badge-sm">
+                                {
+                                  filteredInvoiceRefs.length
+                                }
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="max-h-72 overflow-y-auto divide-y">
+                            {filteredInvoiceRefs.length ===
+                              0 ? (
+                              <div className="py-12 text-center text-sm text-gray-400">
+                                Tidak ada data
+                              </div>
+                            ) : (
+                              filteredInvoiceRefs.map(
+                                (ref) => {
+                                  const exists =
+                                    form.items.some(
+                                      (item) =>
+                                        item.paymentHistoryId ===
+                                        ref.paymentHistoryId
+                                    );
+
+                                  return (
+                                    <div
+                                      key={
+                                        ref.paymentHistoryId
+                                      }
+                                      className="p-5 hover:bg-gray-50 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-5">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <p className="font-bold text-sm">
+                                              {
+                                                ref.invoiceNumber
+                                              }
+                                            </p>
+
+                                            <span className="badge badge-sm badge-ghost">
+                                              {
+                                                ref.method
+                                              }
+                                            </span>
+                                          </div>
+
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            {fmtDate(
+                                              ref.date
+                                            )}
+                                          </p>
+
+                                          <p className="font-bold text-sm mt-2">
+                                            Rp{" "}
+                                            {IDR(
+                                              ref.amount
+                                            )}
+                                          </p>
+                                        </div>
+
+                                        <button
+                                          className="btn btn-sm btn-primary"
+                                          disabled={
+                                            exists
+                                          }
+                                          onClick={() =>
+                                            addFromInvoice(
+                                              ref
+                                            )
+                                          }
+                                        >
+                                          {exists
+                                            ? "✓"
+                                            : "+ Tambah"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Purchase */}
+
+                      {activeTab === "out" && (
+                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="px-5 py-4 bg-gray-50 border-b">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-bold text-gray-700">
+                                  🛒 Purchase Payment
+                                </h4>
+
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Pembayaran Purchase Order
+                                </p>
+                              </div>
+
+                              <span className="badge badge-sm">
+                                {
+                                  filteredPurchaseRefs.length
+                                }
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="max-h-72 overflow-y-auto divide-y">
+                            {filteredPurchaseRefs.length ===
+                              0 ? (
+                              <div className="py-12 text-center text-sm text-gray-400">
+                                Tidak ada data
+                              </div>
+                            ) : (
+                              filteredPurchaseRefs.map(
+                                (ref) => {
+                                  const exists =
+                                    form.items.some(
+                                      (item) =>
+                                        item.paymentHistoryId ===
+                                        ref.paymentHistoryId
+                                    );
+
+                                  return (
+                                    <div
+                                      key={
+                                        ref.paymentHistoryId
+                                      }
+                                      className="p-5 hover:bg-gray-50"
+                                    >
+                                      <div className="flex items-center gap-5">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <p className="font-bold text-sm">
+                                              {
+                                                ref.purchaseOrderNumber
+                                              }
+                                            </p>
+
+                                            <span className="badge badge-sm badge-ghost">
+                                              {
+                                                ref.method
+                                              }
+                                            </span>
+                                          </div>
+
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            {
+                                              ref.paymentNumber
+                                            }{" "}
+                                            ·{" "}
+                                            {fmtDate(
+                                              ref.date
+                                            )}
+                                          </p>
+
+                                          <p className="font-bold text-sm mt-2">
+                                            Rp{" "}
+                                            {IDR(
+                                              ref.amount
+                                            )}
+                                          </p>
+                                        </div>
+
+                                        <button
+                                          className="btn btn-sm btn-primary"
+                                          disabled={
+                                            exists
+                                          }
+                                          onClick={() =>
+                                            addFromPurchase(
+                                              ref
+                                            )
+                                          }
+                                        >
+                                          {exists
+                                            ? "✓"
+                                            : "+ Tambah"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Debt */}
+
+                      {activeTab === "out" && (
+                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="px-5 py-4 bg-gray-50 border-b">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-bold text-gray-700">
+                                  🤝 Hutang Vendor
+                                </h4>
+
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Pembayaran hutang vendor
+                                </p>
+                              </div>
+
+                              <span className="badge badge-sm">
+                                {
+                                  filteredDebtRefs.length
+                                }
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="max-h-72 overflow-y-auto divide-y">
+                            {filteredDebtRefs.length ===
+                              0 ? (
+                              <div className="py-12 text-center text-sm text-gray-400">
+                                Tidak ada data
+                              </div>
+                            ) : (
+                              filteredDebtRefs.map(
+                                (ref) => {
+                                  const exists =
+                                    form.items.some(
+                                      (item) =>
+                                        item.paymentHistoryId ===
+                                        ref.paymentHistoryId
+                                    );
+
+                                  return (
+                                    <div
+                                      key={
+                                        ref.paymentHistoryId
+                                      }
+                                      className="p-5 hover:bg-gray-50"
+                                    >
+                                      <div className="flex items-center gap-5">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <p className="font-bold text-sm">
+                                              {
+                                                ref.invoiceNumber
+                                              }
+                                            </p>
+
+                                            <span className="badge badge-sm badge-ghost">
+                                              {
+                                                ref.method
+                                              }
+                                            </span>
+                                          </div>
+
+                                          <p className="text-xs text-gray-500 mt-1">
+                                            {
+                                              ref.paymentNumber
+                                            }{" "}
+                                            ·{" "}
+                                            {fmtDate(
+                                              ref.date
+                                            )}
+                                          </p>
+
+                                          <p className="font-bold text-sm mt-2">
+                                            Rp{" "}
+                                            {IDR(
+                                              ref.amount
+                                            )}
+                                          </p>
+                                        </div>
+
+                                        <button
+                                          className="btn btn-sm btn-primary"
+                                          disabled={
+                                            exists
+                                          }
+                                          onClick={() =>
+                                            addFromDebt(
+                                              ref
+                                            )
+                                          }
+                                        >
+                                          {exists
+                                            ? "✓"
+                                            : "+ Tambah"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cashflow */}
+
+                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="px-5 py-4 bg-gray-50 border-b">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-bold text-gray-700">
+                                💵 Cashflow Manual
+                              </h4>
+
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Transaksi cashflow manual
+                              </p>
+                            </div>
+
+                            <span className="badge badge-sm">
+                              {
+                                filteredCashflowRefs.length
+                              }
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="max-h-72 overflow-y-auto divide-y">
+                          {filteredCashflowRefs.length ===
+                            0 ? (
+                            <div className="py-12 text-center text-sm text-gray-400">
+                              Tidak ada data
+                            </div>
+                          ) : (
+                            filteredCashflowRefs.map(
+                              (ref) => {
+                                const exists =
+                                  form.items.some(
+                                    (item) =>
+                                      item.refId ===
+                                      ref.cashflowId
+                                  );
+
+                                return (
+                                  <div
+                                    key={
+                                      ref.cashflowId
+                                    }
+                                    className="p-5 hover:bg-gray-50"
+                                  >
+                                    <div className="flex items-center gap-5">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-sm truncate">
+                                          {ref.reference ||
+                                            (activeTab ===
+                                              "in"
+                                              ? ref.from
+                                              : ref.to) ||
+                                            "—"}
+                                        </p>
+
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          {activeTab ===
+                                            "in"
+                                            ? ref.from
+                                            : ref.to}
+                                        </p>
+
+                                        <p className="text-xs text-gray-500">
+                                          {fmtDate(
+                                            ref.date
+                                          )}
+                                        </p>
+
+                                        <p className="font-bold text-sm mt-2">
+                                          Rp{" "}
+                                          {IDR(
+                                            ref.amount
+                                          )}
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        className="btn btn-sm btn-primary"
+                                        disabled={
+                                          exists
+                                        }
+                                        onClick={() =>
+                                          addFromCashflow(
+                                            ref
+                                          )
+                                        }
+                                      >
+                                        {exists
+                                          ? "✓"
+                                          : "+ Tambah"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+                {/* ═════════════════════
+                    3. ITEMS
+                ═════════════════════ */}
+
+                <section>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-content font-bold">
+                      3
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-gray-800">
+                        Item Voucher
+                      </h3>
+
+                      <p className="text-xs text-gray-500">
+                        Detail transaksi yang tercatat
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border rounded-xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="table w-full">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="w-14 text-center">
+                              No
+                            </th>
+
+                            <th className="min-w-[400px]">
+                              Keterangan
+                            </th>
+
+                            <th className="min-w-[250px]">
+                              Nama Customer
+                            </th>
+
+                            <th className="min-w-[220px] text-right">
+                              Jumlah (Rp)
+                            </th>
+
+                            <th className="w-16" />
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {form.items.length ===
+                            0 ? (
+                            <tr>
+                              <td
+                                colSpan={5}
+                                className="py-12 text-center text-gray-400"
+                              >
+                                Belum ada item
+                                <div className="text-xs mt-1">
+                                  Pilih transaksi di
+                                  atas atau tambah
+                                  item manual
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            form.items.map(
+                              (
+                                item,
+                                index
+                              ) => (
+                                <tr
+                                  key={index}
+                                >
+                                  <td className="text-center text-gray-400">
+                                    {index + 1}
+                                  </td>
+
+                                  <td>
+                                    <input
+                                      className="input input-bordered input-sm w-full"
+                                      value={
+                                        item.description
+                                      }
+                                      placeholder="Keterangan transaksi..."
+                                      onChange={(
+                                        event
+                                      ) =>
+                                        updateItem(
+                                          index,
+                                          "description",
+                                          event
+                                            .target
+                                            .value
+                                        )
+                                      }
+                                    />
+                                  </td>
+
+                                  <td>
+                                    <input
+                                      className="input input-bordered input-sm w-full"
+                                      value={
+                                        item.customerName
+                                      }
+                                      placeholder="Customer..."
+                                      onChange={(
+                                        event
+                                      ) =>
+                                        updateItem(
+                                          index,
+                                          "customerName",
+                                          event
+                                            .target
+                                            .value
+                                        )
+                                      }
+                                      list="voucher-cash-item-customers"
+                                    />
+                                    <datalist id="voucher-cash-item-customers">
+                                      {customers.map((c: any) => (
+                                        <option key={c._id} value={c.bussinessName || c.name} />
+                                      ))}
+                                    </datalist>
+                                  </td>
+
+                                  <td>
+                                    <input
+                                      type="number"
+                                      className="input input-bordered input-sm w-full text-right"
+                                      value={
+                                        item.amount
+                                      }
+                                      onChange={(
+                                        event
+                                      ) =>
+                                        updateItem(
+                                          index,
+                                          "amount",
+                                          parseFloat(
+                                            event
+                                              .target
+                                              .value
+                                          ) ||
+                                          0
+                                        )
+                                      }
+                                    />
+                                  </td>
+
+                                  <td className="text-center">
+                                    <button
+                                      className="btn btn-sm btn-ghost text-error"
+                                      onClick={() =>
+                                        removeItem(
+                                          index
+                                        )
+                                      }
+                                    >
+                                      ✕
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            )
+                          )}
+                        </tbody>
+
+                        <tfoot>
+                          <tr className="bg-gray-50">
+                            <td
+                              colSpan={3}
+                              className="text-right font-bold"
+                            >
+                              TOTAL
+                            </td>
+
+                            <td className="text-right font-bold text-lg">
+                              Rp{" "}
+                              {IDR(
+                                grandTotal
+                              )}
+                            </td>
+
+                            <td />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-sm btn-outline border-dashed w-full mt-3"
+                    onClick={
+                      addManualItem
+                    }
+                  >
+                    + Tambah Item Manual
+                  </button>
+                </section>
+
+                {/* ═════════════════════
+                    4. SIGNATURES
+                ═════════════════════ */}
+
+                <section>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-content font-bold">
+                      4
+                    </div>
+
+                    <div>
+                      <h3 className="font-bold text-gray-800">
+                        Tanda Tangan
+                      </h3>
+
+                      <p className="text-xs text-gray-500">
+                        Pihak yang bertanggung jawab
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+                    {(
+                      [
+                        "dibukukanOleh",
+                        "disetujuiOleh",
+                        "dicekOleh",
+                        "dibuatOleh",
+                      ] as const
+                    ).map((key) => {
+                      const labels: Record<
+                        string,
+                        string
+                      > = {
+                        dibukukanOleh:
+                          "Dibukukan Oleh",
+                        disetujuiOleh:
+                          "Disetujui Oleh",
+                        dicekOleh:
+                          "Diterima Oleh",
+                        dibuatOleh:
+                          "Dibuat Oleh",
+                      };
+
+                      return (
+                        <div
+                          key={key}
+                          className="border rounded-xl p-5 bg-gray-50"
+                        >
+                          <p className="font-semibold text-sm text-gray-700 mb-4">
+                            {labels[key]}
+                          </p>
+
+                          <div className="space-y-3">
+                            <input
+                              className="input input-bordered w-full"
+                              placeholder="Nama..."
+                              value={
+                                form.signatures[
+                                  key
+                                ].name
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateSignature(
+                                  key,
+                                  "name",
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                            />
+
+                            <input
+                              type="date"
+                              className="input input-bordered w-full"
+                              value={
+                                form.signatures[
+                                  key
+                                ].date
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                updateSignature(
+                                  key,
+                                  "date",
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              </div>
             </div>
 
-            {/* ── Actions ── */}
-            <div className="modal-action">
-              <button className="btn btn-ghost" onClick={() => setModalMode(null)}>Batal</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-                {saving ? <span className="loading loading-spinner loading-sm" /> : null}
-                {modalMode === "create" ? "Simpan Voucher" : "Perbarui Voucher"}
-              </button>
+            {/* ─────────────────────────
+                Modal Footer
+            ───────────────────────── */}
+
+            <div className="shrink-0 border-t bg-gray-50 px-8 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">
+                    Total Voucher
+                  </p>
+
+                  <p className="text-xl font-bold text-gray-800">
+                    Rp {IDR(grandTotal)}
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    className="btn btn-ghost"
+                    onClick={closeModal}
+                    disabled={saving}
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    className="btn btn-primary min-w-44"
+                    onClick={
+                      handleSave
+                    }
+                    disabled={saving}
+                  >
+                    {saving && (
+                      <span className="loading loading-spinner loading-sm" />
+                    )}
+
+                    {modalMode === "create"
+                      ? "Simpan Voucher"
+                      : "Perbarui Voucher"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="modal-backdrop" onClick={() => setModalMode(null)} />
         </div>
       )}
     </div>
