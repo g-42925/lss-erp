@@ -17,7 +17,7 @@ type ProductSellEntry = {
   subTotal: number
   source: string,
   dpp: number,
-  taxes: { name: string, percentage: number }[],
+  taxes: { name: string, percentage: number, isPPh?: boolean }[],
   npwp?: string
 }
 
@@ -207,7 +207,13 @@ export default function ProductSellReportPage() {
     unifiedData = [...unifiedData, ...serviceData]
   }
 
-  unifiedData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  // Sort berdasarkan nomor belakang invoiceNumber (ascending)
+  function getTrailingNumber(invoiceNumber: string): number {
+    if (!invoiceNumber) return 0
+    const match = invoiceNumber.match(/(\d+)$/)
+    return match ? parseInt(match[1], 10) : 0
+  }
+  unifiedData.sort((a, b) => getTrailingNumber(a.invoiceNumber) - getTrailingNumber(b.invoiceNumber))
 
   // Gunakan totalRevenue dari API (konsisten dengan dashboard) ketika tidak ada filter produk/tipe
   // Jika ada filter tambahan (tipe/produk/search), hitung dari baris yang tampil
@@ -220,16 +226,20 @@ export default function ProductSellReportPage() {
   function toExcel() {
     if (unifiedData.length === 0) return alert('Tidak ada data untuk diexport')
 
-    // Collect all unique tax names to make consistent columns
-    const taxNames = new Set<string>()
+    // Collect all unique tax names and their type (isPPh) by checking the name
+    const taxInfo = new Map<string, boolean>()
     unifiedData.forEach(row => {
       if (Array.isArray(row.taxes)) {
         row.taxes.forEach((t: any) => {
-          if (t && t.name) taxNames.add(t.name)
+          if (t && t.name) {
+            // Cek apakah nama pajak mengandung kata "pph"
+            const isPPh = t.name.toLowerCase().includes('pph') || !!t.isPPh
+            taxInfo.set(t.name, isPPh)
+          }
         })
       }
     })
-    const taxCols = Array.from(taxNames)
+    const taxCols = Array.from(taxInfo.keys())
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any[] = unifiedData.map((row, i) => {
@@ -246,12 +256,16 @@ export default function ProductSellReportPage() {
       // Initialize all tax columns to 0
       taxCols.forEach(tc => { rowData[tc] = 0 })
 
-      // Assign tax percentage
+      // Assign tax percentage or nominal based on isPPh
       if (Array.isArray(row.taxes)) {
         row.taxes.forEach((t: any) => {
           if (t && t.name) {
             const pct = parseFloat(t.percentage) || 0
-            rowData[t.name] = pct ? `${pct}%` : '0%'
+            if (taxInfo.get(t.name)) {
+              rowData[t.name] = (row.value * pct) / 100
+            } else {
+              rowData[t.name] = pct ? `${pct}%` : '0%'
+            }
           }
         })
       }
@@ -272,9 +286,13 @@ export default function ProductSellReportPage() {
       'DPP': totalNilai,
     }
 
-    // Biarkan kosong untuk persentase di baris total
+    // Jumlahkan hanya kolom nominal (PPh), sisanya biarkan kosong
     taxCols.forEach(tc => {
-      grandTotalRow[tc] = ''
+      if (taxInfo.get(tc)) {
+        grandTotalRow[tc] = data.reduce((acc, row) => acc + (typeof row[tc] === 'number' ? row[tc] : 0), 0)
+      } else {
+        grandTotalRow[tc] = ''
+      }
     })
 
     data.push(grandTotalRow)
