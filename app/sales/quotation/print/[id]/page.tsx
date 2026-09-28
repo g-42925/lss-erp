@@ -283,7 +283,10 @@ export default function PrintQuotation({
           </Link>
 
           <button
-            onClick={() => window.print()}
+            onClick={() => {
+              document.title = `Penawaran ${quotation.productId.productName} ${quotation.customCustomer.name}`
+              window.print()
+            }}
             className="btn btn-sm btn-primary"
           >
             Print PDF
