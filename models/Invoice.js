@@ -147,6 +147,15 @@ const invoiceSchema = new mongoose.Schema({
   vendorInvoiceNumber: {
     type: String,
     required: false
+  },
+  snapshot: {
+    tax: [{
+      name: String,
+      percentage: Number
+    }],
+    order: {
+      type: Object
+    }
   }
 });
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
-import * as XLSX from 'xlsx-js-style'
+import * as SXLSX from 'xlsx-js-style'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProductSellEntry = {
@@ -15,7 +15,10 @@ type ProductSellEntry = {
   productType: string
   qty: number
   subTotal: number
-  source: string
+  source: string,
+  dpp: number,
+  taxes: { name: string, percentage: number }[],
+  npwp?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -105,6 +108,9 @@ export default function ProductSellReportPage() {
       const data = await res.json()
 
       if (!data.error && data.result) {
+        console.log("--------------------")
+        console.log(data.result.data)
+        console.log("--------------------")
         // Data sudah difilter tanggal oleh API — langsung set tanpa filter ulang
         setItems(data.result.data ?? [])
         setSummary(data.result.summary ?? {})
@@ -154,6 +160,11 @@ export default function ProductSellReportPage() {
     )
   }
 
+  console.log("================")
+  console.log(filtered)
+  console.log("=================")
+
+
   // Bangun unifiedData dari items yang sudah difilter
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let unifiedData: any[] = []
@@ -170,7 +181,8 @@ export default function ProductSellReportPage() {
       payAmount: row.subTotal,
       paid: true,
       type: 'Good',
-      qty: row.qty
+      qty: row.qty,
+      npwp: row.npwp
     }))
     unifiedData = [...unifiedData, ...goodData]
   }
@@ -187,7 +199,10 @@ export default function ProductSellReportPage() {
       payAmount: row.subTotal,
       paid: true,
       type: 'Service',
-      qty: row.qty
+      qty: row.qty,
+      dpp: row.dpp,
+      taxes: row.taxes,
+      npwp: row.npwp
     }))
     unifiedData = [...unifiedData, ...serviceData]
   }
@@ -205,29 +220,77 @@ export default function ProductSellReportPage() {
   function toExcel() {
     if (unifiedData.length === 0) return alert('Tidak ada data untuk diexport')
 
-    const data = unifiedData.map((row, i) => ({
-      'NO': i + 1,
-      'TGL PENJUALAN': fmtDate(row.date),
-      'NO. TRANSAKSI': row.salesOrderNumber || '-',
-      'CUSTOMER': row.customerName || '-',
-      'PRODUK / LAYANAN': row.productName || '-',
-      'TIPE': row.type || '-',
-      'QTY': row.qty || 0,
-      'NILAI': row.value || 0,
-    }))
+    // Collect all unique tax names to make consistent columns
+    const taxNames = new Set<string>()
+    unifiedData.forEach(row => {
+      if (Array.isArray(row.taxes)) {
+        row.taxes.forEach((t: any) => {
+          if (t && t.name) taxNames.add(t.name)
+        })
+      }
+    })
+    const taxCols = Array.from(taxNames)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any[] = unifiedData.map((row, i) => {
+      const rowData: any = {
+        'NO': i + 1,
+        'NO. TRANSAKSI': row.invoiceNumber || '-',
+        'NPWP': row.npwp || '',
+        'TGL PENJUALAN': fmtDate(row.date),
+        'NAMA CUSTOMER': row.customerName || '-',
+        'DESKRIPSI': row.productName || '-',
+        'DPP': row.value,
+      }
+
+      // Initialize all tax columns to 0
+      taxCols.forEach(tc => { rowData[tc] = 0 })
+
+      // Assign tax percentage
+      if (Array.isArray(row.taxes)) {
+        row.taxes.forEach((t: any) => {
+          if (t && t.name) {
+            const pct = parseFloat(t.percentage) || 0
+            rowData[t.name] = pct ? `${pct}%` : '0%'
+          }
+        })
+      }
+
+      return rowData
+    })
+
+    const totalQty = unifiedData.reduce((acc, row) => acc + (row.qty || 0), 0)
+    const totalNilai = unifiedData.reduce((acc, row) => acc + (row.value || 0), 0)
+
+    const grandTotalRow: any = {
+      'NO': '',
+      'NO. TRANSAKSI': '',
+      'NPWP': '',
+      'TGL PENJUALAN': '',
+      'NAMA CUSTOMER': '',
+      'DESKRIPSI': 'GRAND TOTAL',
+      'DPP': totalNilai,
+    }
+
+    // Biarkan kosong untuk persentase di baris total
+    taxCols.forEach(tc => {
+      grandTotalRow[tc] = ''
+    })
+
+    data.push(grandTotalRow)
 
     const sd = new Date(startDate)
     const month = sd.toLocaleString('id-ID', { month: 'long' })
     const year = sd.getFullYear()
     const titleText = `LAPORAN PENJUALAN PERIODE ${month.toUpperCase()} ${year}`
 
-    const worksheet = XLSX.utils.json_to_sheet([])
+    const worksheet = SXLSX.utils.json_to_sheet([])
 
     // Add title
-    XLSX.utils.sheet_add_aoa(worksheet, [[titleText]], { origin: "A1" })
+    SXLSX.utils.sheet_add_aoa(worksheet, [[titleText]], { origin: "A1" })
 
     // Add data table starting at row 3 (skip row 2)
-    XLSX.utils.sheet_add_json(worksheet, data, { origin: "A3" })
+    SXLSX.utils.sheet_add_json(worksheet, data, { origin: "A3" })
 
     // Format numbers so they show with thousands separator in Excel (and sum works)
     for (const key in worksheet) {
@@ -270,9 +333,9 @@ export default function ProductSellReportPage() {
       { wch: 18 }, // NILAI
     ]
 
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Product Sales')
-    XLSX.writeFile(workbook, `product-sales-${new Date().toISOString().slice(0, 10)}.xlsx`)
+    const workbook = SXLSX.utils.book_new()
+    SXLSX.utils.book_append_sheet(workbook, worksheet, 'Product Sales')
+    SXLSX.writeFile(workbook, `product-sales-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -412,9 +475,8 @@ export default function ProductSellReportPage() {
                 <tr>
                   <th className="px-4 py-3 text-center">Date</th>
                   <th className="px-4 py-3 text-center">Invoice Number</th>
-                  <th className="px-4 py-3 text-center">Sales Order Number</th>
                   <th className="px-4 py-3 text-center">Customer</th>
-                  <th className="px-4 py-3 text-center">Product</th>
+                  <th className="px-4 py-3 text-center">Description</th>
                   <th className="px-4 py-3 text-center">Value</th>
                 </tr>
               </thead>
@@ -423,7 +485,6 @@ export default function ProductSellReportPage() {
                   <tr key={row.id} className={row.void > 0 ? `text-red-900` : ``}>
                     <td className="px-4 py-3.5 text-xs whitespace-nowrap">{fmtDate(row.date)}</td>
                     <td className="px-4 py-3.5 font-mono text-xs">{row.invoiceNumber}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs">{row.salesOrderNumber}</td>
                     <td className="px-4 py-3.5 font-medium truncate text-xs">{row.customerName}</td>
                     <td className="px-4 py-3.5 text-xs font-medium">{row.productName}</td>
                     <td className="px-4 py-3.5 font-mono text-xs">{fmtMoney(row.value)}</td>

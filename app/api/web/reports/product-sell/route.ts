@@ -240,16 +240,20 @@ export async function GET(request: NextRequest) {
       summary[pn].qty += qty;
       summary[pn].subTotal += subTotal;
 
+
       reportData.push({
         id: `${inv._id.toString()}`,
-        transactionNumber: inv.salesOrderNumber,
+        dpp: inv.price,
+        transactionNumber: inv.invoiceNumber,
         date: inv.date,
         customerName,
         productName: pn,
         productType: 'Service',
         qty: qty,
         subTotal: subTotal,
-        source: 'Service Invoice'
+        source: 'Service Invoice',
+        taxes: inv.snapshot?.tax || [],
+        npwp: inv.svcOrderDoc?.taxNumber || ''
       });
     }
 
