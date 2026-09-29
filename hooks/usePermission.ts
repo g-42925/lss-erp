@@ -28,12 +28,23 @@ export function usePermission() {
   const canEdit = (link: string) => can('edit', link);
   const canDelete = (link: string) => can('delete', link);
 
+  /**
+   * Check if at least one link in a parent menu group is viewable.
+   * Used to hide/show the parent menu (e.g. "Product", "Sales", etc.)
+   * @param links array of route links belonging to the parent menu
+   */
+  const canViewGroup = (links: string[]) => {
+    if (isSuperAdmin) return true;
+    return links.some((link) => canView(link));
+  }
+
   return { 
     can, 
     canView, 
     canCreate, 
     canEdit, 
     canDelete, 
+    canViewGroup,
     isSuperAdmin,
     pages
   };

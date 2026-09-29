@@ -346,13 +346,16 @@ export default function CashflowReportPage() {
 			const json = await res.json();
 			if (json.error) {
 				alert(json.message);
-			} else {
+			}
+			else {
 				setShowEditModal(false);
 				fetchCashflow();
 			}
-		} catch (e: any) {
+		}
+		catch (e: any) {
 			alert('Error: ' + e.message);
-		} finally {
+		}
+		finally {
 			setEditSaving(false);
 		}
 	};
@@ -361,6 +364,7 @@ export default function CashflowReportPage() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport');
 		const data = transactions.map(t => ({
 			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+			'No. Voucher': t.voucherNumber || '-',
 			'Dari': t.from || '-',
 			'Kepada': t.to || '-',
 			'Sumber': t.source,

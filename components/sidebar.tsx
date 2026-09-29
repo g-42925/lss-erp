@@ -25,6 +25,33 @@ const SidebarItem = ({ href, children }: { href: string, children: React.ReactNo
   )
 }
 
+/**
+ * ParentMenu: renders a <details> parent group only if the user
+ * can view at least one of the child links.
+ */
+function ParentMenu({
+  label,
+  links,
+  defaultOpen = false,
+  children,
+}: {
+  label: string
+  links: string[]
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const { canViewGroup } = usePermission()
+  if (!canViewGroup(links)) return null
+  return (
+    <li>
+      <details open={defaultOpen}>
+        <summary>{label}</summary>
+        <ul>{children}</ul>
+      </details>
+    </li>
+  )
+}
+
 export default function Sidebar({ children }: { children: React.ReactNode }) {
   const companyName = useAuth((state) => state.name)
   const logout = useAuth((state) => state.logout)
@@ -157,179 +184,181 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               </li>
             )}
 
-            <li>
-              <details open>
-                <summary>Contacts</summary>
-                <ul>
-                  <SidebarItem href="/customers">Customers</SidebarItem>
-                  <SidebarItem href="/vendor">Vendor</SidebarItem>
-                  <SidebarItem href="/suppliers">Suppliers</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            {/* Contacts */}
+            <ParentMenu
+              label="Contacts"
+              links={["/customers", "/vendor", "/suppliers"]}
+            >
+              <SidebarItem href="/customers">Customers</SidebarItem>
+              <SidebarItem href="/vendor">Vendor</SidebarItem>
+              <SidebarItem href="/suppliers">Suppliers</SidebarItem>
+            </ParentMenu>
 
             {/* Product */}
-            <li>
-              <details open>
-                <summary>Product</summary>
-                <ul>
-                  <SidebarItem href="/products/catalog">Catalog</SidebarItem>
-                  <SidebarItem href="/products/add/good">New</SidebarItem>
-                  <SidebarItem href="/products/packaging">UoM</SidebarItem>
-                  <SidebarItem href="/products/list">List</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Product"
+              links={["/products/catalog", "/products/add/good", "/products/packaging", "/products/list"]}
+            >
+              <SidebarItem href="/products/catalog">Catalog</SidebarItem>
+              <SidebarItem href="/products/add/good">New</SidebarItem>
+              <SidebarItem href="/products/packaging">UoM</SidebarItem>
+              <SidebarItem href="/products/list">List</SidebarItem>
+            </ParentMenu>
 
             {/* Warehouse */}
-            <li>
-              <details>
-                <summary>Warehouse</summary>
-                <ul>
-                  <SidebarItem href="/inventory/exit">Exit</SidebarItem>
-                  <SidebarItem href="/warehouse/adjust">Adjust</SidebarItem>
-                  <SidebarItem href="/warehouse/availability">Stock</SidebarItem>
-                  <SidebarItem href="/warehouse/movement">Shipping</SidebarItem>
-                  <SidebarItem href="/warehouse/log">Shipping Log</SidebarItem>
-                  <SidebarItem href="/warehouse/new">New</SidebarItem>
-                  <SidebarItem href="/warehouse/receiving">Receiving</SidebarItem>
-                  <SidebarItem href="/warehouse/rlog">Receiving Log</SidebarItem>
-                  <SidebarItem href="/warehouse/qc">Quality Check</SidebarItem>
-                  <SidebarItem href="/warehouse/alerts">Stock Alerts</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Warehouse"
+              links={[
+                "/inventory/exit", "/warehouse/adjust", "/warehouse/availability",
+                "/warehouse/movement", "/warehouse/log", "/warehouse/new",
+                "/warehouse/receiving", "/warehouse/rlog", "/warehouse/qc", "/warehouse/alerts"
+              ]}
+            >
+              <SidebarItem href="/inventory/exit">Exit</SidebarItem>
+              <SidebarItem href="/warehouse/adjust">Adjust</SidebarItem>
+              <SidebarItem href="/warehouse/availability">Stock</SidebarItem>
+              <SidebarItem href="/warehouse/movement">Shipping</SidebarItem>
+              <SidebarItem href="/warehouse/log">Shipping Log</SidebarItem>
+              <SidebarItem href="/warehouse/new">New</SidebarItem>
+              <SidebarItem href="/warehouse/receiving">Receiving</SidebarItem>
+              <SidebarItem href="/warehouse/rlog">Receiving Log</SidebarItem>
+              <SidebarItem href="/warehouse/qc">Quality Check</SidebarItem>
+              <SidebarItem href="/warehouse/alerts">Stock Alerts</SidebarItem>
+            </ParentMenu>
 
             {/* Inventory */}
-            <li>
-              <details>
-                <summary>Inventory</summary>
-                <ul>
-                  <SidebarItem href="/inventory/items">Items</SidebarItem>
-                  <SidebarItem href="/inventory/usage">Usage Logs</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Inventory"
+              links={["/inventory/items", "/inventory/usage", "/batches"]}
+            >
+              <SidebarItem href="/inventory/items">Items</SidebarItem>
+              <SidebarItem href="/inventory/usage">Usage Logs</SidebarItem>
+            </ParentMenu>
 
             {/* Purchases */}
-            <li>
-              <details>
-                <summary>Purchases</summary>
-                <ul>
-                  <SidebarItem href="/purchases">Requisition</SidebarItem>
-                  {/*<SidebarItem href="/purchases/purchase-return">Purchase Return</SidebarItem>*/}
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Purchases"
+              links={["/purchases", "/purchases/purchase-return"]}
+            >
+              <SidebarItem href="/purchases">Requisition</SidebarItem>
+              {/*<SidebarItem href="/purchases/purchase-return">Purchase Return</SidebarItem>*/}
+            </ParentMenu>
 
             {/* Sales */}
-            <li>
-              <details>
-                <summary>Sales</summary>
-                <ul>
-                  <SidebarItem href="/sales/order">Order</SidebarItem>
-                  <SidebarItem href="/sales/svc-order">Service Order</SidebarItem>
-                  <SidebarItem href="/sales/refund">Refund Log</SidebarItem>
-                  <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
-                  <SidebarItem href="/sales/svc-invoice">Service Invoice</SidebarItem>
-                  <SidebarItem href="/sales/quotation">Quotation</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Sales"
+              links={["/sales/order", "/sales/svc-order", "/sales/refund", "/sales/p-invoice", "/sales/svc-invoice", "/sales/quotation"]}
+            >
+              <SidebarItem href="/sales/order">Order</SidebarItem>
+              <SidebarItem href="/sales/svc-order">Service Order</SidebarItem>
+              <SidebarItem href="/sales/refund">Refund Log</SidebarItem>
+              <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
+              <SidebarItem href="/sales/svc-invoice">Service Invoice</SidebarItem>
+              <SidebarItem href="/sales/quotation">Quotation</SidebarItem>
+            </ParentMenu>
 
             {/* Finance */}
-            <li>
-              <details>
-                <summary>Finance</summary>
-                <ul>
-                  <SidebarItem href="/finance/purchases">Purchases Approval</SidebarItem>
-                  {/*<SidebarItem href="/finance/purchase-return">Purchase Return Approval</SidebarItem>*/}
-                  <SidebarItem href="/finance/debt">Debts</SidebarItem>
-                  {/*<SidebarItem href="/finance/receivable">Receivable</SidebarItem>*/}
-                  {/*<SidebarItem href="/finance/svc-receivable">Service Receivable</SidebarItem>*/}
-                  <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>
-                  <SidebarItem href="/finance/bank-report">Bank Report</SidebarItem>
-                  <SidebarItem href="/finance/log">Finance Log</SidebarItem>
-                  <SidebarItem href="/finance/svc-log">Service Log</SidebarItem>
-                  <SidebarItem href="/finance/inv-logs">Inventory Logs</SidebarItem>
-                  <li>
-                    <details>
-                      <summary>Voucher</summary>
-                      <ul>
-                        <SidebarItem href="/finance/voucher/cash">Voucher Cash</SidebarItem>
-                        <SidebarItem href="/finance/voucher/bank">Voucher Bank</SidebarItem>
-                      </ul>
-                    </details>
-                  </li>
-                  <li>
-                    <details>
-                      <summary>Accounting</summary>
-                      <ul>
-                        <SidebarItem href="/finance/accounting/journal">General Journal</SidebarItem>
-                        <SidebarItem href="/finance/accounting/coa">Master COA</SidebarItem>
-                        <li>
-                          <details>
-                            <summary>Reports</summary>
-                            <ul>
-                              <SidebarItem href="/finance/accounting/coa/assets">Assets Summary</SidebarItem>
-                            </ul>
-                          </details>
-                        </li>
-                      </ul>
-                    </details>
-                  </li>
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Finance"
+              links={[
+                "/finance/purchases", "/finance/purchase-return", "/finance/debt",
+                "/finance/bank-accounts", "/finance/bank-report", "/finance/log",
+                "/finance/svc-log", "/finance/inv-logs",
+                "/finance/voucher/cash", "/finance/voucher/bank",
+                "/finance/accounting/journal", "/finance/accounting/coa", "/finance/accounting/coa/assets"
+              ]}
+            >
+              <SidebarItem href="/finance/purchases">Purchases Approval</SidebarItem>
+              {/*<SidebarItem href="/finance/purchase-return">Purchase Return Approval</SidebarItem>*/}
+              <SidebarItem href="/finance/debt">Debts</SidebarItem>
+              {/*<SidebarItem href="/finance/receivable">Receivable</SidebarItem>*/}
+              {/*<SidebarItem href="/finance/svc-receivable">Service Receivable</SidebarItem>*/}
+              <SidebarItem href="/finance/bank-accounts">Bank Accounts</SidebarItem>
+              <SidebarItem href="/finance/bank-report">Bank Report</SidebarItem>
+              <SidebarItem href="/finance/log">Finance Log</SidebarItem>
+              <SidebarItem href="/finance/svc-log">Service Log</SidebarItem>
+              <SidebarItem href="/finance/inv-logs">Inventory Logs</SidebarItem>
+              <li>
+                <details>
+                  <summary>Voucher</summary>
+                  <ul>
+                    <SidebarItem href="/finance/voucher/cash">Voucher Cash</SidebarItem>
+                    <SidebarItem href="/finance/voucher/bank">Voucher Bank</SidebarItem>
+                  </ul>
+                </details>
+              </li>
+              <li>
+                <details>
+                  <summary>Accounting</summary>
+                  <ul>
+                    <SidebarItem href="/finance/accounting/journal">General Journal</SidebarItem>
+                    <SidebarItem href="/finance/accounting/coa">Master COA</SidebarItem>
+                    <li>
+                      <details>
+                        <summary>Reports</summary>
+                        <ul>
+                          <SidebarItem href="/finance/accounting/coa/assets">Assets Summary</SidebarItem>
+                        </ul>
+                      </details>
+                    </li>
+                  </ul>
+                </details>
+              </li>
+            </ParentMenu>
 
-            {/* Payroll */}
-            <li>
-              <details>
-                <summary>HRM</summary>
-                <ul>
-                  <SidebarItem href="/payroll">Payroll</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            {/* HRM / Payroll */}
+            <ParentMenu
+              label="HRM"
+              links={["/payroll"]}
+            >
+              <SidebarItem href="/payroll">Payroll</SidebarItem>
+            </ParentMenu>
 
             {/* Asset Management */}
-            <li>
-              <details>
-                <summary>Asset</summary>
-                <ul>
-                  <SidebarItem href="/assets">Asset Perusahaan</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            <ParentMenu
+              label="Asset"
+              links={["/assets"]}
+            >
+              <SidebarItem href="/assets">Asset Perusahaan</SidebarItem>
+            </ParentMenu>
 
             {/* Master Data */}
-            <li>
-              <details>
-                <summary>Master Data</summary>
-                <ul>
-                  <SidebarItem href="/master">Master Data Config</SidebarItem>
-                </ul>
-              </details>
-            </li>
+            {
+              /*
+                <li>
+                  <details>
+                    <summary>Master Data</summary>
+                    <ul>
+                      <SidebarItem href="/master">Master Data Config</SidebarItem>
+                    </ul>
+                  </details>
+                </li>
+              */
+            }
             <SidebarItem href="/sales/taxes">Taxes</SidebarItem>
-            <li>
-              <details>
-                <summary>Report</summary>
-                <ul>
-                  <SidebarItem href="/dashboard/finance/cashflow">Cashflow</SidebarItem>
-                  <SidebarItem href="/reports/profit-loss">Profit &amp; Loss</SidebarItem>
-                  <SidebarItem href="/reports/tax">Tax Report</SidebarItem>
-                  <SidebarItem href="/reports/product-sell">Product Sales</SidebarItem>
-                  <SidebarItem href="/reports/product-purchase">Product Purchases</SidebarItem>
-                  <SidebarItem href="/finance/report/sell-payment">Sell Payment</SidebarItem>
-                  <SidebarItem href="/finance/report/purchase-payment">Purchase Payment</SidebarItem>
-                  <SidebarItem href="/reports/stock-report">Stock Report</SidebarItem>
-                  <SidebarItem href="/reports/remarks">Remark Report</SidebarItem>
-                  <SidebarItem href="/reports/expiry">Expiry Report</SidebarItem>
-                  <SidebarItem href="/work-orders">Work Orders</SidebarItem>
-                </ul>
-              </details>
-            </li>
+
+            {/* Report */}
+            <ParentMenu
+              label="Report"
+              links={[
+                "/dashboard/finance/cashflow", "/reports/profit-loss", "/reports/tax",
+                "/reports/product-sell", "/reports/product-purchase",
+                "/finance/report/sell-payment", "/finance/report/purchase-payment",
+                "/reports/stock-report", "/reports/remarks", "/reports/expiry", "/work-orders"
+              ]}
+            >
+              <SidebarItem href="/dashboard/finance/cashflow">Cashflow</SidebarItem>
+              <SidebarItem href="/reports/profit-loss">Profit &amp; Loss</SidebarItem>
+              <SidebarItem href="/reports/tax">Tax Report</SidebarItem>
+              <SidebarItem href="/reports/product-sell">Product Sales</SidebarItem>
+              <SidebarItem href="/reports/product-purchase">Product Purchases</SidebarItem>
+              <SidebarItem href="/finance/report/sell-payment">Sell Payment</SidebarItem>
+              <SidebarItem href="/finance/report/purchase-payment">Purchase Payment</SidebarItem>
+              <SidebarItem href="/reports/stock-report">Stock Report</SidebarItem>
+              <SidebarItem href="/reports/remarks">Remark Report</SidebarItem>
+              <SidebarItem href="/reports/expiry">Expiry Report</SidebarItem>
+              <SidebarItem href="/work-orders">Work Orders</SidebarItem>
+            </ParentMenu>
           </ul>
         </div>
       </div>
