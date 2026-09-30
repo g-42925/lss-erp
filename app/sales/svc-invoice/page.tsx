@@ -670,9 +670,9 @@ export default function Invoices() {
                                       </button>
                                     )}
                                     <button
-                                      className="text-purple-600 hover:text-purple-800 disabled:opacity-50"
+                                      className={`${s.snapshot?.order ? "text-slate-400 hover:text-slate-600" : "text-purple-600 hover:text-purple-800"} disabled:opacity-50`}
                                       onClick={() => handleSyncOrder(s)}
-                                      title="Sync Order"
+                                      title={s.snapshot?.order ? "Order Synced (Click to re-sync)" : "Sync Order"}
                                       disabled={syncOrderFn.loading}
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">

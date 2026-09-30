@@ -155,8 +155,8 @@ const invoiceSchema = new mongoose.Schema({
     }],
     order: {
       type: Object
-    }
-  }
+    },
+  },
 });
 
 export default mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);
