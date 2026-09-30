@@ -196,18 +196,18 @@ export default function Invoices() {
     })
   }
 
-  const syncTaxFn = useFetch<any, any>({
-    url: '/api/web/invoice/sync-tax',
+  const syncOrderFn = useFetch<any, any>({
+    url: '/api/web/invoice/sync-order',
     method: 'POST',
     onError: (m) => {
       alert(m)
     }
   })
 
-  function handleSyncTax(invoice: any) {
-    if (!confirm("Are you sure you want to sync tax from Service Order?")) return;
+  function handleSyncOrder(invoice: any) {
+    if (!confirm("Are you sure you want to sync order data from Service Order?")) return;
     const body = JSON.stringify({ invoiceId: invoice._id });
-    syncTaxFn.fn('', body, (res) => {
+    syncOrderFn.fn('', body, (res) => {
       const updated = res;
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
@@ -219,7 +219,7 @@ export default function Invoices() {
           inv._id === updated._id ? { ...inv, snapshot: updated.snapshot } : inv
         )
       )
-      alert("Tax synchronized successfully!");
+      alert("Order data synchronized successfully!");
     })
   }
 
@@ -669,25 +669,11 @@ export default function Invoices() {
                                         )}
                                       </button>
                                     )}
-                                    {s.order?.handledBy !== 'internal' && (
-                                      <>
-                                        <button
-                                          className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                                          onClick={() => handleSyncDebt(s)}
-                                          title="Sync Debt with Vendor Price"
-                                          disabled={syncDebtFn.loading}
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                          </svg>
-                                        </button>
-                                      </>
-                                    )}
                                     <button
                                       className="text-purple-600 hover:text-purple-800 disabled:opacity-50"
-                                      onClick={() => handleSyncTax(s)}
-                                      title="Sync Tax"
-                                      disabled={syncTaxFn.loading}
+                                      onClick={() => handleSyncOrder(s)}
+                                      title="Sync Order"
+                                      disabled={syncOrderFn.loading}
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />

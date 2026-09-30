@@ -214,6 +214,11 @@ export async function PUT(request: NextRequest) {
         existingInvoice.debt = so.vendorPrice || 0;
       }
       existingInvoice.handledBy = so.handledBy;
+      
+      existingInvoice.snapshot = {
+        ...existingInvoice.snapshot,
+        order: so
+      };
 
       await existingInvoice.save();
 
@@ -292,7 +297,10 @@ export async function PUT(request: NextRequest) {
       qty: so.qty,
       taxes: so.taxes,
       debt: so.handledBy !== 'internal' ? (so.vendorPrice || 0) : 0,
-      handledBy: so.handledBy
+      handledBy: so.handledBy,
+      snapshot: {
+        order: so
+      }
     });
 
     return NextResponse.json({

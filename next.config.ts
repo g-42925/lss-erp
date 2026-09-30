@@ -8,7 +8,7 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   turbopack: {},
-  allowedDevOrigins: ["*"],
+  allowedDevOrigins: ["192.168.1.29"],
   outputFileTracingRoot: __dirname,
   images: {
     remotePatterns: [

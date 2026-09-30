@@ -37,14 +37,15 @@ export async function POST(request: NextRequest) {
     
     invoice.snapshot = {
       ...invoice.snapshot,
-      tax: newSnapshotTaxes
+      tax: newSnapshotTaxes,
+      order: so
     };
     
     await invoice.save();
 
     return NextResponse.json({
       noResult: false,
-      message: "Tax synchronized successfully",
+      message: "Order and Tax synchronized successfully",
       result: invoice,
       error: false
     });
