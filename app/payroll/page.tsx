@@ -103,11 +103,75 @@ function SummaryCard({ title, value, icon, color }: { title: string; value: stri
 const EmployeeDetailModal = memo(function EmployeeDetailModal({
   employee,
   onClose,
+  masterAccountId,
+  selectedMonth,
+  selectedYear,
 }: {
   employee: Employee;
   onClose: () => void;
+  masterAccountId: string | null;
+  selectedMonth: string;
+  selectedYear: string;
 }) {
   const e = employee;
+  const [isPaying, setIsPaying] = useState(false);
+  const [payMethod, setPayMethod] = useState<'Cash' | 'Bank'>('Cash');
+  const [bankAccountId, setBankAccountId] = useState('');
+  const [banks, setBanks] = useState<any[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  useEffect(() => {
+    if (isPaying && masterAccountId) {
+      fetch(`/api/web/bank-accounts?id=${masterAccountId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.error && data.result) {
+            setBanks(data.result);
+            if (data.result.length > 0) {
+              setBankAccountId(data.result[0]._id);
+            }
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isPaying, masterAccountId]);
+
+  const handleRecordPayment = async () => {
+    if (!masterAccountId) return;
+    setSubmitting(true);
+    try {
+      const payload = {
+        masterAccountId,
+        type: "out",
+        amount: e.thp,
+        accountType: payMethod,
+        bankAccountId: payMethod === 'Bank' ? bankAccountId : undefined,
+        reference: `Pembayaran Payroll - ${e.nama_pegawai} - ${selectedMonth}/${selectedYear}`,
+        to: e.nama_pegawai,
+        date: new Date(paymentDate).toISOString()
+      };
+
+      const res = await fetch("/api/web/finance/reports/cashflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.message || "Gagal mencatat pengeluaran");
+      } else {
+        alert("Pengeluaran berhasil dicatat!");
+        setIsPaying(false);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Terjadi kesalahan jaringan.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -210,9 +274,74 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
           <hr />
 
           {/* THP */}
-          <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4">
-            <span className="font-bold text-blue-900 text-base">Take Home Pay (THP)</span>
-            <span className="font-bold text-blue-900 text-lg">{formatRp(e.thp)}</span>
+          {/* THP */}
+          <div className="flex flex-col gap-3 bg-blue-50 rounded-xl p-4">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-blue-900 text-base">Take Home Pay (THP)</span>
+              <span className="font-bold text-blue-900 text-lg">{formatRp(e.thp)}</span>
+            </div>
+
+            {!isPaying ? (
+              <button 
+                className="btn btn-sm btn-primary w-full mt-2" 
+                onClick={() => setIsPaying(true)}
+              >
+                Catat Pengeluaran THP
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2 mt-2 p-3 bg-white rounded-lg border border-blue-100 shadow-sm text-black">
+                <span className="text-sm font-semibold text-gray-700">Tanggal Pencatatan</span>
+                <input 
+                  type="date"
+                  className="input input-sm input-bordered w-full bg-white text-black"
+                  value={paymentDate}
+                  onChange={(ev) => setPaymentDate(ev.target.value)}
+                />
+                
+                <span className="text-sm font-semibold text-gray-700 mt-2">Metode Pembayaran</span>
+                <select 
+                  className="select select-sm select-bordered w-full bg-white text-black"
+                  value={payMethod}
+                  onChange={(ev) => setPayMethod(ev.target.value as 'Cash' | 'Bank')}
+                >
+                  <option value="Cash">Cash / Tunai</option>
+                  <option value="Bank">Transfer Bank</option>
+                </select>
+
+                {payMethod === 'Bank' && (
+                  <>
+                    <span className="text-sm font-semibold text-gray-700 mt-2">Pilih Rekening Bank</span>
+                    <select 
+                      className="select select-sm select-bordered w-full bg-white text-black"
+                      value={bankAccountId}
+                      onChange={(ev) => setBankAccountId(ev.target.value)}
+                    >
+                      {banks.length === 0 && <option disabled>Memuat bank...</option>}
+                      {banks.map(b => (
+                        <option key={b._id} value={b._id}>{b.bank} - {b.accountNumber} ({b.accountName})</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                <div className="flex gap-2 mt-3">
+                  <button 
+                    className="btn btn-sm flex-1" 
+                    onClick={() => setIsPaying(false)}
+                    disabled={submitting}
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-success text-white flex-1" 
+                    onClick={handleRecordPayment}
+                    disabled={submitting || (payMethod === 'Bank' && !bankAccountId)}
+                  >
+                    {submitting ? 'Menyimpan...' : 'Simpan'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -226,10 +355,16 @@ const PayrollDataSection = memo(function PayrollDataSection({
   payroll,
   filteredEmployees,
   onSelectEmployee,
+  selectedIds,
+  onToggleId,
+  onToggleAll,
 }: {
   payroll: PayrollData;
   filteredEmployees: Employee[];
   onSelectEmployee: (emp: Employee) => void;
+  selectedIds: Set<string>;
+  onToggleId: (id: string, ev: React.MouseEvent) => void;
+  onToggleAll: (ev: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <>
@@ -272,6 +407,14 @@ const PayrollDataSection = memo(function PayrollDataSection({
         <table className="table table-zebra text-black w-full text-sm">
           <thead className="bg-gray-50 text-gray-700">
             <tr>
+              <th className="w-10">
+                <input 
+                  type="checkbox" 
+                  className="checkbox checkbox-sm"
+                  checked={filteredEmployees.length > 0 && selectedIds.size === filteredEmployees.length}
+                  onChange={onToggleAll}
+                />
+              </th>
               <th className="w-10">#</th>
               <th>Karyawan</th>
               <th>NIK / No. Karyawan</th>
@@ -291,8 +434,19 @@ const PayrollDataSection = memo(function PayrollDataSection({
                 </td>
               </tr>
             )}
-            {filteredEmployees.map((emp, idx) => (
-              <tr key={emp.pegawai_id || idx} className="hover cursor-pointer" onClick={() => onSelectEmployee(emp)}>
+            {filteredEmployees.map((emp, idx) => {
+              const empId = String(emp.pegawai_id);
+              return (
+              <tr key={empId || idx} className="hover cursor-pointer" onClick={() => onSelectEmployee(emp)}>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <input 
+                    type="checkbox" 
+                    className="checkbox checkbox-sm"
+                    checked={selectedIds.has(empId)}
+                    onChange={() => {}}
+                    onClick={(e) => onToggleId(empId, e)}
+                  />
+                </td>
                 <td className="text-gray-400">{idx + 1}</td>
                 <td>
                   <div className="flex items-center gap-3">
@@ -325,7 +479,8 @@ const PayrollDataSection = memo(function PayrollDataSection({
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           {filteredEmployees.length > 0 && (
             <tfoot>
@@ -339,6 +494,165 @@ const PayrollDataSection = memo(function PayrollDataSection({
         </table>
       </div>
     </>
+  );
+});
+
+// ─── BatchPaymentModal ────────────────────────────────────────────────────────
+
+const BatchPaymentModal = memo(function BatchPaymentModal({
+  selectedEmployees,
+  onClose,
+  masterAccountId,
+  selectedMonth,
+  selectedYear,
+  onSuccess,
+}: {
+  selectedEmployees: Employee[];
+  onClose: () => void;
+  masterAccountId: string | null;
+  selectedMonth: string;
+  selectedYear: string;
+  onSuccess: () => void;
+}) {
+  const [payMethod, setPayMethod] = useState<'Cash' | 'Bank'>('Cash');
+  const [bankAccountId, setBankAccountId] = useState('');
+  const [banks, setBanks] = useState<any[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [progress, setProgress] = useState(0);
+
+  const totalTHP = useMemo(() => selectedEmployees.reduce((sum, e) => sum + e.thp, 0), [selectedEmployees]);
+
+  useEffect(() => {
+    if (masterAccountId) {
+      fetch(`/api/web/bank-accounts?id=${masterAccountId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.error && data.result) {
+            setBanks(data.result);
+            if (data.result.length > 0) {
+              setBankAccountId(data.result[0]._id);
+            }
+          }
+        })
+        .catch(console.error);
+    }
+  }, [masterAccountId]);
+
+  const handleRecordBatchPayment = async () => {
+    if (!masterAccountId) return;
+    setSubmitting(true);
+    setProgress(0);
+    
+    let successCount = 0;
+    for (let i = 0; i < selectedEmployees.length; i++) {
+      const e = selectedEmployees[i];
+      try {
+        const payload = {
+          masterAccountId,
+          type: "out",
+          amount: e.thp,
+          accountType: payMethod,
+          bankAccountId: payMethod === 'Bank' ? bankAccountId : undefined,
+          reference: `Pembayaran Payroll - ${e.nama_pegawai} - ${selectedMonth}/${selectedYear}`,
+          to: e.nama_pegawai,
+          date: new Date(paymentDate).toISOString()
+        };
+
+        const res = await fetch("/api/web/finance/reports/cashflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.error) {
+          successCount++;
+        }
+      } catch (error) {
+        console.error(error);
+      }
+      setProgress(i + 1);
+    }
+    
+    setSubmitting(false);
+    alert(`Berhasil mencatat ${successCount} dari ${selectedEmployees.length} pembayaran.`);
+    onSuccess();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white text-black rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden m-4" onClick={(ev) => ev.stopPropagation()}>
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold">Bayar {selectedEmployees.length} Karyawan</h2>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="size-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="p-6 flex flex-col gap-4">
+          <div className="flex justify-between items-center bg-blue-50 rounded-xl p-4">
+            <span className="font-bold text-blue-900">Total THP Keseluruhan</span>
+            <span className="font-bold text-blue-900 text-lg">{formatRp(totalTHP)}</span>
+          </div>
+
+          <div className="flex flex-col gap-2 p-4 bg-gray-50 rounded-lg border border-gray-100">
+            <span className="text-sm font-semibold text-gray-700">Tanggal Pencatatan</span>
+            <input 
+              type="date"
+              className="input input-sm input-bordered w-full bg-white text-black"
+              value={paymentDate}
+              onChange={(ev) => setPaymentDate(ev.target.value)}
+            />
+            
+            <span className="text-sm font-semibold text-gray-700 mt-2">Metode Pembayaran</span>
+            <select 
+              className="select select-sm select-bordered w-full bg-white text-black"
+              value={payMethod}
+              onChange={(ev) => setPayMethod(ev.target.value as 'Cash' | 'Bank')}
+            >
+              <option value="Cash">Cash / Tunai</option>
+              <option value="Bank">Transfer Bank</option>
+            </select>
+
+            {payMethod === 'Bank' && (
+              <>
+                <span className="text-sm font-semibold text-gray-700 mt-2">Pilih Rekening Bank</span>
+                <select 
+                  className="select select-sm select-bordered w-full bg-white text-black"
+                  value={bankAccountId}
+                  onChange={(ev) => setBankAccountId(ev.target.value)}
+                >
+                  {banks.length === 0 && <option disabled>Memuat bank...</option>}
+                  {banks.map(b => (
+                    <option key={b._id} value={b._id}>{b.bank} - {b.accountNumber} ({b.accountName})</option>
+                  ))}
+                </select>
+              </>
+            )}
+          </div>
+
+          {submitting && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+              <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${(progress / selectedEmployees.length) * 100}%` }}></div>
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-4">
+            <button className="btn btn-sm flex-1" onClick={onClose} disabled={submitting}>Batal</button>
+            <button 
+              className="btn btn-sm btn-success text-white flex-1" 
+              onClick={handleRecordBatchPayment}
+              disabled={submitting || (payMethod === 'Bank' && !bankAccountId)}
+            >
+              {submitting ? `Memproses ${progress}/${selectedEmployees.length}...` : 'Proses Semua Pembayaran'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 });
 
@@ -358,6 +672,21 @@ export default function PayrollPage() {
   const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
   const [search, setSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchPaying, setIsBatchPaying] = useState(false);
+
+  const handleToggleId = useCallback((id: string, ev: React.MouseEvent) => {
+    ev.stopPropagation();
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  }, []);
+
+
 
   // Stable callbacks — prevent PayrollDataSection & EmployeeDetailModal from re-rendering
   // unnecessarily when only unrelated state (e.g. selectedEmployee) changes in PayrollPage.
@@ -417,6 +746,18 @@ export default function PayrollPage() {
       return matchSearch;
     });
   }, [payroll, search]);
+
+  const handleToggleAll = useCallback((ev: React.ChangeEvent<HTMLInputElement>) => {
+    if (ev.target.checked) {
+      setSelectedIds(new Set(filteredEmployees.map(e => String(e.pegawai_id))));
+    } else {
+      setSelectedIds(new Set());
+    }
+  }, [filteredEmployees]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [filteredEmployees]);
 
   if (!hasHydrated) return null;
 
@@ -516,11 +857,27 @@ export default function PayrollPage() {
 
         {/* Data Section — hanya re-render saat filteredEmployees atau payroll berubah */}
         {!payrollFetch.loading && payroll && (
-          <PayrollDataSection
-            payroll={payroll}
-            filteredEmployees={filteredEmployees}
-            onSelectEmployee={handleSelectEmployee}
-          />
+          <>
+            {selectedIds.size > 0 && (
+              <div className="bg-blue-50 px-5 py-3 flex items-center justify-between border-b border-blue-100">
+                <span className="text-blue-900 font-medium">{selectedIds.size} Karyawan Terpilih</span>
+                <button 
+                  className="btn btn-sm btn-primary"
+                  onClick={() => setIsBatchPaying(true)}
+                >
+                  Catat Pengeluaran Sekaligus
+                </button>
+              </div>
+            )}
+            <PayrollDataSection
+              payroll={payroll}
+              filteredEmployees={filteredEmployees}
+              onSelectEmployee={handleSelectEmployee}
+              selectedIds={selectedIds}
+              onToggleId={handleToggleId}
+              onToggleAll={handleToggleAll}
+            />
+          </>
         )}
       </div>
 
@@ -529,6 +886,21 @@ export default function PayrollPage() {
         <EmployeeDetailModal
           employee={selectedEmployee}
           onClose={handleCloseModal}
+          masterAccountId={masterAccountId}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+        />
+      )}
+
+      {/* Batch Payment Modal */}
+      {isBatchPaying && (
+        <BatchPaymentModal
+          selectedEmployees={filteredEmployees.filter(e => selectedIds.has(String(e.pegawai_id)))}
+          onClose={() => setIsBatchPaying(false)}
+          masterAccountId={masterAccountId}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onSuccess={() => setSelectedIds(new Set())}
         />
       )}
     </div>

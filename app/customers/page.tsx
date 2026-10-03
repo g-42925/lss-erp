@@ -104,9 +104,24 @@ export default function Customers() {
         return;
       }
 
+      const formattedJson = json.map((row: any) => ({
+        bussinessName: row["Business Name"] || row.bussinessName || "",
+        name: row["Name"] || row.name || "",
+        email: row["Email"] || row.email || "",
+        mobile: row["Mobile"] || row.mobile || "",
+        address: row["Address"] || row.address || "",
+        taxType: row["Tax Type"] || row.taxType || "",
+        taxNumber: row["Tax Number"] || row.taxNumber || "",
+        creditLimit: row["Credit Limit"] || row.creditLimit || 0,
+        payTerm: row["Pay Term"] || row.payTerm || "",
+        openingBalance: row["Opening Balance"] || row.openingBalance || 0,
+        advanceBalance: row["Advance Balance"] || row.advanceBalance || 0,
+        active: row["Active"] || row.active || 'yes',
+      }));
+
       await uploadFn.fn('', JSON.stringify({
         masterAccountId,
-        customers: json
+        customers: formattedJson
       }), (result) => {
         const url1 = `/api/web/customers?id=${masterAccountId}`;
         getCustomersFn.fn(url1, JSON.stringify({}), (r) => {
@@ -120,6 +135,36 @@ export default function Customers() {
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const handleExportExcel = () => {
+    const dataToExport = searchResult.length > 0 ? displayedSearchResult : displayedCustomers;
+
+    if (dataToExport.length === 0) {
+      alert("Tidak ada data untuk diexport.");
+      return;
+    }
+
+    const formattedData = dataToExport.map((c) => ({
+      "Business Name": c.bussinessName,
+      "Name": c.name,
+      "Email": c.email,
+      "Mobile": c.mobile,
+      "Address": c.address,
+      "Tax Type": c.taxType,
+      "Tax Number": c.taxNumber,
+      "Credit Limit": c.creditLimit,
+      "Pay Term": c.payTerm,
+      "Opening Balance": c.openingBalance,
+      "Advance Balance": c.advanceBalance,
+      "Total Sale Due": c.totalSaleDue,
+      "Active": c.active || 'yes'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+    XLSX.writeFile(workbook, "Customers_List.xlsx");
   };
 
   async function search(v: string) {
@@ -267,6 +312,14 @@ export default function Customers() {
                     strokeWidth={1.5}
                   />
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="btn btn-sm btn-outline text-green-700 border-green-700 hover:bg-green-700 hover:text-white"
+                title="Export Excel"
+              >
+                Export Excel
               </button>
               <button disabled={!canCreate('/customers')} onClick={() => modalRef.current?.show()}>
                 <HugeiconsIcon

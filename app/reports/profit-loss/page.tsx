@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import useAuth from "@/store/auth"
 import { useRouter } from "next/navigation"
 
@@ -9,33 +9,14 @@ import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProfitLossEntry = {
-  id: string
-  orderId: string
-  salesOrderNumber: string
-  saleDate: string
-  customerName: string
-  productName: string
-  warehouseName: string
-  qty: number
-  sellingPricePerUnit: number
-  unitCost: number
-  subTotal: number
-  totalCost: number
-  profitLossAmount: number
-  status: 'Profit' | 'Loss'
-  rawDifference: number
+  month: string
+  labaKotor: number
+  pengeluaran: number
+  pengeluaranDetail?: any[]
+  labaBersih: number
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtDate(d: string | null | undefined) {
-  if (!d) return "—"
-  return new Date(d).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  })
-}
-
 function fmtMoney(amount: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -44,14 +25,14 @@ function fmtMoney(amount: number) {
   }).format(amount)
 }
 
-function todayStr() {
+function thisMonthStr() {
   const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
 }
 
-function firstOfMonthStr() {
+function startOfYearStr() {
   const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  return `${now.getFullYear()}-01`
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -61,13 +42,24 @@ export default function ProfitLossReportPage() {
   const loggedIn = useAuth((s) => s.loggedIn)
   const masterAccountId = useAuth((s) => s.masterAccountId)
 
-  const [startDate, setStartDate] = useState(firstOfMonthStr())
-  const [endDate, setEndDate] = useState(todayStr())
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<'all' | 'Profit' | 'Loss'>('all')
+  const [startDate, setStartDate] = useState(startOfYearStr())
+  const [endDate, setEndDate] = useState(thisMonthStr())
   const [items, setItems] = useState<ProfitLossEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [hasRun, setHasRun] = useState(false)
+
+  // Modal states
+  const [modalData, setModalData] = useState<{ month: string, details: any[] } | null>(null)
+
+  const openModal = (month: string, details?: any[]) => {
+    if (details && details.length > 0) {
+      setModalData({ month, details })
+    } else {
+      alert('Tidak ada rincian pengeluaran untuk bulan ini.')
+    }
+  }
+
+  const closeModal = () => setModalData(null)
 
   // ─── Auth guard ─────────────────────────────────────────────────────────────
   if (!hasHydrated) return null
@@ -80,20 +72,13 @@ export default function ProfitLossReportPage() {
     try {
       const params = new URLSearchParams({
         id: masterAccountId,
+        startDate,
+        endDate
       })
       const res = await fetch(`/api/web/reports/profit-loss?${params}`)
       const data = await res.json()
       if (!data.error) {
-        // Filter internally by date range as API returns all
-        // (In a real large-scale app, do this date filter on the backend)
-        const startTime = new Date(startDate).setHours(0, 0, 0, 0)
-        const endTime = new Date(endDate).setHours(23, 59, 59, 999)
-
-        const filteredByDate = (data.result ?? []).filter((item: ProfitLossEntry) => {
-          const d = new Date(item.saleDate).getTime()
-          return d >= startTime && d <= endTime
-        })
-        setItems(filteredByDate)
+        setItems(data.result || [])
         setHasRun(true)
       } else {
         alert(data.message || "Gagal memuat laporan")
@@ -106,53 +91,30 @@ export default function ProfitLossReportPage() {
   }
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
-  let filtered = items
-
-  if (statusFilter !== 'all') {
-    filtered = filtered.filter(i => i.status === statusFilter)
-  }
-
-  if (search.trim()) {
-    const s = search.toLowerCase()
-    filtered = filtered.filter(r =>
-      r.productName.toLowerCase().includes(s) ||
-      r.salesOrderNumber.toLowerCase().includes(s) ||
-      r.customerName.toLowerCase().includes(s)
-    )
-  }
-
-  const totals = filtered.reduce(
+  const totals = items.reduce(
     (acc, curr) => {
-      if (curr.status === "Profit") acc.profit += curr.profitLossAmount
-      else acc.loss += curr.profitLossAmount
-      acc.qty += curr.qty
-      acc.subTotal += curr.subTotal
+      acc.labaKotor += curr.labaKotor
+      acc.pengeluaran += curr.pengeluaran
+      acc.labaBersih += curr.labaBersih
       return acc
     },
-    { profit: 0, loss: 0, qty: 0, subTotal: 0 }
+    { labaKotor: 0, pengeluaran: 0, labaBersih: 0 }
   )
 
-  const netProfit = totals.profit - totals.loss
-
   function toExcel() {
-    if (filtered.length === 0) return alert('Tidak ada data untuk diexport')
+    if (items.length === 0) return alert('Tidak ada data untuk diexport')
 
-    const data = filtered.map(item => ({
-      'Tanggal': fmtDate(item.saleDate),
-      'S.O': item.salesOrderNumber,
-      'Customer': item.customerName,
-      'Product': item.productName,
-      'Qty': item.qty,
-      'Price': fmtMoney(item.sellingPricePerUnit),
-      'Cost': fmtMoney(item.unitCost),
-      'Total Sales': fmtMoney(item.subTotal),
-      'Total Profit': fmtMoney(item.profitLossAmount),
+    const data = items.map(item => ({
+      'Bulan': item.month,
+      'Laba Kotor': fmtMoney(item.labaKotor),
+      'Pengeluaran': fmtMoney(item.pengeluaran),
+      'Laba Bersih': fmtMoney(item.labaBersih),
     }))
 
     const worksheet = XLSX.utils.json_to_sheet(data)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Profit & Loss")
-    XLSX.writeFile(workbook, `profit-loss-${todayStr()}.xlsx`)
+    XLSX.writeFile(workbook, `profit-loss-${thisMonthStr()}.xlsx`)
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -168,7 +130,7 @@ export default function ProfitLossReportPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Profit & Loss Report</h1>
-            <p className="text-sm text-slate-500">Laporan keuntungan dan kerugian per item pada transaksi penjulan.</p>
+            <p className="text-sm text-slate-500">Laporan keuntungan dan kerugian bulanan perusahaan.</p>
           </div>
         </div>
       </div>
@@ -179,35 +141,22 @@ export default function ProfitLossReportPage() {
         <div className="flex flex-wrap items-end gap-4">
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Tanggal Mulai</label>
+            <label className="text-xs font-semibold text-slate-600">Bulan Mulai</label>
             <input
-              type="date"
+              type="month"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-teal-300"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Tanggal Akhir</label>
+            <label className="text-xs font-semibold text-slate-600">Bulan Akhir</label>
             <input
-              type="date"
+              type="month"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-teal-300"
             />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Status</label>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value as any)}
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-teal-300 min-w-[120px]"
-            >
-              <option value="all">Semua</option>
-              <option value="Profit">Profit</option>
-              <option value="Loss">Loss</option>
-            </select>
           </div>
 
           <button onClick={runReport} disabled={loading} className="flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-200 transition-all hover:bg-teal-800 active:scale-95 disabled:opacity-60">
@@ -222,29 +171,15 @@ export default function ProfitLossReportPage() {
 
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       {hasRun && !loading && (
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <SummaryCard label="Net Profit" value={fmtMoney(netProfit)} color={netProfit >= 0 ? "emerald" : "rose"} />
-          <SummaryCard label="Total Profit" value={fmtMoney(totals.profit)} color="emerald" icon="📈" />
-          <SummaryCard label="Total Loss" value={fmtMoney(totals.loss)} color="rose" icon="📉" />
-          <SummaryCard label="Total Revenue (Items)" value={fmtMoney(totals.subTotal)} color="blue" icon="💰" />
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <SummaryCard label="Total Laba Kotor" value={fmtMoney(totals.labaKotor)} color="blue" icon="💰" />
+          <SummaryCard label="Total Pengeluaran" value={fmtMoney(totals.pengeluaran)} color="rose" icon="📉" />
+          <SummaryCard label="Total Laba Bersih" value={fmtMoney(totals.labaBersih)} color={totals.labaBersih >= 0 ? "emerald" : "rose"} icon="📈" />
         </div>
       )}
 
       {/* ── Table Card ───────────────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-        {hasRun && !loading && (
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-3">
-            <span className="text-sm text-slate-500">{filtered.length} transaksi item ditemukan</span>
-            <input
-              type="search"
-              placeholder="Cari produk, order, pelanggan…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-72 rounded-xl border border-slate-200 px-4 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-teal-300"
-            />
-          </div>
-        )}
-
         {loading ? (
           <div className="flex flex-col items-center justify-center py-28 gap-3">
             <span className="loading loading-spinner loading-lg text-teal-600" />
@@ -258,43 +193,33 @@ export default function ProfitLossReportPage() {
             </svg>
             <p className="font-semibold">Pilih periode lalu klik <span className="text-teal-700">Tampilkan Laporan</span></p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="py-20 text-center text-slate-400 text-sm">Tidak ada data yang cocok.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">Tanggal</th>
-                  <th className="px-4 py-3 text-left">No Order</th>
-                  <th className="px-4 py-3 text-left">Pelanggan</th>
-                  <th className="px-4 py-3 text-left">Produk</th>
-                  <th className="px-4 py-3 text-center">Qty</th>
-                  <th className="px-4 py-3 text-right">Harga Jual/Unit</th>
-                  <th className="px-4 py-3 text-right">Unit Cost</th>
-                  <th className="px-4 py-3 text-right">Total Transaksi</th>
-                  <th className="px-4 py-3 text-right">P/L Amount</th>
-                  <th className="px-4 py-3 text-center">Status</th>
+                  <th className="px-4 py-3 text-left">Bulan</th>
+                  <th className="px-4 py-3 text-right">Laba Kotor</th>
+                  <th className="px-4 py-3 text-right">Pengeluaran</th>
+                  <th className="px-4 py-3 text-right">Laba Bersih</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filtered.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3.5 text-slate-500 text-xs whitespace-nowrap">{fmtDate(row.saleDate)}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs text-slate-600">{row.salesOrderNumber}</td>
-                    <td className="px-4 py-3.5 text-slate-800 font-medium truncate max-w-[150px]">{row.customerName}</td>
-                    <td className="px-4 py-3.5 text-slate-800 font-medium truncate max-w-[200px]">{row.productName}</td>
-                    <td className="px-4 py-3.5 text-center font-bold text-slate-700">{row.qty}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-slate-600 text-xs">{fmtMoney(row.sellingPricePerUnit)}</td>
-                    <td className="px-4 py-3.5 text-right font-mono text-slate-600 text-xs">{fmtMoney(row.unitCost)}</td>
-                    <td className="px-4 py-3.5 text-right font-mono font-semibold text-slate-800 text-xs">{fmtMoney(row.subTotal)}</td>
-                    <td className={`px-4 py-3.5 text-right font-mono font-bold text-xs ${row.status === 'Profit' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {row.status === 'Profit' ? '+' : '-'}{fmtMoney(row.profitLossAmount)}
+                {items.map((row) => (
+                  <tr key={row.month} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3.5 text-slate-800 font-medium whitespace-nowrap">{row.month}</td>
+                    <td className="px-4 py-3.5 text-right font-mono text-slate-800 text-xs">{fmtMoney(row.labaKotor)}</td>
+                    <td 
+                      className="px-4 py-3.5 text-right font-mono text-slate-800 text-xs cursor-pointer hover:text-teal-600 hover:underline"
+                      onClick={() => openModal(row.month, row.pengeluaranDetail)}
+                      title="Klik untuk melihat rincian pengeluaran"
+                    >
+                      {fmtMoney(row.pengeluaran)}
                     </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${row.status === 'Profit' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                        {row.status}
-                      </span>
+                    <td className={`px-4 py-3.5 text-right font-mono font-bold text-xs ${row.labaBersih >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {fmtMoney(row.labaBersih)}
                     </td>
                   </tr>
                 ))}
@@ -303,6 +228,58 @@ export default function ProfitLossReportPage() {
           </div>
         )}
       </div>
+
+      {/* ── Modal Rincian Pengeluaran ────────────────────────────────────────── */}
+      {modalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 text-lg">Rincian Pengeluaran - {modalData.month}</h3>
+              <button onClick={closeModal} className="p-2 rounded-full hover:bg-slate-200 transition-colors text-slate-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Body (Scrollable) */}
+            <div className="p-6 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-400 border-b border-slate-200 text-xs uppercase tracking-wider">
+                    <th className="pb-3 font-semibold">Tanggal</th>
+                    <th className="pb-3 font-semibold">Sumber</th>
+                    <th className="pb-3 font-semibold">Keterangan</th>
+                    <th className="pb-3 font-semibold text-right">Nominal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modalData.details.map((detail, idx) => (
+                    <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                      <td className="py-3 text-slate-600 whitespace-nowrap">{new Date(detail.date).toLocaleDateString("id-ID")}</td>
+                      <td className="py-3 text-slate-600">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                          {detail.source}
+                        </span>
+                      </td>
+                      <td className="py-3 text-slate-600 max-w-[300px] truncate" title={detail.description}>{detail.description || '-'}</td>
+                      <td className="py-3 text-right font-mono text-slate-800 font-medium">{fmtMoney(detail.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <button onClick={closeModal} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

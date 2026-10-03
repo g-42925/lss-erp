@@ -1,122 +1,10 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
-
-import Order from '@/models/Order';
-import Product from '@/models/Product';
+import Invoice from '@/models/Invoice';
 import Companie from '@/models/Companie';
-
-// We implement an aggregation just like GET /api/web/products to get current stock and calculate approximate unit cost
-async function getProductsUnitCostMap(companyId: string) {
-  const byType = await Product.aggregate([
-    {
-      $match: {
-        productOf: companyId,
-        productType: 'good'
-      }
-    },
-    {
-      $lookup: {
-        from: "batches",
-        localField: "_id",
-        foreignField: "productId",
-        as: "batches",
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $eq: ["$status", "ACTIVE"] }
-                ]
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      $unwind: {
-        path: "$batches",
-        preserveNullAndEmptyArrays: true
-      }
-    },
-    {
-      $group: {
-        _id: "$_id",
-        doc: { $first: "$$ROOT" },
-        accumulative: { $sum: "$batches.accumulative" },
-        out: { $sum: "$batches.outQty" }
-      }
-    },
-    {
-      $addFields: {
-        remain: {
-          $subtract: ["$accumulative", "$out"]
-        }
-      }
-    },
-    {
-      $replaceRoot: {
-        newRoot: {
-          $mergeObjects: [
-            "$doc",
-            {
-              remain: "$remain",
-            }
-          ]
-        }
-      }
-    },
-    {
-      $project: {
-        batches: 0,
-      }
-    },
-    {
-      $lookup: {
-        from: "allocations",
-        localField: "_id",
-        foreignField: "productId",
-        as: "allocations"
-      }
-    },
-    {
-      $addFields: {
-        allocated: {
-          $sum: {
-            $map: {
-              input: "$allocations",
-              as: "a",
-              in: "$$a.qty"
-            }
-          }
-        }
-      }
-    },
-    {
-      $project: {
-        allocations: 0,
-      }
-    }
-  ]);
-
-  const unitCostMap = new Map();
-
-  for (const product of byType) {
-    const totalQty = Math.max(1, (product.remain || 0) + (product.allocated || 0));
-    // If unitCostStock exists and is manually set, we could use it, but usually stockValue is more reliable for average cost
-    const stockValue = product.stockValue || 0;
-    const unitCost = Math.round(stockValue / totalQty);
-    unitCostMap.set(product._id.toString(), unitCost);
-  }
-
-  // Also handle services which might have a different structure or 0 cost
-  const services = await Product.find({ productOf: companyId, productType: 'service' });
-  for (const service of services) {
-    unitCostMap.set(service._id.toString(), service.unitCostStock || 0); // Services usually have 0 or manual unit cost
-  }
-
-  return unitCostMap;
-}
+import Cashflow from '@/models/Cashflow';
+import Log from '@/models/Log';
+import Purchase from '@/models/Purchase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -124,6 +12,8 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const id = url.searchParams.get("id");
+    const startDate = url.searchParams.get("startDate"); // YYYY-MM
+    const endDate = url.searchParams.get("endDate"); // YYYY-MM
 
     if (!id) {
       return NextResponse.json({ error: true, message: "Company Master Account ID is required", noResult: true, result: null });
@@ -134,63 +24,152 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: true, message: "Company not found", noResult: true, result: null });
     }
 
-    // 1. Fetch Orders with populated fields
-    const orders = await Order.find({ companyId: company._id })
-      .populate('customerId', 'customerName')
-      .populate('cart.productId', 'productName')
-      .populate('cart.warehouseId', 'name')
-      .sort({ saleDate: -1 });
+    // Prepare date range — use local midnight to cover full days regardless of timezone
+    let startYear: number, startMonth: number, endYear: number, endMonth: number;
 
-    // 2. Fetch current unit costs map
-    const unitCostMap = await getProductsUnitCostMap(company._id);
+    if (startDate && endDate) {
+      [startYear, startMonth] = startDate.split('-').map(Number);
+      [endYear, endMonth] = endDate.split('-').map(Number);
+    } else {
+      const now = new Date();
+      startYear = now.getFullYear();
+      startMonth = 1;
+      endYear = now.getFullYear();
+      endMonth = 12;
+    }
 
-    // 3. Process data into transactions per item
-    const reportData = [];
+    // start = first day of startMonth, end = last day of endMonth (covers full local days)
+    const start = new Date(startYear, startMonth - 1, 1, 0, 0, 0, 0);
+    const end = new Date(endYear, endMonth, 0, 23, 59, 59, 999); // day 0 of next month = last day of endMonth
 
-    for (const order of orders) {
-      if (!order.cart || order.cart.length === 0) continue;
+    // Initialize monthly data for every month in range
+    const monthlyData: Record<string, { labaKotor: number; pengeluaran: number; pengeluaranDetail: any[] }> = {};
+    const cur = new Date(startYear, startMonth - 1, 1);
+    while (cur <= end) {
+      const key = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`;
+      monthlyData[key] = { labaKotor: 0, pengeluaran: 0, pengeluaranDetail: [] };
+      cur.setMonth(cur.getMonth() + 1);
+    }
 
-      for (const item of order.cart) {
-        if (!item.productId) continue;
+    // ── 1. LABA KOTOR dari Invoice ───────────────────────────────────────────
+    // Ambil semua invoice dalam rentang bulan yang dipilih
+    const invoices = await Invoice.find({
+      companyId: company._id,
+      date: { $gte: start, $lte: end },
+      void: { $ne: true }
+    }).lean();
 
-        const productIdStr = item.productId._id ? item.productId._id.toString() : item.productId.toString();
+    for (const inv of invoices) {
+      const invDate = new Date(inv.date);
+      const monthKey = `${invDate.getFullYear()}-${String(invDate.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyData[monthKey]) continue;
 
-        // Modal Cost (per unit)
-        const unitCost = unitCostMap.get(productIdStr) || 0;
+      // ── Hitung nilai invoice dari snapshot.order ──────────────────────────
+      // 1. Ambil price dari snapshot.order
+      const price: number = (inv.snapshot?.order?.price) || 0;
 
-        // Selling Price (per unit) - handled safely to avoid NaN
-        const subTotal = item.subTotal || 0;
-        const qty = item.qty || 1;
-        const sellingPricePerUnit = subTotal / qty;
+      // 2. Ambil qty dari snapshot.order
+      const qty: number = inv.snapshot?.order?.qty || 1;
 
-        // Profit / Loss calculation
-        const totalCost = unitCost * qty;
-        const totalProfitOrLoss = subTotal - totalCost;
+      // 3. PPI = price / qty
+      const PPI = price / qty;
 
-        const isProfit = totalProfitOrLoss >= 0;
+      // 4. x = missing * PPI
+      const missing: number = inv.missing || 0;
+      const x = missing * PPI;
 
-        reportData.push({
-          id: `${order._id}-${productIdStr}`,
-          orderId: order._id,
-          salesOrderNumber: order.salesOrderNumber,
-          saleDate: order.saleDate,
-          customerName: order.customerId?.customerName || order.customCustomer?.name || 'Walk-in Customer',
-          productName: item.productId.productName || 'Unknown Product',
-          warehouseName: item.warehouseId?.name || '-',
-          qty: qty,
-          sellingPricePerUnit: sellingPricePerUnit,
-          unitCost: unitCost,
-          subTotal: subTotal,
-          totalCost: totalCost,
-          profitLossAmount: Math.abs(totalProfitOrLoss), // Just absolute value, use isProfit for sign
-          status: isProfit ? 'Profit' : 'Loss',
-          rawDifference: totalProfitOrLoss
+      // 5. Nilai invoice = price - x
+      const nilaiInvoice = price - x;
+
+      monthlyData[monthKey].labaKotor += nilaiInvoice;
+    }
+
+    // ── 2. PENGELUARAN dari Cashflow (cash & bank keluar) ─────────────────────
+    const cashflows = await Cashflow.find({
+      companyId: company._id,
+      date: { $gte: start, $lte: end },
+      type: 'out',
+      accountType: { $in: ['Cash', 'Bank'] }
+    }).lean();
+
+    for (const cf of cashflows) {
+      const cfDate = new Date(cf.date);
+      const monthKey = `${cfDate.getFullYear()}-${String(cfDate.getMonth() + 1).padStart(2, '0')}`;
+      if (monthlyData[monthKey]) {
+        const amount = cf.amount || 0;
+        monthlyData[monthKey].pengeluaran += amount;
+        monthlyData[monthKey].pengeluaranDetail.push({
+          date: cf.date,
+          source: 'Cashflow',
+          description: cf.description || 'Pengeluaran Cashflow',
+          amount: amount
         });
       }
     }
 
+    // ── 3. PENGELUARAN dari Log pembayaran pembelian (Purchase) ───────────────
+    const purchases = await Purchase.find({ companyId: company._id }).select('_id').lean();
+    const purchaseIds = purchases.map((p: any) => p._id);
+
+    if (purchaseIds.length > 0) {
+      const logs = await Log.find({
+        purchaseId: { $in: purchaseIds },
+        date: { $gte: start, $lte: end },
+        amount: { $gt: 0 }
+      }).lean();
+
+      for (const log of logs) {
+        const logDate = new Date(log.date);
+        const monthKey = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}`;
+        if (monthlyData[monthKey]) {
+          const amount = Math.abs(log.amount || 0);
+          monthlyData[monthKey].pengeluaran += amount;
+          monthlyData[monthKey].pengeluaranDetail.push({
+            date: log.date,
+            source: 'Pembelian (Purchase)',
+            description: log.notes || 'Pembayaran Pembelian',
+            amount: amount
+          });
+        }
+      }
+    }
+
+    // ── 4. PENGELUARAN dari Hutang ke Vendor (vendor_manual) ──────────────────
+    const vendorInvoices = await Invoice.find({
+      companyId: company._id,
+      date: { $gte: start, $lte: end },
+      invoiceType: 'vendor_manual',
+      void: { $ne: true }
+    }).lean();
+
+    for (const vInv of vendorInvoices) {
+      const vDate = new Date(vInv.date);
+      const monthKey = `${vDate.getFullYear()}-${String(vDate.getMonth() + 1).padStart(2, '0')}`;
+      if (monthlyData[monthKey]) {
+        const amount = vInv.debt || 0;
+        monthlyData[monthKey].pengeluaran += amount;
+        monthlyData[monthKey].pengeluaranDetail.push({
+            date: vInv.date,
+            source: 'Hutang Vendor',
+            description: `Invoice ${vInv.invoiceNumber || '-'}`,
+            amount: amount
+        });
+      }
+    }
+
+    const reportData = Object.keys(monthlyData).sort().map(month => {
+      const data = monthlyData[month];
+      return {
+        month,
+        labaKotor: data.labaKotor,
+        pengeluaran: data.pengeluaran,
+        pengeluaranDetail: data.pengeluaranDetail,
+        labaBersih: data.labaKotor - data.pengeluaran
+      };
+    });
+
     return NextResponse.json({
-      noResult: false,
+      noResult: reportData.length === 0,
       message: "Success",
       result: reportData,
       error: false
@@ -205,3 +184,4 @@ export async function GET(request: NextRequest) {
     });
   }
 }
+
