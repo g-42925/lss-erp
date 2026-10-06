@@ -32,6 +32,8 @@ function XOrderContent() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const [searchTerm, setSearchTerm] = useState<string>("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
   const [vendors, setVendors] = useState<any[]>([])
@@ -702,6 +704,15 @@ function XOrderContent() {
     });
   }, [localOrders, getServiceOrdersFn.result, searchTerm, statusFilter]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, currentPage]);
+
   function onCustomerChange(e: any) {
     const customer = customers.find((c: any) => c.bussinessName === e.target.value)
     if (customer) {
@@ -1064,7 +1075,7 @@ function XOrderContent() {
                         {
                           searchResult.length < 1
                             ?
-                            filteredOrders?.map((s: any, index: number) => {
+                            paginatedOrders?.map((s: any, index: number) => {
                               return (
                                 <tr key={index} className={s.status === 'closed' ? 'opacity-60' : ''}>
                                   <td>{s.salesOrderNumber}</td>
@@ -1192,6 +1203,30 @@ function XOrderContent() {
                       </tbody>
                     </table>
                   </div>
+                  {searchResult.length < 1 && filteredOrders.length > 0 && (
+                    <div className="flex justify-between items-center mt-4 p-4 border-t">
+                      <div className="text-sm text-gray-500">
+                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length} entries
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="btn btn-sm btn-outline"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm font-medium">Page {currentPage} of {Math.ceil(filteredOrders.length / itemsPerPage)}</span>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          disabled={currentPage >= Math.ceil(filteredOrders.length / itemsPerPage)}
+                          onClick={() => setCurrentPage(prev => prev + 1)}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
           }
         </div>

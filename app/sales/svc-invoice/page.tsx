@@ -17,6 +17,8 @@ export default function Invoices() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const name = useAuth((state) => state.name)
   const hasHydrated = useAuth((s) => s._hasHydrated)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   const [searchResult, setSearchResult] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
   const [bankAccounts, setBankAccounts] = useState<any[]>([])
@@ -248,6 +250,12 @@ export default function Invoices() {
     const invoiceMonth = String(d.getMonth() + 1);
     return invoiceMonth === selectedMonth;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterStatus, selectedMonth]);
+
+  const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   function handlePrintSelected() {
     const selected = filteredInvoices.filter((s: any) => selectedInvoicesToPrint.includes(s._id));
@@ -606,7 +614,7 @@ export default function Invoices() {
                         {
                           filteredInvoices.length === 0
                             ? (getInvoicesFn.loading ? <tr><td colSpan={10}><div className="text-center p-3"><span className="loading loading-spinner"></span></div></td></tr> : <tr><td colSpan={10}>No Data</td></tr>) :
-                            filteredInvoices.map((s: any, index: number) => {
+                            paginatedInvoices.map((s: any, index: number) => {
                               return (
                                 <tr key={index} className={s.void ? 'text-red-900' : ''}>
                                   <td>
@@ -688,6 +696,30 @@ export default function Invoices() {
                       </tbody>
                     </table>
                   </div>
+                  {filteredInvoices.length > 0 && (
+                    <div className="flex justify-between items-center mt-4 p-4 border-t">
+                      <div className="text-sm text-gray-500">
+                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredInvoices.length)} of {filteredInvoices.length} entries
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="btn btn-sm btn-outline"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        >
+                          Previous
+                        </button>
+                        <span className="text-sm font-medium">Page {currentPage} of {Math.ceil(filteredInvoices.length / itemsPerPage)}</span>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          disabled={currentPage >= Math.ceil(filteredInvoices.length / itemsPerPage)}
+                          onClick={() => setCurrentPage(prev => prev + 1)}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
           }
         </div>
