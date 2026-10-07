@@ -584,10 +584,11 @@ function XOrderContent() {
 
   const searchParams = useSearchParams()
   const qNumber = searchParams.get("qNumber")
+  const optIndex = searchParams.get("optIndex")
 
   useEffect(() => {
-    if (hasHydrated && qNumber) {
-      const url = `/api/web/quotations?qNumber=${qNumber}&type=service`
+    if (hasHydrated && qNumber && masterAccountId) {
+      const url = `/api/web/quotations?id=${masterAccountId}&qNumber=${qNumber}&type=service`
       fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -599,16 +600,22 @@ function XOrderContent() {
 
             if (q.contractType === "One Time") setHidden(true)
 
-            setQProduct(q.productId)
+            setQProduct(q.productId?._id || q.productId)
+
+            let selectedOpt = { price: 0, frequency: "Month", qty: 1 }
+            if (q.priceOptions && q.priceOptions.length > 0) {
+              const idx = optIndex ? parseInt(optIndex) : 0
+              selectedOpt = q.priceOptions[idx] || q.priceOptions[0]
+            }
 
             directOrderForm.reset({
-              customerName: q.customer?.bussinessName || "",
-              address: q.customer?.address || "",
-              productId: q.productId,
-              price: q.price || 0,
+              customerName: q.customCustomer?.name || q.customerId?.bussinessName || q.customerId?.name || "",
+              address: q.customCustomer?.address || q.customerId?.address || "",
+              productId: q.productId?._id || q.productId,
+              price: selectedOpt.price || q.price || 0,
               contractType: q.contractType || "Full",
-              frequency: q.frequency || "Month",
-              qty: q.qty,
+              frequency: selectedOpt.frequency || q.frequency || "Month",
+              qty: selectedOpt.qty || q.qty || 1,
               range: q.range || 1,
               debt: "no",
               payTerm: payTerm,
@@ -622,7 +629,7 @@ function XOrderContent() {
           }
         })
     }
-  }, [hasHydrated, qNumber, directOrderForm])
+  }, [hasHydrated, qNumber, optIndex, directOrderForm, payTerm, masterAccountId])
 
   useEffect(() => {
     if (hasHydrated) {

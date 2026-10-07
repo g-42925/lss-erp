@@ -13,6 +13,7 @@ import {
 import Swal from "sweetalert2"
 import { formatDate } from "@/lib/utils"
 import { usePermission } from "@/hooks/usePermission"
+import { useRouter } from "next/navigation"
 
 export default function QuotationList() {
   return (
@@ -27,6 +28,7 @@ function QuotationListContent() {
   const masterAccountId = useAuth((state) => state.masterAccountId)
   const hasHydrated = useAuth((s) => s._hasHydrated)
   const { canCreate, canEdit, canDelete } = usePermission()
+  const router = useRouter()
 
   const [quotations, setQuotations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,6 +43,25 @@ function QuotationListContent() {
   const [copyCustomer, setCopyCustomer] = useState("")
   const [copyPriceOptions, setCopyPriceOptions] = useState<any[]>([])
   const [copying, setCopying] = useState(false)
+
+  // SO Modal States
+  const [soModalOpen, setSoModalOpen] = useState(false)
+  const [soTargetQuo, setSoTargetQuo] = useState<any>(null)
+
+  const openSoModal = (quo: any) => {
+    if (!quo.priceOptions || quo.priceOptions.length <= 1) {
+      router.push(`/sales/svc-order?qNumber=${quo.quotationNumber}&optIndex=0`)
+    } else {
+      setSoTargetQuo(quo)
+      setSoModalOpen(true)
+    }
+  }
+
+  const handleSoOptionSelect = (index: number) => {
+    if (soTargetQuo) {
+      router.push(`/sales/svc-order?qNumber=${soTargetQuo.quotationNumber}&optIndex=${index}`)
+    }
+  }
 
   useEffect(() => {
     if (loggedIn && hasHydrated && masterAccountId) {
@@ -99,7 +120,7 @@ function QuotationListContent() {
 
     if (confirm.isConfirmed) {
       try {
-        const res = await fetch(`/ api / web / quotations / ${id} `, {
+        const res = await fetch(`/api/web/quotations/${id}`, {
           method: "DELETE",
         })
 
@@ -343,6 +364,15 @@ function QuotationListContent() {
                       </button>
                     )}
 
+                    {canCreate("/sales/svc-order") && (
+                      <button
+                        onClick={() => openSoModal(quo)}
+                        className="btn btn-sm btn-outline btn-primary"
+                      >
+                        Buat SO
+                      </button>
+                    )}
+
                     {canEdit("/sales/quotation") && (
                       <Link
                         href={`/sales/quotation/edit/${quo._id}`}
@@ -524,6 +554,36 @@ function QuotationListContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {soModalOpen && soTargetQuo && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">
+              Pilih Opsi Harga untuk Service Order
+            </h3>
+            <div className="flex flex-col gap-3">
+              {soTargetQuo.priceOptions?.map((opt: any, i: number) => (
+                <button
+                  key={i}
+                  className="btn btn-outline justify-start"
+                  onClick={() => handleSoOptionSelect(i)}
+                >
+                  Qty: {opt.qty} | Freq: {opt.frequency} | Price: Rp {opt.price?.toLocaleString('id-ID')}
+                </button>
+              ))}
+            </div>
+            <div className="modal-action">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setSoModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

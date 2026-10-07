@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
 
     const masterAccountId = url.searchParams.get("id");
     const customerName = url.searchParams.get("customerName")?.trim();
+    const qNumber = url.searchParams.get("qNumber")?.trim();
 
     if (!masterAccountId) {
       throw new Error("Master account ID is required");
@@ -88,6 +89,10 @@ export async function GET(request: NextRequest) {
     const filter: Record<string, any> = {
       companyId: company._id,
     };
+
+    if (qNumber) {
+      filter.quotationNumber = qNumber;
+    }
 
     if (customerName) {
       const regex = new RegExp(
