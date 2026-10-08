@@ -262,6 +262,7 @@ export async function GET(request: NextRequest) {
 				type: entry.type,
 				from: entry.from,
 				to: entry.to,
+				voucherId: entry.voucherId,
 				cashVoucherId: entry.cashVoucherId ? (entry.cashVoucherId as any)._id : null,
 				cashVoucherNumber: entry.cashVoucherId ? (entry.cashVoucherId as any).voucherNumber : null,
 				bankVoucherId: entry.bankVoucherId ? (entry.bankVoucherId as any)._id : null,

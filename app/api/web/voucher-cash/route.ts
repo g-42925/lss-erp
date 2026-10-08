@@ -137,7 +137,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Default: list vouchers
-    const vouchers = await VoucherCash.find({ companyId: company._id, type })
+    const query: any = { companyId: company._id };
+    if (type) query.type = type;
+    const vouchers = await VoucherCash.find(query)
       .sort({ voucherNumber: -1, createdAt: -1 })
       .lean();
 

@@ -614,11 +614,18 @@ export default function CashflowReportPage() {
 												</td>
 												<td className="p-3.5 font-medium text-slate-700">
 													{t.type === "initial" || t.type === "out" ? t.reference.split('-')[0] : t.reference}
-													{t.source === 'Manual Entry' && (t.cashVoucherNumber || t.bankVoucherNumber) && (
-														<span className="block text-[10px] text-slate-400 font-normal">
-															Voucher: {t.cashVoucherNumber || t.bankVoucherNumber}
-														</span>
-													)}
+													{t.source === 'Manual Entry' && (() => {
+														const vId = t.voucherId || t.cashVoucherId || t.bankVoucherId;
+														if (!vId) return null;
+														const v = cashVouchers.find(v => v._id === vId) || bankVouchers.find(v => v._id === vId);
+														const vNumber = v ? v.voucherNumber : (t.cashVoucherNumber || t.bankVoucherNumber);
+														const vSeq = v ? v.sequence : undefined;
+														return vNumber ? (
+															<span className="block text-[10px] text-slate-400 font-normal">
+																Voucher: {fixBySequence(vNumber, vSeq)}
+															</span>
+														) : null;
+													})()}
 													{t.source === 'Sales Invoice' && t.voucherNumber && (
 														<span className="block text-[10px] text-slate-400 font-normal">
 															Voucher: {fixBySequence(t.voucherNumber, t.voucherSequence)}
@@ -641,11 +648,11 @@ export default function CashflowReportPage() {
 												</td>
 												<td className="p-3.5 text-right">
 													<div className="flex items-center justify-end gap-1.5">
-														{/* Print Voucher button — untuk invoice dengan voucherNumber */}
+														{/* Print Voucher button */}
 														{t.source !== 'Manual Entry' && t.voucherId && (
 															<button
 																type="button"
-																title={`Print Voucher: ${t.voucherId}`}
+																title="Print Voucher"
 																onClick={() => handlePrintInvoiceVoucher(t)}
 																className="btn btn-sm btn-ghost btn-circle text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
 															>
@@ -662,6 +669,27 @@ export default function CashflowReportPage() {
 																	</svg>
 																</div>
 																<ul tabIndex={0} className="dropdown-content menu p-2 shadow-xl bg-white rounded-xl w-52 border border-slate-100 z-[100] gap-1 text-left">
+																	{(t.voucherId || t.cashVoucherId || t.bankVoucherId) && (
+																		<li>
+																			<button
+																				type="button"
+																				onClick={() => {
+																					const idToPrint = t.voucherId || t.cashVoucherId || t.bankVoucherId;
+																					if (t.cashVoucherId || (t.voucherId && t.method.toLowerCase().includes('cash'))) {
+																						window.open(`/finance/voucher/cash/print/${idToPrint}`, '_blank');
+																					} else if (t.bankVoucherId || t.voucherId) {
+																						window.open(`/finance/voucher/bank/print/${idToPrint}`, '_blank');
+																					}
+																				}}
+																				className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-semibold rounded-lg flex items-center gap-2 px-3 py-2"
+																			>
+																				<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+																					<path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+																				</svg>
+																				Print Voucher
+																			</button>
+																		</li>
+																	)}
 																	<li>
 																		<button
 																			type="button"
@@ -674,27 +702,6 @@ export default function CashflowReportPage() {
 																			Edit Entri
 																		</button>
 																	</li>
-																	{t.type !== 'initial' && (
-																		<li className="px-3 py-1.5 flex flex-col gap-1 border-t border-slate-100 mt-1 pt-2 pointer-events-none">
-																			<span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-0 py-0 mb-1">Set Voucher</span>
-																			<select
-																				value={t.cashVoucherId || t.bankVoucherId || ''}
-																				onChange={(e) => handleInlineVoucherChange(t, e.target.value)}
-																				disabled={inlineSavingId === t._id}
-																				className="w-full border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-600 focus:outline-indigo-500 bg-slate-50 pointer-events-auto"
-																			>
-																				<option value="">-- Tanpa Voucher --</option>
-																				{mode === 'cash'
-																					? cashVouchers?.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar'))?.map(v => (
-																						<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-																					))
-																					: bankVouchers?.filter(v => v.voucherType === (t.type === 'in' ? 'masuk' : 'keluar'))?.map(v => (
-																						<option key={v._id} value={v._id}>{fixBySequence(v.voucherNumber, v.sequence)}</option>
-																					))
-																				}
-																			</select>
-																		</li>
-																	)}
 																</ul>
 															</div>
 														)}
