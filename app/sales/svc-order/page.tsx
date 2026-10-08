@@ -1001,8 +1001,8 @@ function XOrderContent() {
 
   return (
     <>
-      <div className="p-3 md:p-6 flex flex-col gap-3 text-black">
-        <div className="bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative">
+      <div className="p-3 md:p-6 flex flex-col gap-3 text-black min-h-screen">
+        <div className="bg-white border-t-4 border-blue-900 flex flex-col p-6 gap-6 relative flex-1">
           <div className="sticky top-0 z-20 -mx-6 -mt-6 px-6 pt-6 pb-3 bg-white border-b border-gray-100 flex flex-col sm:flex-row gap-2 items-start sm:items-center">
             <span className="self-center font-semibold">Service Orders</span>
             {/* Status filter tabs */}
@@ -1061,7 +1061,7 @@ function XOrderContent() {
                 </div>
                 :
                 <div>
-                  <div className="overflow-x-auto w-full">
+                  <div className="w-full">
                     <table className="table text-center">
                       <thead>
                         <tr>
@@ -1279,7 +1279,7 @@ function XOrderContent() {
           {addInvoiceFn.noResult || addInvoiceFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
           <div className="flex flex-row gap-3 modal-action">
             <button type="button" className="btn" onClick={() => invoiceModalRef.current?.close()}>Cancel</button>
-            <button className="btn bg-red-900 text-white">Submit</button>
+            <button className="btn bg-white text-white">Submit</button>
           </div>
         </form>
       </dialog>

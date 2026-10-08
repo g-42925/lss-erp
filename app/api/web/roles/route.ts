@@ -17,11 +17,15 @@ export async function PUT(req: Request) {
 		await Assignment.deleteMany({ roleId: _id })
 
 		if (pages && Array.isArray(pages)) {
-			for (const p of pages) {
+			const validPages = pages.filter(
+				(p: { link?: string; permissions?: string[] }) =>
+					p.link && typeof p.link === 'string' && p.link.trim() !== ''
+			)
+			for (const p of validPages) {
 				await Assignment.create({
 					roleId: _id,
 					link: p.link,
-					permissions: p.permissions
+					permissions: Array.isArray(p.permissions) ? p.permissions : ['view']
 				})
 			}
 		}
@@ -185,9 +189,9 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json(
 				{
 					noResult: true,
-					message: "Role already exists",
+					message: "Role dengan nama tersebut sudah ada.",
 					result: null,
-					error: false,
+					error: true,
 				}
 			)
 		}
@@ -198,11 +202,15 @@ export async function POST(request: NextRequest) {
 			})
 
 			if (params.pages && Array.isArray(params.pages)) {
-				for (const p of params.pages) {
+				const validPages = params.pages.filter(
+					(p: { link?: string; permissions?: string[] }) =>
+						p.link && typeof p.link === 'string' && p.link.trim() !== ''
+				)
+				for (const p of validPages) {
 					await Assignment.create({
 						roleId: newRole._id,
 						link: p.link,
-						permissions: p.permissions
+						permissions: Array.isArray(p.permissions) ? p.permissions : ['view']
 					})
 				}
 			}

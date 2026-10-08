@@ -9,6 +9,40 @@ import { useForm } from "react-hook-form"
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
+/* =========================================================
+   Toast
+   ========================================================= */
+
+function Toast({ message, type, onClose }: { message: string; type: "error" | "success"; onClose: () => void }) {
+  if (!message) return null
+  return (
+    <div
+      className={`
+        fixed bottom-6 right-6 z-[9999]
+        flex items-start gap-3
+        max-w-sm w-full
+        px-4 py-3
+        rounded-lg
+        shadow-xl
+        border
+        ${
+          type === "error"
+            ? "bg-red-50 border-red-200 text-red-800"
+            : "bg-green-50 border-green-200 text-green-800"
+        }
+      `}
+    >
+      <span className="flex-1 text-sm font-medium break-words">{message}</span>
+      <button
+        onClick={onClose}
+        className="shrink-0 text-gray-400 hover:text-gray-600 text-lg leading-none"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 interface RolePage {
   link: string
   permissions: string[]
@@ -277,6 +311,8 @@ function RoleModal({
   togglePermission,
   selectAllPermissions,
   clearAllPermissions,
+  isLoading,
+  errorMessage,
 }: {
   modalRef: React.RefObject<HTMLDialogElement | null>
   title: string
@@ -290,6 +326,8 @@ function RoleModal({
   togglePermission: (link: string, permission: string) => void
   selectAllPermissions: () => void
   clearAllPermissions: () => void
+  isLoading?: boolean
+  errorMessage?: string
 }) {
   return (
     <dialog
@@ -382,6 +420,11 @@ function RoleModal({
               ================================================= */}
 
           <div className="shrink-0 px-6 py-4 border-t bg-white">
+            {errorMessage && (
+              <div className="mb-3 px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">
+                {errorMessage}
+              </div>
+            )}
             <div className="flex justify-end gap-3">
 
               <button
@@ -396,12 +439,14 @@ function RoleModal({
                   rounded-md
                   hover:bg-gray-100
                 "
+                disabled={isLoading}
               >
                 Cancel
               </button>
 
               <button
                 type="submit"
+                disabled={isLoading}
                 className="
                   px-6
                   py-2
@@ -411,8 +456,14 @@ function RoleModal({
                   bg-blue-700
                   rounded-md
                   hover:bg-blue-800
+                  disabled:opacity-60
+                  disabled:cursor-not-allowed
+                  flex items-center gap-2
                 "
               >
+                {isLoading && (
+                  <span className="loading loading-spinner loading-xs" />
+                )}
                 {submitLabel}
               </button>
 
@@ -441,9 +492,22 @@ function Roles() {
   const editRef = useRef<HTMLDialogElement>(null)
 
   const [roles, setRoles] = useState<RoleData[]>([])
-  const [selectedPages, setSelectedPages] = useState<
-    Record<string, string[]>
-  >({})
+
+  // Separate state for create and edit modals
+  const [createPages, setCreatePages] = useState<Record<string, string[]>>({})
+  const [editPages, setEditPages] = useState<Record<string, string[]>>({})
+
+  // Error messages for each modal
+  const [createError, setCreateError] = useState<string>("")
+  const [editError, setEditError] = useState<string>("")
+
+  // Toast notification
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null)
+
+  const showToast = (message: string, type: "error" | "success" = "error") => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 5000)
+  }
 
   const newRoleForm = useForm<RoleForm>({
     defaultValues: {
@@ -476,105 +540,130 @@ function Roles() {
     url: "/api/web/roles",
     method: "POST",
     onError: (message) => {
-      alert(message)
+      setCreateError(message || "Gagal membuat role. Silakan coba lagi.")
     },
   })
 
   const putFn = useFetch<RoleData, any>({
     url: "/api/web/roles",
     method: "PUT",
+    onError: (message) => {
+      setEditError(message || "Gagal mengubah role. Silakan coba lagi.")
+    },
   })
 
   const deleteFn = useFetch<string, any>({
     url: "",
     method: "DELETE",
     onError: (message) => {
-      alert(message)
+      showToast(message || "Gagal menghapus role.", "error")
     },
   })
 
   const features = getFeaturesFn.result ?? []
 
   /* =======================================================
-     Permissions
+     Permissions (Create)
      ======================================================= */
 
-  const togglePermission = (
+  const toggleCreatePermission = (
     link: string,
     permission: string
   ) => {
-    setSelectedPages((prev) => {
+    setCreatePages((prev) => {
       const current = prev[link] ?? []
-
       if (current.includes(permission)) {
-        const updated = current.filter(
-          (item) => item !== permission
-        )
-
+        const updated = current.filter((item) => item !== permission)
         if (updated.length === 0) {
           const next = { ...prev }
           delete next[link]
           return next
         }
-
-        return {
-          ...prev,
-          [link]: updated,
-        }
+        return { ...prev, [link]: updated }
       }
-
-      return {
-        ...prev,
-        [link]: [...current, permission],
-      }
+      return { ...prev, [link]: [...current, permission] }
     })
   }
 
-  const selectAllPermissions = () => {
+  const selectAllCreatePermissions = () => {
     const all: Record<string, string[]> = {}
-
     features.forEach((group) => {
       group.features.forEach((feature) => {
-        all[feature.link] = PERMISSIONS.map(
-          (permission) => permission.value
-        )
+        all[feature.link] = PERMISSIONS.map((p) => p.value)
       })
     })
-
-    setSelectedPages(all)
+    setCreatePages(all)
   }
 
-  const clearAllPermissions = () => {
-    setSelectedPages({})
-  }
+  const clearAllCreatePermissions = () => setCreatePages({})
 
-  const buildPages = (): RolePage[] => {
-    return Object.entries(selectedPages)
+  const buildCreatePages = (): RolePage[] =>
+    Object.entries(createPages)
       .filter(([, permissions]) => permissions.length)
-      .map(([link, permissions]) => ({
-        link,
-        permissions,
-      }))
+      .map(([link, permissions]) => ({ link, permissions }))
+
+  /* =======================================================
+     Permissions (Edit)
+     ======================================================= */
+
+  const toggleEditPermission = (
+    link: string,
+    permission: string
+  ) => {
+    setEditPages((prev) => {
+      const current = prev[link] ?? []
+      if (current.includes(permission)) {
+        const updated = current.filter((item) => item !== permission)
+        if (updated.length === 0) {
+          const next = { ...prev }
+          delete next[link]
+          return next
+        }
+        return { ...prev, [link]: updated }
+      }
+      return { ...prev, [link]: [...current, permission] }
+    })
   }
+
+  const selectAllEditPermissions = () => {
+    const all: Record<string, string[]> = {}
+    features.forEach((group) => {
+      group.features.forEach((feature) => {
+        all[feature.link] = PERMISSIONS.map((p) => p.value)
+      })
+    })
+    setEditPages(all)
+  }
+
+  const clearAllEditPermissions = () => setEditPages({})
+
+  const buildEditPages = (): RolePage[] =>
+    Object.entries(editPages)
+      .filter(([, permissions]) => permissions.length)
+      .map(([link, permissions]) => ({ link, permissions }))
 
   /* =======================================================
      Add
      ======================================================= */
 
   const newRole = () => {
-    newRoleForm.reset({
-      name: "",
-    })
-
-    setSelectedPages({})
+    newRoleForm.reset({ name: "" })
+    setCreatePages({})
+    setCreateError("")
     modalRef.current?.showModal()
   }
 
   const submit = async (data: RoleForm) => {
-    const pages = buildPages()
+    if (!data.name.trim()) {
+      setCreateError("Nama role tidak boleh kosong.")
+      return
+    }
+
+    setCreateError("")
+    const pages = buildCreatePages()
 
     const body = JSON.stringify({
-      name: data.name,
+      name: data.name.trim(),
       pages,
       id: masterAccountId,
     })
@@ -589,8 +678,10 @@ function Roles() {
       ])
 
       newRoleForm.reset()
-      setSelectedPages({})
+      setCreatePages({})
+      setCreateError("")
       modalRef.current?.close()
+      showToast("Role berhasil dibuat.", "success")
     })
   }
 
@@ -599,10 +690,7 @@ function Roles() {
      ======================================================= */
 
   const handleEdit = (_id: string) => {
-    const role = roles.find(
-      (item) => item._id === _id
-    )
-
+    const role = roles.find((item) => item._id === _id)
     if (!role) return
 
     editRoleForm.reset({
@@ -611,24 +699,27 @@ function Roles() {
     })
 
     const pages: Record<string, string[]> = {}
-
     role.pages?.forEach((page) => {
-      pages[page.link] = page.permissions
+      if (page.link) pages[page.link] = page.permissions
     })
 
-    setSelectedPages(pages)
-
+    setEditPages(pages)
+    setEditError("")
     editRef.current?.showModal()
   }
 
-  const editSubmit = async (
-    data: EditRoleForm
-  ) => {
-    const pages = buildPages()
+  const editSubmit = async (data: EditRoleForm) => {
+    if (!data.name.trim()) {
+      setEditError("Nama role tidak boleh kosong.")
+      return
+    }
+
+    setEditError("")
+    const pages = buildEditPages()
 
     const body = JSON.stringify({
       _id: data._id,
-      name: data.name,
+      name: data.name.trim(),
       pages,
     })
 
@@ -636,18 +727,16 @@ function Roles() {
       setRoles((prev) =>
         prev.map((role) =>
           role._id === result._id
-            ? {
-              ...role,
-              ...result,
-              pages,
-            }
+            ? { ...role, ...result, pages }
             : role
         )
       )
 
       editRoleForm.reset()
-      setSelectedPages({})
+      setEditPages({})
+      setEditError("")
       editRef.current?.close()
+      showToast("Role berhasil diperbarui.", "success")
     })
   }
 
@@ -741,6 +830,14 @@ function Roles() {
 
   return (
     <>
+      {/* Toast */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <div className="h-full p-3 md:p-6 flex flex-col gap-3">
 
         <span className="text-2xl font-bold text-gray-800">
@@ -844,13 +941,16 @@ function Roles() {
         onClose={() => {
           editRef.current?.close()
           editRoleForm.reset()
-          setSelectedPages({})
+          setEditPages({})
+          setEditError("")
         }}
         features={features}
-        selectedPages={selectedPages}
-        togglePermission={togglePermission}
-        selectAllPermissions={selectAllPermissions}
-        clearAllPermissions={clearAllPermissions}
+        selectedPages={editPages}
+        togglePermission={toggleEditPermission}
+        selectAllPermissions={selectAllEditPermissions}
+        clearAllPermissions={clearAllEditPermissions}
+        isLoading={putFn.loading}
+        errorMessage={editError}
       />
 
       {/* =====================================================
@@ -869,13 +969,16 @@ function Roles() {
         onClose={() => {
           modalRef.current?.close()
           newRoleForm.reset()
-          setSelectedPages({})
+          setCreatePages({})
+          setCreateError("")
         }}
         features={features}
-        selectedPages={selectedPages}
-        togglePermission={togglePermission}
-        selectAllPermissions={selectAllPermissions}
-        clearAllPermissions={clearAllPermissions}
+        selectedPages={createPages}
+        togglePermission={toggleCreatePermission}
+        selectAllPermissions={selectAllCreatePermissions}
+        clearAllPermissions={clearAllCreatePermissions}
+        isLoading={addFn.loading}
+        errorMessage={createError}
       />
     </>
   )
