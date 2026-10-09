@@ -169,27 +169,11 @@ export default function Customers() {
 
   async function search(v: string) {
     if (v.length > 0) {
-      const result = customers.filter((r) => {
-        return r.bussinessName.toLowerCase().includes(v)
-      })
-
-      if (result.length > 0) {
-        setSearchResult(
-          [
-            ...result
-          ]
-        )
-      }
-      else {
-        setSearchResult(
-          []
-        )
-      }
+      const result = customers.filter((r) => r.bussinessName.toLowerCase().includes(v.toLowerCase()))
+      setSearchResult(result)
     }
     else {
-      setSearchResult(
-        []
-      )
+      setSearchResult([])
     }
   }
 
