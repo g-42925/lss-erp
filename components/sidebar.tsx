@@ -76,7 +76,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
     })
   }
 
-  if (pathname === '/login' || pathname === '/select-location' || pathname === '/reset') {
+  if (pathname === '/login' || pathname === '/select-location' || pathname === '/reset' || pathname.includes('/print')) {
     return <>{children}</>
   }
 

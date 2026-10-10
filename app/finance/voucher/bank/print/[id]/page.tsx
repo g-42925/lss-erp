@@ -729,13 +729,7 @@ export default function PrintVoucherBank({
                         >
                           {label}
                         </p>
-                        <div
-                          style={{
-                            borderBottom: "1px solid #374151",
-                            width: "80%",
-                            margin: "0 auto 4px",
-                          }}
-                        />
+
                         <p
                           style={{
                             fontSize: "10px",

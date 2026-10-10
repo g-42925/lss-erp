@@ -4,6 +4,34 @@ import { use, useEffect, useState } from "react";
 import useAuth from "@/store/auth";
 
 // ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+interface VoucherItem {
+  description?: string;
+  customerName?: string;
+  amount?: number | string;
+}
+
+interface Signature {
+  name?: string;
+  date?: string | Date;
+}
+
+interface VoucherData {
+  type: "in" | "out";
+  contactName: string;
+  voucherNumber: string;
+  date: string | Date;
+  items?: VoucherItem[];
+  signatures?: Record<string, Signature>;
+}
+
+interface CompanyData {
+  name?: string;
+  logo?: string;
+}
+
+// ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
 const IDR = (v: number) =>
@@ -15,6 +43,7 @@ const IDR = (v: number) =>
 const fmtDateSlash = (d: string | Date) => {
   if (!d) return "";
   const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "";
   const mm = String(dt.getMonth() + 1).padStart(2, "0");
   const dd = String(dt.getDate()).padStart(2, "0");
   const yyyy = dt.getFullYear();
@@ -23,7 +52,9 @@ const fmtDateSlash = (d: string | Date) => {
 
 const fmtDateLong = (d: string | Date) => {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("id-ID", {
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "";
+  return dt.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -78,6 +109,22 @@ function terbilang(n: number): string {
 }
 
 // ─────────────────────────────────────────────
+// Icons
+// ─────────────────────────────────────────────
+const Checked = () => (
+  <svg width="12" height="12" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0.5" y="0.5" width="12" height="12" fill="#374151" stroke="#374151" />
+    <path d="M2.5 6.5L5.5 9.5L10.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const Unchecked = () => (
+  <svg width="12" height="12" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0.5" y="0.5" width="12" height="12" fill="white" stroke="#555" />
+  </svg>
+);
+
+// ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
 export default function PrintVoucherCash({
@@ -89,12 +136,14 @@ export default function PrintVoucherCash({
   const masterAccountId = useAuth((s) => s.masterAccountId);
   const hasHydrated = useAuth((s) => s._hasHydrated);
 
-  const [voucher, setVoucher] = useState<any>(null);
-  const [company, setCompany] = useState<any>(null);
+  const [voucher, setVoucher] = useState<VoucherData | null>(null);
+  const [company, setCompany] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!hasHydrated || !masterAccountId) return;
+
+    let isMounted = true;
     (async () => {
       setLoading(true);
       try {
@@ -104,13 +153,23 @@ export default function PrintVoucherCash({
         ]);
         const vData = await vRes.json();
         const cData = await cRes.json();
-        if (!vData.error) setVoucher(vData.result);
-        if (!cData.error && cData.result?.length > 0)
-          setCompany(cData.result[0]);
+
+        if (isMounted) {
+          if (!vData.error) setVoucher(vData.result);
+          if (!cData.error && cData.result?.length > 0) {
+            setCompany(cData.result[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data voucher:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id, hasHydrated, masterAccountId]);
 
   if (!hasHydrated || loading) {
@@ -150,12 +209,12 @@ export default function PrintVoucherCash({
   }
 
   const isIn = voucher.type === "in";
-  const items: any[] = voucher.items ?? [];
-  const total = items.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
+  const items: VoucherItem[] = voucher.items ?? [];
+  const total = items.reduce((s: number, i) => s + (Number(i.amount) || 0), 0);
   const sigs = voucher.signatures ?? {};
 
   const MIN_ROWS = 3;
-  const displayItems: (any | null)[] = [...items];
+  const displayItems: (VoucherItem | null)[] = [...items];
   while (displayItems.length < MIN_ROWS) displayItems.push(null);
 
   const sigKeys = [
@@ -165,23 +224,12 @@ export default function PrintVoucherCash({
     { key: "dibuatOleh", label: "DIBUAT OLEH," },
   ] as const;
 
-  const Checked = () => (
-    <svg width="12" height="12" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0.5" y="0.5" width="12" height="12" fill="#374151" stroke="#374151" />
-      <path d="M2.5 6.5L5.5 9.5L10.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-  const Unchecked = () => (
-    <svg width="12" height="12" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0.5" y="0.5" width="12" height="12" fill="white" stroke="#555" />
-    </svg>
-  );
-
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+        /* RESET & GENERAL STYLES */
         * {
           box-sizing: border-box;
           margin: 0;
@@ -200,6 +248,7 @@ export default function PrintVoucherCash({
           align-items: center;
           padding: 20px;
           min-height: 100vh;
+          overflow-x: hidden;
         }
 
         .voucher-wrapper-inner {
@@ -229,11 +278,24 @@ export default function PrintVoucherCash({
           flex-direction: column;
         }
 
+        /* KHUSUS SAAT DICETAK (PRINT / SAVE PDF) */
         @media print {
           @page {
             size: A4 portrait;
             margin: 10mm;
           }
+
+          /* Sembunyikan sidebar admin, navbar, & toolbar saat di-print */
+          aside,
+          nav,
+          header,
+          .sidebar,
+          [class*="sidebar"],
+          [class*="Sidebar"],
+          .toolbar {
+            display: none !important;
+          }
+
           html, body {
             background: white !important;
             width: 100% !important;
@@ -241,20 +303,20 @@ export default function PrintVoucherCash({
             margin: 0 !important;
             padding: 0 !important;
           }
+
           .voucher-root {
             padding: 0 !important;
             width: 100% !important;
             background: white !important;
             display: block !important;
           }
+
           .voucher-wrapper-inner {
             width: 100% !important;
             max-width: 100% !important;
             display: block !important;
           }
-          .toolbar {
-            display: none !important;
-          }
+
           .voucher-page {
             box-shadow: none !important;
             border-radius: 0 !important;
@@ -563,7 +625,7 @@ export default function PrintVoucherCash({
                         {hasData ? (
                           <>
                             <span style={{ fontWeight: 600, marginRight: "4px" }}>Rp.</span>
-                            {IDR(item.amount ?? 0)}
+                            {IDR(Number(item.amount) || 0)}
                           </>
                         ) : (
                           <>
@@ -617,7 +679,6 @@ export default function PrintVoucherCash({
                 borderCollapse: "collapse",
                 fontSize: "10.5px",
                 marginTop: 0,
-                borderTop: "none",
               }}
             >
               <tbody>
@@ -646,13 +707,7 @@ export default function PrintVoucherCash({
                         >
                           {label}
                         </p>
-                        <div
-                          style={{
-                            borderBottom: "1px solid #374151",
-                            width: "80%",
-                            margin: "0 auto 4px",
-                          }}
-                        />
+
                         <p
                           style={{
                             fontSize: "10px",
