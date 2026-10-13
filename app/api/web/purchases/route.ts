@@ -27,11 +27,14 @@ export async function PUT(request: NextRequest) {
     if (rest.action) {
       switch (rest.action) {
         case "edit_pr":
-          await Purchase.findByIdAndUpdate(_id, {
+          const editPrData: any = {
             quantity: rest.quantity,
             finalPrice: rest.finalPrice,
             productId: rest.productId
-          });
+          };
+          if (rest.date) editPrData.date = new Date(rest.date);
+          if (rest.customSupplier !== undefined) editPrData.customSupplier = rest.customSupplier;
+          await Purchase.findByIdAndUpdate(_id, editPrData);
           return NextResponse.json({ noResult: false, message: "PR updated", result: true, error: false });
         case "apply_pph_tax":
           await Purchase.findByIdAndUpdate(_id, {

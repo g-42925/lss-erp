@@ -100,6 +100,7 @@ function Purchases() {
       productId: "",
       supplierId: "",
       customSupplier: "",
+      customDate: new Date().toISOString().split("T")[0],
     },
   })
 
@@ -233,7 +234,7 @@ function Purchases() {
       ...data,
       status: "requested",
       id: masterAccountId,
-      date: new Date(),
+      date: data.customDate ? new Date(data.customDate) : new Date(),
       purchaseType: filterType,
       createdBy: user,
     })
@@ -292,6 +293,7 @@ function Purchases() {
 
     const payload = JSON.stringify({
       ...data,
+      date: data.customDate ? new Date(data.customDate) : undefined,
       action:
         filterType === "service"
           ? undefined
@@ -316,6 +318,8 @@ function Purchases() {
 
         setPr([...pr])
         editRef.current?.close()
+        window.location.reload()
+
         return
       }
 
@@ -327,6 +331,7 @@ function Purchases() {
           vendors.find(
             (vendor) => vendor._id === data.vendorId
           ) || target.vendor
+        if (data.customDate) target.date = new Date(data.customDate).toISOString()
 
         setPr([...pr])
         editRef.current?.close()
@@ -560,6 +565,9 @@ function Purchases() {
         finalPrice: purchase.finalPrice,
         productId:
           purchase.product?._id,
+        customDate: purchase.date
+          ? new Date(purchase.date).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
       })
     }
 
@@ -572,6 +580,9 @@ function Purchases() {
         finalPrice: purchase.finalPrice,
         customSupplier:
           purchase.customSupplier,
+        customDate: purchase.date
+          ? new Date(purchase.date).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
       })
     }
 
@@ -582,6 +593,9 @@ function Purchases() {
           purchase.description,
         finalPrice: purchase.finalPrice,
         vendorId: purchase.vendorId,
+        customDate: purchase.date
+          ? new Date(purchase.date).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
       })
     }
 
@@ -858,7 +872,6 @@ function Purchases() {
                         )}
 
                         <th>Price</th>
-                        <th>Pay Amount</th>
                         <th>Status</th>
                         <th>Supplier / Vendor</th>
                         <th>...</th>
@@ -926,16 +939,21 @@ function Purchases() {
                                 )}
                               </td>
 
-                              <td>
-                                {
-                                  purchase.status ===
-                                    "ordered" ||
-                                    purchase.status ===
-                                    "completed"
-                                    ? purchase.payAmount
-                                    : "-"
-                                }
-                              </td>
+                              {
+                                /*
+                                  <td>
+                                    {
+                                      purchase.status ===
+                                        "ordered" ||
+                                        purchase.status ===
+                                        "completed"
+                                        ? purchase.payAmount
+                                        : "-"
+                                    }
+                                  </td>
+                              */
+                              }
+
 
                               <td>
                                 {purchase.status}
@@ -1124,6 +1142,21 @@ function Purchases() {
               className="h-92 relative flex flex-col gap-3"
             >
               <div className="flex flex-col gap-3">
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">
+                    Tanggal Pembelian
+                  </legend>
+
+                  <input
+                    {...editForm.register(
+                      "customDate",
+                      { required: true }
+                    )}
+                    className="input w-full"
+                    type="date"
+                  />
+                </fieldset>
+
                 {filterType === "service" ? (
                   <fieldset className="fieldset flex-1">
                     <legend className="fieldset-legend">
@@ -1346,6 +1379,21 @@ function Purchases() {
               className="h-92 relative flex flex-col gap-3"
             >
               <div className="flex flex-col gap-3">
+                <fieldset className="fieldset flex-1">
+                  <legend className="fieldset-legend">
+                    Tanggal Pembelian
+                  </legend>
+
+                  <input
+                    {...newPrForm.register(
+                      "customDate",
+                      { required: true }
+                    )}
+                    className="input w-full"
+                    type="date"
+                  />
+                </fieldset>
+
                 {filterType === "service" ? (
                   <fieldset className="fieldset flex-1">
                     <legend className="fieldset-legend">
@@ -1801,13 +1849,12 @@ function Purchases() {
                           <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
                         </span>
                       ) : poAvailableBalance !== null ? (
-                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
-                          poAvailableBalance <= 0
-                            ? 'bg-red-50 border-red-200 text-red-700'
-                            : parseFloat(String(watchPayAmount)) > poAvailableBalance
-                              ? 'bg-orange-50 border-orange-200 text-orange-700'
-                              : 'bg-green-50 border-green-200 text-green-700'
-                        }`}>
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${poAvailableBalance <= 0
+                          ? 'bg-red-50 border-red-200 text-red-700'
+                          : parseFloat(String(watchPayAmount)) > poAvailableBalance
+                            ? 'bg-orange-50 border-orange-200 text-orange-700'
+                            : 'bg-green-50 border-green-200 text-green-700'
+                          }`}>
                           <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
                           </svg>

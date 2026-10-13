@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import Companie from "@/models/Companie";
@@ -11,6 +12,7 @@ import ServiceOrder from "@/models/ServiceOrder";
 import Customer from "@/models/Customer";
 import CashVoucher from "@/models/VoucherCash";
 import BankVoucher from "@/models/VoucherBank";
+import User from "@/models/User";
 import mongoose from "mongoose";
 
 export async function GET(request: NextRequest) {
@@ -370,5 +372,47 @@ export async function PUT(request: NextRequest) {
 	} catch (e: any) {
 		console.error("Cashflow PUT Error:", e);
 		return NextResponse.json({ error: true, message: e.message || "Failed to update cashflow" });
+	}
+}
+
+export async function DELETE(request: NextRequest) {
+	try {
+		await connectToDatabase();
+		const url = new URL(request.url);
+		let id = url.searchParams.get("id");
+		let approvalCode = url.searchParams.get("approvalCode");
+
+		if (!id || !approvalCode) {
+			try {
+				const body = await request.json();
+				id = id || body.id;
+				approvalCode = approvalCode || body.approvalCode;
+			} catch {
+				// body is empty or not JSON
+			}
+		}
+
+		if (!id) {
+			return NextResponse.json({ error: true, message: "ID entri diperlukan" }, { status: 400 });
+		}
+		if (!approvalCode) {
+			return NextResponse.json({ error: true, message: "Kode approval diperlukan" }, { status: 400 });
+		}
+
+		const approver = await User.findOne({ approvalCode }).lean();
+		if (!approver) {
+			return NextResponse.json({ error: true, message: "Kode approval tidak valid" }, { status: 400 });
+		}
+
+		const cashflow = await Cashflow.findById(id);
+		if (!cashflow) {
+			return NextResponse.json({ error: true, message: "Data cashflow tidak ditemukan" }, { status: 404 });
+		}
+
+		await Cashflow.findByIdAndDelete(id);
+		return NextResponse.json({ error: false, message: "Entri cashflow berhasil dihapus" });
+	} catch (e: any) {
+		console.error("Cashflow DELETE Error:", e);
+		return NextResponse.json({ error: true, message: e.message || "Gagal menghapus cashflow" }, { status: 500 });
 	}
 }

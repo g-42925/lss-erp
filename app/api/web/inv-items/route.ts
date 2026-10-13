@@ -62,3 +62,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
   }
 }
+
+// ─── PUT /api/web/inv-items ───────────────────────────────────────────────────
+// Updates an existing internal item.
+// Body: { id (masterAccountId), itemId, name, unit, category? }
+export async function PUT(request: NextRequest) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { id, itemId, name, unit, category } = body;
+
+    if (!id || !itemId || !name || !unit) {
+      return NextResponse.json({ noResult: true, message: 'id, itemId, name, and unit are required', result: null, error: true });
+    }
+
+    const company = await Companie.findOne({ masterAccountId: id });
+    if (!company) {
+      return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
+    }
+
+    const item = await InvItem.findOneAndUpdate(
+      { _id: itemId, companyId: company._id },
+      {
+        name: name.trim(),
+        unit: unit.trim(),
+        category: category?.trim() ?? '',
+      },
+      { new: true }
+    );
+
+    if (!item) {
+      return NextResponse.json({ noResult: true, message: 'Item not found', result: null, error: true });
+    }
+
+    return NextResponse.json({ noResult: false, message: '', result: item, error: false });
+  } catch (e: unknown) {
+    return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
+  }
+}

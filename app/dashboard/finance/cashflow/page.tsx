@@ -44,7 +44,7 @@ type BankAccount = {
 
 // -- Helpers --
 const IDR = (v: number) =>
-	new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v);
+	new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
 
 const fixBySequence = (voucherNumber: string, sequence?: number | string) => {
 	if (sequence === undefined || sequence === null) return voucherNumber;
@@ -117,6 +117,13 @@ export default function CashflowReportPage() {
 		to: '',
 	});
 	const [editSaving, setEditSaving] = useState(false);
+
+	// Modal Delete state
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [deleteTargetTx, setDeleteTargetTx] = useState<any>(null);
+	const [deleteApprovalCode, setDeleteApprovalCode] = useState('');
+	const [deleteLoading, setDeleteLoading] = useState(false);
+	const [deleteError, setDeleteError] = useState('');
 
 	const [selectedTxs, setSelectedTxs] = useState<CashflowTransaction[]>([]);
 
@@ -360,6 +367,42 @@ export default function CashflowReportPage() {
 		}
 	};
 
+	function openDeleteModal(t: any) {
+		setDeleteTargetTx(t);
+		setDeleteApprovalCode('');
+		setDeleteError('');
+		setDeleteModalOpen(true);
+	}
+
+	const handleDeleteSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!deleteTargetTx) return;
+		if (!deleteApprovalCode.trim()) {
+			setDeleteError('Kode approval supervisor wajib diisi');
+			return;
+		}
+		setDeleteLoading(true);
+		setDeleteError('');
+		try {
+			const res = await fetch(`/api/web/finance/reports/cashflow?id=${deleteTargetTx._id}&approvalCode=${encodeURIComponent(deleteApprovalCode.trim())}`, {
+				method: 'DELETE',
+			});
+			const json = await res.json();
+			if (json.error) {
+				setDeleteError(json.message || 'Gagal menghapus entri');
+			} else {
+				setDeleteModalOpen(false);
+				setDeleteTargetTx(null);
+				setDeleteApprovalCode('');
+				fetchCashflow();
+			}
+		} catch (err: any) {
+			setDeleteError(err.message || 'Terjadi kesalahan sistem');
+		} finally {
+			setDeleteLoading(false);
+		}
+	};
+
 	function toExcel() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport');
 		const data = transactions.map(t => ({
@@ -386,162 +429,165 @@ export default function CashflowReportPage() {
 			<div className="min-h-screen bg-slate-50/50 text-slate-800 p-6 font-sans print:hidden">
 				<div className="max-w-[1400px] mx-auto space-y-6">
 
-					{/* Header dengan Action Group di Kanan */}
-					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-						<div>
-							<h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cashflow Report</h1>
-							<p className="text-xs text-slate-500 mt-0.5">Laporan Uang Keluar & Masuk Real-time</p>
+					{/* Sticky Section: Header, Filter Bar & Summary Cards */}
+					<div className="sticky top-0 z-20 backdrop-blur-md -mt-6 pt-6 pb-2 space-y-4">
+						{/* Header dengan Action Group di Kanan */}
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+							<div>
+								<h1 className="text-2xl font-bold text-slate-900 tracking-tight">Cashflow Report</h1>
+								<p className="text-xs text-slate-500 mt-0.5">Laporan Uang Keluar & Masuk Real-time</p>
+							</div>
+
+							<div className="flex items-center gap-2.5">
+								<button
+									type="button"
+									onClick={toExcel}
+									disabled={loading || transactions.length === 0}
+									className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-emerald-600">
+										<path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+									</svg>
+									<span>Export Excel</span>
+								</button>
+
+
+
+								<button
+									type="button"
+									onClick={() => {
+										setModalData(getInitialModalData(mode));
+										setIsCashOut(false);
+										setSelectedReference('');
+										setShowModal(true);
+									}}
+									className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-1.5"
+								>
+									<span>+ Catat Kas Manual</span>
+								</button>
+							</div>
 						</div>
 
-						<div className="flex items-center gap-2.5">
-							<button
-								type="button"
-								onClick={toExcel}
-								disabled={loading || transactions.length === 0}
-								className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center gap-2"
-							>
-								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-emerald-600">
-									<path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+						{/* Integrated Filter Bar */}
+						<div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3.5 transition-all">
+
+							{/* Mode Switcher */}
+							<div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+								<button
+									type="button"
+									onClick={() => setMode('cash')}
+									className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'cash'
+										? 'bg-white shadow-sm text-indigo-600 font-bold'
+										: 'text-slate-600 hover:text-slate-900'
+										}`}
+								>
+									Cash (Tunai)
+								</button>
+								<button
+									type="button"
+									onClick={() => setMode('bank')}
+									className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'bank'
+										? 'bg-white shadow-sm text-indigo-600 font-bold'
+										: 'text-slate-600 hover:text-slate-900'
+										}`}
+								>
+									Bank
+								</button>
+							</div>
+
+							<div className="h-6 w-px bg-slate-200 hidden lg:block"></div>
+
+							{/* Date Range */}
+							<div className="flex items-center gap-2 shrink-0">
+								<input
+									type="date"
+									value={startDate}
+									onChange={(e) => setStartDate(e.target.value)}
+									className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 min-w-[140px]"
+								/>
+								<input
+									type="date"
+									value={endDate}
+									onChange={(e) => setEndDate(e.target.value)}
+									className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 min-w-[140px]"
+								/>
+							</div>
+
+							{/* Bank Select */}
+							{mode === 'bank' && (
+								<select
+									value={bankAccountId}
+									onChange={(e) => setBankAccountId(e.target.value)}
+									className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 max-w-[220px] truncate shrink-0"
+								>
+									<option value="">-- Semua Bank --</option>
+									{bankAccounts.map((b) => (
+										<option key={b._id} value={b._id}>
+											{b.bank} - {b.accountName}
+										</option>
+									))}
+								</select>
+							)}
+
+							{/* Search Input */}
+							<div className="relative flex-1 min-w-[240px]">
+								<input
+									type="text"
+									value={search}
+									onChange={(e) => setSearch(e.target.value)}
+									placeholder="Cari customer, invoice, referensi..."
+									className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50/50 text-slate-700 placeholder:text-slate-400"
+								/>
+								<svg
+									className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
 								</svg>
-								<span>Export Excel</span>
-							</button>
+							</div>
 
-
-
+							{/* Sort Button */}
 							<button
 								type="button"
-								onClick={() => {
-									setModalData(getInitialModalData(mode));
-									setIsCashOut(false);
-									setSelectedReference('');
-									setShowModal(true);
-								}}
-								className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-1.5"
+								onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+								className="border border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shrink-0 ml-auto"
+								title="Urutan Transaksi"
 							>
-								<span>+ Catat Kas Manual</span>
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" className="w-4 h-4 text-slate-500">
+									<path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+								</svg>
+								<span>{sortOrder === 'asc' ? 'Terlama' : 'Terbaru'}</span>
 							</button>
-						</div>
-					</div>
 
-					{/* Integrated Sticky Filter Bar */}
-					<div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-wrap items-center gap-3.5 transition-all">
-
-						{/* Mode Switcher */}
-						<div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-							<button
-								type="button"
-								onClick={() => setMode('cash')}
-								className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'cash'
-									? 'bg-white shadow-sm text-indigo-600 font-bold'
-									: 'text-slate-600 hover:text-slate-900'
-									}`}
-							>
-								Cash (Tunai)
-							</button>
-							<button
-								type="button"
-								onClick={() => setMode('bank')}
-								className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${mode === 'bank'
-									? 'bg-white shadow-sm text-indigo-600 font-bold'
-									: 'text-slate-600 hover:text-slate-900'
-									}`}
-							>
-								Bank
-							</button>
 						</div>
 
-						<div className="h-6 w-px bg-slate-200 hidden lg:block"></div>
-
-						{/* Date Range */}
-						<div className="flex items-center gap-2 shrink-0">
-							<input
-								type="date"
-								value={startDate}
-								onChange={(e) => setStartDate(e.target.value)}
-								className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 min-w-[140px]"
-							/>
-							<input
-								type="date"
-								value={endDate}
-								onChange={(e) => setEndDate(e.target.value)}
-								className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 min-w-[140px]"
-							/>
-						</div>
-
-						{/* Bank Select */}
-						{mode === 'bank' && (
-							<select
-								value={bankAccountId}
-								onChange={(e) => setBankAccountId(e.target.value)}
-								className="border border-slate-200 rounded-xl px-3.5 py-2 text-sm font-medium focus:outline-indigo-500 bg-slate-50/50 text-slate-700 max-w-[220px] truncate shrink-0"
-							>
-								<option value="">-- Semua Bank --</option>
-								{bankAccounts.map((b) => (
-									<option key={b._id} value={b._id}>
-										{b.bank} - {b.accountName}
-									</option>
-								))}
-							</select>
+						{/* Summary Cards */}
+						{error ? (
+							<div className="bg-rose-50 text-rose-600 p-4 rounded-xl border border-rose-100 text-xs font-semibold">
+								Error: {error}
+							</div>
+						) : (
+							<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+								<div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 relative overflow-hidden">
+									<div className="w-14 h-14 bg-emerald-500/10 rounded-full absolute -right-3 -top-3"></div>
+									<p className="text-emerald-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Total Uang Masuk</p>
+									<p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.totalIn)}</p>
+								</div>
+								<div className="bg-rose-50/60 border border-rose-100 rounded-2xl p-4 relative overflow-hidden">
+									<div className="w-14 h-14 bg-rose-500/10 rounded-full absolute -right-3 -top-3"></div>
+									<p className="text-rose-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Total Uang Keluar</p>
+									<p className="text-2xl font-extrabold text-rose-700 relative z-10">{IDR(summary.totalOut)}</p>
+								</div>
+								<div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 relative overflow-hidden">
+									<div className="w-14 h-14 bg-emerald-500/10 rounded-full absolute -right-3 -top-3"></div>
+									<p className="text-emerald-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Saldo Bersih</p>
+									<p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.netCashflow)}</p>
+								</div>
+							</div>
 						)}
-
-						{/* Search Input */}
-						<div className="relative flex-1 min-w-[240px]">
-							<input
-								type="text"
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
-								placeholder="Cari customer, invoice, referensi..."
-								className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-indigo-500 bg-slate-50/50 text-slate-700 placeholder:text-slate-400"
-							/>
-							<svg
-								className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-							</svg>
-						</div>
-
-						{/* Sort Button */}
-						<button
-							type="button"
-							onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-							className="border border-slate-200 bg-slate-50/50 hover:bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shrink-0 ml-auto"
-							title="Urutan Transaksi"
-						>
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" className="w-4 h-4 text-slate-500">
-								<path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
-							</svg>
-							<span>{sortOrder === 'asc' ? 'Terlama' : 'Terbaru'}</span>
-						</button>
-
 					</div>
-
-					{/* Summary Cards */}
-					{error ? (
-						<div className="bg-rose-50 text-rose-600 p-4 rounded-xl border border-rose-100 text-xs font-semibold">
-							Error: {error}
-						</div>
-					) : (
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-							<div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 relative overflow-hidden">
-								<div className="w-14 h-14 bg-emerald-500/10 rounded-full absolute -right-3 -top-3"></div>
-								<p className="text-emerald-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Total Uang Masuk</p>
-								<p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.totalIn)}</p>
-							</div>
-							<div className="bg-rose-50/60 border border-rose-100 rounded-2xl p-4 relative overflow-hidden">
-								<div className="w-14 h-14 bg-rose-500/10 rounded-full absolute -right-3 -top-3"></div>
-								<p className="text-rose-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Total Uang Keluar</p>
-								<p className="text-2xl font-extrabold text-rose-700 relative z-10">{IDR(summary.totalOut)}</p>
-							</div>
-							<div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 relative overflow-hidden">
-								<div className="w-14 h-14 bg-emerald-500/10 rounded-full absolute -right-3 -top-3"></div>
-								<p className="text-emerald-800/70 text-[11px] font-bold uppercase tracking-wider mb-0.5 relative z-10">Saldo Bersih</p>
-								<p className="text-2xl font-extrabold text-emerald-700 relative z-10">{IDR(summary.netCashflow)}</p>
-							</div>
-						</div>
-					)}
 
 					{/* Table */}
 					<div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
@@ -702,6 +748,18 @@ export default function CashflowReportPage() {
 																			Edit Entri
 																		</button>
 																	</li>
+																	<li>
+																		<button
+																			type="button"
+																			onClick={() => openDeleteModal(t)}
+																			className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs font-semibold rounded-lg flex items-center gap-2 px-3 py-2"
+																		>
+																			<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+																				<path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+																			</svg>
+																			Hapus Entri
+																		</button>
+																	</li>
 																</ul>
 															</div>
 														)}
@@ -798,10 +856,10 @@ export default function CashflowReportPage() {
 												<NumericFormat
 													thousandSeparator="."
 													decimalSeparator=","
-													decimalScale={0}
+													allowedDecimalSeparators={[",", "."]}
 													allowNegative={false}
 													value={editData.amount}
-													onValueChange={(values) => setEditData({ ...editData, amount: values.floatValue?.toString() ?? '' })}
+													onValueChange={(values) => setEditData({ ...editData, amount: values.value })}
 													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-amber-400 bg-slate-50"
 													placeholder="Nominal"
 												/>
@@ -963,12 +1021,12 @@ export default function CashflowReportPage() {
 											<NumericFormat
 												thousandSeparator="."
 												decimalSeparator=","
-												decimalScale={0}
+												allowedDecimalSeparators={[",", "."]}
 												allowNegative={false}
 												value={modalData.amount}
-												onValueChange={(values) => setModalData({ ...modalData, amount: values.floatValue?.toString() ?? "" })}
+												onValueChange={(values) => setModalData({ ...modalData, amount: values.value })}
 												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-indigo-500 bg-slate-50"
-												placeholder="Contoh: 150.000"
+												placeholder="Contoh: 150.000 atau 150.000,50"
 											/>
 										</div>
 										<div>
@@ -1039,6 +1097,125 @@ export default function CashflowReportPage() {
 										>
 											{addSaving && <span className="loading loading-spinner loading-xs" />}
 											Simpan Entri
+										</button>
+									</div>
+								</form>
+							</div>
+						</div>
+					)}
+
+					{/* Modal Hapus Cashflow Manual dengan Approval Code */}
+					{deleteModalOpen && deleteTargetTx && (
+						<div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-sm">
+							<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
+								<div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+									<div className="flex items-center gap-2.5">
+										<div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
+											<svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+												<path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</div>
+										<div>
+											<h2 className="text-sm font-bold text-slate-800">Hapus Entri Cashflow</h2>
+											<p className="text-[11px] text-slate-500">Memerlukan otorisasi kode approval supervisor</p>
+										</div>
+									</div>
+									<button
+										type="button"
+										onClick={() => {
+											if (!deleteLoading) {
+												setDeleteModalOpen(false);
+												setDeleteTargetTx(null);
+												setDeleteError('');
+											}
+										}}
+										className="text-slate-400 hover:text-slate-600 bg-white p-1.5 rounded-full border border-slate-200 transition-colors"
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+											<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+										</svg>
+									</button>
+								</div>
+
+								<form onSubmit={handleDeleteSubmit} className="p-5 space-y-4">
+									{/* Ringkasan Transaksi */}
+									<div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-2 text-xs">
+										<div className="flex justify-between items-center text-slate-500">
+											<span>Tanggal</span>
+											<span className="font-semibold text-slate-700">
+												{new Date(deleteTargetTx.date).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })}
+											</span>
+										</div>
+										<div className="flex justify-between items-center text-slate-500">
+											<span>Referensi</span>
+											<span className="font-semibold text-slate-700 truncate max-w-[200px]" title={deleteTargetTx.reference}>
+												{deleteTargetTx.reference || '-'}
+											</span>
+										</div>
+										<div className="flex justify-between items-center text-slate-500">
+											<span>Tipe & Metode</span>
+											<span className="font-semibold text-slate-700 uppercase">
+												{deleteTargetTx.type} • {deleteTargetTx.method}
+											</span>
+										</div>
+										<div className="flex justify-between items-center pt-1.5 border-t border-slate-200">
+											<span className="font-bold text-slate-700">Nominal</span>
+											<span className="text-sm font-extrabold text-rose-600">
+												{IDR(deleteTargetTx.amount)}
+											</span>
+										</div>
+									</div>
+
+									{deleteError && (
+										<div className="bg-rose-50 text-rose-700 p-3 rounded-xl border border-rose-200 text-xs font-semibold flex items-center gap-2">
+											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-rose-500" viewBox="0 0 20 20" fill="currentColor">
+												<path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+											</svg>
+											<span>{deleteError}</span>
+										</div>
+									)}
+
+									<div>
+										<label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+											Kode Approval Supervisor <span className="text-rose-500">*</span>
+										</label>
+										<input
+											type="password"
+											autoFocus
+											required
+											value={deleteApprovalCode}
+											onChange={(e) => {
+												setDeleteApprovalCode(e.target.value);
+												if (deleteError) setDeleteError('');
+											}}
+											placeholder="Masukkan kode approval..."
+											className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 bg-slate-50"
+										/>
+										<p className="text-[11px] text-slate-400 mt-1">
+											Hanya supervisor atau admin dengan kode approval valid yang dapat menghapus entri ini.
+										</p>
+									</div>
+
+									<div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+										<button
+											type="button"
+											onClick={() => {
+												setDeleteModalOpen(false);
+												setDeleteTargetTx(null);
+												setDeleteError('');
+											}}
+											disabled={deleteLoading}
+											className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+										>
+											Batal
+										</button>
+										<button
+											type="submit"
+											disabled={deleteLoading}
+											className="px-5 py-2 rounded-xl text-xs text-white font-semibold bg-rose-600 hover:bg-rose-700 shadow-sm shadow-rose-600/30 disabled:opacity-60 flex items-center gap-1.5 transition-all active:scale-95"
+										>
+											{deleteLoading && <span className="loading loading-spinner loading-xs" />}
+											Hapus Entri
 										</button>
 									</div>
 								</form>

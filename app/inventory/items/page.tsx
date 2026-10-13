@@ -25,14 +25,17 @@ export default function InvItemsPage() {
   const router = useRouter()
 
   const addRef = useRef<HTMLDialogElement>(null)
+  const editRef = useRef<HTMLDialogElement>(null)
   const [items, setItems] = useState<InvItem[]>([])
   const [search, setSearch] = useState("")
 
   const addForm = useForm<{ name: string; unit: string; category: string }>()
+  const editForm = useForm<{ name: string; unit: string; category: string }>()
   const useFormRef = useForm<{ qty: number; note: string }>()
 
   const useModalRef = useRef<HTMLDialogElement>(null)
   const [selectedItem, setSelectedItem] = useState<InvItem | null>(null)
+  const [editItem, setEditItem] = useState<InvItem | null>(null)
 
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
@@ -45,6 +48,12 @@ export default function InvItemsPage() {
   const postFn = useFetch<InvItem, any>({
     url: `/api/web/inv-items`,
     method: "POST",
+    onError: (m) => alert(m),
+  })
+
+  const putFn = useFetch<InvItem, any>({
+    url: `/api/web/inv-items`,
+    method: "PUT",
     onError: (m) => alert(m),
   })
 
@@ -84,6 +93,30 @@ export default function InvItemsPage() {
         setItems((prev) => [result, ...prev])
         addForm.reset()
         addRef.current?.close()
+      }
+    )
+  }
+
+  function openEdit(item: InvItem) {
+    setEditItem(item)
+    editForm.setValue("name", item.name)
+    editForm.setValue("unit", item.unit)
+    editForm.setValue("category", item.category ?? "")
+    editRef.current?.showModal()
+  }
+
+  async function handleEdit(data: { name: string; unit: string; category: string }) {
+    if (!editItem) return
+    await putFn.fn(
+      "",
+      JSON.stringify({ id: masterAccountId, itemId: editItem._id, ...data }) as any,
+      (result) => {
+        setItems((prev) =>
+          prev.map((i) => (i._id === editItem._id ? result : i))
+        )
+        editForm.reset()
+        editRef.current?.close()
+        setEditItem(null)
       }
     )
   }
@@ -220,14 +253,23 @@ export default function InvItemsPage() {
                           {new Date(item.createdAt).toLocaleDateString("id-ID")}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <button
-                            id={`btn-use-${item.itemCode}`}
-                            onClick={() => { setSelectedItem(item); useModalRef.current?.showModal() }}
-                            disabled={item.currentStock === 0}
-                            className="bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
-                          >
-                            Use Item
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              id={`btn-edit-${item.itemCode}`}
+                              onClick={() => openEdit(item)}
+                              className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              id={`btn-use-${item.itemCode}`}
+                              onClick={() => { setSelectedItem(item); useModalRef.current?.showModal() }}
+                              disabled={item.currentStock === 0}
+                              className="bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
+                            >
+                              Use Item
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -378,6 +420,76 @@ export default function InvItemsPage() {
           </form>
         </div>
         <form method="dialog" className="modal-backdrop"><button onClick={() => setSelectedItem(null)}>close</button></form>
+      </dialog>
+
+      {/* ── Edit Item Modal ────────────────────────────────────────────────── */}
+      <dialog ref={editRef} id="modal-edit-item" className="modal">
+        <div className="modal-box rounded-2xl max-w-md p-8 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-emerald-100 text-emerald-700 p-2 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Edit Item</h2>
+              <p className="text-slate-400 text-xs">Update details for {editItem?.name}.</p>
+            </div>
+          </div>
+
+          <form onSubmit={editForm.handleSubmit(handleEdit)} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">Item Name <span className="text-red-500">*</span></label>
+              <input
+                id="input-edit-item-name"
+                {...editForm.register("name", { required: true })}
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                placeholder="e.g. A4 Paper, Marker Pen, Cleaning Fluid"
+              />
+              {editForm.formState.errors.name && <p className="text-red-500 text-xs mt-1">Name is required.</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">Unit <span className="text-red-500">*</span></label>
+              <input
+                id="input-edit-item-unit"
+                {...editForm.register("unit", { required: true })}
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                placeholder="e.g. pcs, box, liter, rim"
+              />
+              {editForm.formState.errors.unit && <p className="text-red-500 text-xs mt-1">Unit is required.</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">Category <span className="text-slate-400 font-normal">(optional)</span></label>
+              <input
+                id="input-edit-item-category"
+                {...editForm.register("category")}
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                placeholder="e.g. Office Supplies, Maintenance, Cleaning"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => { editRef.current?.close(); editForm.reset(); setEditItem(null) }}
+                className="flex-1 border border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 hover:bg-slate-50 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                id="btn-submit-edit-item"
+                type="submit"
+                disabled={putFn.loading}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold rounded-xl py-2.5 transition-colors text-sm shadow-lg shadow-emerald-200"
+              >
+                {putFn.loading ? <span className="loading loading-spinner loading-xs" /> : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+        <form method="dialog" className="modal-backdrop"><button onClick={() => setEditItem(null)}>close</button></form>
       </dialog>
     </>
   )
