@@ -240,6 +240,8 @@ function Purchases() {
       createdBy: user,
     })
 
+    console.log(JSON.parse(body))
+
     addFn.fn("", body, (result) => {
       if (
         filterType === "service" &&

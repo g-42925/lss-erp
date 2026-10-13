@@ -1069,8 +1069,10 @@ export default function CashflowReportPage() {
 												<select
 													required
 													onChange={(e) => {
-														setModalData({ ...modalData, bankAccountId: e.target.value.split('-')[0] });
+														const newBankAccountId = e.target.value.split('-')[0];
+														setModalData({ ...modalData, bankAccountId: newBankAccountId });
 														if (modalData.type === 'initial' || modalData.type === 'in' || modalData.type === 'out') setSelectedReference(e.target.value.split('-')[1]);
+														if (modalData.type === 'out') fetchCashOutBalance(modalData.accountType, newBankAccountId, modalData.date);
 													}}
 													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												>

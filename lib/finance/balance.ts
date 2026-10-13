@@ -2,6 +2,7 @@ import Cashflow from '@/models/Cashflow';
 import Invoice from '@/models/Invoice';
 import Purchase from '@/models/Purchase';
 import Log from '@/models/Log';
+import BankAccount from '@/models/BankAccount';
 
 /**
  * Menghitung saldo kas/bank yang tersedia hingga tanggal tertentu.
@@ -12,7 +13,7 @@ import Log from '@/models/Log';
  * 3. Cashflow collection     → kas manual (IN / OUT)
  *
  * @param companyId     ObjectId dari koleksi Companie
- * @param paymentMethod string metode pembayaran (e.g. "Cash", "transfer from BCA")
+ * @param paymentMethod string metode pembayaran (e.g. "Cash", "transfer")
  * @param bankAccountId ObjectId bank account (hanya untuk metode Bank)
  * @param asOfDate      (opsional) tanggal batas. Jika diberikan, hanya transaksi
  *                      pada/sebelum tanggal ini yang dihitung. Format: ISO string atau Date.
@@ -31,10 +32,28 @@ export async function getAvailableBalance(
     return m.includes('cash') || m === 'tunai';
   };
 
-  const isBankMethod = (method: string) => {
-    if (!method) return false;
-    return method.toLowerCase().includes('transfer');
+  const extractAccountNumberFromMethod = (method: string): string => {
+    if (!method) return '';
+    const parts = method.split(' - ');
+    return parts.length > 1 ? parts[1].trim() : '';
   };
+
+  const isBankMethod = (method: string, targetAccountNumber?: string) => {
+    if (!method) return false;
+    if (targetAccountNumber) {
+      return extractAccountNumberFromMethod(method) === targetAccountNumber;
+    }
+    return method.includes(' - ');
+  };
+
+  // ─── Resolve targetAccountNumber dari bankAccountId ──────────────────────────
+  let targetAccountNumber: string | undefined = undefined;
+  if (!isCash && bankAccountId) {
+    const bankAcc = await BankAccount.findById(bankAccountId).select('accountNumber').lean() as any;
+    if (bankAcc) {
+      targetAccountNumber = bankAcc.accountNumber;
+    }
+  }
 
   // Buat date cutoff (akhir hari dari asOfDate)
   let dateCutoff: Date | null = null;
@@ -62,7 +81,7 @@ export async function getAvailableBalance(
       }
 
       const method = p.method || p.paymentMethod || '';  // Invoice uses `method`, fallback to `paymentMethod`
-      const include = isCash ? isCashMethod(method) : isBankMethod(method);
+      const include = isCash ? isCashMethod(method) : isBankMethod(method, targetAccountNumber);
       if (include) {
         balance += p.amount ?? 0;
       }
@@ -86,7 +105,7 @@ export async function getAvailableBalance(
 
     for (const log of logs) {
       const method = log.paymentMethod || '';
-      const include = isCash ? isCashMethod(method) : isBankMethod(method);
+      const include = isCash ? isCashMethod(method) : isBankMethod(method, targetAccountNumber);
       if (include) {
         balance -= Math.abs(log.amount);
       }
