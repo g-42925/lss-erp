@@ -758,7 +758,7 @@ export default function Debt() {
                             <td>
                               {(filterType === 'vendor'
                                 ? (d.originalDebt ?? d.debt)
-                                : d.finalPrice)?.toLocaleString('id-ID')}
+                                : d.finalPrice * d.quantity)?.toLocaleString('id-ID')}
                               {d.vendor?.populatedTaxes && d.vendor.populatedTaxes.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1.5">
                                   {d.vendor.populatedTaxes.map((t: any) => (
@@ -786,9 +786,17 @@ export default function Debt() {
                                 ? (d.vendorPaid ?? 0)
                                 : d.payAmount)?.toLocaleString('id-ID')}
                             </td>
-                            <td className="font-semibold text-red-700">
-                              {remaining(d)?.toLocaleString('id-ID')}
-                            </td>
+                            {
+                              filterType !== "vendor" ? (
+                                <td className="font-semibold text-red-700">
+                                  {((d.finalPrice * d.quantity) - d.payAmount)?.toLocaleString('id-ID')}
+                                </td>
+                              ) : (
+                                <td className="font-semibold text-red-700">
+                                  {remaining(d)?.toLocaleString('id-ID')}
+                                </td>
+                              )
+                            }
                             <td>
                               <div className="flex flex-row gap-1">
                                 {remaining(d) > 0 && canCreate('/finance/debt') && (
