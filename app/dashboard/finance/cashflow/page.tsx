@@ -25,6 +25,7 @@ type CashflowTransaction = {
 	cashVoucherNumber?: string;
 	bankVoucherId?: string;
 	bankVoucherNumber?: string;
+	time?: string;
 };
 
 type Summary = {
@@ -45,6 +46,11 @@ type BankAccount = {
 // -- Helpers --
 const IDR = (v: number) =>
 	new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v);
+
+const getCurrentTime = () => {
+	const now = new Date();
+	return now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+};
 
 const fixBySequence = (voucherNumber: string, sequence?: number | string) => {
 	if (sequence === undefined || sequence === null) return voucherNumber;
@@ -84,6 +90,7 @@ export default function CashflowReportPage() {
 		amount: '',
 		reference: '',
 		date: new Date().toISOString().split('T')[0],
+		time: getCurrentTime(),
 		accountType: 'cash',
 		bankAccountId: '',
 		from: '',
@@ -96,6 +103,7 @@ export default function CashflowReportPage() {
 			amount: '',
 			reference: '',
 			date: new Date().toISOString().split('T')[0],
+			time: getCurrentTime(),
 			accountType: currentMode,
 			bankAccountId: '',
 			from: '',
@@ -111,6 +119,7 @@ export default function CashflowReportPage() {
 		amount: '',
 		reference: '',
 		date: new Date().toISOString().split('T')[0],
+		time: getCurrentTime(),
 		accountType: 'cash',
 		bankAccountId: '',
 		from: '',
@@ -277,6 +286,7 @@ export default function CashflowReportPage() {
 					type: modalData.type,
 					amount: Number(modalData.amount),
 					date: modalData.date,
+					time: modalData.time,
 					recordedBy: null,
 					additional
 				})
@@ -322,6 +332,7 @@ export default function CashflowReportPage() {
 			amount: String(t.amount),
 			reference: t.type === 'initial' ? t.reference.split('-')[0] : t.reference,
 			date: new Date(t.date).toISOString().split('T')[0],
+			time: t.time || getCurrentTime(),
 			accountType,
 			bankAccountId: matchedBank?._id || '',
 			from: t.from || '',
@@ -346,6 +357,7 @@ export default function CashflowReportPage() {
 					amount: Number(editData.amount),
 					reference: editData.reference,
 					date: editData.date,
+					time: editData.time,
 					from: editData.type === 'in' ? editData.from : undefined,
 					to: editData.type === 'out' ? editData.to : undefined,
 				})
@@ -849,21 +861,23 @@ export default function CashflowReportPage() {
 
 										</div>
 
-										{/* Nominal + Tanggal side by side */}
+										{/* Nominal */}
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
+											<NumericFormat
+												thousandSeparator="."
+												decimalSeparator=","
+												allowedDecimalSeparators={[",", "."]}
+												allowNegative={false}
+												value={editData.amount}
+												onValueChange={(values) => setEditData({ ...editData, amount: values.value })}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-amber-400 bg-slate-50"
+												placeholder="Nominal"
+											/>
+										</div>
+
+										{/* Tanggal + Jam side by side */}
 										<div className="grid grid-cols-2 gap-3">
-											<div>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
-												<NumericFormat
-													thousandSeparator="."
-													decimalSeparator=","
-													allowedDecimalSeparators={[",", "."]}
-													allowNegative={false}
-													value={editData.amount}
-													onValueChange={(values) => setEditData({ ...editData, amount: values.value })}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-amber-400 bg-slate-50"
-													placeholder="Nominal"
-												/>
-											</div>
 											<div>
 												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</label>
 												<input
@@ -871,6 +885,16 @@ export default function CashflowReportPage() {
 													required
 													value={editData.date}
 													onChange={(e) => setEditData({ ...editData, date: e.target.value })}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+												/>
+											</div>
+											<div>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jam (HH:MM)</label>
+												<input
+													type="time"
+													required
+													value={editData.time}
+													onChange={(e) => setEditData({ ...editData, time: e.target.value })}
 													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
 												/>
 											</div>
@@ -1015,20 +1039,21 @@ export default function CashflowReportPage() {
 
 									</div>
 
+									<div>
+										<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
+										<NumericFormat
+											thousandSeparator="."
+											decimalSeparator=","
+											allowedDecimalSeparators={[",", "."]}
+											allowNegative={false}
+											value={modalData.amount}
+											onValueChange={(values) => setModalData({ ...modalData, amount: values.value })}
+											className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-indigo-500 bg-slate-50"
+											placeholder="Contoh: 150.000 atau 150.000,50"
+										/>
+									</div>
+
 									<div className="grid grid-cols-2 gap-3">
-										<div>
-											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
-											<NumericFormat
-												thousandSeparator="."
-												decimalSeparator=","
-												allowedDecimalSeparators={[",", "."]}
-												allowNegative={false}
-												value={modalData.amount}
-												onValueChange={(values) => setModalData({ ...modalData, amount: values.value })}
-												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-indigo-500 bg-slate-50"
-												placeholder="Contoh: 150.000 atau 150.000,50"
-											/>
-										</div>
 										<div>
 											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</label>
 											<input
@@ -1036,6 +1061,16 @@ export default function CashflowReportPage() {
 												required
 												value={modalData.date}
 												onChange={(e) => setModalData({ ...modalData, date: e.target.value })}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+											/>
+										</div>
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jam (HH:MM)</label>
+											<input
+												type="time"
+												required
+												value={modalData.time}
+												onChange={(e) => setModalData({ ...modalData, time: e.target.value })}
 												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 											/>
 										</div>

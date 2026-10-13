@@ -58,6 +58,15 @@ const cashflowSchema = new mongoose.Schema({
   bankVoucherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'VoucherBank'
+  },
+  time: {
+    type: String,
+    match: /^([01]\d|2[0-3]):[0-5]\d$/,
+    default: () => new Date().toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jakarta'
+    })
   }
 
 }, { timestamps: true });

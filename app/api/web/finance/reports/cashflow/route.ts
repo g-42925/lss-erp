@@ -257,6 +257,7 @@ export async function GET(request: NextRequest) {
 			allTransactions.push({
 				_id: entry._id.toString(),
 				date: entry.date,
+				time: entry.time || null,
 				amount: entry.amount,
 				method: methodName,
 				reference: entry.reference,
@@ -282,7 +283,21 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		finalTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+		// Helper: build a full Date with time for proper chronological sorting.
+		// Manual Cashflow entries store time as a separate "HH:MM" string field,
+		// while invoice payments embed time directly in the date field.
+		const getFullDateTime = (t: any): number => {
+			const d = new Date(t.date);
+			if (t.time && typeof t.time === 'string') {
+				const [hh, mm] = t.time.split(':').map(Number);
+				if (!isNaN(hh) && !isNaN(mm)) {
+					d.setHours(hh, mm, 0, 0);
+				}
+			}
+			return d.getTime();
+		};
+
+		finalTransactions.sort((a, b) => getFullDateTime(a) - getFullDateTime(b));
 
 		let totalIn = 0;
 		let totalOut = 0;

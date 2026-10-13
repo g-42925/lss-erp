@@ -77,12 +77,13 @@ export default function Invoices() {
 
   function submitEditPayment(data: any) {
     const isCash = data.method === 'Cash'
+    const combinedDate = data.time ? `${data.date}T${data.time}` : data.date
     const params: any = {
       action: 'editPayment',
       _id: selectedInvoice._id,
       paymentHistoryId: editingPaymentId,
       newAmount: Number(data.amount),
-      newDate: data.date,
+      newDate: combinedDate,
       newMethod: data.method
     }
 
@@ -304,23 +305,26 @@ export default function Invoices() {
     const price = invoice?.price ?? invoice?.order?.price
     const qty = invoice?.qty ?? invoice?.order?.qty
     const total = isOneTimeService ? price : price - ((price / qty) * invoice?.missing)
+    const now = new Date()
     closeInvoiceForm.reset({
       salesOrderNumber: invoice.salesOrderNumber,
       payAmount: total,
       paymentMethod: 'Cash',
-      paymentDate: new Date().toISOString().substring(0, 10)
+      paymentDate: now.toISOString().substring(0, 10),
+      paymentTime: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     })
     closeInvoiceModalRef.current?.showModal()
   }
 
   function submitCloseInvoice(data: any) {
+    const combinedDate = data.paymentTime ? `${data.paymentDate}T${data.paymentTime}` : data.paymentDate
     const params = {
       _id: selectedInvoice?._id,
       salesOrderNumber: data.salesOrderNumber,
       paid: true,
       payAmount: Number(data.payAmount),
       paymentMethod: data.paymentMethod,
-      paymentDate: data.paymentDate
+      paymentDate: combinedDate
     }
     closeInvoiceFn.fn('', JSON.stringify(params), (res: any) => {
       getInvoicesFn.reset(
@@ -853,7 +857,11 @@ export default function Invoices() {
           </div>
           <div className="flex flex-row items-center gap-2 mt-2">
             <label className="w-[120px]">Payment Date</label>
-            <input {...closeInvoiceForm.register("paymentDate")} type="date" className="input flex-1" defaultValue={new Date().toISOString().substring(0, 10)} />
+            <input {...closeInvoiceForm.register("paymentDate")} type="date" className="input flex-1" />
+          </div>
+          <div className="flex flex-row items-center gap-2 mt-2">
+            <label className="w-[120px]">Payment Time</label>
+            <input {...closeInvoiceForm.register("paymentTime")} type="time" className="input flex-1" />
           </div>
 
 
@@ -889,6 +897,9 @@ export default function Invoices() {
                         <form onSubmit={editPaymentForm.handleSubmit(submitEditPayment)} className="flex flex-col gap-2">
                           <div className="flex flex-row gap-2 items-center">
                             <input type="date" {...editPaymentForm.register("date", { required: true })} className="input input-sm flex-1 border-slate-300" />
+                            <input type="time" {...editPaymentForm.register("time")} className="input input-sm w-28 border-slate-300" />
+                          </div>
+                          <div className="flex flex-row gap-2 items-center">
                             <input type="number" {...editPaymentForm.register("amount", { required: true })} className="input input-sm flex-1 border-slate-300" />
                             <select
                               {...editPaymentForm.register("method")}
@@ -917,9 +928,11 @@ export default function Invoices() {
                             onClick={() => {
                               setEditingPaymentId(ph._id);
                               const method = ph.method || 'Cash';
+                              const phDate = new Date(ph.date);
                               editPaymentForm.reset({
                                 amount: ph.amount,
-                                date: new Date(ph.date).toISOString().substring(0, 10),
+                                date: phDate.toISOString().substring(0, 10),
+                                time: `${String(phDate.getHours()).padStart(2, '0')}:${String(phDate.getMinutes()).padStart(2, '0')}`,
                                 method
                               });
                             }}
