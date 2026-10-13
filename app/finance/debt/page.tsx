@@ -782,7 +782,7 @@ export default function Debt() {
                               </td>
                             )}
                             <td>
-                            {(filterType === 'vendor'
+                              {(filterType === 'vendor'
                                 ? (d.vendorPaid ?? 0)
                                 : d.payAmount)?.toLocaleString('id-ID')}
                             </td>
@@ -831,9 +831,9 @@ export default function Debt() {
                         {filterType === 'vendor' ? 'No. Invoice' : 'Produk / Deskripsi'}
                       </span>
                       <span className="font-semibold text-gray-800 text-base">
-                        {filterType === 'barang' ? (selectedDebt.product?.productName || selectedDebt.invItem?.name || selectedDebt.description || '-') : 
-                         filterType === 'jasa' ? (selectedDebt.description || '-') : 
-                         (selectedDebt.invoiceNumber || '-')}
+                        {filterType === 'barang' ? (selectedDebt.product?.productName || selectedDebt.invItem?.name || selectedDebt.description || '-') :
+                          filterType === 'jasa' ? (selectedDebt.description || '-') :
+                            (selectedDebt.invoiceNumber || '-')}
                       </span>
                     </div>
                     <div className="flex flex-col gap-1">
@@ -852,86 +852,94 @@ export default function Debt() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Tanggal Pembayaran</legend>
-                <input
-                  className="input w-full"
-                  type="date"
-                  value={payFormData.payDate}
-                  onChange={e => {
-                    const newDate = e.target.value
-                    setPayFormData(p => ({ ...p, payDate: newDate }))
-                    fetchAvailableBalance(payFormData.paymentMethod, payFormData.bankAccountId, newDate)
-                  }}
-                  required
-                />
-              </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tanggal Pembayaran</legend>
+                  <input
+                    className="input w-full"
+                    type="date"
+                    value={payFormData.payDate}
+                    onChange={e => {
+                      const newDate = e.target.value
+                      setPayFormData(p => ({ ...p, payDate: newDate }))
+                      fetchAvailableBalance(payFormData.paymentMethod, payFormData.bankAccountId, newDate)
+                    }}
+                    required
+                  />
+                </fieldset>
 
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Jumlah Bayar</legend>
-                <NumericFormat
-                  thousandSeparator="."
-                  decimalSeparator=","
-                  decimalScale={2}
-                  fixedDecimalScale
-                  allowNegative={false}
-                  value={payFormData.payAmount}
-                  onValueChange={(values) => {
-                    // if empty string, floatValue is un defined
-                    setPayFormData(p => ({ ...p, payAmount: values.floatValue ?? "" }))
-                  }}
-                  className="input w-full"
-                  placeholder="Contoh: 150000"
-                />
-              </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Jumlah Bayar</legend>
+                  <NumericFormat
+                    thousandSeparator="."
+                    decimalSeparator=","
+                    decimalScale={2}
+                    fixedDecimalScale
+                    allowNegative={false}
+                    value={payFormData.payAmount}
+                    onValueChange={(values) => {
+                      // if empty string, floatValue is un defined
+                      setPayFormData(p => ({ ...p, payAmount: values.floatValue ?? "" }))
+                    }}
+                    className="input w-full"
+                    placeholder="Contoh: 150000"
+                  />
+                </fieldset>
 
-              <fieldset className="fieldset">
-                <legend className="fieldset-legend">Metode Pembayaran</legend>
-                <select
-                  className="select w-full"
-                  value={payFormData.paymentMethod}
-                  onChange={e => {
-                    const val = e.target.value
-                    // Cari bankAccountId yang sesuai
-                    const matchedBank = bankAccountFn.result?.find((b: any) => `transfer from ${b.bank}` === val)
-                    const newBankAccountId = matchedBank?._id || ''
-                    setPayFormData(p => ({
-                      ...p,
-                      paymentMethod: val,
-                      bankAccountId: newBankAccountId,
-                    }))
-                    fetchAvailableBalance(val, newBankAccountId, payFormData.payDate)
-                  }}
-                >
-                  <option value="Cash">Cash</option>
-                  {bankAccountFn.result?.map((bank: any) => (
-                    <option key={bank._id} value={`transfer from ${bank.bank}`}>
-                      {bank.bank} ({bank.accountName})
-                    </option>
-                  ))}
-                </select>
-                {/* Tampilan sisa saldo */}
-                <div className="mt-2">
-                  {balanceLoading ? (
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
-                    </span>
-                  ) : availableBalance !== null ? (
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
-                      availableBalance <= 0
-                        ? 'bg-red-50 border-red-200 text-red-700'
-                        : Number(payFormData.payAmount) > availableBalance
-                          ? 'bg-orange-50 border-orange-200 text-orange-700'
-                          : 'bg-green-50 border-green-200 text-green-700'
-                    }`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                      </svg>
-                      <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
-                    </div>
-                  ) : null}
-                </div>
-              </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Metode Pembayaran</legend>
+                  <select
+                    className="select w-full"
+                    value={payFormData.bankAccountId}
+                    onChange={e => {
+                      const bankAccountId = e.target.value
+                      const bank = bankAccountFn.result?.find(
+                        (b: any) => b._id === bankAccountId
+                      )
+                      const paymentMethod = bank
+                        ? `transfer from ${bank.bank}`
+                        : 'Cash'
+
+                      setPayFormData(p => ({
+                        ...p,
+                        paymentMethod,
+                        bankAccountId
+                      }))
+
+                      fetchAvailableBalance(
+                        paymentMethod,
+                        bankAccountId,
+                        payFormData.payDate
+                      )
+                    }}
+                  >
+                    <option value="">Cash</option>
+                    {bankAccountFn.result?.map((bank: any) => (
+                      <option key={bank._id} value={bank._id}>
+                        {bank.bank} ({bank.accountName})
+                      </option>
+                    ))}
+                  </select>
+                  {/* Tampilan sisa saldo */}
+                  <div className="mt-2">
+                    {balanceLoading ? (
+                      <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+                      </span>
+                    ) : availableBalance !== null ? (
+                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${availableBalance <= 0
+                          ? 'bg-red-50 border-red-200 text-red-700'
+                          : Number(payFormData.payAmount) > availableBalance
+                            ? 'bg-orange-50 border-orange-200 text-orange-700'
+                            : 'bg-green-50 border-green-200 text-green-700'
+                        }`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                        </svg>
+                        <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
+                      </div>
+                    ) : null}
+                  </div>
+                </fieldset>
 
               </div>
 
