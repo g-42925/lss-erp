@@ -52,9 +52,10 @@ export async function PUT(request: NextRequest) {
         case "convert_to_po":
           const prForBal = await Purchase.findById(_id);
           if (rest.payAmount && rest.payAmount > 0 && prForBal) {
-            const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId);
+            const txDate = rest.date || new Date().toISOString();
+            const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId, txDate);
             if (balance < rest.payAmount) {
-              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia: ${balance}`, result: null, error: true });
+              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia pada tanggal tersebut: Rp ${balance.toLocaleString('id-ID')}`, result: null, error: true });
             }
           }
 
@@ -296,9 +297,10 @@ export async function PUT(request: NextRequest) {
         if (rest.payAmount && rest.payAmount > 0) {
           const prForBal = await Purchase.findById(_id);
           if (prForBal) {
-            const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId);
+            const txDate = rest.date || new Date().toISOString();
+            const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId, txDate);
             if (balance < rest.payAmount) {
-              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia: ${balance}`, result: null, error: true });
+              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia pada tanggal tersebut: Rp ${balance.toLocaleString('id-ID')}`, result: null, error: true });
             }
           }
         }

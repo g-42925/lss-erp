@@ -331,9 +331,10 @@ export async function POST(request: NextRequest) {
     const cmp = masterAccountId ? await Companie.findOne({ masterAccountId }) : null
     
     if (cmp) {
-      const balance = await getAvailableBalance(cmp._id, paymentMethod, bankAccountId);
+      const txDate = payDate || new Date().toISOString();
+      const balance = await getAvailableBalance(cmp._id, paymentMethod, bankAccountId, txDate);
       if (balance < amt) {
-        return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia: ${balance}`, result: null, error: true })
+        return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia pada tanggal tersebut: Rp ${balance.toLocaleString('id-ID')}`, result: null, error: true })
       }
     }
 

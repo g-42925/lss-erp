@@ -352,6 +352,23 @@ export async function POST(request: NextRequest) {
 		if (!company) {
 			return NextResponse.json({ error: true, message: "Company not found" });
 		}
+
+		// ─── Validasi saldo untuk transaksi keluar (out) ─────────────────────────
+		if (rest.type === 'out' && rest.amount > 0) {
+			const { getAvailableBalance } = await import('@/lib/finance/balance');
+			const isCash = rest.accountType === 'Cash';
+			const paymentMethod = isCash ? 'Cash' : 'transfer';
+			const bankAccId = !isCash ? rest.bankAccountId : undefined;
+			const txDate = rest.date || new Date().toISOString();
+
+			const balance = await getAvailableBalance(company._id, paymentMethod, bankAccId, txDate);
+			if (balance < rest.amount) {
+				return NextResponse.json({
+					error: true,
+					message: `Saldo ${isCash ? 'Cash' : 'Bank'} tidak mencukupi pada tanggal tersebut.\nSaldo tersedia: Rp ${balance.toLocaleString('id-ID')}\nJumlah pengeluaran: Rp ${Number(rest.amount).toLocaleString('id-ID')}`
+				});
+			}
+		}
 		
 		const cashflowData = {
 			companyId: company._id,

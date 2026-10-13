@@ -111,12 +111,13 @@ function Purchases() {
   const watchTaxFormTaxIds = taxForm.watch("taxIds") || []
 
   // ─── Fetch saldo tersedia untuk form Buat PO ─────────────────────────────────
-  async function fetchPoBalance(method: string, bankAccountId?: string) {
+  async function fetchPoBalance(method: string, bankAccountId?: string, date?: string) {
     if (!masterAccountId) return
     setPoBalanceLoading(true)
     try {
       const params = new URLSearchParams({ id: masterAccountId, paymentMethod: method })
       if (bankAccountId) params.set('bankAccountId', bankAccountId)
+      if (date) params.set('date', date)
       const res = await fetch(`/api/web/finance/balance?${params}`)
       const json = await res.json()
       if (!json.error) setPoAvailableBalance(json.result ?? 0)
@@ -548,7 +549,7 @@ function Purchases() {
 
     orderRef.current?.showModal()
     setPoAvailableBalance(null)
-    fetchPoBalance('Cash')
+    fetchPoBalance('Cash', undefined, new Date().toISOString().split('T')[0])
   }
 
   function openEdit(id: string) {
@@ -1774,7 +1775,7 @@ function Purchases() {
                 </fieldset>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 hidden">
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">
                     Initial Pay Amount (Rp)
@@ -1815,7 +1816,7 @@ function Purchases() {
                       const matchedBank = bankAccount.result?.find(
                         (b: any) => `Transfer - ${b.bank}` === val
                       )
-                      fetchPoBalance(val, matchedBank?._id)
+                      fetchPoBalance(val, matchedBank?._id, new Date().toISOString().split('T')[0])
                     }}
                   >
                     <option value="Cash">

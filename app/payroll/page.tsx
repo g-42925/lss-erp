@@ -120,6 +120,27 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
   const [banks, setBanks] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+
+  // Fetch saldo tersedia berdasarkan tanggal
+  const fetchBalance = async (method: string, bankAccId?: string, date?: string) => {
+    if (!masterAccountId) return;
+    setBalanceLoading(true);
+    try {
+      const params = new URLSearchParams({ id: masterAccountId, paymentMethod: method === 'Bank' ? 'transfer' : 'Cash' });
+      if (method === 'Bank' && bankAccId) params.set('bankAccountId', bankAccId);
+      if (date) params.set('date', date);
+      const res = await fetch(`/api/web/finance/balance?${params}`);
+      const json = await res.json();
+      if (!json.error) setAvailableBalance(json.result ?? 0);
+      else setAvailableBalance(null);
+    } catch {
+      setAvailableBalance(null);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isPaying && masterAccountId) {
@@ -134,11 +155,21 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
           }
         })
         .catch(console.error);
+      // Fetch saldo awal
+      fetchBalance('Cash', undefined, paymentDate);
     }
   }, [isPaying, masterAccountId]);
 
+  const isBalanceInsufficient = availableBalance !== null && e.thp > availableBalance;
+
   const handleRecordPayment = async () => {
     if (!masterAccountId) return;
+
+    if (isBalanceInsufficient) {
+      alert(`Saldo ${payMethod} tidak mencukupi pada tanggal ${paymentDate}.\nSaldo tersedia: Rp ${availableBalance!.toLocaleString('id-ID')}\nJumlah THP: Rp ${e.thp.toLocaleString('id-ID')}`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -295,14 +326,22 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
                   type="date"
                   className="input input-sm input-bordered w-full bg-white text-black"
                   value={paymentDate}
-                  onChange={(ev) => setPaymentDate(ev.target.value)}
+                  onChange={(ev) => {
+                    const newDate = ev.target.value;
+                    setPaymentDate(newDate);
+                    fetchBalance(payMethod, payMethod === 'Bank' ? bankAccountId : undefined, newDate);
+                  }}
                 />
                 
                 <span className="text-sm font-semibold text-gray-700 mt-2">Metode Pembayaran</span>
                 <select 
                   className="select select-sm select-bordered w-full bg-white text-black"
                   value={payMethod}
-                  onChange={(ev) => setPayMethod(ev.target.value as 'Cash' | 'Bank')}
+                  onChange={(ev) => {
+                    const newMethod = ev.target.value as 'Cash' | 'Bank';
+                    setPayMethod(newMethod);
+                    fetchBalance(newMethod, newMethod === 'Bank' ? bankAccountId : undefined, paymentDate);
+                  }}
                 >
                   <option value="Cash">Cash / Tunai</option>
                   <option value="Bank">Transfer Bank</option>
@@ -314,7 +353,11 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
                     <select 
                       className="select select-sm select-bordered w-full bg-white text-black"
                       value={bankAccountId}
-                      onChange={(ev) => setBankAccountId(ev.target.value)}
+                      onChange={(ev) => {
+                        const newBankId = ev.target.value;
+                        setBankAccountId(newBankId);
+                        fetchBalance('Bank', newBankId, paymentDate);
+                      }}
                     >
                       {banks.length === 0 && <option disabled>Memuat bank...</option>}
                       {banks.map(b => (
@@ -323,6 +366,31 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
                     </select>
                   </>
                 )}
+
+                {/* Tampilan Saldo Tersedia */}
+                <div className="mt-2">
+                  {balanceLoading ? (
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+                    </span>
+                  ) : availableBalance !== null ? (
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
+                      isBalanceInsufficient
+                        ? 'bg-red-50 border-red-200 text-red-700'
+                        : 'bg-green-50 border-green-200 text-green-700'
+                    }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                      </svg>
+                      <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
+                    </div>
+                  ) : null}
+                  {isBalanceInsufficient && (
+                    <p className="text-xs text-red-600 mt-1 font-medium">
+                      ⚠ Saldo tidak mencukupi untuk membayar THP (Rp {e.thp.toLocaleString('id-ID')})
+                    </p>
+                  )}
+                </div>
 
                 <div className="flex gap-2 mt-3">
                   <button 
@@ -335,7 +403,7 @@ const EmployeeDetailModal = memo(function EmployeeDetailModal({
                   <button 
                     className="btn btn-sm btn-success text-white flex-1" 
                     onClick={handleRecordPayment}
-                    disabled={submitting || (payMethod === 'Bank' && !bankAccountId)}
+                    disabled={submitting || (payMethod === 'Bank' && !bankAccountId) || isBalanceInsufficient}
                   >
                     {submitting ? 'Menyimpan...' : 'Simpan'}
                   </button>
@@ -497,8 +565,6 @@ const PayrollDataSection = memo(function PayrollDataSection({
   );
 });
 
-// ─── BatchPaymentModal ────────────────────────────────────────────────────────
-
 const BatchPaymentModal = memo(function BatchPaymentModal({
   selectedEmployees,
   onClose,
@@ -520,8 +586,29 @@ const BatchPaymentModal = memo(function BatchPaymentModal({
   const [submitting, setSubmitting] = useState(false);
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [progress, setProgress] = useState(0);
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const totalTHP = useMemo(() => selectedEmployees.reduce((sum, e) => sum + e.thp, 0), [selectedEmployees]);
+
+  // Fetch saldo tersedia berdasarkan tanggal
+  const fetchBalance = async (method: string, bankAccId?: string, date?: string) => {
+    if (!masterAccountId) return;
+    setBalanceLoading(true);
+    try {
+      const params = new URLSearchParams({ id: masterAccountId, paymentMethod: method === 'Bank' ? 'transfer' : 'Cash' });
+      if (method === 'Bank' && bankAccId) params.set('bankAccountId', bankAccId);
+      if (date) params.set('date', date);
+      const res = await fetch(`/api/web/finance/balance?${params}`);
+      const json = await res.json();
+      if (!json.error) setAvailableBalance(json.result ?? 0);
+      else setAvailableBalance(null);
+    } catch {
+      setAvailableBalance(null);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (masterAccountId) {
@@ -536,11 +623,21 @@ const BatchPaymentModal = memo(function BatchPaymentModal({
           }
         })
         .catch(console.error);
+      // Fetch saldo awal
+      fetchBalance('Cash', undefined, paymentDate);
     }
   }, [masterAccountId]);
 
+  const isBalanceInsufficient = availableBalance !== null && totalTHP > availableBalance;
+
   const handleRecordBatchPayment = async () => {
     if (!masterAccountId) return;
+
+    if (isBalanceInsufficient) {
+      alert(`Saldo ${payMethod} tidak mencukupi pada tanggal ${paymentDate}.\nSaldo tersedia: Rp ${availableBalance!.toLocaleString('id-ID')}\nTotal THP: Rp ${totalTHP.toLocaleString('id-ID')}`);
+      return;
+    }
+
     setSubmitting(true);
     setProgress(0);
     
@@ -604,14 +701,22 @@ const BatchPaymentModal = memo(function BatchPaymentModal({
               type="date"
               className="input input-sm input-bordered w-full bg-white text-black"
               value={paymentDate}
-              onChange={(ev) => setPaymentDate(ev.target.value)}
+              onChange={(ev) => {
+                const newDate = ev.target.value;
+                setPaymentDate(newDate);
+                fetchBalance(payMethod, payMethod === 'Bank' ? bankAccountId : undefined, newDate);
+              }}
             />
             
             <span className="text-sm font-semibold text-gray-700 mt-2">Metode Pembayaran</span>
             <select 
               className="select select-sm select-bordered w-full bg-white text-black"
               value={payMethod}
-              onChange={(ev) => setPayMethod(ev.target.value as 'Cash' | 'Bank')}
+              onChange={(ev) => {
+                const newMethod = ev.target.value as 'Cash' | 'Bank';
+                setPayMethod(newMethod);
+                fetchBalance(newMethod, newMethod === 'Bank' ? bankAccountId : undefined, paymentDate);
+              }}
             >
               <option value="Cash">Cash / Tunai</option>
               <option value="Bank">Transfer Bank</option>
@@ -623,7 +728,11 @@ const BatchPaymentModal = memo(function BatchPaymentModal({
                 <select 
                   className="select select-sm select-bordered w-full bg-white text-black"
                   value={bankAccountId}
-                  onChange={(ev) => setBankAccountId(ev.target.value)}
+                  onChange={(ev) => {
+                    const newBankId = ev.target.value;
+                    setBankAccountId(newBankId);
+                    fetchBalance('Bank', newBankId, paymentDate);
+                  }}
                 >
                   {banks.length === 0 && <option disabled>Memuat bank...</option>}
                   {banks.map(b => (
@@ -631,6 +740,31 @@ const BatchPaymentModal = memo(function BatchPaymentModal({
                   ))}
                 </select>
               </>
+            )}
+          </div>
+
+          {/* Tampilan Saldo Tersedia */}
+          <div>
+            {balanceLoading ? (
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+              </span>
+            ) : availableBalance !== null ? (
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${
+                isBalanceInsufficient
+                  ? 'bg-red-50 border-red-200 text-red-700'
+                  : 'bg-green-50 border-green-200 text-green-700'
+              }`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                </svg>
+                <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
+              </div>
+            ) : null}
+            {isBalanceInsufficient && (
+              <p className="text-xs text-red-600 mt-1 font-medium">
+                ⚠ Saldo tidak mencukupi untuk total THP (Rp {totalTHP.toLocaleString('id-ID')})
+              </p>
             )}
           </div>
 
@@ -645,7 +779,7 @@ const BatchPaymentModal = memo(function BatchPaymentModal({
             <button 
               className="btn btn-sm btn-success text-white flex-1" 
               onClick={handleRecordBatchPayment}
-              disabled={submitting || (payMethod === 'Bank' && !bankAccountId)}
+              disabled={submitting || (payMethod === 'Bank' && !bankAccountId) || isBalanceInsufficient}
             >
               {submitting ? `Memproses ${progress}/${selectedEmployees.length}...` : 'Proses Semua Pembayaran'}
             </button>

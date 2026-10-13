@@ -141,17 +141,19 @@ export default function Debt() {
       description: '',
     })
     setAvailableBalance(null)
-    fetchAvailableBalance('Cash', '')
+    const defaultDate = new Date().toISOString().split('T')[0]
+    fetchAvailableBalance('Cash', '', defaultDate)
     payRef.current?.showModal()
   }
 
   // ─── Fetch saldo tersedia dari API ───────────────────────────────────────────
-  async function fetchAvailableBalance(method: string, bankAccountId: string) {
+  async function fetchAvailableBalance(method: string, bankAccountId: string, date?: string) {
     if (!masterAccountId) return
     setBalanceLoading(true)
     try {
       const params = new URLSearchParams({ id: masterAccountId, paymentMethod: method })
       if (bankAccountId) params.set('bankAccountId', bankAccountId)
+      if (date) params.set('date', date)
       const res = await fetch(`/api/web/finance/balance?${params}`)
       const json = await res.json()
       if (!json.error) setAvailableBalance(json.result ?? 0)
@@ -856,7 +858,11 @@ export default function Debt() {
                   className="input w-full"
                   type="date"
                   value={payFormData.payDate}
-                  onChange={e => setPayFormData(p => ({ ...p, payDate: e.target.value }))}
+                  onChange={e => {
+                    const newDate = e.target.value
+                    setPayFormData(p => ({ ...p, payDate: newDate }))
+                    fetchAvailableBalance(payFormData.paymentMethod, payFormData.bankAccountId, newDate)
+                  }}
                   required
                 />
               </fieldset>
@@ -894,7 +900,7 @@ export default function Debt() {
                       paymentMethod: val,
                       bankAccountId: newBankAccountId,
                     }))
-                    fetchAvailableBalance(val, newBankAccountId)
+                    fetchAvailableBalance(val, newBankAccountId, payFormData.payDate)
                   }}
                 >
                   <option value="Cash">Cash</option>

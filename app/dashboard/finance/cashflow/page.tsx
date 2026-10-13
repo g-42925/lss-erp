@@ -136,6 +136,31 @@ export default function CashflowReportPage() {
 
 	const [selectedTxs, setSelectedTxs] = useState<CashflowTransaction[]>([]);
 
+	// ─── Balance validation state untuk Cash Out ────────────────────────────────
+	const [cashOutBalance, setCashOutBalance] = useState<number | null>(null);
+	const [cashOutBalanceLoading, setCashOutBalanceLoading] = useState(false);
+
+	const fetchCashOutBalance = async (accountType: string, bankAccId: string, date: string) => {
+		if (!masterAccountId) return;
+		setCashOutBalanceLoading(true);
+		try {
+			const params = new URLSearchParams({
+				id: masterAccountId,
+				paymentMethod: accountType === 'bank' ? 'transfer' : 'Cash',
+			});
+			if (accountType === 'bank' && bankAccId) params.set('bankAccountId', bankAccId);
+			if (date) params.set('date', date);
+			const res = await fetch(`/api/web/finance/balance?${params}`);
+			const json = await res.json();
+			if (!json.error) setCashOutBalance(json.result ?? 0);
+			else setCashOutBalance(null);
+		} catch {
+			setCashOutBalance(null);
+		} finally {
+			setCashOutBalanceLoading(false);
+		}
+	};
+
 
 	const fetchBankAccounts = useCallback(async () => {
 		if (!masterAccountId) return;
@@ -181,14 +206,28 @@ export default function CashflowReportPage() {
 			}
 			else {
 				const txs = json.result?.transactions || [];
+				// Helper: build full datetime for proper chronological sorting.
+				// Manual Cashflow entries store time as a separate "HH:MM" string,
+				// while Invoice/Purchase entries embed time in the Date field.
+				const getFullDateTime = (t: any): number => {
+					const d = new Date(t.date);
+					if (t.time && typeof t.time === 'string') {
+						const [hh, mm] = t.time.split(':').map(Number);
+						if (!isNaN(hh) && !isNaN(mm)) {
+							d.setHours(hh, mm, 0, 0);
+						}
+					}
+					return d.getTime();
+				};
+
 				txs.sort((a: any, b: any) => {
-					const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-					if (dateDiff === 0) {
+					const diff = getFullDateTime(a) - getFullDateTime(b);
+					if (diff === 0) {
 						if (a.type === 'initial') return -1;
 						if (b.type === 'initial') return 1;
 						return 0;
 					}
-					return dateDiff;
+					return diff;
 				});
 
 				let currentBalance = 0;
@@ -313,9 +352,12 @@ export default function CashflowReportPage() {
 	function onTransactionChange(type: 'in' | 'out' | 'initial') {
 		if (type === 'out') {
 			setIsCashOut(true);
+			// Fetch balance ketika user memilih Cash Out
+			fetchCashOutBalance(modalData.accountType, modalData.bankAccountId, modalData.date);
 		}
 		else {
 			setIsCashOut(false);
+			setCashOutBalance(null);
 		}
 	}
 
@@ -1009,7 +1051,11 @@ export default function CashflowReportPage() {
 												<select
 													required={modalData.type !== 'initial'}
 													value={modalData.accountType}
-													onChange={(e) => setModalData({ ...modalData, accountType: e.target.value })}
+														onChange={(e) => {
+														const newAccountType = e.target.value;
+														setModalData({ ...modalData, accountType: newAccountType });
+														if (modalData.type === 'out') fetchCashOutBalance(newAccountType, modalData.bankAccountId, modalData.date);
+													}}
 													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 												>
 													<option value="cash">Kas Tunai</option>
@@ -1060,7 +1106,11 @@ export default function CashflowReportPage() {
 												type="date"
 												required
 												value={modalData.date}
-												onChange={(e) => setModalData({ ...modalData, date: e.target.value })}
+												onChange={(e) => {
+													const newDate = e.target.value;
+													setModalData({ ...modalData, date: newDate });
+													if (modalData.type === 'out') fetchCashOutBalance(modalData.accountType, modalData.bankAccountId, newDate);
+												}}
 												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
 											/>
 										</div>
@@ -1116,6 +1166,33 @@ export default function CashflowReportPage() {
 										)
 									)}
 
+									{/* Tampilan Saldo Tersedia (hanya untuk Cash Out) */}
+									{isCashOut && (
+										<div>
+											{cashOutBalanceLoading ? (
+												<span className="text-xs text-slate-400 flex items-center gap-1">
+													<span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+												</span>
+											) : cashOutBalance !== null ? (
+												<div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border ${
+													(Number(modalData.amount) > 0 && Number(modalData.amount) > cashOutBalance)
+														? 'bg-rose-50 border-rose-200 text-rose-700'
+														: 'bg-emerald-50 border-emerald-200 text-emerald-700'
+												}`}>
+													<svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+														<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+													</svg>
+													<span>Saldo tersedia: <strong>Rp {cashOutBalance.toLocaleString('id-ID')}</strong></span>
+												</div>
+											) : null}
+											{cashOutBalance !== null && Number(modalData.amount) > 0 && Number(modalData.amount) > cashOutBalance && (
+												<p className="text-[10px] text-rose-600 mt-1 font-medium">
+													⚠ Pengeluaran melebihi saldo tersedia pada tanggal ini
+												</p>
+											)}
+										</div>
+									)}
+
 									<div className="pt-2 flex justify-end gap-2">
 										<button
 											type="button"
@@ -1127,7 +1204,7 @@ export default function CashflowReportPage() {
 										</button>
 										<button
 											type="submit"
-											disabled={addSaving}
+											disabled={addSaving || (isCashOut && cashOutBalance !== null && Number(modalData.amount) > 0 && Number(modalData.amount) > cashOutBalance)}
 											className="px-4 py-2 rounded-lg text-xs text-white font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-600/30 disabled:opacity-60 flex items-center gap-1.5 transition-all active:scale-95"
 										>
 											{addSaving && <span className="loading loading-spinner loading-xs" />}

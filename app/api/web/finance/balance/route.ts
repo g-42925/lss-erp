@@ -10,6 +10,7 @@ import { getAvailableBalance } from "@/lib/finance/balance";
  *   - id: masterAccountId
  *   - paymentMethod: string ("Cash" | "transfer from BCA" | etc)
  *   - bankAccountId: string (optional, for bank methods)
+ *   - date: string (optional, ISO date, saldo dihitung sampai tanggal ini)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     const masterAccountId = url.searchParams.get("id");
     const paymentMethod = url.searchParams.get("paymentMethod") ?? "Cash";
     const bankAccountId = url.searchParams.get("bankAccountId") ?? undefined;
+    const asOfDate = url.searchParams.get("date") ?? undefined;
 
     if (!masterAccountId) {
       return NextResponse.json({ error: true, message: "masterAccountId diperlukan", result: null });
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: true, message: "Perusahaan tidak ditemukan", result: null });
     }
 
-    const balance = await getAvailableBalance(cmp._id, paymentMethod, bankAccountId);
+    const balance = await getAvailableBalance(cmp._id, paymentMethod, bankAccountId, asOfDate);
 
     return NextResponse.json({ error: false, message: "", result: balance });
   } catch (e: any) {
