@@ -318,7 +318,6 @@ export default function Debt() {
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
     const remaining = selectedDebt.finalPrice - selectedDebt.payAmount
-    if (newPayAmt > remaining) return alert("Jumlah bayar melebihi sisa hutang")
 
     if (availableBalance !== null && newPayAmt > availableBalance) {
       return alert(`Jumlah bayar melebihi saldo tersedia (Rp ${availableBalance.toLocaleString('id-ID')})`)
@@ -366,7 +365,6 @@ export default function Debt() {
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
     const rem = (selectedDebt.totalVendorAmount ?? selectedDebt.debt ?? 0) - (selectedDebt.vendorPaid ?? 0)
-    if (newPayAmt > rem) return alert("Jumlah bayar melebihi sisa hutang vendor")
 
     if (availableBalance !== null && newPayAmt > availableBalance) {
       return alert(`Jumlah bayar melebihi saldo tersedia (Rp ${availableBalance.toLocaleString('id-ID')})`)

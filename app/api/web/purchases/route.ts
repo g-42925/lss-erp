@@ -17,6 +17,7 @@ import InvItem from '@/models/InvItem'
 import InboundLog from '@/models/InboundLog'
 import Packaging from '@/models/Packaging'
 import { getAvailableBalance } from '@/lib/finance/balance'
+import Cashflow from '@/models/Cashflow'
 
 export async function PUT(request: NextRequest) {
   try {
@@ -216,11 +217,9 @@ export async function PUT(request: NextRequest) {
 
         const amt = rest.type === "adjustment" ? rest.newPayAmt - (rest.newPayAmt * 2) : rest.newPayAmt
 
-        if (rest.type === "payment" && amt > 0) {
-          // Validasi saldo tidak dilakukan di sini karena pembayaran hutang
-          // adalah mencatat transaksi yang sudah terjadi — saldo dikelola
-          // secara terpisah melalui Cashflow Report.
-        }
+        // Ambil Purchase untuk mendapatkan companyId (dipakai untuk pencatatan cashflow)
+        const purchaseForCashflow = await Purchase.findById(_id).lean() as any
+        const companyIdForCashflow = purchaseForCashflow?.companyId ?? null
 
         if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement' || rest.purchaseType === 'service') {
 
@@ -243,6 +242,22 @@ export async function PUT(request: NextRequest) {
               editable: false
             }
             )
+
+            // ─── Catat Cashflow ───────────────────────────────────────────────
+            if (companyIdForCashflow) {
+              const isCash = !rest.paymentMethod || rest.paymentMethod === 'Cash'
+              await Cashflow.create({
+                companyId: companyIdForCashflow,
+                accountType: isCash ? 'Cash' : 'Bank',
+                bankAccountId: isCash ? null : (rest.bankAccountId || null),
+                type: 'out',
+                amount: amt,
+                reference: `Pembayaran hutang${rest.to ? ' - ' + rest.to : ''} | Purchase #${_id}${reference ? ' | ' + reference : ''}`,
+                date: rest.date ? new Date(rest.date) : new Date(),
+                recordedBy: rest.userId || null,
+                to: rest.to || undefined
+              })
+            }
           }
           return NextResponse.json(
             {
@@ -277,6 +292,22 @@ export async function PUT(request: NextRequest) {
               editable: false
             }
             )
+
+            // ─── Catat Cashflow ───────────────────────────────────────────────
+            if (companyIdForCashflow) {
+              const isCash = !rest.paymentMethod || rest.paymentMethod === 'Cash'
+              await Cashflow.create({
+                companyId: companyIdForCashflow,
+                accountType: isCash ? 'Cash' : 'Bank',
+                bankAccountId: isCash ? null : (rest.bankAccountId || null),
+                type: 'out',
+                amount: amt,
+                reference: `Pembayaran hutang${rest.to ? ' - ' + rest.to : ''} | Purchase #${_id}${reference ? ' | ' + reference : ''}`,
+                date: rest.date ? new Date(rest.date) : new Date(),
+                recordedBy: rest.userId || null,
+                to: rest.to || undefined
+              })
+            }
           }
 
           return NextResponse.json(
