@@ -311,16 +311,22 @@ export async function GET(request: NextRequest) {
 
 		const netCashflow = totalIn - totalOut;
 
+		console.log("=========================================")
+		console.log(finalTransactions)
+		console.log("=========================================")
+
+		const [init] = finalTransactions.filter((t) => t.type === 'initial')
+
 		return NextResponse.json({
 			noResult: finalTransactions.length === 0,
 			message: "success",
 			result: {
 				transactions: finalTransactions,
 				summary: {
-					totalIn,
+					totalIn: totalIn + init.amount,
 					totalOut,
 					initialBalance,
-					netCashflow,
+					netCashflow: (totalIn + init.amount) - totalOut,
 					finalBalance: initialBalance + netCashflow
 				}
 			},
@@ -343,11 +349,11 @@ export async function POST(request: NextRequest) {
 		await connectToDatabase();
 		const body = await request.json();
 		const { masterAccountId, additional, ...rest } = body;
-		
+
 		if (!masterAccountId) {
 			return NextResponse.json({ error: true, message: "Missing masterAccountId" });
 		}
-		
+
 		const company = await Companie.findOne({ masterAccountId }).lean();
 		if (!company) {
 			return NextResponse.json({ error: true, message: "Company not found" });
@@ -369,13 +375,13 @@ export async function POST(request: NextRequest) {
 				});
 			}
 		}
-		
+
 		const cashflowData = {
 			companyId: company._id,
 			...rest,
 			...additional
 		};
-		
+
 		await Cashflow.create(cashflowData);
 		return NextResponse.json({ error: false, message: "success" });
 	} catch (e: any) {
@@ -389,16 +395,16 @@ export async function PUT(request: NextRequest) {
 		await connectToDatabase();
 		const body = await request.json();
 		const { id, masterAccountId, additional, ...rest } = body;
-		
+
 		if (!id) {
 			return NextResponse.json({ error: true, message: "Missing id" });
 		}
-		
+
 		const cashflowData = {
 			...rest,
 			...additional
 		};
-		
+
 		await Cashflow.findByIdAndUpdate(id, cashflowData);
 		return NextResponse.json({ error: false, message: "success" });
 	} catch (e: any) {
