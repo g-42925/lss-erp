@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { Types } from 'mongoose'
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -263,6 +265,25 @@ export async function PUT(request: NextRequest) {
             }
             )
 
+            let rf = ''
+
+            const px = await Purchase.findByIdAndUpdate(
+              _id, {
+              payAmount: rest.payAmount,
+              editable: false
+            }
+            )
+
+            console.log({ px2: px })
+
+            if (px.purchaseType == "procurement") {
+              const _px = await Purchase.findById(_id)
+              const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
+              rf = `pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount}`
+            }
+
+            rf = px.purchaseType === "procurement" ? rf : reference
+
             // ─── Catat Cashflow ───────────────────────────────────────────────
             if (companyIdForCashflow) {
               const isCash = !rest.paymentMethod || rest.paymentMethod === 'Cash'
@@ -272,11 +293,12 @@ export async function PUT(request: NextRequest) {
                 bankAccountId: isCash ? null : (rest.bankAccountId || null),
                 type: 'out',
                 amount: amt,
-                reference: `Pembayaran hutang${rest.to ? ' - ' + rest.to : ''} | Purchase #${_id}${reference ? ' | ' + reference : ''}`,
+                reference: rf,
                 date: rest.date ? new Date(rest.date) : new Date(),
                 recordedBy: rest.userId || null,
                 to: rest.to || undefined,
-                source: 'purchase_payment'
+                source: 'purchase_payment',
+                time: rest.time
               })
             }
           }
@@ -299,7 +321,8 @@ export async function PUT(request: NextRequest) {
             date: rest.date || new Date(),
             amount: amt,
             initial: false,
-            paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
+            paymentNumber: `PL- ${String(Date.now()).slice(-5)
+              } `,
             type: rest.type,
             reference: bankInfo3.reference || reference,
             paymentMethod: rest.paymentMethod,
@@ -309,12 +332,25 @@ export async function PUT(request: NextRequest) {
           })
 
           if (rest.type === "payment") {
-            await Purchase.findByIdAndUpdate(
+            let rf = ''
+
+            const px = await Purchase.findByIdAndUpdate(
               _id, {
               payAmount: rest.payAmount,
               editable: false
             }
             )
+
+            console.log({ px1: px })
+
+            if (px.purchaseType == "procurement") {
+              const _px = await Purchase.findById(_id)
+              console.log("=======================")
+              const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
+              rf = `pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount} `
+            }
+
+            rf = px.purchaseType === "procurement" ? rf : reference
 
             // ─── Catat Cashflow ───────────────────────────────────────────────
             if (companyIdForCashflow) {
@@ -325,11 +361,12 @@ export async function PUT(request: NextRequest) {
                 bankAccountId: isCash ? null : (rest.bankAccountId || null),
                 type: 'out',
                 amount: amt,
-                reference: `Pembayaran hutang${rest.to ? ' - ' + rest.to : ''} | Purchase #${_id}${reference ? ' | ' + reference : ''}`,
+                reference: rf,
                 date: rest.date ? new Date(rest.date) : new Date(),
                 recordedBy: rest.userId || null,
                 to: rest.to || undefined,
-                source: 'purchase_payment'
+                source: 'purchase_payment',
+                time: rest.time
               })
             }
           }
@@ -355,7 +392,7 @@ export async function PUT(request: NextRequest) {
             const txDate = rest.date || new Date().toISOString();
             const balance = await getAvailableBalance(prForBal.companyId, rest.paymentMethod, rest.bankAccountId, txDate);
             if (balance < rest.payAmount) {
-              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi. Saldo tersedia pada tanggal tersebut: Rp ${balance.toLocaleString('id-ID')}`, result: null, error: true });
+              return NextResponse.json({ noResult: true, message: `Saldo tidak mencukupi.Saldo tersedia pada tanggal tersebut: Rp ${balance.toLocaleString('id-ID')} `, result: null, error: true });
             }
           }
         }
@@ -366,7 +403,7 @@ export async function PUT(request: NextRequest) {
           date: rest.date || new Date(),
           amount: rest.payAmount,
           initial: true,
-          paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
+          paymentNumber: `PL - ${String(Date.now()).slice(-5)} `,
           type: 'payment',
           paymentMethod: rest.paymentMethod,
           createdBy: rest.userId,
@@ -473,34 +510,35 @@ export async function PUT(request: NextRequest) {
         await Purchase.findByIdAndUpdate(_id, {
           $inc: { receivedQty: received }
         });
-        
+
         if (rest.saveAs === 'asset') {
           // Create Asset records (1 per received qty since qty field was removed)
           const companyId = purchase.companyId;
 
           if (companyId) {
-             const invItem = await InvItem.findById(purchase.productId);
-             const assetPromises = [];
-             for (let i = 0; i < received; i++) {
-               assetPromises.push(Asset.create({
-                 name: invItem?.name || "Received Asset",
-                 category: rest.assetCategoryId,
-                 addedAt: new Date(),
-                 condition: "good",
-                 status: "active",
-                 desc: "Received from PO: " + purchase.purchaseOrderNumber,
-                 companyId: companyId
-               }));
-             }
-             await Promise.all(assetPromises);
+            const invItem = await InvItem.findById(purchase.productId);
+            const assetPromises = [];
+            for (let i = 0; i < received; i++) {
+              assetPromises.push(Asset.create({
+                name: invItem?.name || "Received Asset",
+                category: rest.assetCategoryId,
+                addedAt: new Date(),
+                condition: "good",
+                status: "active",
+                desc: "Received from PO: " + purchase.purchaseOrderNumber,
+                companyId: companyId
+              }));
+            }
+            await Promise.all(assetPromises);
           }
-        } else {
+        }
+        else {
           // Save as inventory
           await InvItem.findByIdAndUpdate(purchase.productId, {
             $inc: { currentStock: received }
           });
         }
-        
+
         return NextResponse.json({
           noResult: false,
           message: "",
@@ -528,7 +566,7 @@ export async function PUT(request: NextRequest) {
         const batchCreated = await Batche.create({
           ...rest,
           status: 'QUARANTINE',
-          batchNumber: `B-${String(Date.now()).slice(-5)}`,
+          batchNumber: `B - ${String(Date.now()).slice(-5)} `,
           accumulative: config.ratio * rest.qty,
           reserved: 0,
           locationId: resolvedLocationId,
@@ -549,51 +587,51 @@ export async function PUT(request: NextRequest) {
       }
       else {
         // ─── No Measurement config: handle conversionType "value" or packaging ───
-      const product = await Product.findById(purchase.productId)
-      const warehouse = await Warehouse.findById(rest.warehouseId)
+        const product = await Product.findById(purchase.productId)
+        const warehouse = await Warehouse.findById(rest.warehouseId)
 
-      // stockValue update deferred to QC approval
+        // stockValue update deferred to QC approval
 
-      let resolvedLocationId = warehouse?.locationId || rest.locationId;
-      if (!resolvedLocationId) {
-        const defaultLoc = await Location.findOne();
-        resolvedLocationId = defaultLoc?._id;
-      }
-
-      // Determine accumulative qty based on conversionType
-      let accumulativeQty = parseInt(rest.qty)
-
-      if (product.conversionType === 'value' && product.conversionValue) {
-        // conversionValue: 1 unit of conversionRatioX = conversionValue units of conversionRatioY
-        accumulativeQty = product.conversionValue * parseInt(rest.qty)
-      } else if (product.packagingId) {
-        // Packaging: 1 pack = packaging.qty units
-        const packaging = await Packaging.findById(product.packagingId)
-        if (packaging && packaging.qty) {
-          accumulativeQty = packaging.qty * parseInt(rest.qty)
+        let resolvedLocationId = warehouse?.locationId || rest.locationId;
+        if (!resolvedLocationId) {
+          const defaultLoc = await Location.findOne();
+          resolvedLocationId = defaultLoc?._id;
         }
-      }
 
-      const batchCreated = await Batche.create({
-        ...rest,
-        status: 'QUARANTINE',
-        batchNumber: `B-${String(Date.now()).slice(-5)}`,
-        accumulative: accumulativeQty,
-        reserved: 0,
-        locationId: resolvedLocationId,
-        createdAt: new Date()
-      }) as any
+        // Determine accumulative qty based on conversionType
+        let accumulativeQty = parseInt(rest.qty)
 
-      console.log(rest)
+        if (product.conversionType === 'value' && product.conversionValue) {
+          // conversionValue: 1 unit of conversionRatioX = conversionValue units of conversionRatioY
+          accumulativeQty = product.conversionValue * parseInt(rest.qty)
+        }
+        else if (product.packagingId) {
+          // Packaging: 1 pack = packaging.qty units
+          const packaging = await Packaging.findById(product.packagingId)
+          if (packaging && packaging.qty) {
+            accumulativeQty = packaging.qty * parseInt(rest.qty)
+          }
+        }
 
-      await InboundLog.create({
-        warehouseId: rest.warehouseId,
-        productId: purchase.productId,
-        date: new Date(),
-        quantity: accumulativeQty,
-        sourceId: batchCreated._id,
-        sourceType: 'PURCHASE'
-      })
+        const batchCreated = await Batche.create({
+          ...rest,
+          status: 'QUARANTINE',
+          batchNumber: `B - ${String(Date.now()).slice(-5)} `,
+          accumulative: accumulativeQty,
+          reserved: 0,
+          locationId: resolvedLocationId,
+          createdAt: new Date()
+        }) as any
+
+
+        await InboundLog.create({
+          warehouseId: rest.warehouseId,
+          productId: purchase.productId,
+          date: new Date(),
+          quantity: accumulativeQty,
+          sourceId: batchCreated._id,
+          sourceType: 'PURCHASE'
+        })
 
         console.log(rest)
       }
@@ -652,7 +690,7 @@ export async function POST(request: NextRequest) {
       companyId: company._id,
       editable: true,
       receivedQty: 0,
-      purchaseOrderNumber: `PO-${String(Date.now()).slice(-5)}`
+      purchaseOrderNumber: `PO - ${String(Date.now()).slice(-5)} `
     })
 
     const requested = (result as any)._doc

@@ -52,7 +52,8 @@ export default function Debt() {
     payAmount: 0 as number | string,
     paymentMethod: 'Cash',
     bankAccountId: '',
-    payDate: new Date().toISOString().split('T')[0],
+    payDate: getLocalDateTime().date,
+    payTime: getLocalDateTime().time,
     description: '',
   })
   const [availableBalance, setAvailableBalance] = useState<number | null>(null)
@@ -132,17 +133,20 @@ export default function Debt() {
 
   // ─── Open Pay Modal ──────────────────────────────────────────────────────────
   function openPay(debt: any) {
+    const { date, time } = getLocalDateTime()
+
     setSelectedDebt(debt)
     setPayFormData({
-      payAmount: "",
+      payAmount: '',
       paymentMethod: 'Cash',
       bankAccountId: '',
-      payDate: new Date().toISOString().split('T')[0],
+      payDate: date,
+      payTime: time,
       description: '',
     })
+
     setAvailableBalance(null)
-    const defaultDate = new Date().toISOString().split('T')[0]
-    fetchAvailableBalance('Cash', '', defaultDate)
+    fetchAvailableBalance('Cash', '', date)
     payRef.current?.showModal()
   }
 
@@ -310,18 +314,28 @@ export default function Debt() {
     }
   }
 
-  // ─── Pay: barang or jasa (via Purchase) ─────────────────────────────────────
+
   async function payPurchase() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, bankAccountId, payDate, description } = payFormData
+
+    const { payAmount, paymentMethod, bankAccountId, payDate, payTime, description } = payFormData
     const newPayAmt = Number(payAmount)
+
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
-    const remaining = selectedDebt.finalPrice - selectedDebt.payAmount
+    if (filterType === 'barang' && (!payDate || !payTime)) {
+      return alert("Tanggal dan jam pembayaran wajib diisi")
+    }
 
     if (availableBalance !== null && newPayAmt > availableBalance) {
       return alert(`Jumlah bayar melebihi saldo tersedia (Rp ${availableBalance.toLocaleString('id-ID')})`)
     }
+
+    const paymentDate = filterType === 'barang'
+      ? new Date(`${payDate}T${payTime}:00`).toISOString()
+      : payDate
+        ? new Date(payDate).toISOString()
+        : new Date().toISOString()
 
     const payload = JSON.stringify({
       _id: selectedDebt._id,
@@ -333,19 +347,20 @@ export default function Debt() {
       purchaseType: selectedDebt.purchaseType,
       paymentMethod,
       bankAccountId: paymentMethod === 'Cash' ? null : bankAccountId,
-      date: payDate ? new Date(payDate).toISOString() : new Date().toISOString(),
+      date: paymentDate,
       userId,
       to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || ''
     })
 
-
     setPaySubmitting(true)
+
     try {
       const res = await fetch('/api/web/purchases', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: payload
       })
+
       const json = await res.json()
       if (json.error) return alert(json.message)
 
@@ -357,6 +372,56 @@ export default function Debt() {
       setPaySubmitting(false)
     }
   }
+
+
+  // ─── Pay: barang or jasa (via Purchase) ─────────────────────────────────────
+  // async function payPurchase() {
+  //   if (!selectedDebt) return
+  //   const { payAmount, paymentMethod, bankAccountId, payDate, description } = payFormData
+  //   const newPayAmt = Number(payAmount)
+  //   if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
+
+  //   const remaining = selectedDebt.finalPrice - selectedDebt.payAmount
+
+  //   if (availableBalance !== null && newPayAmt > availableBalance) {
+  //     return alert(`Jumlah bayar melebihi saldo tersedia (Rp ${availableBalance.toLocaleString('id-ID')})`)
+  //   }
+
+  //   const payload = JSON.stringify({
+  //     _id: selectedDebt._id,
+  //     type: "payment",
+  //     newPayAmt,
+  //     payAmount: selectedDebt.payAmount + newPayAmt,
+  //     status: '___approved',
+  //     reference: description || null,
+  //     purchaseType: selectedDebt.purchaseType,
+  //     paymentMethod,
+  //     bankAccountId: paymentMethod === 'Cash' ? null : bankAccountId,
+  //     date: payDate ? new Date(payDate).toISOString() : new Date().toISOString(),
+  //     userId,
+  //     to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || ''
+  //   })
+
+  //   setPaySubmitting(true)
+  //   try {
+  //     const res = await fetch('/api/web/purchases', {
+  //       method: 'PUT',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: payload
+  //     })
+  //     const json = await res.json()
+  //     if (json.error) return alert(json.message)
+
+  //     fetchDebts()
+  //     payRef.current?.close()
+  //   }
+  //   catch (e: any) {
+  //     alert(e.message)
+  //   }
+  //   finally {
+  //     setPaySubmitting(false)
+  //   }
+  // }
 
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
   async function payVendorDebt() {
@@ -633,6 +698,16 @@ export default function Debt() {
     { key: 'vendor', label: '🤝 Hutang Vendor' },
   ]
 
+  function getLocalDateTime() {
+    const now = new Date()
+    const pad = (value: number) => String(value).padStart(2, '0')
+
+    return {
+      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    }
+  }
+
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
@@ -901,6 +976,22 @@ export default function Debt() {
                     }}
                     className="input w-full"
                     placeholder="Contoh: 150000"
+                  />
+                </fieldset>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Jam Pembayaran</legend>
+                  <input
+                    className="input w-full"
+                    type="time"
+                    value={payFormData.payTime}
+                    onChange={e =>
+                      setPayFormData(p => ({
+                        ...p,
+                        payTime: e.target.value
+                      }))
+                    }
+                    required
                   />
                 </fieldset>
 
