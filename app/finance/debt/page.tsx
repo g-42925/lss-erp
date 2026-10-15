@@ -313,7 +313,7 @@ export default function Debt() {
   // ─── Pay: barang or jasa (via Purchase) ─────────────────────────────────────
   async function payPurchase() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, payDate, description } = payFormData
+    const { payAmount, paymentMethod, bankAccountId, payDate, description } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
@@ -332,6 +332,7 @@ export default function Debt() {
       reference: description || null,
       purchaseType: selectedDebt.purchaseType,
       paymentMethod,
+      bankAccountId: paymentMethod === 'Cash' ? null : bankAccountId,
       date: payDate ? new Date(payDate).toISOString() : new Date().toISOString(),
       userId,
       to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || ''
@@ -801,6 +802,8 @@ export default function Debt() {
                                   <button
                                     className="btn btn-xs btn-primary"
                                     onClick={() => openPay(d)}
+                                    disabled={filterType === 'barang' && d.status !== 'approved'}
+                                    title={filterType === 'barang' && d.status !== 'approved' ? `Pembayaran hanya bisa dilakukan saat status "approved" (status saat ini: ${d.status ?? '-'})` : undefined}
                                   >
                                     Bayar
                                   </button>

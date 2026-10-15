@@ -73,6 +73,11 @@ const logSchema = new mongoose.Schema({
   bankVoucherId: {
     type: mongoose.Schema.Types.ObjectId,
     required: false
+  },
+  bankAccountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BankAccount',
+    required: false
   }
 });
 

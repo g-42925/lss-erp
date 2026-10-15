@@ -201,31 +201,58 @@ export async function GET(request: NextRequest) {
 		const purchaseIds = purchases.map((p) => p._id);
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const logQuery: any = { purchaseId: { $in: purchaseIds }, amount: { $gt: 0 } };
+		const logQuery: any = {
+			purchaseId: { $in: purchaseIds },
+			amount: { $gt: 0 },
+			// Hanya tampilkan Log pembayaran pertama (saat PO dibuat).
+			// Pembayaran hutang lanjutan (initial: false) sudah tercatat di
+			// Cashflow collection sehingga tidak perlu ditampilkan dari Log agar tidak double.
+			initial: true
+		};
 		if (Object.keys(dateFilter).length > 0) logQuery.date = dateFilter;
+
+		// Filter log berdasarkan mode (cash/bank) dan bankAccountId jika ada
+		if (mode === 'cash') {
+			// Cash: paymentMethod adalah 'Cash' atau 'Tunai'
+			logQuery.paymentMethod = { $regex: /^(cash|tunai)$/i };
+		} else {
+			// Bank: punya bankAccountId (data baru), atau paymentMethod bukan Cash (data lama)
+			if (bankAccountId) {
+				logQuery.$or = [
+					{ bankAccountId: new mongoose.Types.ObjectId(bankAccountId) },
+					// Fallback data lama: belum ada bankAccountId, cocokkan dari paymentMethod
+					{
+						bankAccountId: { $exists: false },
+						paymentMethod: targetAccountNumber
+							? { $regex: targetAccountNumber }
+							: { $not: /^(cash|tunai)$/i }
+					}
+				];
+			} else {
+				// Semua bank: punya bankAccountId ATAU paymentMethod bukan Cash
+				logQuery.$or = [
+					{ bankAccountId: { $exists: true, $ne: null } },
+					{ bankAccountId: { $in: [null, undefined] }, paymentMethod: { $not: /^(cash|tunai)$/i } }
+				];
+			}
+		}
 
 		const logs = await Log.find(logQuery).lean();
 		const purchaseMap = new Map(purchases.map(p => [p._id.toString(), p.purchaseOrderNumber]));
 
+		// Semua log sudah difilter di query, langsung push ke allTransactions
 		logs.forEach((log) => {
-			const pMethod = log.paymentMethod || '';
-			const include = mode === 'cash'
-				? isCashMethod(pMethod)
-				: isBankMethod(pMethod, targetAccountNumber);
-
-			if (include) {
-				const poNumber = purchaseMap.get(log.purchaseId.toString());
-				allTransactions.push({
-					_id: log._id.toString(),
-					date: log.date,
-					amount: log.type === 'adjustment' ? log.amount : Math.abs(log.amount),
-					method: log.paymentMethod,
-					reference: (log.paymentNumber || '') + (poNumber ? ` (${poNumber})` : ''),
-					source: 'Purchase Payment',
-					type: 'out',
-					to: log.to?.name
-				});
-			}
+			const poNumber = purchaseMap.get(log.purchaseId.toString());
+			allTransactions.push({
+				_id: log._id.toString(),
+				date: log.date,
+				amount: log.type === 'adjustment' ? log.amount : Math.abs(log.amount),
+				method: log.paymentMethod,
+				reference: (log.paymentNumber || '') + (poNumber ? ` (${poNumber})` : ''),
+				source: 'Log',
+				type: 'out',
+				to: log.to?.name
+			});
 		});
 
 		// 3. Fetch Manual Cashflow Logs
@@ -261,7 +288,7 @@ export async function GET(request: NextRequest) {
 				amount: entry.amount,
 				method: methodName,
 				reference: entry.reference,
-				source: 'Manual Entry',
+				source: (entry as any).source === 'purchase_payment' ? 'Purchase Payment' : 'Manual Entry',
 				type: entry.type,
 				from: entry.from,
 				to: entry.to,
@@ -270,6 +297,7 @@ export async function GET(request: NextRequest) {
 				cashVoucherNumber: entry.cashVoucherId ? (entry.cashVoucherId as any).voucherNumber : null,
 				bankVoucherId: entry.bankVoucherId ? (entry.bankVoucherId as any)._id : null,
 				bankVoucherNumber: entry.bankVoucherId ? (entry.bankVoucherId as any).voucherNumber : null,
+				bankAccountId: entry.bankAccountId?._id
 			});
 		});
 
@@ -343,6 +371,8 @@ export async function GET(request: NextRequest) {
 		});
 	}
 }
+
+
 
 export async function POST(request: NextRequest) {
 	try {

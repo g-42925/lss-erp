@@ -16,8 +16,23 @@ import Location from '@/models/Location'
 import InvItem from '@/models/InvItem'
 import InboundLog from '@/models/InboundLog'
 import Packaging from '@/models/Packaging'
+import BankAccount from '@/models/BankAccount'
 import { getAvailableBalance } from '@/lib/finance/balance'
 import Cashflow from '@/models/Cashflow'
+
+// Helper: ambil data bank untuk Log (reference: "BANK-NOMORREKENING", bankAccountId sebagai ObjectId)
+async function getBankInfo(paymentMethod: string | undefined | null, bankAccountId: string | undefined | null)
+  : Promise<{ reference: string | undefined, bankAccountId: any }> {
+  if (!paymentMethod || paymentMethod === 'Cash' || !bankAccountId) {
+    return { reference: undefined, bankAccountId: undefined }
+  }
+  const bankAcc = await BankAccount.findById(bankAccountId).lean() as any
+  if (!bankAcc) return { reference: undefined, bankAccountId: undefined }
+  return {
+    reference: `${bankAcc.bank}-${bankAcc.accountNumber}`,
+    bankAccountId: bankAcc._id
+  }
+}
 
 export async function PUT(request: NextRequest) {
   try {
@@ -78,6 +93,7 @@ export async function PUT(request: NextRequest) {
           await Purchase.findByIdAndUpdate(_id, updateData);
 
           if (rest.payAmount && rest.payAmount > 0) {
+            const bankInfo1 = await getBankInfo(rest.paymentMethod, rest.bankAccountId)
             await Log.create({
               purchaseId: _id,
               date: new Date(),
@@ -87,6 +103,8 @@ export async function PUT(request: NextRequest) {
               type: 'payment',
               paymentMethod: rest.paymentMethod || 'Cash',
               createdBy: rest.userId,
+              reference: bankInfo1.reference,
+              bankAccountId: bankInfo1.bankAccountId,
             });
           }
           return NextResponse.json({ noResult: false, message: "PO created", result: true, error: false });
@@ -223,6 +241,7 @@ export async function PUT(request: NextRequest) {
 
         if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement' || rest.purchaseType === 'service') {
 
+          const bankInfo2 = await getBankInfo(rest.paymentMethod, rest.bankAccountId)
           await Log.create({
             purchaseId: _id,
             date: rest.date || new Date(),
@@ -230,9 +249,10 @@ export async function PUT(request: NextRequest) {
             initial: false,
             paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
             type: rest.type,
-            reference,
+            reference: bankInfo2.reference || reference,
             paymentMethod: rest.paymentMethod,
             createdBy: rest.userId,
+            bankAccountId: bankInfo2.bankAccountId,
           })
 
           if (rest.type === "payment") {
@@ -255,7 +275,8 @@ export async function PUT(request: NextRequest) {
                 reference: `Pembayaran hutang${rest.to ? ' - ' + rest.to : ''} | Purchase #${_id}${reference ? ' | ' + reference : ''}`,
                 date: rest.date ? new Date(rest.date) : new Date(),
                 recordedBy: rest.userId || null,
-                to: rest.to || undefined
+                to: rest.to || undefined,
+                source: 'purchase_payment'
               })
             }
           }
@@ -272,6 +293,7 @@ export async function PUT(request: NextRequest) {
 
           // code type x2
 
+          const bankInfo3 = await getBankInfo(rest.paymentMethod, rest.bankAccountId)
           await Log.create({
             purchaseId: _id,
             date: rest.date || new Date(),
@@ -279,10 +301,11 @@ export async function PUT(request: NextRequest) {
             initial: false,
             paymentNumber: `PL-${String(Date.now()).slice(-5)}`,
             type: rest.type,
-            reference,
+            reference: bankInfo3.reference || reference,
             paymentMethod: rest.paymentMethod,
             createdBy: rest.userId,
-            to: { name: rest.to }
+            to: { name: rest.to },
+            bankAccountId: bankInfo3.bankAccountId,
           })
 
           if (rest.type === "payment") {
@@ -305,7 +328,8 @@ export async function PUT(request: NextRequest) {
                 reference: `Pembayaran hutang${rest.to ? ' - ' + rest.to : ''} | Purchase #${_id}${reference ? ' | ' + reference : ''}`,
                 date: rest.date ? new Date(rest.date) : new Date(),
                 recordedBy: rest.userId || null,
-                to: rest.to || undefined
+                to: rest.to || undefined,
+                source: 'purchase_payment'
               })
             }
           }
@@ -336,6 +360,7 @@ export async function PUT(request: NextRequest) {
           }
         }
 
+        const bankInfo4 = await getBankInfo(rest.paymentMethod, rest.bankAccountId)
         await Log.create({
           purchaseId: _id,
           date: rest.date || new Date(),
@@ -345,6 +370,8 @@ export async function PUT(request: NextRequest) {
           type: 'payment',
           paymentMethod: rest.paymentMethod,
           createdBy: rest.userId,
+          reference: bankInfo4.reference,
+          bankAccountId: bankInfo4.bankAccountId,
         })
 
         if (rest.purchaseType === 'procurement') {

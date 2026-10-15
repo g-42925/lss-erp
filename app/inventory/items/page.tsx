@@ -267,7 +267,7 @@ export default function InvItemsPage() {
                               disabled={item.currentStock === 0}
                               className="bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
                             >
-                              Use Item
+                              Stock out
                             </button>
                           </div>
                         </td>

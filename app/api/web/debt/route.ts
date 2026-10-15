@@ -8,6 +8,7 @@ import ServiceOrder from '@/models/ServiceOrder'
 import Companie from '@/models/Companie'
 import Log from '@/models/Log'
 import Cashflow from '@/models/Cashflow'
+import BankAccount from '@/models/BankAccount'
 import "@/models/Tax"
 import { getAvailableBalance } from '@/lib/finance/balance'
 
@@ -345,6 +346,15 @@ export async function POST(request: NextRequest) {
 
     const refText = [description, voucher ? `Voucher: ${voucher}` : null].filter(Boolean).join(' - ')
 
+    // Bangun reference bank jika pembayaran melalui bank
+    let bankReference: string | undefined = undefined
+    if (!isCash && bankAccountId) {
+      const bankAcc = await BankAccount.findById(bankAccountId).lean() as any
+      if (bankAcc) {
+        bankReference = `${bankAcc.bank}-${bankAcc.accountNumber}`
+      }
+    }
+
     const logEntry = await Log.create({
       purchaseId: new mongoose.Types.ObjectId(invoiceId),
       date: payDate ? new Date(payDate) : new Date(),
@@ -354,7 +364,8 @@ export async function POST(request: NextRequest) {
       type: 'payment',
       paymentMethod: paymentMethod || 'Cash',
       createdBy: userId ? new mongoose.Types.ObjectId(userId) : undefined,
-      reference: refText || undefined
+      reference: bankReference || refText || undefined,
+      bankAccountId: !isCash && bankAccountId ? new mongoose.Types.ObjectId(bankAccountId) : undefined,
     })
 
     // ─── Catat Cashflow ──────────────────────────────────────────────────────
@@ -369,7 +380,8 @@ export async function POST(request: NextRequest) {
         reference: `Pembayaran hutang vendor - ${invoice.invoiceNumber || invoiceId}${refText ? ` | ${refText}` : ''}`,
         date: payDate ? new Date(payDate) : new Date(),
         recordedBy: userId ? new mongoose.Types.ObjectId(userId) : null,
-        to: 'Vendor'
+        to: 'Vendor',
+        source: 'purchase_payment'
       })
     }
 

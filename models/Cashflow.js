@@ -67,6 +67,12 @@ const cashflowSchema = new mongoose.Schema({
       minute: '2-digit',
       timeZone: 'Asia/Jakarta'
     })
+  },
+  source: {
+    type: String,
+    enum: ['manual', 'purchase_payment'],
+    default: 'manual',
+    required: false
   }
 
 }, { timestamps: true });

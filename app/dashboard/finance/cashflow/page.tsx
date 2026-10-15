@@ -476,6 +476,14 @@ export default function CashflowReportPage() {
 		XLSX.writeFile(workbook, `cashflow-${mode}-${new Date().toISOString().slice(0, 10)}.xlsx`);
 	}
 
+	function isDependOnBankId(ref: string | undefined, bankId: string | undefined) {
+		let bankAccountNumber = ''
+
+		if (bankId) bankAccountNumber = bankAccounts.filter(b => b._id === bankId)[0].accountNumber
+
+		return ref ? ref : bankAccountNumber
+	}
+
 	if (!hasHydrated || !loggedIn) return null;
 
 	return (
@@ -705,15 +713,16 @@ export default function CashflowReportPage() {
 													{t.to || <span className="text-slate-300">-</span>}
 												</td>
 												<td className="p-3.5 whitespace-nowrap">
-													<span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${t.source === 'Manual Entry'
-														? 'bg-amber-100 text-amber-700'
-														: 'bg-slate-100 text-slate-600'
+													<span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${t.source === 'Manual Entry' ? 'bg-amber-100 text-amber-700'
+														: t.source === 'Purchase Payment' ? 'bg-violet-100 text-violet-700'
+															: t.source === 'Log' ? 'bg-blue-100 text-blue-700'
+																: 'bg-slate-100 text-slate-600'
 														}`}>
 														{t.source}
 													</span>
 												</td>
 												<td className="p-3.5 font-medium text-slate-700">
-													{t.type === "initial" || t.type === "Manual Entry" ? t.reference.split('-')[0] : t.reference.split('-')[0]}
+													{t.type === "initial" || t.type === "Manual Entry" || t.type === "Sales Invoice" ? t.reference.split('-')[0] : t.reference.split('-')[0]}
 													{
 														/*
 													{t.source === 'Manual Entry' && (() => {
@@ -738,8 +747,7 @@ export default function CashflowReportPage() {
 													)}
 												</td>
 												<td className="p-3.5 font-medium text-slate-600 capitalize whitespace-nowrap">
-
-													{t.type === 'initial' || t.type === "Manual Entry" ? `${t.method} - ${t.reference.split('-')[1] || ''}` : `${t.method} - ${t.reference.split('-')[1] || ''}`}
+													{`${t.method} - ${isDependOnBankId(t.reference.split('-')[1], t?.bankAccountId) || ''}`}
 												</td>
 												<td className="p-3.5 whitespace-nowrap">
 													{t.type === 'in' && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">IN</span>}
@@ -1089,8 +1097,6 @@ export default function CashflowReportPage() {
 												</select>
 											</div>
 										)}
-
-
 									</div>
 
 									<div>

@@ -39,6 +39,7 @@ function Purchases() {
   const [selectedPrForTax, setSelectedPrForTax] = useState<any>(null)
   const [poAvailableBalance, setPoAvailableBalance] = useState<number | null>(null)
   const [poBalanceLoading, setPoBalanceLoading] = useState(false)
+  const [selectedPoBankAccountId, setSelectedPoBankAccountId] = useState<string | undefined>(undefined)
 
   const bankAccount = useFetch<any[], any>({
     url: "",
@@ -485,6 +486,7 @@ function Purchases() {
           : "_approved",
       purchaseType: filterType,
       userId: user,
+      bankAccountId: watchPaymentMethod !== 'Cash' ? selectedPoBankAccountId : undefined,
     })
 
     await editFn.fn("", payload, () => {
@@ -1818,6 +1820,7 @@ function Purchases() {
                       const matchedBank = bankAccount.result?.find(
                         (b: any) => `Transfer - ${b.bank}` === val
                       )
+                      setSelectedPoBankAccountId(matchedBank?._id)
                       fetchPoBalance(val, matchedBank?._id, new Date().toISOString().split('T')[0])
                     }}
                   >
