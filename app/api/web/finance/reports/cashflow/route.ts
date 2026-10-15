@@ -297,7 +297,7 @@ export async function GET(request: NextRequest) {
 				cashVoucherNumber: entry.cashVoucherId ? (entry.cashVoucherId as any).voucherNumber : null,
 				bankVoucherId: entry.bankVoucherId ? (entry.bankVoucherId as any)._id : null,
 				bankVoucherNumber: entry.bankVoucherId ? (entry.bankVoucherId as any).voucherNumber : null,
-				bankAccountId: entry.bankAccountId?._id
+				bankAccountId: entry.bankAccountId ? String((entry.bankAccountId as any)._id) : ''
 			});
 		});
 

@@ -15,6 +15,7 @@ type CashflowTransaction = {
 	reference: string;
 	source: string;
 	type: 'in' | 'out' | 'initial';
+	bankAccountId?: string;
 	to?: string;
 	from?: string;
 	balance?: number;
@@ -26,6 +27,8 @@ type CashflowTransaction = {
 	bankVoucherId?: string;
 	bankVoucherNumber?: string;
 	time?: string;
+	bankAccountId?: string;
+
 };
 
 type Summary = {
@@ -361,27 +364,50 @@ export default function CashflowReportPage() {
 		}
 	}
 
-
-
-	function openEditModal(t: any) {
-		// Determine accountType from method
+	function openEditModal(t: CashflowTransaction) {
 		const accountType = mode === 'bank' ? 'bank' : 'cash';
-		// Find bankAccountId: we look up by method name matching bank name
-		const matchedBank = bankAccounts.find(b => b.bank === t.method);
+
+		const sourceBankAccountId = t.bankAccountId
+			? String(t.bankAccountId)
+			: '';
+
 		setEditData({
 			_id: t._id,
 			type: t.type,
 			amount: String(t.amount),
-			reference: t.type === 'initial' ? t.reference.split('-')[0] : t.reference,
+			reference: t.type === 'initial'
+				? t.reference.split('-')[0]
+				: t.reference,
 			date: new Date(t.date).toISOString().split('T')[0],
 			time: t.time || getCurrentTime(),
 			accountType,
-			bankAccountId: matchedBank?._id || '',
+			bankAccountId: sourceBankAccountId,
 			from: t.from || '',
 			to: t.to || '',
 		});
+
 		setShowEditModal(true);
 	}
+
+	// function openEditModal(t: any) {
+	// 	// Determine accountType from method
+	// 	const accountType = mode === 'bank' ? 'bank' : 'cash';
+	// 	// Find bankAccountId: we look up by method name matching bank name
+	// 	const matchedBank = bankAccounts.find(b => b.bank === t.method);
+	// 	setEditData({
+	// 		_id: t._id,
+	// 		type: t.type,
+	// 		amount: String(t.amount),
+	// 		reference: t.type === 'initial' ? t.reference.split('-')[0] : t.reference,
+	// 		date: new Date(t.date).toISOString().split('T')[0],
+	// 		time: t.time || getCurrentTime(),
+	// 		accountType,
+	// 		bankAccountId: matchedBank?._id || '',
+	// 		from: t.from || '',
+	// 		to: t.to || '',
+	// 	});
+	// 	setShowEditModal(true);
+	// }
 
 	const handleEditSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -904,12 +930,20 @@ export default function CashflowReportPage() {
 													<select
 														required
 														value={editData.bankAccountId}
-														onChange={(e) => setEditData({ ...editData, bankAccountId: e.target.value })}
+														onChange={e =>
+															setEditData(prev => ({
+																...prev,
+																bankAccountId: e.target.value,
+															}))
+														}
 														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
 													>
-														<option value="">-- Pilih Bank --</option>
+														<option value="">-- Pilih Rekening --</option>
+
 														{bankAccounts.map(b => (
-															<option key={b._id} value={b._id}>{b.accountName} ({b.bank})</option>
+															<option key={b._id} value={b._id}>
+																{b.bank} — {b.accountNumber}
+															</option>
 														))}
 													</select>
 												</div>
