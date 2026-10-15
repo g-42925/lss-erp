@@ -349,7 +349,8 @@ export default function Debt() {
       bankAccountId: paymentMethod === 'Cash' ? null : bankAccountId,
       date: paymentDate,
       userId,
-      to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || ''
+      to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || '',
+      time: payTime
     })
 
     setPaySubmitting(true)
@@ -366,9 +367,11 @@ export default function Debt() {
 
       fetchDebts()
       payRef.current?.close()
-    } catch (e: any) {
+    }
+    catch (e: any) {
       alert(e.message)
-    } finally {
+    }
+    finally {
       setPaySubmitting(false)
     }
   }
@@ -426,7 +429,7 @@ export default function Debt() {
   // ─── Pay: vendor (via Invoice) ────────────────────────────────────────────────
   async function payVendorDebt() {
     if (!selectedDebt) return
-    const { payAmount, paymentMethod, bankAccountId, payDate, description } = payFormData
+    const { payAmount, paymentMethod, bankAccountId, payDate, description, payTime } = payFormData
     const newPayAmt = Number(payAmount)
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
 
@@ -450,6 +453,7 @@ export default function Debt() {
           userId,
           masterAccountId,
           description,
+          time: payTime
         })
       })
       const json = await res.json()
@@ -762,18 +766,6 @@ export default function Debt() {
               }
             </div>
           </div>
-
-          {/* Summary and Description */}
-          {
-            filterType !== 'vendor' && (
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50 p-4 rounded-lg border">
-                <p className="text-sm text-gray-500 flex-1">
-                  {filterType === 'barang' && 'Hutang yang timbul dari purchase produk/barang yang belum lunas.'}
-                  {filterType === 'jasa' && 'Hutang yang timbul dari purchase jasa (renovasi, kelistrikan, dll) yang belum lunas.'}
-                </p>
-              </div>
-            )
-          }
 
           {/* Table */}
           {
