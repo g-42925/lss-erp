@@ -856,9 +856,11 @@ export default function Debt() {
                               </td>
                             )}
                             <td>
-                              {(filterType === 'vendor'
-                                ? (d.vendorPaid ?? 0)
-                                : d.payAmount)?.toLocaleString('id-ID')}
+                              {(
+                                filterType === 'vendor'
+                                  ? (d.vendorPaid ?? 0)
+                                  : d.payAmount
+                              )}
                             </td>
                             {
                               filterType !== "vendor" ? (
@@ -873,16 +875,22 @@ export default function Debt() {
                             }
                             <td>
                               <div className="flex flex-row gap-1">
-                                {remaining(d) > 0 && canCreate('/finance/debt') && (
-                                  <button
-                                    className="btn btn-xs btn-primary"
-                                    onClick={() => openPay(d)}
-                                    disabled={filterType === 'barang' && d.status !== 'approved'}
-                                    title={filterType === 'barang' && d.status !== 'approved' ? `Pembayaran hanya bisa dilakukan saat status "approved" (status saat ini: ${d.status ?? '-'})` : undefined}
-                                  >
-                                    Bayar
-                                  </button>
-                                )}
+                                {(() => {
+                                  const canPay = d.status === 'ordered'
+
+                                  return remaining(d) > 0 && canCreate('/finance/debt') && (
+                                    <button
+                                      className="btn btn-xs btn-primary"
+                                      onClick={() => openPay(d)}
+                                      disabled={filterType === 'barang' && !canPay}
+                                      title={filterType === 'barang' && !canPay
+                                        ? 'Pembayaran hanya bisa dilakukan jika status approved dan sudah ordered'
+                                        : undefined}
+                                    >
+                                      Bayar
+                                    </button>
+                                  )
+                                })()}
                                 <button
                                   className="btn btn-xs btn-outline"
                                   onClick={() => viewLogs(d)}
@@ -978,7 +986,6 @@ export default function Debt() {
                     placeholder="Contoh: 150000"
                   />
                 </fieldset>
-
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Jam Pembayaran</legend>
                   <input

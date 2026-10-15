@@ -32,11 +32,11 @@ export async function GET(request: NextRequest) {
         companyId: cmp._id,
         purchaseType: { $in: ['product', 'procurement'] },
       }
-      if (status === 'unpaid') {
-        matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
-      } else if (status === 'paid') {
-        matchQuery.$expr = { $lte: ["$finalPrice", "$payAmount"] }
-      }
+      // if (status === 'unpaid') {
+      //   matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
+      // } else if (status === 'paid') {
+      //   matchQuery.$expr = { $lte: ["$finalPrice", "$payAmount"] }
+      // }
       if (month) {
         const [yearStr, monthStr] = month.split('-')
         const y = parseInt(yearStr), m = parseInt(monthStr)
@@ -330,7 +330,7 @@ export async function POST(request: NextRequest) {
 
     const isCash = !paymentMethod || paymentMethod === 'Cash'
     const cmp = masterAccountId ? await Companie.findOne({ masterAccountId }) : null
-    
+
     if (cmp) {
       const txDate = payDate || new Date().toISOString();
       const balance = await getAvailableBalance(cmp._id, paymentMethod, bankAccountId, txDate);
