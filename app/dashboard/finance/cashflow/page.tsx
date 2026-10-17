@@ -27,8 +27,6 @@ type CashflowTransaction = {
 	bankVoucherId?: string;
 	bankVoucherNumber?: string;
 	time?: string;
-	bankAccountId?: string;
-
 };
 
 type Summary = {
