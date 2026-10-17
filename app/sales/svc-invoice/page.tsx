@@ -326,6 +326,9 @@ export default function Invoices() {
       paymentMethod: data.paymentMethod,
       paymentDate: combinedDate
     }
+
+    //console.log(params);
+
     closeInvoiceFn.fn('', JSON.stringify(params), (res: any) => {
       getInvoicesFn.reset(
         getInvoicesFn.result?.map((inv: any) =>
@@ -907,7 +910,7 @@ export default function Invoices() {
                             >
                               <option value="Cash">Cash</option>
                               {bankAccounts.map((b: any, i: number) => (
-                                <option key={i} value={b.bank}>{b.bank} - {b.accountNumber}</option>
+                                <option key={i} value={`${b.bank} - ${b.accountNumber}`}>{b.bank} - {b.accountNumber}</option>
                               ))}
                             </select>
                           </div>

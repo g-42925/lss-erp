@@ -771,6 +771,18 @@ export default function CashflowReportPage() {
 															Voucher: {fixBySequence(t.voucherNumber, t.voucherSequence)}
 														</span>
 													)}
+
+													{t.source === 'Manual Entry' && t.voucherId && (() => {
+														const vId = t.voucherId || t.cashVoucherId || t.bankVoucherId;
+														if (!vId) return null;
+														const v = cashVouchers.find(v => v._id === vId) || bankVouchers.find(v => v._id === vId);
+														const vNumber = v ? v.voucherNumber : (t.cashVoucherNumber || t.bankVoucherNumber);
+														return vNumber ? (
+															<span className="block text-[10px] text-slate-400 font-normal">
+																Voucher: {vNumber}
+															</span>
+														) : null;
+													})()}
 												</td>
 												<td className="p-3.5 font-medium text-slate-600 capitalize whitespace-nowrap">
 													{`${t.method} - ${isDependOnBankId(t.reference.split('-')[1], t?.bankAccountId) || ''}`}
