@@ -77,16 +77,18 @@ export default function Invoices() {
 
   function submitEditPayment(data: any) {
     const isCash = data.method === 'Cash'
-    const combinedDate = data.time ? `${data.date}T${data.time}` : data.date
-    const params: any = {
+    const combinedDate = data.time
+      ? `${data.date}T${data.time}:00+07:00`
+      : `${data.date}T00:00:00+07:00`;
+
+    const params = {
       action: 'editPayment',
       _id: selectedInvoice._id,
       paymentHistoryId: editingPaymentId,
       newAmount: Number(data.amount),
       newDate: combinedDate,
       newMethod: data.method
-    }
-
+    };
     closeInvoiceFn.fn('', JSON.stringify(params), (res) => {
       const updatedInvoice = res;
       getInvoicesFn.reset(
@@ -481,6 +483,27 @@ export default function Invoices() {
 
   function fDate(date: Date) {
     return new Date(date).toLocaleDateString('id-ID')
+  }
+
+  function formatIndonesiaDateTime(value: string | Date) {
+    const date = new Date(value);
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    }).formatToParts(date);
+
+    const p = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+
+    return {
+      date: `${p.year}-${p.month}-${p.day}`,
+      time: `${p.hour}:${p.minute}`
+    };
   }
 
 
@@ -932,11 +955,13 @@ export default function Invoices() {
                               setEditingPaymentId(ph._id);
                               const method = ph.method || 'Cash';
                               const phDate = new Date(ph.date);
+                              const { date, time } = formatIndonesiaDateTime(ph.date);
+
                               editPaymentForm.reset({
                                 amount: ph.amount,
-                                date: `${phDate.getFullYear()}-${String(phDate.getMonth() + 1).padStart(2, '0')}-${String(phDate.getDate()).padStart(2, '0')}`,
-                                time: `${String(phDate.getHours()).padStart(2, '0')}:${String(phDate.getMinutes()).padStart(2, '0')}`,
-                                method
+                                date,
+                                time,
+                                method: ph.method || 'Cash'
                               });
                             }}
                           >
