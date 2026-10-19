@@ -254,6 +254,9 @@ export default function VoucherBankPage() {
   const [refSearch, setRefSearch] = useState("");
   const [form, setForm] = useState<VoucherForm>(emptyForm);
 
+  // Realization modal
+  const [realizationVoucher, setRealizationVoucher] = useState<VoucherBank | null>(null);
+
   const selectedBankAccount = useMemo(
     () => bankAccounts.find((account) => account._id === form.companyBankAccountId) ?? null,
     [bankAccounts, form.companyBankAccountId]
@@ -671,6 +674,7 @@ export default function VoucherBankPage() {
         deletingId={deletingId}
         onEdit={openEdit}
         onDelete={handleDelete}
+        onViewRealization={setRealizationVoucher}
       />
 
       {modalMode && (
@@ -703,6 +707,168 @@ export default function VoucherBankPage() {
           onUpdateSignature={updateSignature}
           onSave={handleSave}
         />
+      )}
+
+      {/* ═══════════════════════════════════════
+          REALIZATION MODAL
+      ═══════════════════════════════════════ */}
+
+      {realizationVoucher && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-3 sm:p-5"
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setRealizationVoucher(null);
+          }}
+        >
+          <div className="flex max-h-[80vh] w-full max-w-[800px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            {/* Header */}
+            <div className="shrink-0 px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    🔗 Relasi Voucher
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    <span className="font-mono font-semibold text-gray-700">
+                      {realizationVoucher.voucherNumber}
+                    </span>
+                    {" · "}
+                    {realizationVoucher.contactName}
+                    {" · "}
+                    {fmtDate(realizationVoucher.date)}
+                  </p>
+                </div>
+
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => setRealizationVoucher(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {(!realizationVoucher.items || realizationVoucher.items.length === 0) ? (
+                <div className="text-center py-10 text-gray-400">
+                  <div className="text-4xl mb-2 opacity-40">📭</div>
+                  <p>Voucher ini belum memiliki relasi item.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {realizationVoucher.items.map((item, idx) => {
+                    const refLabel =
+                      item.refModel === "Invoice" ? "📄 Invoice" :
+                      item.refModel === "Cashflow" ? "🏦 Cashflow" :
+                      item.refModel === "Purchase" ? "🛒 Purchase" :
+                      item.refModel === "Debt" ? "🤝 Hutang Vendor" :
+                      "📝 Manual";
+
+                    const hasRef = !!item.refModel;
+
+                    return (
+                      <div
+                        key={`${item.refId ?? item.paymentHistoryId ?? "manual"}-${idx}`}
+                        className={`
+                          rounded-lg border p-4
+                          ${hasRef
+                            ? "border-blue-200 bg-blue-50/50"
+                            : "border-gray-200 bg-gray-50/50"
+                          }
+                        `}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`
+                                badge badge-sm
+                                ${item.refModel === "Invoice" ? "badge-primary" :
+                                  item.refModel === "Cashflow" ? "badge-info" :
+                                  item.refModel === "Purchase" ? "badge-warning" :
+                                  item.refModel === "Debt" ? "badge-error" :
+                                  "badge-ghost"
+                                }
+                              `}>
+                                {refLabel}
+                              </span>
+
+                              <span className="text-xs text-gray-400">
+                                #{idx + 1}
+                              </span>
+                            </div>
+
+                            <p className="font-medium text-gray-800 text-sm">
+                              {item.description || "(Tanpa keterangan)"}
+                            </p>
+
+                            {item.customerName && (
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                👤 {item.customerName}
+                              </p>
+                            )}
+
+                            {item.refId && (
+                              <p className="text-xs text-gray-400 mt-0.5 font-mono">
+                                Ref ID: {item.refId}
+                              </p>
+                            )}
+
+                            {item.paymentHistoryId && (
+                              <p className="text-xs text-gray-400 font-mono">
+                                Payment ID: {item.paymentHistoryId}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="font-bold text-gray-800">
+                              Rp {IDR(item.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t bg-gray-50 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">Total Relasi</p>
+                  <p className="text-lg font-bold text-gray-800">
+                    Rp {IDR(
+                      realizationVoucher.items?.reduce(
+                        (sum, item) => sum + (Number(item.amount) || 0),
+                        0
+                      ) ?? 0
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">
+                    {realizationVoucher.items?.filter(i => i.refModel).length ?? 0} relasi
+                    {" · "}
+                    {realizationVoucher.items?.filter(i => !i.refModel).length ?? 0} manual
+                  </span>
+
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => setRealizationVoucher(null)}
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -790,6 +956,7 @@ function VoucherTable({
   deletingId,
   onEdit,
   onDelete,
+  onViewRealization,
 }: {
   loading: boolean;
   vouchers: VoucherBank[];
@@ -799,6 +966,7 @@ function VoucherTable({
   deletingId: string | null;
   onEdit: (voucher: VoucherBank) => void;
   onDelete: (id: string) => void;
+  onViewRealization: (voucher: VoucherBank) => void;
 }) {
   if (loading) {
     return (
@@ -857,6 +1025,7 @@ function VoucherTable({
                 deleting={deletingId === voucher._id}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onViewRealization={onViewRealization}
               />
             ))}
           </tbody>
@@ -873,6 +1042,7 @@ function VoucherRow({
   deleting,
   onEdit,
   onDelete,
+  onViewRealization,
 }: {
   voucher: VoucherBank;
   index: number;
@@ -880,6 +1050,7 @@ function VoucherRow({
   deleting: boolean;
   onEdit: (voucher: VoucherBank) => void;
   onDelete: (id: string) => void;
+  onViewRealization: (voucher: VoucherBank) => void;
 }) {
   const total = voucher.items?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) ?? 0;
 
@@ -899,6 +1070,13 @@ function VoucherRow({
       <td className="text-right font-medium">{IDR(total)}</td>
       <td>
         <div className="flex justify-center gap-1">
+          <button
+            className="btn btn-xs btn-outline btn-info"
+            onClick={() => onViewRealization(voucher)}
+            title="Lihat Relasi"
+          >
+            🔗
+          </button>
           <button
             className="btn btn-xs btn-outline"
             onClick={() => window.open(`/finance/voucher/bank/print/${voucher._id}`, "_blank")}

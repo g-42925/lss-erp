@@ -156,6 +156,10 @@ export default function VoucherCashPage() {
   const [deletingId, setDeletingId] =
     useState<string | null>(null);
 
+  // Realization modal
+  const [realizationVoucher, setRealizationVoucher] =
+    useState<VoucherCash | null>(null);
+
   // Form
   const [form, setForm] = useState({
     voucherNumber: "",
@@ -897,6 +901,16 @@ export default function VoucherCashPage() {
 
                     <td>
                       <div className="flex gap-1 justify-center">
+                        <button
+                          className="btn btn-xs btn-outline btn-info"
+                          onClick={() =>
+                            setRealizationVoucher(voucher)
+                          }
+                          title="Lihat Relasi"
+                        >
+                          🔗
+                        </button>
+
                         <button
                           className="btn btn-xs btn-outline"
                           onClick={() =>
@@ -1960,6 +1974,180 @@ export default function VoucherCashPage() {
                     {modalMode === "create"
                       ? "Simpan Voucher"
                       : "Perbarui Voucher"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════
+          REALIZATION MODAL
+      ═══════════════════════════════════════ */}
+
+      {realizationVoucher && (
+        <div className="modal modal-open z-[1000]">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setRealizationVoucher(null)}
+          />
+
+          <div
+            className="
+              relative
+              z-10
+              flex
+              flex-col
+              w-[95vw]
+              max-w-[800px]
+              max-h-[80vh]
+              bg-white
+              rounded-2xl
+              shadow-2xl
+              overflow-hidden
+            "
+          >
+            {/* Header */}
+            <div className="shrink-0 px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    🔗 Relasi Voucher
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    <span className="font-mono font-semibold text-gray-700">
+                      {realizationVoucher.voucherNumber}
+                    </span>
+                    {" · "}
+                    {realizationVoucher.contactName}
+                    {" · "}
+                    {fmtDate(realizationVoucher.date)}
+                  </p>
+                </div>
+
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => setRealizationVoucher(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {(!realizationVoucher.items || realizationVoucher.items.length === 0) ? (
+                <div className="text-center py-10 text-gray-400">
+                  <div className="text-4xl mb-2 opacity-40">📭</div>
+                  <p>Voucher ini belum memiliki relasi item.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {realizationVoucher.items.map((item, idx) => {
+                    const refLabel =
+                      item.refModel === "Invoice" ? "📄 Invoice" :
+                      item.refModel === "Cashflow" ? "🏦 Cashflow" :
+                      item.refModel === "Purchase" ? "🛒 Purchase" :
+                      item.refModel === "Debt" ? "🤝 Hutang Vendor" :
+                      "📝 Manual";
+
+                    const hasRef = !!item.refModel;
+
+                    return (
+                      <div
+                        key={`${item.refId ?? item.paymentHistoryId ?? "manual"}-${idx}`}
+                        className={`
+                          rounded-lg border p-4
+                          ${hasRef
+                            ? "border-blue-200 bg-blue-50/50"
+                            : "border-gray-200 bg-gray-50/50"
+                          }
+                        `}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`
+                                badge badge-sm
+                                ${item.refModel === "Invoice" ? "badge-primary" :
+                                  item.refModel === "Cashflow" ? "badge-info" :
+                                  item.refModel === "Purchase" ? "badge-warning" :
+                                  item.refModel === "Debt" ? "badge-error" :
+                                  "badge-ghost"
+                                }
+                              `}>
+                                {refLabel}
+                              </span>
+
+                              <span className="text-xs text-gray-400">
+                                #{idx + 1}
+                              </span>
+                            </div>
+
+                            <p className="font-medium text-gray-800 text-sm">
+                              {item.description || "(Tanpa keterangan)"}
+                            </p>
+
+                            {item.customerName && (
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                👤 {item.customerName}
+                              </p>
+                            )}
+
+                            {item.refId && (
+                              <p className="text-xs text-gray-400 mt-0.5 font-mono">
+                                Ref ID: {item.refId}
+                              </p>
+                            )}
+
+                            {item.paymentHistoryId && (
+                              <p className="text-xs text-gray-400 font-mono">
+                                Payment ID: {item.paymentHistoryId}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="font-bold text-gray-800">
+                              Rp {IDR(item.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t bg-gray-50 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500">Total Relasi</p>
+                  <p className="text-lg font-bold text-gray-800">
+                    Rp {IDR(
+                      realizationVoucher.items?.reduce(
+                        (sum, item) => sum + (Number(item.amount) || 0),
+                        0
+                      ) ?? 0
+                    )}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">
+                    {realizationVoucher.items?.filter(i => i.refModel).length ?? 0} relasi
+                    {" · "}
+                    {realizationVoucher.items?.filter(i => !i.refModel).length ?? 0} manual
+                  </span>
+
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => setRealizationVoucher(null)}
+                  >
+                    Tutup
                   </button>
                 </div>
               </div>
