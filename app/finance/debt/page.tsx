@@ -591,11 +591,13 @@ export default function Debt() {
     }
   }
 
+
   function openEditLog(log: any) {
+    console.log(log)
     setEditingLog(log)
     setEditAmount(Math.abs(log.amount))
     setEditDate(log.date ? new Date(log.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
-    setEditPaymentMethod(log.paymentMethod || "Cash")
+    setEditPaymentMethod(log.reference || "Cash")
     setEditApprovalCode("")
     editLogRef.current?.showModal()
   }
@@ -608,32 +610,51 @@ export default function Debt() {
     try {
       // Vendor logs diedit via /api/web/debt PUT, purchase logs via /api/web/log/purchase PUT
       const apiUrl = filterType === 'vendor' ? '/api/web/debt' : '/api/web/log/purchase'
-      const res = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          logId: editingLog._id,
-          approvalCode: editApprovalCode,
-          userId,
-          newAmount: Number(editAmount),
-          newDate: editDate,
-          newPaymentMethod: editPaymentMethod,
-        }),
-      })
-      const response = await res.json()
-      if (response.error) {
-        alert(response.message || 'something went wrong')
-      } else {
-        editLogRef.current?.close()
-        // Refresh logs jika modal logs masih terbuka
-        if (selectedLogDebt) {
-          viewLogs(selectedLogDebt)
-        }
-        fetchDebts()
+
+      // const res = await fetch(apiUrl, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     logId: editingLog._id,
+      //     approvalCode: editApprovalCode,
+      //     userId,
+      //     newAmount: Number(editAmount),
+      //     newDate: editDate,
+      //     newPaymentMethod: editPaymentMethod,
+      //     reference: editPaymentMethod,
+      //   }),
+      // })
+
+      const x = {
+        logId: editingLog._id,
+        approvalCode: editApprovalCode,
+        userId,
+        newAmount: Number(editAmount),
+        newDate: editDate,
+        newPaymentMethod: editPaymentMethod,
+        reference: editPaymentMethod,
       }
-    } catch (e: any) {
+
+      console.log(x.newPaymentMethod)
+      console.log(x.reference)
+
+      // const response = await res.json()
+      // if (response.error) {
+      //   alert(response.message || 'something went wrong')
+      // }
+      // else {
+      //   editLogRef.current?.close()
+      //   // Refresh logs jika modal logs masih terbuka
+      //   if (selectedLogDebt) {
+      //     viewLogs(selectedLogDebt)
+      //   }
+      //   fetchDebts()
+      // }
+    }
+    catch (e: any) {
       alert(e.message)
-    } finally {
+    }
+    finally {
       setEditSubmitting(false)
     }
   }
@@ -1177,7 +1198,7 @@ export default function Debt() {
                   >
                     <option value="Cash">Cash</option>
                     {bankAccountFn.result?.map((bank: any) => (
-                      <option key={bank._id} value={`transfer from ${bank.bank}`}>
+                      <option key={bank._id} value={`${bank.bank}-${bank.accountNumber}`}>
                         transfer from {bank.bank} ({bank.accountName})
                       </option>
                     ))}

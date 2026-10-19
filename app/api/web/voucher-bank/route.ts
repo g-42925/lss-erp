@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           paymentNumber: { $regex: /^PL-/ },
           bankVoucherId: { $exists: false }
         }).lean();
-        
+
         purchaseLogs.forEach((log: any) => {
           const purchase = purchases.find((p: any) => p._id.toString() === log.purchaseId.toString());
           results.purchasePayments.push({
@@ -141,81 +141,204 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ─── POST: create voucher ────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
+
     const body = await request.json();
     const {
-      masterAccountId, type, contactName, voucherNumber, date, items, signatures,
-      companyBankAccountId, externalBankName, externalAccountNumber
+      masterAccountId,
+      type,
+      contactName,
+      voucherNumber,
+      date,
+      items,
+      signatures,
+      companyBankAccountId,
+      externalBankName,
+      externalAccountNumber,
     } = body;
 
     const company = await Companie.findOne({ masterAccountId });
-    if (!company) return NextResponse.json({ noResult: true, message: "Company not found", result: null, error: true });
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const dup = await VoucherBank.findOne({ companyId: company._id, voucherNumber }).session(session);
-      if (dup) {
-        throw new Error(`Nomor voucher ${voucherNumber} sudah digunakan`);
-      }
-
-      const voucher = await VoucherBank.create([{
-        companyId: company._id,
-        type,
-        contactName,
-        voucherNumber,
-        date: new Date(date),
-        items,
-        signatures,
-        companyBankAccountId: companyBankAccountId || undefined,
-        externalBankName: externalBankName || undefined,
-        externalAccountNumber: externalAccountNumber || undefined,
-      }], { session });
-
-      const newVoucher = voucher[0];
-
-      // Link related items
-      for (const item of (items || [])) {
-        if (item.refModel === "Invoice" && item.refId && item.paymentHistoryId) {
-          await Invoice.updateOne(
-            { _id: new mongoose.Types.ObjectId(item.refId), "paymentHistory._id": new mongoose.Types.ObjectId(item.paymentHistoryId) },
-            { $set: { "paymentHistory.$.bankVoucherId": newVoucher._id } },
-            { session }
-          );
-        } else if (item.refModel === "Cashflow" && item.refId) {
-          await Cashflow.updateOne(
-            { _id: new mongoose.Types.ObjectId(item.refId) },
-            { $set: { bankVoucherId: newVoucher._id } },
-            { session }
-          );
-        } else if ((item.refModel === "Purchase" || item.refModel === "Debt") && item.paymentHistoryId) {
-          await Log.updateOne(
-            { _id: new mongoose.Types.ObjectId(item.paymentHistoryId) },
-            { $set: { bankVoucherId: newVoucher._id } },
-            { session }
-          );
-        }
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      return NextResponse.json({ noResult: false, result: newVoucher, error: false });
-    } catch (err) {
-      await session.abortTransaction();
-      session.endSession();
-      throw err;
+    if (!company) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Company not found",
+        result: null,
+        error: true,
+      });
     }
-  } catch (e: unknown) {
-    return NextResponse.json({
-      noResult: true,
-      message: e instanceof Error ? e.message : "Something went wrong",
-      result: null,
-      error: true,
+
+    const dup = await VoucherBank.findOne({
+      companyId: company._id,
+      voucherNumber,
     });
+
+    if (dup) {
+      return NextResponse.json({
+        noResult: true,
+        message: `Nomor voucher ${voucherNumber} sudah digunakan`,
+        result: null,
+        error: true,
+      });
+    }
+
+    const newVoucher = await VoucherBank.create({
+      companyId: company._id,
+      type,
+      contactName,
+      voucherNumber,
+      date: new Date(date),
+      items,
+      signatures,
+      companyBankAccountId: companyBankAccountId || undefined,
+      externalBankName: externalBankName || undefined,
+      externalAccountNumber: externalAccountNumber || undefined,
+    });
+
+    // Link related items
+    for (const item of items || []) {
+      if (
+        item.refModel === "Invoice" &&
+        item.refId &&
+        item.paymentHistoryId
+      ) {
+        await Invoice.updateOne(
+          {
+            _id: new mongoose.Types.ObjectId(item.refId),
+            "paymentHistory._id": new mongoose.Types.ObjectId(
+              item.paymentHistoryId
+            ),
+          },
+          {
+            $set: {
+              "paymentHistory.$.bankVoucherId": newVoucher._id,
+            },
+          }
+        );
+      } else if (item.refModel === "Cashflow" && item.refId) {
+        await Cashflow.updateOne(
+          {
+            _id: new mongoose.Types.ObjectId(item.refId),
+          },
+          {
+            $set: {
+              bankVoucherId: newVoucher._id,
+            },
+          }
+        );
+      } else if (
+        (item.refModel === "Purchase" || item.refModel === "Debt") &&
+        item.paymentHistoryId
+      ) {
+        await Log.updateOne(
+          {
+            _id: new mongoose.Types.ObjectId(item.paymentHistoryId),
+          },
+          {
+            $set: {
+              bankVoucherId: newVoucher._id,
+            },
+          }
+        );
+      }
+    }
+
+    return NextResponse.json({
+      noResult: false,
+      result: newVoucher,
+      error: false,
+    });
+  } catch (e: unknown) {
+    return NextResponse.json(
+      {
+        noResult: true,
+        message:
+          e instanceof Error ? e.message : "Something went wrong",
+        result: null,
+        error: true,
+      },
+      { status: 500 }
+    );
   }
 }
+
+// ─── POST: create voucher ────────────────────────────────────────────────────
+// export async function POST(request: NextRequest) {
+//   try {
+//     await connectToDatabase();
+//     const body = await request.json();
+//     const {
+//       masterAccountId, type, contactName, voucherNumber, date, items, signatures,
+//       companyBankAccountId, externalBankName, externalAccountNumber
+//     } = body;
+
+//     const company = await Companie.findOne({ masterAccountId });
+//     if (!company) return NextResponse.json({ noResult: true, message: "Company not found", result: null, error: true });
+
+//     const session = await mongoose.startSession();
+//     session.startTransaction();
+
+//     try {
+//       const dup = await VoucherBank.findOne({ companyId: company._id, voucherNumber }).session(session);
+//       if (dup) {
+//         throw new Error(`Nomor voucher ${voucherNumber} sudah digunakan`);
+//       }
+
+//       const voucher = await VoucherBank.create([{
+//         companyId: company._id,
+//         type,
+//         contactName,
+//         voucherNumber,
+//         date: new Date(date),
+//         items,
+//         signatures,
+//         companyBankAccountId: companyBankAccountId || undefined,
+//         externalBankName: externalBankName || undefined,
+//         externalAccountNumber: externalAccountNumber || undefined,
+//       }], { session });
+
+//       const newVoucher = voucher[0];
+
+//       // Link related items
+//       for (const item of (items || [])) {
+//         if (item.refModel === "Invoice" && item.refId && item.paymentHistoryId) {
+//           await Invoice.updateOne(
+//             { _id: new mongoose.Types.ObjectId(item.refId), "paymentHistory._id": new mongoose.Types.ObjectId(item.paymentHistoryId) },
+//             { $set: { "paymentHistory.$.bankVoucherId": newVoucher._id } },
+//             { session }
+//           );
+//         } else if (item.refModel === "Cashflow" && item.refId) {
+//           await Cashflow.updateOne(
+//             { _id: new mongoose.Types.ObjectId(item.refId) },
+//             { $set: { bankVoucherId: newVoucher._id } },
+//             { session }
+//           );
+//         } else if ((item.refModel === "Purchase" || item.refModel === "Debt") && item.paymentHistoryId) {
+//           await Log.updateOne(
+//             { _id: new mongoose.Types.ObjectId(item.paymentHistoryId) },
+//             { $set: { bankVoucherId: newVoucher._id } },
+//             { session }
+//           );
+//         }
+//       }
+
+//       await session.commitTransaction();
+//       session.endSession();
+
+//       return NextResponse.json({ noResult: false, result: newVoucher, error: false });
+//     } catch (err) {
+//       await session.abortTransaction();
+//       session.endSession();
+//       throw err;
+//     }
+//   } catch (e: unknown) {
+//     return NextResponse.json({
+//       noResult: true,
+//       message: e instanceof Error ? e.message : "Something went wrong",
+//       result: null,
+//       error: true,
+//     });
+//   }
+// }
