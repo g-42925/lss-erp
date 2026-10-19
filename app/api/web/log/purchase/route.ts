@@ -49,18 +49,29 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase()
     const body = await request.json()
-    const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod } = body
+    const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod, reference } = body
 
     if (!logId) {
-      return NextResponse.json({ noResult: true, message: "logId is required", result: null, error: true })
+      return NextResponse.json({
+        noResult: true, message: "logId is required",
+        result: null,
+        error: true
+      })
     }
     if (!approvalCode) {
-      return NextResponse.json({ noResult: true, message: "Approval code is required", result: null, error: true })
+      return NextResponse.json({
+        noResult: true, message: "Approval code is required",
+        result: null,
+        error: true
+      })
     }
 
     const approver = await User.findOne({ approvalCode })
+
     if (!approver) {
-      return NextResponse.json({ noResult: true, message: "Kode approval tidak valid", result: null, error: true })
+      return NextResponse.json({
+        noResult: true, message: "Kode approval tidak valid", result: null, error: true
+      })
     }
 
     const oldLog = await Log.findById(logId)

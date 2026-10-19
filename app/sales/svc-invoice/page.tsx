@@ -934,7 +934,7 @@ export default function Invoices() {
                               const phDate = new Date(ph.date);
                               editPaymentForm.reset({
                                 amount: ph.amount,
-                                date: phDate.toISOString().substring(0, 10),
+                                date: `${phDate.getFullYear()}-${String(phDate.getMonth() + 1).padStart(2, '0')}-${String(phDate.getDate()).padStart(2, '0')}`,
                                 time: `${String(phDate.getHours()).padStart(2, '0')}:${String(phDate.getMinutes()).padStart(2, '0')}`,
                                 method
                               });

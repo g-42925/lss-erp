@@ -611,45 +611,35 @@ export default function Debt() {
       // Vendor logs diedit via /api/web/debt PUT, purchase logs via /api/web/log/purchase PUT
       const apiUrl = filterType === 'vendor' ? '/api/web/debt' : '/api/web/log/purchase'
 
-      // const res = await fetch(apiUrl, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     logId: editingLog._id,
-      //     approvalCode: editApprovalCode,
-      //     userId,
-      //     newAmount: Number(editAmount),
-      //     newDate: editDate,
-      //     newPaymentMethod: editPaymentMethod,
-      //     reference: editPaymentMethod,
-      //   }),
-      // })
+      const res = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logId: editingLog._id,
+          approvalCode: editApprovalCode,
+          userId,
+          newAmount: Number(editAmount),
+          newDate: editDate,
+          newPaymentMethod: editPaymentMethod,
+          reference: editPaymentMethod,
+        }),
+      })
 
-      const x = {
-        logId: editingLog._id,
-        approvalCode: editApprovalCode,
-        userId,
-        newAmount: Number(editAmount),
-        newDate: editDate,
-        newPaymentMethod: editPaymentMethod,
-        reference: editPaymentMethod,
+
+
+      const response = await res.json()
+      if (response.error) {
+        alert(response.message || 'something went wrong')
       }
+      else {
 
-      console.log(x.newPaymentMethod)
-      console.log(x.reference)
-
-      // const response = await res.json()
-      // if (response.error) {
-      //   alert(response.message || 'something went wrong')
-      // }
-      // else {
-      //   editLogRef.current?.close()
-      //   // Refresh logs jika modal logs masih terbuka
-      //   if (selectedLogDebt) {
-      //     viewLogs(selectedLogDebt)
-      //   }
-      //   fetchDebts()
-      // }
+        editLogRef.current?.close()
+        // Refresh logs jika modal logs masih terbuka
+        if (selectedLogDebt) {
+          viewLogs(selectedLogDebt)
+        }
+        fetchDebts()
+      }
     }
     catch (e: any) {
       alert(e.message)
