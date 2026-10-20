@@ -278,8 +278,9 @@ export async function PUT(request: NextRequest) {
 
             if (px.purchaseType == "procurement") {
               const _px = await Purchase.findById(_id)
+              const paymentCode = _px.purchaseOrderNumber.split("-")[1].trim()
               const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
-              rf = `pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount}`
+              rf = `pl ${paymentCode} | pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount}`
             }
 
             rf = px.purchaseType === "procurement" ? rf : reference
@@ -345,9 +346,9 @@ export async function PUT(request: NextRequest) {
 
             if (px.purchaseType == "procurement") {
               const _px = await Purchase.findById(_id)
-              console.log("=======================")
+              const paymentCode = _px.purchaseOrderNumber.split("-")[1].trim()
               const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
-              rf = `pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount} `
+              rf = `pl ${paymentCode} | pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount} `
             }
 
             rf = px.purchaseType === "procurement" ? rf : reference

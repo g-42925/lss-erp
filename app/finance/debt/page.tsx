@@ -616,9 +616,8 @@ export default function Debt() {
 
     try {
       const isBarang = filterType === "barang"
-      const apiUrl = filterType === "vendor"
-        ? "/api/web/debt"
-        : "/api/web/log/purchase"
+      const apiUrl = filterType === "vendor" ? "/api/web/debt" : "/api/web/log/purchase"
+
 
       // Interpretasikan tanggal dan jam sebagai WIB, lalu konversi ke UTC.
       const newDateTime = isBarang
@@ -982,7 +981,7 @@ export default function Debt() {
                     {
                       selectedDebt.purchaseType !== "service"
                         ? (
-                          <span className="text-red-600 font-bold text-2xl">Rp {(selectedDebt.finalPrice * selectedDebt.quantity).toLocaleString('id-ID')}</span>
+                          <span className="text-red-600 font-bold text-2xl">Rp {(selectedDebt.finalPrice).toLocaleString('id-ID')}</span>
                         )
                         : (
                           <>
