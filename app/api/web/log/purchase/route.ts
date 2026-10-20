@@ -4,6 +4,9 @@ import Log from '@/models/Log'
 import User from '@/models/User'
 import Cashflow from '@/models/Cashflow'
 import BankAccount from '@/models/BankAccount'
+import Purchase from '@/models/Purchase'
+
+import mongoose from 'mongoose'
 
 // export async function GET(request: NextRequest) {
 //   const url = new URL(request.url);
@@ -107,6 +110,7 @@ export async function PUT(request: NextRequest) {
       newAmount,
       newDate,
       newDateTime,
+      newTime,
       newPaymentMethod,
       reference
     } = body
@@ -141,24 +145,20 @@ export async function PUT(request: NextRequest) {
     }
 
     const oldLog = await Log.findById(logId)
+    const purchase = await Purchase.findById(oldLog.purchaseId)
 
-    const paymentCode = oldLog.paymentNumber.split('-')[1].trim()
+    const paymentCode = purchase.purchaseOrderNumber.split("-")[1].trim()
 
-    console.log({ paymentCode })
-
-    const cashflowItem = await Cashflow.aggregate([
+    const [cashflowItem] = await Cashflow.aggregate([
       {
         $match: {
           reference: {
-            $regex: "pl",
+            $regex: paymentCode,
             $options: "i"
           }
         }
       }
     ])
-
-    console.log(cashflowItem)
-
 
     if (!oldLog) {
       return NextResponse.json({
@@ -202,7 +202,6 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // newDateTime harus berupa ISO timestamp yang sudah menyertakan offset.
     const dateValue = newDateTime || newDate
 
     if (dateValue) {
@@ -249,6 +248,25 @@ export async function PUT(request: NextRequest) {
       .populate('editedBy', 'name')
       .populate('editApprovedBy', 'name')
       .lean()
+
+    const bankId = updated.paymentMethod === 'Cash' ? null : updated.bankAccountId
+    const accountType = updated.paymentMethod === 'Cash' ? 'Cash' : 'Bank'
+
+    const newReference = `pl ${purchase.purchaseOrderNumber.split('-')[1].trim()} | pembayaran procurement senilai ${updated.amount}`
+
+    await Cashflow.findByIdAndUpdate(
+      cashflowItem._id,
+      {
+        $set: {
+          bankAccountId: bankId,
+          accountType,
+          amount: updated.amount,
+          reference: newReference,
+          date: newDate,
+          time: newTime
+        }
+      }
+    )
 
     return NextResponse.json({
       noResult: false,
