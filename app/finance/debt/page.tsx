@@ -42,6 +42,7 @@ export default function Debt() {
   const [editApprovalCode, setEditApprovalCode] = useState("")
   const [editAmount, setEditAmount] = useState<number | string>(0)
   const [editDate, setEditDate] = useState("")
+  const [editTime, setEditTime] = useState("")
   const [editPaymentMethod, setEditPaymentMethod] = useState("")
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [paySubmitting, setPaySubmitting] = useState(false)
@@ -593,10 +594,11 @@ export default function Debt() {
 
 
   function openEditLog(log: any) {
-    console.log(log)
+    const dateTime = getJakartaDateTime(log.date)
     setEditingLog(log)
     setEditAmount(Math.abs(log.amount))
-    setEditDate(log.date ? new Date(log.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
+    setEditDate(dateTime.date)
+    setEditTime(dateTime.time)
     setEditPaymentMethod(log.reference || "Cash")
     setEditApprovalCode("")
     editLogRef.current?.showModal()
@@ -606,40 +608,55 @@ export default function Debt() {
     if (!editingLog) return
     if (!editApprovalCode) return alert("Kode approval wajib diisi")
     if (Number(editAmount) <= 0) return alert("Amount harus lebih dari 0")
+    if (filterType === "barang" && (!editDate || !editTime)) {
+      return alert("Tanggal dan jam pembayaran wajib diisi")
+    }
+
     setEditSubmitting(true)
+
     try {
-      // Vendor logs diedit via /api/web/debt PUT, purchase logs via /api/web/log/purchase PUT
-      const apiUrl = filterType === 'vendor' ? '/api/web/debt' : '/api/web/log/purchase'
+      const isBarang = filterType === "barang"
+      const apiUrl = filterType === "vendor"
+        ? "/api/web/debt"
+        : "/api/web/log/purchase"
+
+      // Interpretasikan tanggal dan jam sebagai WIB, lalu konversi ke UTC.
+      const newDateTime = isBarang
+        ? new Date(`${editDate}T${editTime}:00+07:00`).toISOString()
+        : undefined
 
       const res = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           logId: editingLog._id,
           approvalCode: editApprovalCode,
           userId,
           newAmount: Number(editAmount),
           newDate: editDate,
+          ...(isBarang && {
+            newTime: editTime,
+            newDateTime,
+          }),
           newPaymentMethod: editPaymentMethod,
           reference: editPaymentMethod,
         }),
       })
 
-
-
       const response = await res.json()
-      if (response.error) {
-        alert(response.message || 'something went wrong')
-      }
-      else {
 
-        editLogRef.current?.close()
-        // Refresh logs jika modal logs masih terbuka
-        if (selectedLogDebt) {
-          viewLogs(selectedLogDebt)
-        }
-        fetchDebts()
+      if (response.error) {
+        alert(response.message || "Gagal menyimpan perubahan")
+        return
       }
+
+      editLogRef.current?.close()
+
+      if (selectedLogDebt) {
+        await viewLogs(selectedLogDebt)
+      }
+
+      fetchDebts()
     }
     catch (e: any) {
       alert(e.message)
@@ -720,6 +737,28 @@ export default function Debt() {
     return {
       date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
       time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    }
+  }
+
+  function getJakartaDateTime(value?: string | Date) {
+    const date = value ? new Date(value) : new Date()
+
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date)
+
+    const part = (type: string) =>
+      parts.find(p => p.type === type)?.value ?? ""
+
+    return {
+      date: `${part("year")}-${part("month")}-${part("day")}`,
+      time: `${part("hour")}:${part("minute")}`,
     }
   }
 
@@ -1164,6 +1203,17 @@ export default function Debt() {
                     type="date"
                     value={editDate}
                     onChange={e => setEditDate(e.target.value)}
+                    required
+                  />
+                </fieldset>
+
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Jam Pembayaran (WIB)</legend>
+                  <input
+                    className="input w-full"
+                    type="time"
+                    value={editTime}
+                    onChange={e => setEditTime(e.target.value)}
                     required
                   />
                 </fieldset>
