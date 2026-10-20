@@ -799,7 +799,7 @@ export default function CashflowReportPage() {
 												<td className="p-3.5 text-right">
 													<div className="flex items-center justify-end gap-1.5">
 														{/* Print Voucher button */}
-														{t.source !== 'Manual Entry' && t.voucherId && (
+														{(t.source !== 'Manual Entry' || t.source !== 'Sales Invoice') && t.voucherId && (
 															<button
 																type="button"
 																title="Print Voucher"
@@ -1391,13 +1391,8 @@ export default function CashflowReportPage() {
 							</div>
 						</div>
 					)}
-
-
-
 				</div>
 			</div>
-
-
 		</>
 	);
 }
