@@ -144,106 +144,118 @@ export async function PUT(request: NextRequest) {
 
     const paymentCode = oldLog.paymentNumber.split('-')[1].trim()
 
-    // terakhir disini
+    console.log({ paymentCode })
+
+    const cashflowItem = await Cashflow.aggregate([
+      {
+        $match: {
+          reference: {
+            $regex: "pl",
+            $options: "i"
+          }
+        }
+      }
+    ])
+
+    console.log(cashflowItem)
 
 
+    if (!oldLog) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Log tidak ditemukan",
+        result: null,
+        error: true
+      })
+    }
 
-    // if (!oldLog) {
-    //   return NextResponse.json({
-    //     noResult: true,
-    //     message: "Log tidak ditemukan",
-    //     result: null,
-    //     error: true
-    //   })
-    // }
+    const editor = userId ? await User.findById(userId) : null
 
-    // const editor = userId ? await User.findById(userId) : null
+    const updates: Record<string, unknown> = {
+      editedAt: new Date(),
+      editApprovedBy: approver._id
+    }
 
-    // const updates: Record<string, unknown> = {
-    //   editedAt: new Date(),
-    //   editApprovedBy: approver._id
-    // }
+    if (editor) updates.editedBy = editor._id
 
-    // if (editor) updates.editedBy = editor._id
+    if (newAmount !== undefined && newAmount !== null) {
+      const amount = Number(newAmount)
 
-    // if (newAmount !== undefined && newAmount !== null) {
-    //   const amount = Number(newAmount)
+      if (!Number.isFinite(amount) || amount < 0) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Jumlah pembayaran tidak valid",
+          result: null,
+          error: true
+        })
+      }
 
-    //   if (!Number.isFinite(amount) || amount < 0) {
-    //     return NextResponse.json({
-    //       noResult: true,
-    //       message: "Jumlah pembayaran tidak valid",
-    //       result: null,
-    //       error: true
-    //     })
-    //   }
+      if (amount !== oldLog.amount) {
+        updates.amount = amount
 
-    //   if (amount !== oldLog.amount) {
-    //     updates.amount = amount
+        const diff = amount - oldLog.amount
+        const Purchase = (await import('@/models/Purchase')).default
 
-    //     const diff = amount - oldLog.amount
-    //     const Purchase = (await import('@/models/Purchase')).default
+        await Purchase.findByIdAndUpdate(oldLog.purchaseId, {
+          $inc: { payAmount: diff }
+        })
+      }
+    }
 
-    //     await Purchase.findByIdAndUpdate(oldLog.purchaseId, {
-    //       $inc: { payAmount: diff }
-    //     })
-    //   }
-    // }
+    // newDateTime harus berupa ISO timestamp yang sudah menyertakan offset.
+    const dateValue = newDateTime || newDate
 
-    // // newDateTime harus berupa ISO timestamp yang sudah menyertakan offset.
-    // const dateValue = newDateTime || newDate
+    if (dateValue) {
+      const date = new Date(dateValue)
 
-    // if (dateValue) {
-    //   const date = new Date(dateValue)
+      if (Number.isNaN(date.getTime())) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Tanggal atau waktu pembayaran tidak valid",
+          result: null,
+          error: true
+        })
+      }
 
-    //   if (Number.isNaN(date.getTime())) {
-    //     return NextResponse.json({
-    //       noResult: true,
-    //       message: "Tanggal atau waktu pembayaran tidak valid",
-    //       result: null,
-    //       error: true
-    //     })
-    //   }
+      updates.date = date
+    }
 
-    //   updates.date = date
-    // }
+    if (reference !== undefined) {
+      updates.reference = reference
 
-    // if (reference !== undefined) {
-    //   updates.reference = reference
+      const accountNumber = typeof reference === 'string'
+        ? reference.split('-')[1]?.trim()
+        : undefined
 
-    //   const accountNumber = typeof reference === 'string'
-    //     ? reference.split('-')[1]?.trim()
-    //     : undefined
+      if (accountNumber) {
+        const bank = await BankAccount.findOne({ accountNumber })
 
-    //   if (accountNumber) {
-    //     const bank = await BankAccount.findOne({ accountNumber })
+        if (bank) {
+          updates.bankAccountId = bank._id
+        }
+      }
+    }
 
-    //     if (bank) {
-    //       updates.bankAccountId = bank._id
-    //     }
-    //   }
-    // }
+    if (newPaymentMethod) {
+      updates.paymentMethod = newPaymentMethod
+    }
 
-    // if (newPaymentMethod) {
-    //   updates.paymentMethod = newPaymentMethod
-    // }
+    const updated = await Log.findByIdAndUpdate(
+      logId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    )
+      .populate('createdBy', 'name')
+      .populate('editedBy', 'name')
+      .populate('editApprovedBy', 'name')
+      .lean()
 
-    // const updated = await Log.findByIdAndUpdate(
-    //   logId,
-    //   { $set: updates },
-    //   { new: true, runValidators: true }
-    // )
-    //   .populate('createdBy', 'name')
-    //   .populate('editedBy', 'name')
-    //   .populate('editApprovedBy', 'name')
-    //   .lean()
-
-    // return NextResponse.json({
-    //   noResult: false,
-    //   message: "Payment log updated",
-    //   result: updated,
-    //   error: false
-    // })
+    return NextResponse.json({
+      noResult: false,
+      message: "Payment log updated",
+      result: updated,
+      error: false
+    })
   }
   catch (e: unknown) {
     return NextResponse.json({
