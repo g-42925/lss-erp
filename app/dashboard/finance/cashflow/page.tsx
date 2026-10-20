@@ -729,6 +729,9 @@ export default function CashflowReportPage() {
 												</td>
 												<td className="p-3.5 whitespace-nowrap font-medium text-slate-700">
 													{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })}
+													{t.time && (
+														<span className="block text-[10px] font-normal text-slate-400 mt-0.5">{t.time}</span>
+													)}
 												</td>
 												<td className="p-3.5 whitespace-nowrap text-slate-600">
 													{t.from || <span className="text-slate-300">-</span>}
