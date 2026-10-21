@@ -141,6 +141,22 @@ export default function CashflowReportPage() {
 	const [cashOutBalance, setCashOutBalance] = useState<number | null>(null);
 	const [cashOutBalanceLoading, setCashOutBalanceLoading] = useState(false);
 
+	// ─── Transfer Dana state ─────────────────────────────────────────────────────
+	const [showTransferModal, setShowTransferModal] = useState(false);
+	const [transferSaving, setTransferSaving] = useState(false);
+	const [transferBalance, setTransferBalance] = useState<number | null>(null);
+	const [transferBalanceLoading, setTransferBalanceLoading] = useState(false);
+	const [transferData, setTransferData] = useState({
+		fromType: 'cash' as 'cash' | 'bank',
+		fromBankAccountId: '',
+		toType: 'bank' as 'cash' | 'bank',
+		toBankAccountId: '',
+		amount: '',
+		date: new Date().toISOString().split('T')[0],
+		time: getCurrentTime(),
+		reference: '',
+	});
+
 	const fetchCashOutBalance = async (accountType: string, bankAccId: string, date: string) => {
 		if (!masterAccountId) return;
 		setCashOutBalanceLoading(true);
@@ -159,6 +175,27 @@ export default function CashflowReportPage() {
 			setCashOutBalance(null);
 		} finally {
 			setCashOutBalanceLoading(false);
+		}
+	};
+
+	const fetchTransferBalance = async (fromType: string, fromBankAccId: string, date: string) => {
+		if (!masterAccountId) return;
+		setTransferBalanceLoading(true);
+		try {
+			const params = new URLSearchParams({
+				id: masterAccountId,
+				paymentMethod: fromType === 'bank' ? 'transfer' : 'Cash',
+			});
+			if (fromType === 'bank' && fromBankAccId) params.set('bankAccountId', fromBankAccId);
+			if (date) params.set('date', date);
+			const res = await fetch(`/api/web/finance/balance?${params}`);
+			const json = await res.json();
+			if (!json.error) setTransferBalance(json.result ?? 0);
+			else setTransferBalance(null);
+		} catch {
+			setTransferBalance(null);
+		} finally {
+			setTransferBalanceLoading(false);
 		}
 	};
 
@@ -481,6 +518,58 @@ export default function CashflowReportPage() {
 		}
 	};
 
+	const handleTransferSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!transferData.amount || Number(transferData.amount) <= 0) {
+			alert('Nominal harus diisi dan lebih dari 0');
+			return;
+		}
+		if (transferData.fromType === transferData.toType && transferData.fromBankAccountId === transferData.toBankAccountId) {
+			alert('Akun sumber dan tujuan tidak boleh sama');
+			return;
+		}
+		setTransferSaving(true);
+		try {
+			const res = await fetch('/api/web/finance/reports/cashflow/transfer', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					masterAccountId,
+					fromType: transferData.fromType,
+					fromBankAccountId: transferData.fromType === 'bank' ? transferData.fromBankAccountId : null,
+					toType: transferData.toType,
+					toBankAccountId: transferData.toType === 'bank' ? transferData.toBankAccountId : null,
+					amount: Number(transferData.amount),
+					date: transferData.date,
+					time: transferData.time,
+					reference: transferData.reference || 'Transfer Dana',
+				}),
+			});
+			const json = await res.json();
+			if (json.error) {
+				alert(json.message);
+			} else {
+				setShowTransferModal(false);
+				setTransferBalance(null);
+				setTransferData({
+					fromType: 'cash',
+					fromBankAccountId: '',
+					toType: 'bank',
+					toBankAccountId: '',
+					amount: '',
+					date: new Date().toISOString().split('T')[0],
+					time: getCurrentTime(),
+					reference: '',
+				});
+				fetchCashflow();
+			}
+		} catch (e: any) {
+			alert('Error: ' + e.message);
+		} finally {
+			setTransferSaving(false);
+		}
+	};
+
 	function toExcel() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport');
 		const data = transactions.map(t => ({
@@ -538,6 +627,31 @@ export default function CashflowReportPage() {
 								</button>
 
 
+
+								<button
+									type="button"
+									onClick={() => {
+										setTransferData({
+											fromType: 'cash',
+											fromBankAccountId: '',
+											toType: 'bank',
+											toBankAccountId: '',
+											amount: '',
+											date: new Date().toISOString().split('T')[0],
+											time: getCurrentTime(),
+											reference: '',
+										});
+										setTransferBalance(null);
+										fetchTransferBalance('cash', '', new Date().toISOString().split('T')[0]);
+										setShowTransferModal(true);
+									}}
+									className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md shadow-teal-600/20 transition-all active:scale-95 flex items-center gap-1.5"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor" className="w-4 h-4">
+										<path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+									</svg>
+									<span>Transfer Dana</span>
+								</button>
 
 								<button
 									type="button"
@@ -1060,6 +1174,224 @@ export default function CashflowReportPage() {
 										>
 											{editSaving && <span className="loading loading-spinner loading-xs" />}
 											Simpan Perubahan
+										</button>
+									</div>
+								</form>
+							</div>
+						</div>
+					)}
+
+					{/* ─── Modal Transfer Dana ──────────────────────────────────────────── */}
+					{showTransferModal && (
+						<div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-sm">
+							<div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 flex flex-col max-h-[92vh]">
+								{/* Header */}
+								<div className="px-5 py-4 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-emerald-50 flex items-center justify-between shrink-0 rounded-t-2xl">
+									<div className="flex items-center gap-2.5">
+										<div className="bg-teal-500 text-white rounded-lg p-1.5">
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4">
+												<path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+											</svg>
+										</div>
+										<div>
+											<h2 className="text-sm font-bold text-slate-800">Transfer Dana</h2>
+											<p className="text-[10px] text-slate-500">Pindahkan dana antar akun kas &amp; bank</p>
+										</div>
+									</div>
+									<button
+										type="button"
+										onClick={() => setShowTransferModal(false)}
+										className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full transition-colors"
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+											<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+										</svg>
+									</button>
+								</div>
+
+								<form onSubmit={handleTransferSubmit} className="overflow-y-auto">
+									<div className="p-5 space-y-4">
+
+										{/* FROM → TO visual */}
+										<div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start">
+											{/* FROM */}
+											<div className="space-y-2">
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-1">Dari (Sumber)</label>
+												<select
+													required
+													value={transferData.fromType}
+													onChange={(e) => {
+														const ft = e.target.value as 'cash' | 'bank';
+														setTransferData(prev => ({ ...prev, fromType: ft, fromBankAccountId: '' }));
+														setTransferBalance(null);
+														fetchTransferBalance(ft, '', transferData.date);
+													}}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-teal-400 bg-slate-50 font-semibold"
+												>
+													<option value="cash">💵 Kas Tunai</option>
+													<option value="bank">🏦 Rekening Bank</option>
+												</select>
+												{transferData.fromType === 'bank' && (
+													<select
+														required
+														value={transferData.fromBankAccountId}
+														onChange={(e) => {
+															const bid = e.target.value;
+															setTransferData(prev => ({ ...prev, fromBankAccountId: bid }));
+															setTransferBalance(null);
+															if (bid) fetchTransferBalance('bank', bid, transferData.date);
+														}}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-teal-400 bg-slate-50 mt-1"
+													>
+														<option value="">-- Pilih Bank --</option>
+														{bankAccounts.map(b => (
+															<option key={b._id} value={b._id}>{b.bank} — {b.accountNumber}</option>
+														))}
+													</select>
+												)}
+											</div>
+
+											{/* Arrow */}
+											<div className="flex items-center justify-center pt-7">
+												<div className="w-8 h-8 rounded-full bg-teal-100 border-2 border-teal-200 flex items-center justify-center">
+													<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-4 h-4 text-teal-600">
+														<path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+													</svg>
+												</div>
+											</div>
+
+											{/* TO */}
+											<div className="space-y-2">
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1">Ke (Tujuan)</label>
+												<select
+													required
+													value={transferData.toType}
+													onChange={(e) => {
+														const tt = e.target.value as 'cash' | 'bank';
+														setTransferData(prev => ({ ...prev, toType: tt, toBankAccountId: '' }));
+													}}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-400 bg-slate-50 font-semibold"
+												>
+													<option value="cash">💵 Kas Tunai</option>
+													<option value="bank">🏦 Rekening Bank</option>
+												</select>
+												{transferData.toType === 'bank' && (
+													<select
+														required
+														value={transferData.toBankAccountId}
+														onChange={(e) => setTransferData(prev => ({ ...prev, toBankAccountId: e.target.value }))}
+														className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-400 bg-slate-50 mt-1"
+													>
+														<option value="">-- Pilih Bank --</option>
+														{bankAccounts.map(b => (
+															<option key={b._id} value={b._id}>{b.bank} — {b.accountNumber}</option>
+														))}
+													</select>
+												)}
+											</div>
+										</div>
+
+										{/* Saldo sumber */}
+										<div>
+											{transferBalanceLoading ? (
+												<span className="text-xs text-slate-400 flex items-center gap-1">
+													<span className="loading loading-spinner loading-xs"></span> Memuat saldo sumber...
+												</span>
+											) : transferBalance !== null ? (
+												<div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border ${
+													Number(transferData.amount) > 0 && Number(transferData.amount) > transferBalance
+														? 'bg-rose-50 border-rose-200 text-rose-700'
+														: 'bg-teal-50 border-teal-200 text-teal-700'
+												}`}>
+													<svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+														<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+													</svg>
+													<span>Saldo sumber tersedia: <strong>Rp {transferBalance.toLocaleString('id-ID')}</strong></span>
+												</div>
+											) : null}
+											{transferBalance !== null && Number(transferData.amount) > 0 && Number(transferData.amount) > transferBalance && (
+												<p className="text-[10px] text-rose-600 mt-1 font-medium">⚠ Jumlah transfer melebihi saldo sumber pada tanggal ini</p>
+											)}
+										</div>
+
+										{/* Nominal */}
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal Transfer (Rp)</label>
+											<NumericFormat
+												thousandSeparator="."
+												decimalSeparator=","
+												allowedDecimalSeparators={[",", "."]}
+												allowNegative={false}
+												value={transferData.amount}
+												onValueChange={(values) => setTransferData(prev => ({ ...prev, amount: values.value }))}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold focus:outline-teal-400 bg-slate-50"
+												placeholder="Contoh: 1.000.000"
+											/>
+										</div>
+
+										{/* Tanggal + Jam */}
+										<div className="grid grid-cols-2 gap-3">
+											<div>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</label>
+												<input
+													type="date"
+													required
+													value={transferData.date}
+													onChange={(e) => {
+														const d = e.target.value;
+														setTransferData(prev => ({ ...prev, date: d }));
+														setTransferBalance(null);
+														fetchTransferBalance(transferData.fromType, transferData.fromBankAccountId, d);
+													}}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-teal-400 bg-slate-50"
+												/>
+											</div>
+											<div>
+												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jam (HH:MM)</label>
+												<input
+													type="time"
+													required
+													value={transferData.time}
+													onChange={(e) => setTransferData(prev => ({ ...prev, time: e.target.value }))}
+													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-teal-400 bg-slate-50"
+												/>
+											</div>
+										</div>
+
+										{/* Referensi */}
+										<div>
+											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Keterangan / Referensi</label>
+											<input
+												type="text"
+												value={transferData.reference}
+												onChange={(e) => setTransferData(prev => ({ ...prev, reference: e.target.value }))}
+												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-teal-400 bg-slate-50"
+												placeholder="Contoh: Transfer untuk operasional"
+											/>
+										</div>
+
+									</div>
+
+									{/* Footer */}
+									<div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex justify-end gap-2 shrink-0">
+										<button
+											type="button"
+											onClick={() => setShowTransferModal(false)}
+											disabled={transferSaving}
+											className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"
+										>
+											Batal
+										</button>
+										<button
+											type="submit"
+											disabled={transferSaving || (transferBalance !== null && Number(transferData.amount) > 0 && Number(transferData.amount) > transferBalance)}
+											className="px-5 py-2 rounded-lg text-xs text-white font-semibold bg-teal-600 hover:bg-teal-700 shadow-sm shadow-teal-600/30 disabled:opacity-60 flex items-center gap-1.5 transition-all active:scale-95"
+										>
+											{transferSaving && <span className="loading loading-spinner loading-xs" />}
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3.5 h-3.5">
+												<path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+											</svg>
+											Proses Transfer
 										</button>
 									</div>
 								</form>
