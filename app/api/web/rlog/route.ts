@@ -1,15 +1,97 @@
 import Batche from "@/models/Batche";
-import Purchase from "@/models/Purchase";
-import Product from "@/models/Product";
+import ProcurementReceivingLog from "@/models/ProcurementReceivingLog";
+import InvItem from "@/models/InvItem";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
+
 
 export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
     const url = new URL(request.url)
     const so = url.searchParams.get("so")
+    const type = url.searchParams.get("type")
 
+    // ── Procurement receiving logs ─────────────────────────────────────────────
+    if (type === 'procurement') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let matchCondition: any = {};
+      if (so && so !== 'null') {
+        matchCondition = { purchaseOrderNumber: so };
+      } else {
+        matchCondition = { purchaseOrderNumber: { $exists: true, $ne: null } };
+      }
+
+      const logs = await ProcurementReceivingLog.aggregate([
+        { $match: matchCondition },
+        {
+          $lookup: {
+            from: 'invitems',
+            localField: 'itemId',
+            foreignField: '_id',
+            as: 'item'
+          }
+        },
+        {
+          $unwind: {
+            path: '$item',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'receivedBy',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        {
+          $unwind: {
+            path: '$user',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'lastEditedBy',
+            foreignField: '_id',
+            as: 'editor'
+          }
+        },
+        {
+          $unwind: {
+            path: '$editor',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'lastApprovedBy',
+            foreignField: '_id',
+            as: 'approver'
+          }
+        },
+        {
+          $unwind: {
+            path: '$approver',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        { $sort: { receivedDate: -1 } }
+      ])
+
+      return NextResponse.json({
+        noResult: false,
+        message: "",
+        result: logs,
+        error: false
+      })
+    }
+
+    // ── Product/default: query Batche ──────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let matchCondition: any = {};
     if (so && so !== 'null') {
@@ -131,7 +213,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { _id, qty, expiryDate, approvalCode, editingUserId } = body;
+    const { _id, qty, expiryDate, receivedDate, approvalCode, editingUserId, type } = body;
 
     if (!approvalCode) {
       throw new Error("Approval code is required");
@@ -144,14 +226,63 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!_id) {
-      throw new Error("Batch ID is required");
+      throw new Error("ID is required");
     }
 
+    // ── Procurement receiving log edit ─────────────────────────────────────────
+    if (type === 'procurement') {
+      const log = await ProcurementReceivingLog.findById(_id);
+      if (!log) {
+        throw new Error("Receiving log not found");
+      }
+
+      const newQty = parseInt(qty);
+      if (isNaN(newQty) || newQty <= 0) {
+        throw new Error("Invalid quantity");
+      }
+
+      const diff = newQty - log.qty;
+
+      // Adjust InvItem stock (only for inventory saves)
+      if (log.saveAs !== 'asset') {
+        await InvItem.findByIdAndUpdate(log.itemId, {
+          $inc: { currentStock: diff }
+        });
+      }
+
+      // Adjust Purchase receivedQty
+      const Purchase_ = (await import("@/models/Purchase")).default;
+      await Purchase_.findByIdAndUpdate(log.purchaseId, {
+        $inc: { receivedQty: diff }
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updatePayload: any = {
+        qty: newQty,
+        lastEditedBy: editingUserId,
+        lastApprovedBy: approver._id,
+        editedAt: new Date()
+      };
+      if (receivedDate) {
+        updatePayload.receivedDate = new Date(receivedDate);
+      }
+
+      const updatedLog = await ProcurementReceivingLog.findByIdAndUpdate(_id, updatePayload, { new: true });
+
+      return NextResponse.json({
+        noResult: false,
+        message: "Receiving log updated successfully",
+        result: updatedLog,
+        error: false
+      });
+    }
+
+    // ── Product batch edit (original logic) ────────────────────────────────────
     const batch = await Batche.findById(_id);
     if (!batch) {
       throw new Error("Batch not found");
     }
-    
+
     if (batch.status !== 'QUARANTINE') {
       throw new Error(`Batch cannot be edited via Receiving Log because it has already been processed by QC (status: ${batch.status})`);
     }
@@ -167,26 +298,23 @@ export async function PUT(request: NextRequest) {
     // Also update Purchase received properties and recalculate stockValue
     let ratio = 1;
     if (batch.purchaseOrderNumber) {
-      const purchase = await Purchase.findOne({ purchaseOrderNumber: batch.purchaseOrderNumber, productId: batch.productId });
+      const purchase = await (await import("@/models/Purchase")).default.findOne({ purchaseOrderNumber: batch.purchaseOrderNumber, productId: batch.productId });
       if (purchase) {
         if (purchase.measurementId) {
-          // Prioritas 1: gunakan config Measurement (ratio dari supplier)
           const Measurement = (await import("@/models/Measurement")).default;
           const config = await Measurement.findById(purchase.measurementId);
           if (config) ratio = config.ratio;
         }
 
-        const product = await Product.findById(purchase.productId);
+        const product = await (await import("@/models/Product")).default.findById(purchase.productId);
 
         if (ratio === 1 && product?.packagingId) {
-          // Prioritas 2: jika tidak ada measurementId, cek packagingId produk
-          // packaging.qty = berapa unit (ratioY) per satu kemasan (ratioX)
           const Packaging = (await import("@/models/Packaging")).default;
           const packaging = await Packaging.findById(product.packagingId);
           if (packaging?.qty) ratio = packaging.qty;
         }
 
-        await Purchase.findByIdAndUpdate(purchase._id, {
+        await (await import("@/models/Purchase")).default.findByIdAndUpdate(purchase._id, {
           $inc: { receivedQty: diff }
         });
 
@@ -194,7 +322,7 @@ export async function PUT(request: NextRequest) {
           const landedCost = (purchase.finalPrice || 0) + (purchase.shippingCost || 0) + (purchase.taxAmount || 0);
           const unitCost = landedCost / purchase.quantity;
           const valChange = unitCost * diff;
-          await Product.findByIdAndUpdate(product._id, {
+          await (await import("@/models/Product")).default.findByIdAndUpdate(product._id, {
             $inc: { stockValue: valChange }
           });
         }
@@ -222,7 +350,6 @@ export async function PUT(request: NextRequest) {
         $set: { sourceId: batch._id, sourceType: 'PURCHASE' }
       });
     }
-
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updatePayload: any = {

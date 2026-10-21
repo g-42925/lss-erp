@@ -95,10 +95,13 @@ export default function Receiving() {
       return
     }
 
+    const receivedDate = data.receivedDate || new Date().toISOString().slice(0, 10)
+
     const additional = {
       isOpening: false,
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: receivedDate,
       outQty: 0,
+      receivedDate,
     }
 
     const batch = JSON.stringify({
@@ -146,6 +149,7 @@ export default function Receiving() {
       saveAs: "inventory",
       assetCategoryId: "",
       locationId: locationId,
+      receivedDate: new Date().toISOString().slice(0, 10),
     })
 
     if (filter.status != 'ordered') {
@@ -245,7 +249,7 @@ export default function Receiving() {
                                 </td>
                                 <td>{p.quantity} {pUnit}</td>
                                 <td>
-                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }} className="text-blue-700 hover:underline">
+                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber, type: purchaseType } }} className="text-blue-700 hover:underline">
                                     {p.receivedQty} {pUnit}
                                   </Link>
                                 </td>
@@ -287,7 +291,7 @@ export default function Receiving() {
                                 </td>
                                 <td>{p.quantity} {pUnit}</td>
                                 <td>
-                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber } }} className="text-blue-700 hover:underline">
+                                  <Link href={{ pathname: '/warehouse/rlog', query: { so: p.purchaseOrderNumber, type: purchaseType } }} className="text-blue-700 hover:underline">
                                     {p.receivedQty} {pUnit}
                                   </Link>
                                 </td>
@@ -348,6 +352,14 @@ export default function Receiving() {
                   />
                 </fieldset>
               </div>
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">Tanggal Penerimaan</legend>
+                <input
+                  className="input w-full"
+                  {...editPrForm.register("receivedDate", { required: true })}
+                  type="date"
+                />
+              </fieldset>
 
               
               {purchaseType === 'procurement' && (

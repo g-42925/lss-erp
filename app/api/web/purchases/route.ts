@@ -21,6 +21,7 @@ import Packaging from '@/models/Packaging'
 import BankAccount from '@/models/BankAccount'
 import { getAvailableBalance } from '@/lib/finance/balance'
 import Cashflow from '@/models/Cashflow'
+import ProcurementReceivingLog from '@/models/ProcurementReceivingLog'
 
 // Helper: ambil data bank untuk Log (reference: "BANK-NOMORREKENING", bankAccountId sebagai ObjectId)
 async function getBankInfo(paymentMethod: string | undefined | null, bankAccountId: string | undefined | null)
@@ -508,6 +509,7 @@ export async function PUT(request: NextRequest) {
 
       if (purchase.purchaseType === 'procurement') {
         const received = parseInt(rest.qty);
+        const receivedDate = rest.receivedDate ? new Date(rest.receivedDate) : new Date();
         await Purchase.findByIdAndUpdate(_id, {
           $inc: { receivedQty: received }
         });
@@ -523,7 +525,7 @@ export async function PUT(request: NextRequest) {
               assetPromises.push(Asset.create({
                 name: invItem?.name || "Received Asset",
                 category: rest.assetCategoryId,
-                addedAt: new Date(),
+                addedAt: receivedDate,
                 condition: "good",
                 status: "active",
                 desc: "Received from PO: " + purchase.purchaseOrderNumber,
@@ -539,6 +541,19 @@ export async function PUT(request: NextRequest) {
             $inc: { currentStock: received }
           });
         }
+
+        // Create a receiving log for audit/listing purposes
+        await ProcurementReceivingLog.create({
+          purchaseOrderNumber: purchase.purchaseOrderNumber,
+          purchaseId: purchase._id,
+          itemId: purchase.productId,
+          qty: received,
+          saveAs: rest.saveAs || 'inventory',
+          assetCategoryId: rest.assetCategoryId || undefined,
+          receivedDate: receivedDate,
+          receivedBy: rest.userId || undefined,
+          createdAt: new Date(),
+        });
 
         return NextResponse.json({
           noResult: false,
