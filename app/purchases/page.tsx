@@ -754,7 +754,7 @@ function Purchases() {
 
   return (
     <>
-      <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
+      <div className="min-h-full p-3 md:p-6 flex flex-col gap-3 text-black">
         <span className="text-2xl text-black">
           Purchases Requisition
         </span>
