@@ -9,7 +9,8 @@ const UserSchema = new mongoose.Schema({
   roleId: { type: mongoose.Types.ObjectId, required: true },
   locationId: { type: mongoose.Types.ObjectId, required: true },
   isSuperAdmin: { type: Boolean, default: false, required: true },
-  approvalCode: { type: String, required: true }
+  approvalCode: { type: String, required: true },
+  otp: { type: String }
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

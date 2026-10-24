@@ -1473,9 +1473,6 @@ function Purchases() {
                       newPrForm.control
                     }
                     name="finalPrice"
-                    rules={{
-                      required: true,
-                    }}
                     render={({
                       field: {
                         onChange,
@@ -1502,7 +1499,7 @@ function Purchases() {
                         fixedDecimalScale
                         allowNegative={false}
                         className="input w-full"
-                        placeholder="Contoh: 150000"
+                        placeholder="Contoh: 160000"
                       />
                     )}
                   />
@@ -1698,7 +1695,6 @@ function Purchases() {
                       "finalPrice"
                     )}
                     type="number"
-                    readOnly
                   />
                 </fieldset>
               </div>

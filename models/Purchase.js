@@ -19,7 +19,7 @@ const PurchaseSchema = new mongoose.Schema({
   quantity: { type: Number, required: false },
   estimatedPrice: { type: Number, required: false },
   date: { type: Date, Default: Date.now },
-  finalPrice: { type: Number, required: true },
+  finalPrice: { type: Number },
   receivedQty: { type: Number, default: 0 },
   payAmount: { type: Number, Default: false },
   shippingCost: { type: Number, default: 0 },

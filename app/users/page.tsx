@@ -4,7 +4,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import CryptoJS from "crypto-js";
-
+import { Resend } from 'resend';
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
@@ -12,9 +12,19 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { AddMaleIcon } from '@hugeicons/core-free-icons';
 import { Edit03Icon } from '@hugeicons/core-free-icons';
 import { LockPasswordIcon } from '@hugeicons/core-free-icons';
-
+import { Html, Body, Text } from '@react-email/components'
 import useAuth from "@/store/auth";
 import useFetch from "@/hooks/useFetch";
+
+function WelcomeEmail({ name }: any) {
+  return (
+    <Html>
+      <Body>
+        <Text>Halo, {name}!</Text>
+      </Body>
+    </Html>
+  )
+}
 
 export default function Users() {
   const hasHydrated = useAuth((s) => s._hasHydrated)
@@ -77,39 +87,80 @@ export default function Users() {
     }
   })
 
-  async function handleResetAdmin(data: any) {
-    setResetAdminMsg(null)
-    if (!data.currentPassword) {
-      setResetAdminMsg({ text: 'Password saat ini wajib diisi', ok: false })
-      return
-    }
-    if (!data.newEmail && !data.newPassword) {
-      setResetAdminMsg({ text: 'Isi minimal email baru atau password baru', ok: false })
-      return
-    }
-    setResetAdminLoading(true)
+  const test = async (currentEmail: string) => {
+
     try {
-      const res = await fetch('/api/web/super-admin', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch('/api/web/users/make_otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentEmail
+        })
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        console.error(result.error)
+        return
+      }
+
+      console.log(result.data)
+    }
+    catch (error) {
+      console.error(error)
+    }
+  }
+
+  async function handleResetAdmin(data: any) {
+    if (!Boolean(data.currentEmail) && !Boolean(data.otp)) {
+      alert('current email and otp is required')
+      return
+    }
+
+    if (!Boolean(data.newEmail) && !Boolean(data.newPassword)) {
+      alert('new email or new password is required')
+      return
+    }
+
+    const param: Record<string, string> = {}
+
+    Object.keys(data).forEach((key) => {
+      if (Boolean(data[key])) {
+        param[key] = data[key]
+      }
+    })
+
+    setResetAdminMsg(null)
+    setResetAdminLoading(true)
+
+    try {
+      const res = await fetch('/api/web/users/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           userId,
-          currentPassword: data.currentPassword,
-          newEmail: data.newEmail || undefined,
-          newPassword: data.newPassword || undefined,
+          ...param
         }),
       })
       const json = await res.json()
       if (json.error || json.noResult) {
         setResetAdminMsg({ text: json.message, ok: false })
-      } else {
+      }
+      else {
         setResetAdminMsg({ text: 'Berhasil diperbarui!', ok: true })
         resetAdminForm.reset()
         setTimeout(() => resetAdminRef.current?.close(), 1200)
       }
-    } catch (e: any) {
+    }
+    catch (e: any) {
       setResetAdminMsg({ text: e.message, ok: false })
-    } finally {
+    }
+    finally {
       setResetAdminLoading(false)
     }
   }
@@ -296,68 +347,68 @@ export default function Users() {
                 :
                 <div>
                   <div className="overflow-x-auto w-full">
-                  <table className="table text-black">
-                    <thead className="text-black">
-                      <tr>
-                        <th>Name</th>
-                        <th>Role</th>
-                        <th>Email</th>
-                        <th>...</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {
-                        searchResult.length < 1
-                          ?
-                          users.map((user, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{user.name}</td>
-                                <td>{user.role}</td>
-                                <td className="max-w-[10ch] truncate">{user.email}</td>
+                    <table className="table text-black">
+                      <thead className="text-black">
+                        <tr>
+                          <th>Name</th>
+                          <th>Role</th>
+                          <th>Email</th>
+                          <th>...</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {
+                          searchResult.length < 1
+                            ?
+                            users.map((user, index) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{user.name}</td>
+                                  <td>{user.role}</td>
+                                  <td className="max-w-[10ch] truncate">{user.email}</td>
 
-                                <td className="flex flex-row gap-3">
-                                  <button onClick={() => edit(user._id)} className="">
-                                    <HugeiconsIcon
-                                      icon={Edit03Icon}
-                                      size={24}
-                                      color="currentColor"
-                                      strokeWidth={1.5}
-                                    />
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                          :
-                          searchResult.map((user, index) => {
-                            return (
-                              <tr key={index}>
-                                <td>{user.username}</td>
-                                <td>{user.name}</td>
-                                <td>{user.role}</td>
-                                <td>{user.email}</td>
+                                  <td className="flex flex-row gap-3">
+                                    <button onClick={() => edit(user._id)} className="">
+                                      <HugeiconsIcon
+                                        icon={Edit03Icon}
+                                        size={24}
+                                        color="currentColor"
+                                        strokeWidth={1.5}
+                                      />
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                            :
+                            searchResult.map((user, index) => {
+                              return (
+                                <tr key={index}>
+                                  <td>{user.username}</td>
+                                  <td>{user.name}</td>
+                                  <td>{user.role}</td>
+                                  <td>{user.email}</td>
 
-                                <td className="flex flex-row gap-3">
-                                  <button onClick={() => edit(user._id)} className="btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
-                                    </svg>
-                                    Edit
-                                  </button>
-                                  <button className="btn" onClick={() => del(user._id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                    </svg>
-                                    Deletes
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          })
-                      }
-                    </tbody>
-                  </table>
+                                  <td className="flex flex-row gap-3">
+                                    <button onClick={() => edit(user._id)} className="btn">
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                      </svg>
+                                      Edit
+                                    </button>
+                                    <button className="btn" onClick={() => del(user._id)}>
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-6">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                      </svg>
+                                      Deletes
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })
+                        }
+                      </tbody>
+                    </table>
                   </div>
                 </div>
           }
@@ -454,21 +505,21 @@ export default function Users() {
       {/* Modal Reset Kredensial Super Admin */}
       <dialog ref={resetAdminRef} className="modal text-black">
         <div className="modal-box bg-white text-black w-11/12 max-w-md">
-          <h3 className="font-bold text-lg mb-4 text-blue-900">Reset Kredensial Super Admin</h3>
+          <h3 className="font-bold text-lg mb-4 text-blue-900">Reset Credential For Super Admin</h3>
           <form onSubmit={resetAdminForm.handleSubmit(handleResetAdmin)} className="flex flex-col gap-3">
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Password Saat Ini <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">Current email <span className="text-red-500">*</span></label>
               <input
-                {...resetAdminForm.register('currentPassword')}
-                type="password"
-                placeholder="Masukkan password saat ini"
+                {...resetAdminForm.register('currrentEmail')}
+                type="email"
+                placeholder="Masukkan email saat ini"
                 className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
               />
             </div>
             <hr className="my-1 border-gray-200" />
             <p className="text-xs text-gray-500">Kosongkan field yang tidak ingin diubah.</p>
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Email / Username Baru</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">New email</label>
               <input
                 {...resetAdminForm.register('newEmail')}
                 type="email"
@@ -477,11 +528,29 @@ export default function Users() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Password Baru</label>
+              <label className="block text-sm font-medium mb-1 text-gray-700">New password</label>
               <input
                 {...resetAdminForm.register('newPassword')}
                 type="password"
-                placeholder="Password baru (opsional)"
+                placeholder="new password (optional)"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">New name</label>
+              <input
+                {...resetAdminForm.register('newName')}
+                type="text"
+                placeholder="new name (Optional)"
+                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">One time password</label>
+              <input
+                {...resetAdminForm.register('otp')}
+                type="text"
+                placeholder="Otp Code"
                 className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
               />
             </div>
@@ -491,6 +560,13 @@ export default function Users() {
               </p>
             )}
             <div className="modal-action mt-2 flex gap-2 justify-end">
+              <button
+                type="button"
+                className="btn btn-ghost text-gray-500"
+                onClick={() => test(resetAdminForm.getValues('currrentEmail'))}
+              >
+                Get otp
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost text-gray-500"
