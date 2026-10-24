@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   const cookieOtp = req.cookies.get('otp')
 
-  if (param.otp !== cookieOtp.value) {
+  if (param.otp !== cookieOtp?.value) {
     return Response.json(
       { error: 'OTP tidak valid' },
       { status: 400 }
