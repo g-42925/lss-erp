@@ -53,7 +53,7 @@ function ParentMenu({
 }
 
 export default function Sidebar({ children }: { children: React.ReactNode }) {
-  const companyName = useAuth((state) => state.name)
+  const companyName = useAuth((state) => state.companyName)
   const logout = useAuth((state) => state.logout)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
   const router = useRouter()

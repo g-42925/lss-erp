@@ -44,6 +44,7 @@ const PurchaseSchema = new mongoose.Schema({
       'rejected'
     ]
   },
+  link: { type: String, required: false },
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

@@ -510,7 +510,7 @@ export default function Users() {
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">Current email <span className="text-red-500">*</span></label>
               <input
-                {...resetAdminForm.register('currrentEmail')}
+                {...resetAdminForm.register('currentEmail')}
                 type="email"
                 placeholder="Masukkan email saat ini"
                 className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
@@ -563,7 +563,7 @@ export default function Users() {
               <button
                 type="button"
                 className="btn btn-ghost text-gray-500"
-                onClick={() => test(resetAdminForm.getValues('currrentEmail'))}
+                onClick={() => test(resetAdminForm.getValues('currentEmail'))}
               >
                 Get otp
               </button>

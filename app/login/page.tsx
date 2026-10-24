@@ -34,6 +34,7 @@ export default function Login() {
 					email: result.email,
 					loggedIn: true,
 					name: result.name,
+					companyName: result.company?.name || "",
 					masterAccountId: result.masterAccountId,
 					pages: result.pages,
 					roleId: result.roleId,

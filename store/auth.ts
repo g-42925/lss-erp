@@ -5,6 +5,7 @@ interface AuthData {
   email: string;
   loggedIn: boolean;
   name: string;
+  companyName: string;
   roleId: string;
   masterAccountId: string;
   pages: Record<string, string[]>;
@@ -33,6 +34,7 @@ const useAuth = create<Auth>()(
           loggedIn: false,
           email: '',
           name: '',
+          companyName: '',
           roleId: '',
           masterAccountId: '',
           locationId: '',
@@ -50,6 +52,7 @@ const useAuth = create<Auth>()(
         loggedIn: false,
         locationId: '',
         name: '',
+        companyName: '',
         roleId: '',
         masterAccountId: '',
         pages: {},
