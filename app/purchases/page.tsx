@@ -41,6 +41,12 @@ function Purchases() {
   const [poBalanceLoading, setPoBalanceLoading] = useState(false)
   const [selectedPoBankAccountId, setSelectedPoBankAccountId] = useState<string | undefined>(undefined)
 
+  // ─── Riwayat harga terakhir saat pilih item ───────────────────────────────
+  const [addLastPriceInfo, setAddLastPriceInfo] = useState<any>(null)
+  const [addLastPriceLoading, setAddLastPriceLoading] = useState(false)
+  const [editLastPriceInfo, setEditLastPriceInfo] = useState<any>(null)
+  const [editLastPriceLoading, setEditLastPriceLoading] = useState(false)
+
   const bankAccount = useFetch<any[], any>({
     url: "",
     method: "GET",
@@ -110,6 +116,45 @@ function Purchases() {
   const watchPayAmount = orderForm.watch("payAmount")
   const watchPaymentMethod = orderForm.watch("paymentMethod")
   const watchTaxFormTaxIds = taxForm.watch("taxIds") || []
+
+  // ─── Fetch riwayat harga terakhir untuk item yang dipilih ───────────────────
+  async function fetchLastPurchasePrice(
+    productId: string,
+    form: "add" | "edit"
+  ) {
+    if (!productId || !masterAccountId) {
+      if (form === "add") setAddLastPriceInfo(null)
+      else setEditLastPriceInfo(null)
+      return
+    }
+
+    if (form === "add") {
+      setAddLastPriceLoading(true)
+      setAddLastPriceInfo(null)
+    } else {
+      setEditLastPriceLoading(true)
+      setEditLastPriceInfo(null)
+    }
+
+    try {
+      const res = await fetch(
+        `/api/web/purchases/last-price?id=${masterAccountId}&productId=${productId}&purchaseType=${filterType}`
+      )
+      const json = await res.json()
+
+      if (form === "add") {
+        setAddLastPriceInfo(json.noResult ? null : json.result)
+      } else {
+        setEditLastPriceInfo(json.noResult ? null : json.result)
+      }
+    } catch {
+      if (form === "add") setAddLastPriceInfo(null)
+      else setEditLastPriceInfo(null)
+    } finally {
+      if (form === "add") setAddLastPriceLoading(false)
+      else setEditLastPriceLoading(false)
+    }
+  }
 
   // ─── Fetch saldo tersedia untuk form Buat PO ─────────────────────────────────
   async function fetchPoBalance(method: string, bankAccountId?: string, date?: string) {
@@ -563,6 +608,9 @@ function Purchases() {
 
     if (!purchase) return
 
+    // Reset riwayat harga sebelum fetch yang baru
+    setEditLastPriceInfo(null)
+
     if (filterType === "product") {
       editForm.reset({
         _id: purchase._id,
@@ -574,6 +622,10 @@ function Purchases() {
           ? new Date(purchase.date).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
       })
+      // Auto-fetch riwayat harga untuk produk yang sudah terpilih
+      if (purchase.product?._id) {
+        fetchLastPurchasePrice(String(purchase.product._id), "edit")
+      }
     }
 
     if (filterType === "procurement") {
@@ -589,6 +641,10 @@ function Purchases() {
           ? new Date(purchase.date).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
       })
+      // Auto-fetch riwayat harga untuk item yang sudah terpilih
+      if (purchase.product?._id) {
+        fetchLastPurchasePrice(String(purchase.product._id), "edit")
+      }
     }
 
     if (filterType === "service") {
@@ -818,6 +874,7 @@ function Purchases() {
             <button
               onClick={() => {
                 newPrForm.reset()
+                setAddLastPriceInfo(null)
                 modalRef.current?.showModal()
               }}
               className="btn ml-auto bg-blue-900 text-white hover:bg-blue-800"
@@ -1183,46 +1240,65 @@ function Purchases() {
                     </legend>
 
                     <select
-                      {...editForm.register(
-                        "productId"
-                      )}
+                      {...editForm.register("productId")}
                       className="input w-full"
+                      onChange={(e) => {
+                        editForm.setValue("productId", e.target.value)
+                        setEditLastPriceInfo(null)
+                        fetchLastPurchasePrice(e.target.value, "edit")
+                      }}
                     >
-                      {filterType ===
-                        "product"
-                        ? products.map(
-                          (product) => (
-                            <option
-                              key={
-                                product._id
-                              }
-                              value={
-                                product._id
-                              }
-                            >
-                              {
-                                product.productName
-                              }{" "}
-                              (
-                              {
-                                product.conversionRatioX
-                              }
-                              )
+                      {filterType === "product"
+                        ? products.map((product) => (
+                            <option key={product._id} value={product._id}>
+                              {product.productName} ({product.conversionRatioX})
                             </option>
-                          )
-                        )
-                        : items.map(
-                          (item) => (
-                            <option
-                              key={item._id}
-                              value={item._id}
-                            >
-                              {item.name} (
-                              {item.unit})
+                          ))
+                        : items.map((item) => (
+                            <option key={item._id} value={item._id}>
+                              {item.name} ({item.unit})
                             </option>
-                          )
-                        )}
+                          ))}
                     </select>
+
+                    {/* Riwayat harga terakhir */}
+                    {editLastPriceLoading && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                        <span className="loading loading-spinner loading-xs" />
+                        Mengambil riwayat harga...
+                      </div>
+                    )}
+                    {!editLastPriceLoading && editLastPriceInfo && (
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-medium">Terakhir dibeli:</span>
+                          <span className="font-bold text-amber-900">
+                            Rp {(editLastPriceInfo.finalPrice ?? 0).toLocaleString("id-ID")}
+                          </span>
+                          <span className="text-amber-600">·</span>
+                          <span>
+                            qty: <span className="font-semibold">{editLastPriceInfo.quantity}</span>
+                          </span>
+                          {editLastPriceInfo.date && (
+                            <>
+                              <span className="text-amber-600">·</span>
+                              <span className="text-amber-600">
+                                {new Date(editLastPriceInfo.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                              </span>
+                            </>
+                          )}
+                          {editLastPriceInfo.customSupplier && (
+                            <>
+                              <span className="text-amber-600">·</span>
+                              <span className="italic text-amber-700">{editLastPriceInfo.customSupplier}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </fieldset>
                 )}
 
@@ -1420,46 +1496,65 @@ function Purchases() {
                     </legend>
 
                     <select
-                      {...newPrForm.register(
-                        "productId"
-                      )}
+                      {...newPrForm.register("productId")}
                       className="input w-full"
+                      onChange={(e) => {
+                        newPrForm.setValue("productId", e.target.value)
+                        setAddLastPriceInfo(null)
+                        fetchLastPurchasePrice(e.target.value, "add")
+                      }}
                     >
-                      {filterType ===
-                        "product"
-                        ? products.map(
-                          (product) => (
-                            <option
-                              key={
-                                product._id
-                              }
-                              value={
-                                product._id
-                              }
-                            >
-                              {
-                                product.productName
-                              }{" "}
-                              (
-                              {
-                                product.conversionRatioX
-                              }
-                              )
+                      {filterType === "product"
+                        ? products.map((product) => (
+                            <option key={product._id} value={product._id}>
+                              {product.productName} ({product.conversionRatioX})
                             </option>
-                          )
-                        )
-                        : items.map(
-                          (item) => (
-                            <option
-                              key={item._id}
-                              value={item._id}
-                            >
-                              {item.name} (
-                              {item.unit})
+                          ))
+                        : items.map((item) => (
+                            <option key={item._id} value={item._id}>
+                              {item.name} ({item.unit})
                             </option>
-                          )
-                        )}
+                          ))}
                     </select>
+
+                    {/* Riwayat harga terakhir */}
+                    {addLastPriceLoading && (
+                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                        <span className="loading loading-spinner loading-xs" />
+                        Mengambil riwayat harga...
+                      </div>
+                    )}
+                    {!addLastPriceLoading && addLastPriceInfo && (
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="font-medium">Terakhir dibeli:</span>
+                          <span className="font-bold text-amber-900">
+                            Rp {(addLastPriceInfo.finalPrice ?? 0).toLocaleString("id-ID")}
+                          </span>
+                          <span className="text-amber-600">·</span>
+                          <span>
+                            qty: <span className="font-semibold">{addLastPriceInfo.quantity}</span>
+                          </span>
+                          {addLastPriceInfo.date && (
+                            <>
+                              <span className="text-amber-600">·</span>
+                              <span className="text-amber-600">
+                                {new Date(addLastPriceInfo.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                              </span>
+                            </>
+                          )}
+                          {addLastPriceInfo.customSupplier && (
+                            <>
+                              <span className="text-amber-600">·</span>
+                              <span className="italic text-amber-700">{addLastPriceInfo.customSupplier}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </fieldset>
                 )}
 
