@@ -404,12 +404,24 @@ export default function PurchasesApproval() {
                           "-"
 
                     return (
-                      <tr key={purchase._id}>
+                      <tr key={purchase._id} className={purchase.priceAlert ? "bg-red-50" : ""}>
                         <td>
                           {new Date(purchase.date).toLocaleString("id-ID")}
                         </td>
 
-                        <td>{itemName}</td>
+                        <td>
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{itemName}</span>
+                            {purchase.priceAlert && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                HARGA NAIK +{purchase.priceAlert.priceDiffPct}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
                         <td>
                           {filterType === "service"
@@ -417,7 +429,18 @@ export default function PurchasesApproval() {
                             : `${purchase.quantity} (${unit || "-"})`}
                         </td>
 
-                        <td>{purchase.finalPrice}</td>
+                        <td>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className={purchase.priceAlert ? "font-bold text-red-700" : ""}>
+                              {(purchase.finalPrice ?? 0).toLocaleString("id-ID")}
+                            </span>
+                            {purchase.priceAlert && (
+                              <span className="text-[10px] text-gray-500 line-through">
+                                Sebelumnya: {(purchase.priceAlert.previousPrice ?? 0).toLocaleString("id-ID")}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td>{purchase.payAmount}</td>
                         <td>{suppName}</td>
 

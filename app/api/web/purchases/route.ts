@@ -701,12 +701,47 @@ export async function POST(request: NextRequest) {
     if (params.vendorId === "") delete params.vendorId;
     if (params.supplierId === "") delete params.supplierId;
 
+    // ─── Cek kenaikan harga dibanding pembelian sebelumnya ───────────────────
+    let priceAlert = undefined;
+    const currentPrice = parseFloat(params.finalPrice) || 0;
+
+    if (
+      params.purchaseType !== 'service' &&
+      params.productId &&
+      currentPrice > 0
+    ) {
+      const lastPurchase = await Purchase.findOne({
+        companyId: company._id,
+        productId: params.productId,
+        purchaseType: params.purchaseType,
+        status: { $in: ['ordered', 'completed'] },
+      })
+        .sort({ date: -1 })
+        .lean() as any;
+
+      if (lastPurchase) {
+        const previousPrice = parseFloat(lastPurchase.finalPrice) || 0;
+        if (previousPrice > 0 && currentPrice > previousPrice) {
+          const priceDiff = currentPrice - previousPrice;
+          const priceDiffPct = Math.round((priceDiff / previousPrice) * 100 * 10) / 10;
+          priceAlert = {
+            previousPrice,
+            currentPrice,
+            priceDiff,
+            priceDiffPct,
+          };
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const result = await Purchase.create({
       ...params,
       companyId: company._id,
       editable: true,
       receivedQty: 0,
-      purchaseOrderNumber: `PO - ${String(Date.now()).slice(-5)} `
+      purchaseOrderNumber: `PO - ${String(Date.now()).slice(-5)} `,
+      ...(priceAlert ? { priceAlert } : {}),
     })
 
     const requested = (result as any)._doc

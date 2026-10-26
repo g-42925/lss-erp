@@ -45,6 +45,16 @@ const PurchaseSchema = new mongoose.Schema({
     ]
   },
   link: { type: String, required: false },
+  priceAlert: {
+    type: {
+      previousPrice: { type: Number },
+      currentPrice: { type: Number },
+      priceDiff: { type: Number },
+      priceDiffPct: { type: Number },
+    },
+    required: false,
+    default: undefined,
+  },
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)
