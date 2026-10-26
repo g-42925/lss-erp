@@ -36,6 +36,7 @@ const quotationSchema = new mongoose.Schema({
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  locked: { type: Boolean, default: false }
 });
 
 export default mongoose.models.Quotation || mongoose.model('Quotation', quotationSchema);

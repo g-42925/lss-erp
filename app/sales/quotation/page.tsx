@@ -1,6 +1,13 @@
 "use client"
 
-import { useEffect, useState, Suspense } from "react"
+import {
+  useEffect,
+  useState,
+  useRef,
+  useLayoutEffect,
+  Suspense,
+} from "react"
+import { createPortal } from "react-dom"
 import useAuth from "@/store/auth"
 import Link from "next/link"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -9,11 +16,17 @@ import {
   Edit03Icon,
   Delete01Icon,
   Search01Icon,
+  MoreHorizontalIcon,
 } from "@hugeicons/core-free-icons"
 import Swal from "sweetalert2"
 import { formatDate } from "@/lib/utils"
 import { usePermission } from "@/hooks/usePermission"
 import { useRouter } from "next/navigation"
+
+type MenuPosition = {
+  top: number
+  left: number
+}
 
 export default function QuotationList() {
   return (
@@ -26,42 +39,119 @@ export default function QuotationList() {
 function QuotationListContent() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const masterAccountId = useAuth((state) => state.masterAccountId)
-  const hasHydrated = useAuth((s) => s._hasHydrated)
+  const hasHydrated = useAuth((state) => state._hasHydrated)
   const { canCreate, canEdit, canDelete } = usePermission()
   const router = useRouter()
 
   const [quotations, setQuotations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Filter
   const [customerName, setCustomerName] = useState("")
   const [searching, setSearching] = useState(false)
+  const [openActionId, setOpenActionId] = useState<string | null>(null)
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({
+    top: 0,
+    left: 0,
+  })
 
-  // Copy Modal States
   const [copyModalOpen, setCopyModalOpen] = useState(false)
   const [copyTargetQuo, setCopyTargetQuo] = useState<any>(null)
   const [copyCustomer, setCopyCustomer] = useState("")
   const [copyPriceOptions, setCopyPriceOptions] = useState<any[]>([])
   const [copying, setCopying] = useState(false)
 
-  // SO Modal States
   const [soModalOpen, setSoModalOpen] = useState(false)
   const [soTargetQuo, setSoTargetQuo] = useState<any>(null)
 
-  const openSoModal = (quo: any) => {
-    if (!quo.priceOptions || quo.priceOptions.length <= 1) {
-      router.push(`/sales/svc-order?qNumber=${quo.quotationNumber}&optIndex=0`)
-    } else {
-      setSoTargetQuo(quo)
-      setSoModalOpen(true)
-    }
+  const actionButtonRef = useRef<HTMLButtonElement>(null)
+  const actionMenuRef = useRef<HTMLUListElement>(null)
+
+  const activeQuotation = quotations.find(
+    (quo) => quo._id === openActionId
+  )
+
+  const updateMenuPosition = () => {
+    const button = actionButtonRef.current
+    const menu = actionMenuRef.current
+
+    if (!button || !menu) return
+
+    const rect = button.getBoundingClientRect()
+    const menuRect = menu.getBoundingClientRect()
+    const gap = 4
+    const padding = 8
+
+    const showBelow =
+      rect.bottom + gap + menuRect.height <=
+      window.innerHeight - padding
+
+    const top = showBelow
+      ? rect.bottom + gap
+      : Math.max(
+        padding,
+        rect.top - menuRect.height - gap
+      )
+
+    const left = Math.max(
+      padding,
+      Math.min(
+        rect.right - menuRect.width,
+        window.innerWidth - menuRect.width - padding
+      )
+    )
+
+    setMenuPosition({ top, left })
   }
 
-  const handleSoOptionSelect = (index: number) => {
-    if (soTargetQuo) {
-      router.push(`/sales/svc-order?qNumber=${soTargetQuo.quotationNumber}&optIndex=${index}`)
+  useLayoutEffect(() => {
+    if (!openActionId) return
+
+    updateMenuPosition()
+
+    const handleViewportChange = () => {
+      updateMenuPosition()
     }
-  }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+
+      if (
+        !actionButtonRef.current?.contains(target) &&
+        !actionMenuRef.current?.contains(target)
+      ) {
+        setOpenActionId(null)
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenActionId(null)
+      }
+    }
+
+    // Capture scroll dari window maupun container tabel.
+    window.addEventListener(
+      "scroll",
+      handleViewportChange,
+      true
+    )
+    window.addEventListener("resize", handleViewportChange)
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      window.removeEventListener(
+        "scroll",
+        handleViewportChange,
+        true
+      )
+      window.removeEventListener("resize", handleViewportChange)
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      )
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [openActionId])
 
   useEffect(() => {
     if (loggedIn && hasHydrated && masterAccountId) {
@@ -81,7 +171,7 @@ function QuotationListContent() {
         params.set("customerName", name.trim())
       }
 
-      const res = await fetch(`/api/web/quotations?${params.toString()}`)
+      const res = await fetch(`/api/web/quotations?${params}`)
       const data = await res.json()
 
       if (!data.error) {
@@ -110,6 +200,8 @@ function QuotationListContent() {
   }
 
   const handleDelete = async (id: string) => {
+    setOpenActionId(null)
+
     const confirm = await Swal.fire({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
@@ -118,42 +210,61 @@ function QuotationListContent() {
       confirmButtonText: "Yes, delete it!",
     })
 
-    if (confirm.isConfirmed) {
-      try {
-        const res = await fetch(`/api/web/quotations/${id}`, {
-          method: "DELETE",
-        })
+    if (!confirm.isConfirmed) return
 
-        const data = await res.json()
+    try {
+      const res = await fetch(`/api/web/quotations/${id}`, {
+        method: "DELETE",
+      })
+      const data = await res.json()
 
-        if (!data.error) {
-          Swal.fire(
-            "Deleted!",
-            "Your quotation has been deleted.",
-            "success"
-          )
-
-          fetchQuotations()
-        } else {
-          Swal.fire("Error!", data.message, "error")
-        }
-      } catch (e) {
-        Swal.fire("Error!", "Something went wrong", "error")
+      if (!data.error) {
+        await Swal.fire(
+          "Deleted!",
+          "Your quotation has been deleted.",
+          "success"
+        )
+        fetchQuotations()
+      } else {
+        Swal.fire("Error!", data.message, "error")
       }
+    } catch {
+      Swal.fire("Error!", "Something went wrong", "error")
     }
   }
 
   const openCopyModal = (quo: any) => {
+    setOpenActionId(null)
     setCopyTargetQuo(quo)
     setCopyCustomer("")
-
     setCopyPriceOptions(
       quo.priceOptions?.length
         ? JSON.parse(JSON.stringify(quo.priceOptions))
         : [{ qty: 1, frequency: "Month", price: 0 }]
     )
-
     setCopyModalOpen(true)
+  }
+
+  const openSoModal = (quo: any) => {
+    setOpenActionId(null)
+
+    if (!quo.priceOptions || quo.priceOptions.length <= 1) {
+      router.push(
+        `/sales/svc-order?qNumber=${quo.quotationNumber}&optIndex=0`
+      )
+    } else {
+      setSoTargetQuo(quo)
+      setSoModalOpen(true)
+    }
+  }
+
+  const handleSoOptionSelect = (index: number) => {
+    if (soTargetQuo) {
+      setSoModalOpen(false)
+      router.push(
+        `/sales/svc-order?qNumber=${soTargetQuo.quotationNumber}&optIndex=${index}`
+      )
+    }
   }
 
   const handleCopySubmit = async (e: React.FormEvent) => {
@@ -174,7 +285,8 @@ function QuotationListContent() {
           address: "",
         },
         productId:
-          copyTargetQuo.productId?._id || copyTargetQuo.productId,
+          copyTargetQuo.productId?._id ||
+          copyTargetQuo.productId,
         specifications: copyTargetQuo.specifications,
         priceOptions: copyPriceOptions,
         programs: copyTargetQuo.programs,
@@ -194,18 +306,17 @@ function QuotationListContent() {
       const data = await res.json()
 
       if (!data.error) {
-        Swal.fire(
+        await Swal.fire(
           "Success!",
           "Quotation berhasil disalin.",
           "success"
         )
-
         setCopyModalOpen(false)
         fetchQuotations()
       } else {
         Swal.fire("Error!", data.message, "error")
       }
-    } catch (err) {
+    } catch {
       Swal.fire("Error!", "Something went wrong", "error")
     } finally {
       setCopying(false)
@@ -213,13 +324,9 @@ function QuotationListContent() {
   }
 
   const addCopyPriceOption = () => {
-    setCopyPriceOptions([
-      ...copyPriceOptions,
-      {
-        qty: 1,
-        frequency: "Month",
-        price: 0,
-      },
+    setCopyPriceOptions((prev) => [
+      ...prev,
+      { qty: 1, frequency: "Month", price: 0 },
     ])
   }
 
@@ -228,88 +335,152 @@ function QuotationListContent() {
     field: string,
     val: any
   ) => {
-    const newOpts = [...copyPriceOptions]
-    newOpts[index][field] = val
-    setCopyPriceOptions(newOpts)
+    setCopyPriceOptions((prev) =>
+      prev.map((option, i) =>
+        i === index ? { ...option, [field]: val } : option
+      )
+    )
   }
 
   const removeCopyPriceOption = (index: number) => {
-    const newOpts = [...copyPriceOptions]
-    newOpts.splice(index, 1)
-    setCopyPriceOptions(newOpts)
+    setCopyPriceOptions((prev) =>
+      prev.filter((_, i) => i !== index)
+    )
+  }
+
+  async function handleUnlock(_id: string) {
+    try {
+      const res = await fetch(`/api/web/quotations/unlock`, {
+        method: "PUT",
+        body: JSON.stringify({ _id }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await res.json()
+
+      if (!data.error) {
+        await Swal.fire(
+          "Success!",
+          "Quotation successfully unlocked.",
+          "success"
+        )
+        fetchQuotations()
+      }
+      else {
+        Swal.fire("Error!", data.message, "error")
+      }
+    }
+    catch {
+      Swal.fire("Error!", "Something went wrong", "error")
+    }
+  }
+
+  async function handleLock(_id: string) {
+    try {
+      const res = await fetch(`/api/web/quotations/lock`, {
+        method: "PUT",
+        body: JSON.stringify({ _id }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await res.json()
+
+      if (!data.error) {
+        await Swal.fire(
+          "Success!",
+          "Quotation successfully locked.",
+          "success"
+        )
+        fetchQuotations()
+      }
+      else {
+        Swal.fire("Error!", data.message, "error")
+      }
+    }
+    catch {
+      Swal.fire("Error!", "Something went wrong", "error")
+    }
   }
 
   if (!hasHydrated || loading) {
     return (
       <div className="p-8 text-center">
-        <span className="loading loading-spinner loading-lg"></span>
+        <span className="loading loading-spinner loading-lg" />
       </div>
     )
   }
 
   return (
-    <div className="p-8 pb-32">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Quotations</h1>
+    <div className="p-4 pb-32 md:p-8">
+      {/* Sticky Header + Search */}
+      <div className="sticky top-0 z-30 -mx-4 -mt-4 mb-6 px-4 pb-3 pt-4 shadow-sm backdrop-blur-md md:-mx-8 md:-mt-8 md:px-8 md:pt-8">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold md:text-3xl">
+            Quotations
+          </h1>
 
-        {canCreate("/sales/quotation") && (
-          <Link
-            href="/sales/quotation/create"
-            className="btn btn-primary"
+          {canCreate("/sales/quotation") && (
+            <Link
+              href="/sales/quotation/create"
+              className="btn btn-primary btn-sm md:btn-md"
+            >
+              <HugeiconsIcon icon={AddCircleHalfDotIcon} />
+              Create Quotation
+            </Link>
+          )}
+        </div>
+
+        <div className="rounded-lg bg-white p-3 shadow md:p-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSearch()
+            }}
+            className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3"
           >
-            <HugeiconsIcon icon={AddCircleHalfDotIcon} />
-            Create Quotation
-          </Link>
-        )}
-      </div>
-
-      {/* Filter */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleSearch()
-          }}
-          className="flex gap-3 items-end"
-        >
-          <div className="flex-1">
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Cari nama customer..."
-              className="input input-bordered w-full"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={searching}
-            className="btn btn-primary"
-          >
-            {searching ? (
-              <span className="loading loading-spinner loading-sm" />
-            ) : (
-              <HugeiconsIcon
-                icon={Search01Icon}
-                size={18}
+            <div className="min-w-0 flex-1">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Cari nama customer..."
+                className="input input-bordered w-full"
               />
-            )}
-            Cari
-          </button>
+            </div>
 
-          <button
-            type="button"
-            onClick={handleResetFilter}
-            disabled={searching || !customerName}
-            className="btn btn-outline"
-          >
-            Reset
-          </button>
-        </form>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={searching}
+                className="btn btn-primary flex-1 sm:flex-none"
+              >
+                {searching ? (
+                  <span className="loading loading-spinner loading-sm" />
+                ) : (
+                  <HugeiconsIcon icon={Search01Icon} size={18} />
+                )}
+                Cari
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetFilter}
+                disabled={searching || !customerName}
+                className="btn btn-outline flex-1 sm:flex-none"
+              >
+                Reset
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
+      {/* Quotation Table */}
+      <div className="overflow-x-auto rounded-lg bg-white shadow">
         <table className="table table-zebra w-full">
           <thead>
             <tr>
@@ -318,7 +489,7 @@ function QuotationListContent() {
               <th>Customer</th>
               <th>Service</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th className="text-center">Actions</th>
             </tr>
           </thead>
 
@@ -326,7 +497,6 @@ function QuotationListContent() {
             {quotations.map((quo) => (
               <tr key={quo._id}>
                 <td>{formatDate(quo.date)}</td>
-
                 <td>{quo.quotationNumber}</td>
 
                 <td>
@@ -336,9 +506,7 @@ function QuotationListContent() {
                     : quo.customCustomer?.name || "-"}
                 </td>
 
-                <td>
-                  {quo.productId?.productName || "-"}
-                </td>
+                <td>{quo.productId?.productName || "-"}</td>
 
                 <td>
                   <span
@@ -347,64 +515,38 @@ function QuotationListContent() {
                       : quo.status === "accepted"
                         ? "badge-success"
                         : "badge-info"
-                      } `}
+                      }`}
                   >
                     {quo.status}
                   </span>
                 </td>
 
-                <td>
-                  <div className="flex gap-2">
-                    {canCreate("/sales/quotation") && (
-                      <button
-                        onClick={() => openCopyModal(quo)}
-                        className="btn btn-sm btn-outline btn-secondary"
-                      >
-                        Salin
-                      </button>
-                    )}
+                <td className="text-center">
+                  <button
+                    ref={
+                      openActionId === quo._id
+                        ? actionButtonRef
+                        : null
+                    }
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-square"
+                    aria-label={`Actions for ${quo.quotationNumber}`}
+                    aria-expanded={openActionId === quo._id}
+                    onClick={(event) => {
+                      if (openActionId === quo._id) {
+                        setOpenActionId(null)
+                        return
+                      }
 
-                    {canCreate("/sales/svc-order") && (
-                      <button
-                        onClick={() => openSoModal(quo)}
-                        className="btn btn-sm btn-outline btn-primary"
-                      >
-                        Buat SO
-                      </button>
-                    )}
-
-                    {canEdit("/sales/quotation") && (
-                      <Link
-                        href={`/sales/quotation/edit/${quo._id}`}
-                        className="btn btn-sm btn-outline btn-warning"
-                      >
-                        <HugeiconsIcon
-                          icon={Edit03Icon}
-                          size={16}
-                        />
-                        Edit
-                      </Link>
-                    )}
-
-                    <Link
-                      href={`/sales/quotation/print/${quo._id}`}
-                      className="btn btn-sm btn-outline btn-info"
-                    >
-                      Print/Preview
-                    </Link>
-
-                    {canDelete("/sales/quotation") && (
-                      <button
-                        onClick={() => handleDelete(quo._id)}
-                        className="btn btn-sm btn-outline btn-error"
-                      >
-                        <HugeiconsIcon
-                          icon={Delete01Icon}
-                          size={16}
-                        />
-                      </button>
-                    )}
-                  </div>
+                      actionButtonRef.current = event.currentTarget
+                      setOpenActionId(quo._id)
+                    }}
+                  >
+                    <HugeiconsIcon
+                      icon={MoreHorizontalIcon}
+                      size={20}
+                    />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -413,7 +555,7 @@ function QuotationListContent() {
               <tr>
                 <td
                   colSpan={6}
-                  className="text-center py-8 text-gray-500"
+                  className="py-8 text-center text-gray-500"
                 >
                   No quotations found
                 </td>
@@ -423,170 +565,273 @@ function QuotationListContent() {
         </table>
       </div>
 
-      {copyModalOpen && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-3xl">
-            <h3 className="font-bold text-lg mb-4">
-              Salin Quotation
-            </h3>
+      {/* Action Menu: rendered outside the scrollable table */}
+      {activeQuotation &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ul
+            ref={actionMenuRef}
+            className="menu fixed z-[9999] w-52 rounded-box border border-base-300 bg-base-100 p-2 shadow-xl"
+            style={{
+              top: menuPosition.top,
+              left: menuPosition.left,
+              visibility:
+                menuPosition.top === 0 &&
+                  menuPosition.left === 0
+                  ? "hidden"
+                  : "visible",
+            }}
+          >
+            {canCreate("/sales/quotation") && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => openCopyModal(activeQuotation)}
+                >
+                  copy
+                </button>
+              </li>
+            )}
 
-            <form
-              onSubmit={handleCopySubmit}
-              className="space-y-4"
-            >
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">
-                    Nama Customer Baru
-                  </span>
-                </label>
+            {canCreate("/sales/svc-order") && (
+              <li>
+                <button
+                  type="button"
+                  disabled={activeQuotation.locked}
+                  onClick={() => openSoModal(activeQuotation)}
+                >
+                  make order
+                </button>
+              </li>
+            )}
 
-                <input
-                  type="text"
-                  className="input input-bordered"
-                  required
-                  value={copyCustomer}
-                  onChange={(e) =>
-                    setCopyCustomer(e.target.value)
-                  }
-                />
-              </div>
+            {canEdit("/sales/quotation") && (
+              <li>
+                <Link
+                  href={`/sales/quotation/edit/${activeQuotation._id}`}
+                  onClick={() => setOpenActionId(null)}
+                >
+                  Edit
+                </Link>
+              </li>
+            )}
 
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold">
-                    Opsi Harga
-                  </span>
+            <li>
+              <Link
+                href={`/sales/quotation/print/${activeQuotation._id}`}
+                onClick={() => setOpenActionId(null)}
+              >
+                Print / Preview
+              </Link>
+            </li>
 
+            {
+              activeQuotation.locked === false && (
+                <li>
                   <button
                     type="button"
-                    onClick={addCopyPriceOption}
-                    className="btn btn-sm btn-primary"
+                    onClick={() => handleLock(activeQuotation._id)}
                   >
-                    Add Price Option
+                    lock
                   </button>
+                </li>
+              )
+            }
+
+            {
+              activeQuotation.locked === true && (
+                <li>
+                  <button
+                    type="button"
+
+                    onClick={() => handleUnlock(activeQuotation._id)}
+                  >
+                    Unlock
+                  </button>
+                </li>
+              )
+            }
+
+
+            {canDelete("/sales/quotation") && (
+              <li>
+                <button
+                  type="button"
+                  className="text-error"
+                  onClick={() => handleDelete(activeQuotation._id)}
+                >
+                  Hapus
+                </button>
+              </li>
+            )}
+          </ul>,
+          document.body
+        )
+      }
+
+      {/* Copy Quotation Modal */}
+      {
+        copyModalOpen && (
+          <div className="modal modal-open">
+            <div className="modal-box max-w-3xl">
+              <h3 className="mb-4 text-lg font-bold">
+                Salin Quotation
+              </h3>
+
+              <form onSubmit={handleCopySubmit} className="space-y-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">
+                      Nama Customer Baru
+                    </span>
+                  </label>
+
+                  <input
+                    type="text"
+                    className="input input-bordered"
+                    required
+                    value={copyCustomer}
+                    onChange={(e) => setCopyCustomer(e.target.value)}
+                  />
                 </div>
 
-                {copyPriceOptions.map((opt, i) => (
-                  <div
-                    key={i}
-                    className="grid grid-cols-[80px_1fr_1fr_auto] gap-2 items-center mb-2"
-                  >
-                    <input
-                      type="number"
-                      placeholder="Qty"
-                      className="input input-bordered w-full"
-                      required
-                      value={opt.qty}
-                      onChange={(e) =>
-                        updateCopyPriceOption(
-                          i,
-                          "qty",
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                    />
-
-                    <select
-                      className="select select-bordered w-full"
-                      value={opt.frequency}
-                      onChange={(e) =>
-                        updateCopyPriceOption(
-                          i,
-                          "frequency",
-                          e.target.value
-                        )
-                      }
-                    >
-                      <option value="Once">Once</option>
-                      <option value="Week">Week</option>
-                      <option value="Month">Month</option>
-                      <option value="Year">Year</option>
-                    </select>
-
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      className="input input-bordered w-full"
-                      required
-                      value={opt.price}
-                      onChange={(e) =>
-                        updateCopyPriceOption(
-                          i,
-                          "price",
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                    />
+                <div className="border-t pt-4">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="font-semibold">Opsi Harga</span>
 
                     <button
                       type="button"
-                      onClick={() =>
-                        removeCopyPriceOption(i)
-                      }
-                      className="btn btn-error btn-square btn-sm text-white"
+                      onClick={addCopyPriceOption}
+                      className="btn btn-sm btn-primary"
                     >
-                      X
+                      Add Price Option
                     </button>
                   </div>
-                ))}
+
+                  {copyPriceOptions.map((opt, i) => (
+                    <div
+                      key={i}
+                      className="mb-2 grid grid-cols-[70px_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2"
+                    >
+                      <input
+                        type="number"
+                        placeholder="Qty"
+                        className="input input-bordered w-full"
+                        required
+                        value={opt.qty}
+                        onChange={(e) =>
+                          updateCopyPriceOption(
+                            i,
+                            "qty",
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                      />
+
+                      <select
+                        className="select select-bordered w-full"
+                        value={opt.frequency}
+                        onChange={(e) =>
+                          updateCopyPriceOption(
+                            i,
+                            "frequency",
+                            e.target.value
+                          )
+                        }
+                      >
+                        <option value="Once">Once</option>
+                        <option value="Week">Week</option>
+                        <option value="Month">Month</option>
+                        <option value="Year">Year</option>
+                      </select>
+
+                      <input
+                        type="number"
+                        placeholder="Price"
+                        className="input input-bordered w-full"
+                        required
+                        value={opt.price}
+                        onChange={(e) =>
+                          updateCopyPriceOption(
+                            i,
+                            "price",
+                            parseFloat(e.target.value) || 0
+                          )
+                        }
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => removeCopyPriceOption(i)}
+                        className="btn btn-square btn-sm btn-error text-white"
+                      >
+                        X
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="modal-action">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setCopyModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={copying}
+                    className="btn btn-success text-white"
+                  >
+                    {copying ? "Menyalin..." : "Salin"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Service Order Modal */}
+      {
+        soModalOpen && soTargetQuo && (
+          <div className="modal modal-open">
+            <div className="modal-box">
+              <h3 className="mb-4 text-lg font-bold">
+                Pilih Opsi Harga untuk Service Order
+              </h3>
+
+              <div className="flex flex-col gap-3">
+                {soTargetQuo.priceOptions?.map(
+                  (opt: any, i: number) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="btn btn-outline justify-start"
+                      onClick={() => handleSoOptionSelect(i)}
+                    >
+                      Qty: {opt.qty} | Freq: {opt.frequency} | Price:
+                      Rp {opt.price?.toLocaleString("id-ID")}
+                    </button>
+                  )
+                )}
               </div>
 
               <div className="modal-action">
                 <button
                   type="button"
                   className="btn"
-                  onClick={() =>
-                    setCopyModalOpen(false)
-                  }
+                  onClick={() => setSoModalOpen(false)}
                 >
                   Cancel
                 </button>
-
-                <button
-                  type="submit"
-                  disabled={copying}
-                  className="btn btn-success text-white"
-                >
-                  {copying
-                    ? "Menyalin..."
-                    : "Salin"}
-                </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {soModalOpen && soTargetQuo && (
-        <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">
-              Pilih Opsi Harga untuk Service Order
-            </h3>
-            <div className="flex flex-col gap-3">
-              {soTargetQuo.priceOptions?.map((opt: any, i: number) => (
-                <button
-                  key={i}
-                  className="btn btn-outline justify-start"
-                  onClick={() => handleSoOptionSelect(i)}
-                >
-                  Qty: {opt.qty} | Freq: {opt.frequency} | Price: Rp {opt.price?.toLocaleString('id-ID')}
-                </button>
-              ))}
-            </div>
-            <div className="modal-action">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setSoModalOpen(false)}
-              >
-                Cancel
-              </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   )
 }

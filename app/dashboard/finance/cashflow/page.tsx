@@ -597,6 +597,15 @@ export default function CashflowReportPage() {
 		return ref ? ref : bankAccountNumber
 	}
 
+	function utcToIndonesiaTime(date: string) {
+		return new Date(date).toLocaleTimeString("id-ID", {
+			timeZone: "Asia/Jakarta",
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false
+		})
+	}
+
 	if (!hasHydrated || !loggedIn) return null;
 
 	return (
@@ -843,8 +852,11 @@ export default function CashflowReportPage() {
 												</td>
 												<td className="p-3.5 whitespace-nowrap font-medium text-slate-700">
 													{new Date(t.date).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" })}
-													{t.time && (
+													{t.time && t.source != "Sales Invoice" && (
 														<span className="block text-[10px] font-normal text-slate-400 mt-0.5">{t.time}</span>
+													)}
+													{t.source === "Sales Invoice" && (
+														<span className="block text-[10px] font-normal text-slate-400 mt-0.5">{utcToIndonesiaTime(t.date)}</span>
 													)}
 												</td>
 												<td className="p-3.5 whitespace-nowrap text-slate-600">
