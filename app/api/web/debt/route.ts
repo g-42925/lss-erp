@@ -1,14 +1,13 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-
+import BankAccount from '@/models/BankAccount'
 import Purchase from '@/models/Purchase'
 import Invoice from '@/models/Invoice'
 import ServiceOrder from '@/models/ServiceOrder'
 import Companie from '@/models/Companie'
 import Log from '@/models/Log'
 import Cashflow from '@/models/Cashflow'
-import BankAccount from '@/models/BankAccount'
 import "@/models/Tax"
 import { getAvailableBalance } from '@/lib/finance/balance'
 
@@ -290,7 +289,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     const body = await request.json()
-    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId, description, voucher } = body
+    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId, description, voucher, time } = body
 
     if (!invoiceId || !payAmount || payAmount <= 0) {
       return NextResponse.json({ noResult: true, message: "Parameter tidak valid", result: null, error: true })
@@ -355,12 +354,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const date = payDate ? new Date(payDate) : new Date()
+    const [hours, minutes] = time.split(':').map(Number)
+    date.setUTCHours(hours - 7, minutes, 0, 0)
+
+    // Gunakan suffix yang sama agar paymentNumber di Log dan reference di Cashflow bisa saling di-link
+    const vnSuffix = String(Date.now()).slice(-6)
+
     const logEntry = await Log.create({
       purchaseId: new mongoose.Types.ObjectId(invoiceId),
-      date: payDate ? new Date(payDate) : new Date(),
+      date: date,
       amount: amt,
       initial: false,
-      paymentNumber: `VL-${String(Date.now()).slice(-6)}`,
+      paymentNumber: `VL-${vnSuffix}`,
       type: 'payment',
       paymentMethod: paymentMethod || 'Cash',
       createdBy: userId ? new mongoose.Types.ObjectId(userId) : undefined,
@@ -377,11 +383,12 @@ export async function POST(request: NextRequest) {
         bankAccountId: isCash ? null : (bankAccountId || null),
         type: 'out',
         amount: amt,
-        reference: `Pembayaran hutang vendor - ${invoice.invoiceNumber || invoiceId}${refText ? ` | ${refText}` : ''}`,
+        reference: `VL ${vnSuffix} | Inv ${invoice.invoiceNumber || invoiceId}${refText ? ` | ${refText}` : ''}`,
         date: payDate ? new Date(payDate) : new Date(),
         recordedBy: userId ? new mongoose.Types.ObjectId(userId) : null,
         to: 'Vendor',
-        source: 'purchase_payment'
+        source: 'purchase_payment',
+        time: time
       })
     }
 
@@ -407,7 +414,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase()
     const body = await request.json()
-    const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod } = body
+    const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod, newTime, reference } = body
 
     if (!logId) {
       return NextResponse.json({ noResult: true, message: "logId is required", result: null, error: true })
@@ -438,6 +445,25 @@ export async function PUT(request: NextRequest) {
     if (newDate) updates.date = new Date(newDate)
     if (newPaymentMethod) updates.paymentMethod = newPaymentMethod
 
+    if (newTime) {
+      const date = new Date(updates.date)
+      const [hours, minutes] = newTime.split(':').map(Number)
+      date.setUTCHours(hours - 7, minutes, 0, 0)
+      updates.date = date
+    }
+
+    // Update bankAccountId di Log b1erdasarkan newPaymentMethod
+    const isCashEdit = !newPaymentMethod || newPaymentMethod === 'Cash'
+    if (isCashEdit) {
+      updates.bankAccountId = null
+    }
+    else {
+      // newPaymentMethod format: "BankName-AccountNumber"
+      const bankForLog = await BankAccount.findOne({ accountNumber: newPaymentMethod.split('-')[1] }).lean() as any
+      updates.bankAccountId = bankForLog ? bankForLog._id : null
+      updates.reference = reference
+    }
+
     // Jika amount berubah, update Invoice.vendorPaid
     if (newAmount !== undefined && newAmount !== null && Number(newAmount) !== oldLog.amount) {
       const diff = Number(newAmount) - oldLog.amount
@@ -447,29 +473,52 @@ export async function PUT(request: NextRequest) {
       await Invoice.findByIdAndUpdate(oldLog.purchaseId, {
         $inc: { vendorPaid: diff }
       })
+    }
 
-      // Update Cashflow jika ada
-      const invoice = await Invoice.findById(oldLog.purchaseId).lean() as any
-      if (invoice) {
-        const cmp = await Companie.findOne({ _id: invoice.companyId })
-        if (cmp) {
-          // Cari cashflow terkait dan update amount-nya
-          const cfQuery: any = {
-            companyId: cmp._id,
-            type: 'out',
-            reference: { $regex: invoice.invoiceNumber || oldLog.purchaseId.toString() }
+    // Update Cashflow: selalu update untuk semua perubahan (date/paymentMethod/bankAccountId/amount)
+    const invoice = await Invoice.findById(oldLog.purchaseId).lean() as any
+    if (invoice) {
+      const cmp = await Companie.findOne({ _id: invoice.companyId })
+      if (cmp) {
+        // Cari cashflow terkait dan update amount-nya
+        const cfQuery: any = {
+          reference: {
+            $regex: oldLog.paymentNumber.replace(/\s*-\s*/, ' '),
+            $options: 'i'
           }
-          // Update cashflow terdekat berdasarkan tanggal log lama
-          await Cashflow.findOneAndUpdate(
-            { ...cfQuery, amount: oldLog.amount, date: oldLog.date },
-            { amount: Number(newAmount), ...(newDate ? { date: new Date(newDate) } : {}) }
-          )
         }
+
+        // cari bank baru jika newPaymentMethod bukan cash
+        const bank = isCashEdit ? null : await BankAccount.findOne(
+          { accountNumber: newPaymentMethod.split('-')[1] }
+        )
+
+        // jangan sentuh baris kode ini
+
+        // Update cashflow terdekat berdasarkan tanggal log lama
+        await Cashflow.findOneAndUpdate(
+          {
+            ...cfQuery
+          },
+          {
+            accountType: isCashEdit ? 'Cash' : 'Bank',
+            bankAccountId: isCashEdit ? null : (bank?._id || null),
+            ...(newDate ? { date: new Date(newDate) } : {}),
+            ...(newAmount !== undefined && newAmount !== null ? { amount: Number(newAmount) } : {}),
+            time: newTime
+          }
+        )
+
+        // jangan sentuh baris kode kode ini
       }
     }
 
-    const updated = await Log.findByIdAndUpdate(logId, updates, { new: true })
-      .populate('createdBy', 'name')
+    const updated = await Log.findByIdAndUpdate(
+      logId, updates,
+      {
+        new: true
+      }
+    ).populate('createdBy', 'name')
       .populate('editedBy', 'name')
       .populate('editApprovedBy', 'name')
       .lean()

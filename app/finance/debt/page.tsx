@@ -45,6 +45,7 @@ export default function Debt() {
   const [editTime, setEditTime] = useState("")
   const [editPaymentMethod, setEditPaymentMethod] = useState("")
   const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editBankAccountId, setEditBankAccountId] = useState("")
   const [paySubmitting, setPaySubmitting] = useState(false)
   const [bulkPaySubmitting, setBulkPaySubmitting] = useState(false)
   const [selectedDebt, setSelectedDebt] = useState<any>(null)
@@ -599,7 +600,11 @@ export default function Debt() {
     setEditAmount(Math.abs(log.amount))
     setEditDate(dateTime.date)
     setEditTime(dateTime.time)
-    setEditPaymentMethod(log.reference || "Cash")
+    // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
+    // karena itu yang cocok dengan option value pada dropdown bank account.
+    // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
+    const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
+    setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
     setEditApprovalCode("")
     editLogRef.current?.showModal()
   }
@@ -618,11 +623,14 @@ export default function Debt() {
       const isBarang = filterType === "barang"
       const apiUrl = filterType === "vendor" ? "/api/web/debt" : "/api/web/log/purchase"
 
-
       // Interpretasikan tanggal dan jam sebagai WIB, lalu konversi ke UTC.
       const newDateTime = isBarang
         ? new Date(`${editDate}T${editTime}:00+07:00`).toISOString()
         : undefined
+
+      const reference = editPaymentMethod !== 'Cash'
+        ? editPaymentMethod
+        : null
 
       const res = await fetch(apiUrl, {
         method: "PUT",
@@ -638,7 +646,8 @@ export default function Debt() {
             newDateTime,
           }),
           newPaymentMethod: editPaymentMethod,
-          reference: editPaymentMethod,
+          newTime: editTime,
+          reference
         }),
       })
 
@@ -976,20 +985,11 @@ export default function Debt() {
                       </span>
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-blue-200 flex flex-col gap-1">
-                    <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Sisa Hutang</span>
-                    {
-                      selectedDebt.purchaseType !== "service"
-                        ? (
-                          <span className="text-red-600 font-bold text-2xl">Rp {(selectedDebt.finalPrice).toLocaleString('id-ID')}</span>
-                        )
-                        : (
-                          <>
-                            <span className="text-red-600 font-bold text-2xl">Rp {remaining(selectedDebt)?.toLocaleString('id-ID')}</span>
-                          </>
-                        )
-                    }
-                  </div>
+                  {
+                    selectedDebt?.purchaseType !== "service" && (
+                      <span className="text-red-600 font-bold text-2xl">Rp {remaining(selectedDebt)?.toLocaleString('id-ID')}</span>
+                    )
+                  }
                 </div>
               )}
 
