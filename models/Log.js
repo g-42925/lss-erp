@@ -78,6 +78,16 @@ const logSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'BankAccount',
     required: false
+  },
+  nonCashDst: {
+    accountNumber: {
+      type: String,
+      required: false
+    },
+    description: {
+      type: String,
+      required: false
+    }
   }
 });
 

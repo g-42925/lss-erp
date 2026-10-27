@@ -1279,7 +1279,7 @@ function XOrderContent() {
           {addInvoiceFn.noResult || addInvoiceFn.error ? <label className="input-validator text-red-900">something went wrong</label> : <></>}
           <div className="flex flex-row gap-3 modal-action">
             <button type="button" className="btn" onClick={() => invoiceModalRef.current?.close()}>Cancel</button>
-            <button className="btn bg-white text-white">Submit</button>
+            <button className="btn bg-black text-white">Submit</button>
           </div>
         </form>
       </dialog>

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
+
 "use client"
 
 import useAuth from "@/store/auth"
@@ -8,7 +9,6 @@ import { useRef, useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 import { NumericFormat } from "react-number-format";
 import { usePermission } from "@/hooks/usePermission"
-
 
 
 
@@ -56,6 +56,8 @@ export default function Debt() {
     bankAccountId: '',
     payDate: getLocalDateTime().date,
     payTime: getLocalDateTime().time,
+    destinationAccountNumber: '',
+    destinationDescription: '',
     description: '',
   })
   const [availableBalance, setAvailableBalance] = useState<number | null>(null)
@@ -144,6 +146,8 @@ export default function Debt() {
       bankAccountId: '',
       payDate: date,
       payTime: time,
+      destinationAccountNumber: '',
+      destinationDescription: '',
       description: '',
     })
 
@@ -320,7 +324,7 @@ export default function Debt() {
   async function payPurchase() {
     if (!selectedDebt) return
 
-    const { payAmount, paymentMethod, bankAccountId, payDate, payTime, description } = payFormData
+    const { payAmount, paymentMethod, bankAccountId, payDate, payTime, description, destinationAccountNumber, destinationDescription } = payFormData
     const newPayAmt = Number(payAmount)
 
     if (newPayAmt <= 0) return alert("Amount harus lebih dari 0")
@@ -352,7 +356,9 @@ export default function Debt() {
       date: paymentDate,
       userId,
       to: selectedDebt.supplier?.bussinessName || selectedDebt.vendor?.name || '',
-      time: payTime
+      time: payTime,
+      destinationAccountNumber,
+      destinationDescription
     })
 
     setPaySubmitting(true)
@@ -1077,29 +1083,73 @@ export default function Debt() {
                       </option>
                     ))}
                   </select>
-                  {/* Tampilan sisa saldo */}
-                  <div className="mt-2">
-                    {balanceLoading ? (
-                      <span className="text-xs text-gray-400 flex items-center gap-1">
-                        <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
-                      </span>
-                    ) : availableBalance !== null ? (
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${availableBalance <= 0
-                        ? 'bg-red-50 border-red-200 text-red-700'
-                        : Number(payFormData.payAmount) > availableBalance
-                          ? 'bg-orange-50 border-orange-200 text-orange-700'
-                          : 'bg-green-50 border-green-200 text-green-700'
-                        }`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                        </svg>
-                        <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
-                      </div>
-                    ) : null}
-                  </div>
                 </fieldset>
 
+                {payFormData.paymentMethod !== 'Cash' && (
+                  <fieldset className="fieldset md:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <fieldset className="fieldset">
+                        <legend className="fieldset-legend">
+                          Destinasi
+                        </legend>
+                        <input
+                          type="text"
+                          className="input w-full"
+                          placeholder="Nomor rekening tujuan"
+                          value={payFormData.destinationAccountNumber}
+                          onChange={e =>
+                            setPayFormData(p => ({
+                              ...p,
+                              destinationAccountNumber: e.target.value,
+                            }))
+                          }
+                        />
+                      </fieldset>
+
+                      <fieldset className="fieldset">
+                        <legend className="fieldset-legend">
+                          Destinasi deskripsi
+                        </legend>
+                        <input
+                          type="text"
+                          className="input w-full"
+                          placeholder="Keterangan tujuan transfer"
+                          value={payFormData.destinationDescription}
+                          onChange={e =>
+                            setPayFormData(p => ({
+                              ...p,
+                              destinationDescription: e.target.value,
+                            }))
+                          }
+                        />
+                      </fieldset>
+                    </div>
+                  </fieldset>
+                )}
               </div>
+
+              <fieldset className="fieldset w-full min-w-0">
+                {/* Tampilan sisa saldo */}
+                <div className="mt-2 w-full min-w-0">
+                  {balanceLoading ? (
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <span className="loading loading-spinner loading-xs"></span> Memuat saldo...
+                    </span>
+                  ) : availableBalance !== null ? (
+                    <div className={`flex w-full box-border items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border ${availableBalance <= 0
+                      ? 'bg-red-50 border-red-200 text-red-700'
+                      : Number(payFormData.payAmount) > availableBalance
+                        ? 'bg-orange-50 border-orange-200 text-orange-700'
+                        : 'bg-green-50 border-green-200 text-green-700'
+                      }`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                      </svg>
+                      <span>Saldo tersedia: <strong>Rp {availableBalance.toLocaleString('id-ID')}</strong></span>
+                    </div>
+                  ) : null}
+                </div>
+              </fieldset>
 
               <fieldset className="fieldset mt-2">
                 <legend className="fieldset-legend">Keterangan Tambahan</legend>
@@ -1568,3 +1618,4 @@ export default function Debt() {
     </>
   )
 }
+

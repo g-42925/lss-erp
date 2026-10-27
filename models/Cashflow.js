@@ -73,8 +73,17 @@ const cashflowSchema = new mongoose.Schema({
     enum: ['manual', 'purchase_payment', 'Manual Entry'],
     default: 'manual',
     required: false
+  },
+  nonCashDst: {
+    accountNumber: {
+      type: String,
+      required: false
+    },
+    description: {
+      type: String,
+      required: false
+    }
   }
-
 }, { timestamps: true });
 
 // prevent Next.js HMR reload issues

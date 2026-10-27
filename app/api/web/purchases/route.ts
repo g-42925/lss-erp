@@ -368,7 +368,11 @@ export async function PUT(request: NextRequest) {
                 recordedBy: rest.userId || null,
                 to: rest.to || undefined,
                 source: 'purchase_payment',
-                time: rest.time
+                time: rest.time,
+                nonCashDst: rest.paymentMethod === 'Bank' ? {
+                  accountNumber: rest.destinationAccountNumber,
+                  description: rest.destinationDescription,
+                } : undefined,
               })
             }
           }
@@ -400,6 +404,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const bankInfo4 = await getBankInfo(rest.paymentMethod, rest.bankAccountId)
+
         await Log.create({
           purchaseId: _id,
           date: rest.date || new Date(),
@@ -411,6 +416,10 @@ export async function PUT(request: NextRequest) {
           createdBy: rest.userId,
           reference: bankInfo4.reference,
           bankAccountId: bankInfo4.bankAccountId,
+          nonCashDst: rest.paymentMethod === 'Bank' ? {
+            accountNumber: rest.destinationAccountNumber,
+            description: rest.destinationDescription,
+          }
         })
 
         if (rest.purchaseType === 'procurement') {
