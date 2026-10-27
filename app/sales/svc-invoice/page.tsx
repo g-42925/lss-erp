@@ -434,12 +434,9 @@ export default function Invoices() {
       return invoice?.order?.payTerm ? new Date(invoice.order.payTerm).toLocaleDateString('id-ID') : '-';
     }
     else {
-      if (!invoice?.order?.dueDate) return '-';
-      const d = invoice.date ? new Date(invoice.date) : new Date();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      const day = String(invoice.order.dueDate).padStart(2, '0');
-      return `${day}-${month}-${year}`;
+      const d = new Date();
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      return `${String(lastDay).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
     }
   }
 

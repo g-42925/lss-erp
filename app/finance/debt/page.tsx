@@ -80,6 +80,10 @@ export default function Debt() {
   const [assigningInvoice, setAssigningInvoice] = useState<any>(null)
   const [assigningSubmitting, setAssigningSubmitting] = useState(false)
 
+  const [editDestinationAccountNumber, setEditDestinationAccountNumber] = useState("")
+  const [editDestinationDescription, setEditDestinationDescription] = useState("")
+
+
   const router = useRouter()
 
   const bankAccountFn = useFetch<any[], any>({
@@ -589,7 +593,8 @@ export default function Debt() {
       const data = await res.json()
       if (data.noResult || data.error) {
         setLogs([])
-      } else {
+      }
+      else {
         setLogs(data.result || [])
       }
     } catch (e) {
@@ -601,18 +606,20 @@ export default function Debt() {
 
 
   function openEditLog(log: any) {
-    const dateTime = getJakartaDateTime(log.date)
-    setEditingLog(log)
-    setEditAmount(Math.abs(log.amount))
-    setEditDate(dateTime.date)
-    setEditTime(dateTime.time)
-    // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
-    // karena itu yang cocok dengan option value pada dropdown bank account.
-    // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
-    const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
-    setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
-    setEditApprovalCode("")
-    editLogRef.current?.showModal()
+    // const dateTime = getJakartaDateTime(log.date)
+    // setEditingLog(log)
+    // setEditAmount(Math.abs(log.amount))
+    // setEditDate(dateTime.date)
+    // setEditTime(dateTime.time)
+    // // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
+    // // karena itu yang cocok dengan option value pada dropdown bank account.
+    // // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
+    // const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
+    // setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
+    // setEditApprovalCode("")
+    // setEditDestinationAccountNumber('xxx')
+    // setEditDestinationDescription('xxx')
+    // editLogRef.current?.showModal()
   }
 
   async function submitEditLog() {
@@ -653,7 +660,9 @@ export default function Debt() {
           }),
           newPaymentMethod: editPaymentMethod,
           newTime: editTime,
-          reference
+          reference,
+          destinationAccountNumber: editDestinationAccountNumber,
+          destinationDescription: editDestinationDescription
         }),
       })
 
@@ -1229,87 +1238,146 @@ export default function Debt() {
 
         {/* ─── Edit Log Modal ─── */}
         <dialog id="edit_log_modal" ref={editLogRef} className="modal text-black">
-          <div className="modal-box w-11/12 max-w-2xl">
+          <div className="modal-box w-11/12 max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Edit Payment Log</h3>
-              <button className="btn btn-sm btn-circle" onClick={() => editLogRef.current?.close()}>✕</button>
+              <button
+                className="btn btn-sm btn-circle"
+                onClick={() => editLogRef.current?.close()}
+              >
+                ✕
+              </button>
             </div>
+
             {editingLog && (
               <div className="flex flex-col gap-3">
                 <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 text-sm text-yellow-800">
                   ⚠️ Perubahan ini memerlukan kode approval dari supervisor.
                 </div>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">No. Pembayaran</legend>
-                  <input className="input w-full bg-gray-100" value={editingLog.paymentNumber} type="text" readOnly />
-                </fieldset>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">No. Pembayaran</legend>
+                    <input
+                      className="input w-full bg-gray-100"
+                      value={editingLog.paymentNumber}
+                      type="text"
+                      readOnly
+                    />
+                  </fieldset>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Tanggal Pembayaran</legend>
-                  <input
-                    className="input w-full"
-                    type="date"
-                    value={editDate}
-                    onChange={e => setEditDate(e.target.value)}
-                    required
-                  />
-                </fieldset>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Amount</legend>
+                    <input
+                      className="input w-full"
+                      type="number"
+                      value={editAmount}
+                      onChange={e =>
+                        setEditAmount(e.target.value === '' ? '' : Number(e.target.value))
+                      }
+                      required
+                    />
+                  </fieldset>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Jam Pembayaran (WIB)</legend>
-                  <input
-                    className="input w-full"
-                    type="time"
-                    value={editTime}
-                    onChange={e => setEditTime(e.target.value)}
-                    required
-                  />
-                </fieldset>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Tanggal Pembayaran</legend>
+                    <input
+                      className="input w-full"
+                      type="date"
+                      value={editDate}
+                      onChange={e => setEditDate(e.target.value)}
+                      required
+                    />
+                  </fieldset>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Amount</legend>
-                  <input
-                    className="input w-full"
-                    type="number"
-                    value={editAmount}
-                    onChange={e => setEditAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                    required
-                  />
-                </fieldset>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Jam Pembayaran (WIB)</legend>
+                    <input
+                      className="input w-full"
+                      type="time"
+                      value={editTime}
+                      onChange={e => setEditTime(e.target.value)}
+                      required
+                    />
+                  </fieldset>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Metode Pembayaran</legend>
-                  <select
-                    className="select w-full"
-                    value={editPaymentMethod}
-                    onChange={e => setEditPaymentMethod(e.target.value)}
-                  >
-                    <option value="Cash">Cash</option>
-                    {bankAccountFn.result?.map((bank: any) => (
-                      <option key={bank._id} value={`${bank.bank}-${bank.accountNumber}`}>
-                        transfer from {bank.bank} ({bank.accountName})
-                      </option>
-                    ))}
-                  </select>
-                </fieldset>
+                  <fieldset className="fieldset md:col-span-2">
+                    <legend className="fieldset-legend">Metode Pembayaran</legend>
+                    <select
+                      className="select w-full"
+                      value={editPaymentMethod}
+                      onChange={e => setEditPaymentMethod(e.target.value)}
+                    >
+                      <option value="Cash">Cash</option>
+                      {bankAccountFn.result?.map((bank: any) => (
+                        <option
+                          key={bank._id}
+                          value={`${bank.bank}-${bank.accountNumber}`}
+                        >
+                          transfer from {bank.bank} ({bank.accountName})
+                        </option>
+                      ))}
+                    </select>
+                  </fieldset>
 
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Kode Approval Supervisor</legend>
-                  <input
-                    className="input w-full"
-                    type="password"
-                    placeholder="Masukkan kode approval"
-                    value={editApprovalCode}
-                    onChange={e => setEditApprovalCode(e.target.value)}
-                    required
-                  />
-                </fieldset>
+                  {editPaymentMethod !== 'Cash' && (
+                    <>
+                      <fieldset className="fieldset">
+                        <legend className="fieldset-legend">Destinasi</legend>
+                        <input
+                          type="text"
+                          className="input w-full"
+                          placeholder="Nomor rekening tujuan"
+                          value={editDestinationAccountNumber}
+                          onChange={e => setEditDestinationAccountNumber(e.target.value)}
+                        />
+                      </fieldset>
+
+                      <fieldset className="fieldset">
+                        <legend className="fieldset-legend">Deskripsi Destinasi</legend>
+                        <input
+                          type="text"
+                          className="input w-full"
+                          placeholder="Keterangan tujuan transfer"
+                          value={editDestinationDescription}
+                          onChange={e => setEditDestinationDescription(e.target.value)}
+                        />
+                      </fieldset>
+                    </>
+                  )}
+
+                  <fieldset className="fieldset md:col-span-2">
+                    <legend className="fieldset-legend">Kode Approval Supervisor</legend>
+                    <input
+                      className="input w-full"
+                      type="password"
+                      placeholder="Masukkan kode approval"
+                      value={editApprovalCode}
+                      onChange={e => setEditApprovalCode(e.target.value)}
+                      required
+                    />
+                  </fieldset>
+                </div>
 
                 <div className="modal-action">
-                  <button type="button" className="btn" onClick={() => editLogRef.current?.close()}>Batal</button>
-                  <button type="button" className="btn btn-warning" disabled={editSubmitting} onClick={submitEditLog}>
-                    {editSubmitting ? <span className="loading loading-spinner loading-sm"></span> : 'Simpan Perubahan'}
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => editLogRef.current?.close()}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-warning"
+                    disabled={editSubmitting}
+                    onClick={submitEditLog}
+                  >
+                    {editSubmitting ? (
+                      <span className="loading loading-spinner loading-sm"></span>
+                    ) : (
+                      'Simpan Perubahan'
+                    )}
                   </button>
                 </div>
               </div>

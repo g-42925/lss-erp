@@ -90,7 +90,8 @@ export async function PUT(request: NextRequest) {
           };
           if (rest.purchaseType === 'product') {
             updateData.supplierId = rest.supplierId;
-          } else if (rest.purchaseType === 'procurement') {
+          }
+          else if (rest.purchaseType === 'procurement') {
             updateData.customSupplier = rest.customSupplier;
           }
           await Purchase.findByIdAndUpdate(_id, updateData);
@@ -256,6 +257,10 @@ export async function PUT(request: NextRequest) {
             paymentMethod: rest.paymentMethod,
             createdBy: rest.userId,
             bankAccountId: bankInfo2.bankAccountId,
+            nonCashDst: rest.paymentMethod != 'Cash' ? {
+              accountNumber: rest.destinationAccountNumber,
+              description: rest.destinationDescription,
+            } : undefined,
           })
 
           if (rest.type === "payment") {
@@ -300,7 +305,11 @@ export async function PUT(request: NextRequest) {
                 recordedBy: rest.userId || null,
                 to: rest.to || undefined,
                 source: 'purchase_payment',
-                time: rest.time
+                time: rest.time,
+                nonCashDst: rest.paymentMethod != 'Cash' ? {
+                  accountNumber: rest.destinationAccountNumber,
+                  description: rest.destinationDescription,
+                } : undefined,
               })
             }
           }
@@ -416,10 +425,6 @@ export async function PUT(request: NextRequest) {
           createdBy: rest.userId,
           reference: bankInfo4.reference,
           bankAccountId: bankInfo4.bankAccountId,
-          nonCashDst: rest.paymentMethod === 'Bank' ? {
-            accountNumber: rest.destinationAccountNumber,
-            description: rest.destinationDescription,
-          } : undefined,
         })
 
         if (rest.purchaseType === 'procurement') {

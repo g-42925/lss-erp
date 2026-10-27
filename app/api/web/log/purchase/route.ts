@@ -112,7 +112,9 @@ export async function PUT(request: NextRequest) {
       newDateTime,
       newTime,
       newPaymentMethod,
-      reference
+      reference,
+      destinationAccountNumber,
+      destinationDescription,
     } = body
 
     if (!logId) {
@@ -239,6 +241,13 @@ export async function PUT(request: NextRequest) {
       updates.paymentMethod = newPaymentMethod
     }
 
+    if (updates.paymentMethod != 'Cash') {
+      updates.nonCashDst = {
+        accountNumber: destinationAccountNumber,
+        description: destinationDescription
+      }
+    }
+
     const updated = await Log.findByIdAndUpdate(
       logId,
       { $set: updates },
@@ -254,6 +263,11 @@ export async function PUT(request: NextRequest) {
 
     const newReference = `pl ${purchase.purchaseOrderNumber.split('-')[1].trim()} | pembayaran procurement senilai ${updated.amount}`
 
+    const nonCashDst = updated.paymentMethod == 'Cash' ? null : {
+      accountNumber: destinationAccountNumber,
+      description: destinationDescription
+    }
+
     await Cashflow.findByIdAndUpdate(
       cashflowItem._id,
       {
@@ -263,7 +277,8 @@ export async function PUT(request: NextRequest) {
           amount: updated.amount,
           reference: newReference,
           date: newDate,
-          time: newTime
+          time: newTime,
+          nonCashDst
         }
       }
     )
