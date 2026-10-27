@@ -419,7 +419,7 @@ export async function PUT(request: NextRequest) {
           nonCashDst: rest.paymentMethod === 'Bank' ? {
             accountNumber: rest.destinationAccountNumber,
             description: rest.destinationDescription,
-          }
+          } : undefined,
         })
 
         if (rest.purchaseType === 'procurement') {
