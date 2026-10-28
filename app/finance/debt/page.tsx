@@ -606,20 +606,21 @@ export default function Debt() {
 
 
   function openEditLog(log: any) {
-    // const dateTime = getJakartaDateTime(log.date)
-    // setEditingLog(log)
-    // setEditAmount(Math.abs(log.amount))
-    // setEditDate(dateTime.date)
-    // setEditTime(dateTime.time)
-    // // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
-    // // karena itu yang cocok dengan option value pada dropdown bank account.
-    // // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
-    // const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
-    // setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
-    // setEditApprovalCode("")
-    // setEditDestinationAccountNumber('xxx')
-    // setEditDestinationDescription('xxx')
-    // editLogRef.current?.showModal()
+    console.log(log)
+    const dateTime = getJakartaDateTime(log.date)
+    setEditingLog(log)
+    setEditAmount(Math.abs(log.amount))
+    setEditDate(dateTime.date)
+    setEditTime(dateTime.time)
+    // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
+    // karena itu yang cocok dengan option value pada dropdown bank account.
+    // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
+    const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
+    setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
+    setEditDestinationAccountNumber(isCashLog ? '' : log.nonCashDst.accountNumber)
+    setEditDestinationDescription(isCashLog ? '' : log.nonCashDst.description)
+    setEditApprovalCode("")
+    editLogRef.current?.showModal()
   }
 
   async function submitEditLog() {

@@ -863,7 +863,14 @@ export default function CashflowReportPage() {
 													{t.from || <span className="text-slate-300">-</span>}
 												</td>
 												<td className="p-3.5 whitespace-nowrap text-slate-600">
-													{t.to || <span className="text-slate-300">-</span>}
+													{
+														t.method != 'Cash' && t.nonCashDst ? (
+															<span>{t.nonCashDst.accountNumber} ({t.nonCashDst.description})</span>
+														)
+															: (
+																<span>{t.to || <span className="text-slate-300">-</span>}</span>
+															)
+													}
 												</td>
 												<td className="p-3.5 whitespace-nowrap">
 													<span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${t.source === 'Manual Entry' ? 'bg-amber-100 text-amber-700'

@@ -807,6 +807,7 @@ export async function GET(request: NextRequest) {
 				bankVoucherNumber: bankVoucher?.voucherNumber ?? null,
 
 				bankAccountId: bankAccount?._id?.toString() ?? "",
+				nonCashDst: methodName != 'Cash' ? entry.nonCashDst : null
 			});
 		}
 
@@ -850,9 +851,11 @@ export async function GET(request: NextRequest) {
 		for (const transaction of finalTransactions) {
 			if (transaction.type === "in") {
 				totalIn += transaction.amount;
-			} else if (transaction.type === "out") {
+			}
+			else if (transaction.type === "out") {
 				totalOut += transaction.amount;
-			} else if (transaction.type === "initial") {
+			}
+			else if (transaction.type === "initial") {
 				initialBalance += transaction.amount;
 			}
 		}
@@ -880,7 +883,8 @@ export async function GET(request: NextRequest) {
 			},
 			error: false,
 		});
-	} catch (error: unknown) {
+	}
+	catch (error: unknown) {
 		console.error("Cashflow API Error:", error);
 
 		return NextResponse.json({
