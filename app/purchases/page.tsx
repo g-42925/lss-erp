@@ -27,6 +27,7 @@ function Purchases() {
   const orderRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
   const taxRef = useRef<HTMLDialogElement>(null)
+  const nonCashRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<string>("product")
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -40,6 +41,7 @@ function Purchases() {
   const [poAvailableBalance, setPoAvailableBalance] = useState<number | null>(null)
   const [poBalanceLoading, setPoBalanceLoading] = useState(false)
   const [selectedPoBankAccountId, setSelectedPoBankAccountId] = useState<string | undefined>(undefined)
+  const [nonCashEditTarget, setNonCashEditTarget] = useState<any>(null)
 
   // ─── Riwayat harga terakhir saat pilih item ───────────────────────────────
   const [addLastPriceInfo, setAddLastPriceInfo] = useState<any>(null)
@@ -97,6 +99,7 @@ function Purchases() {
 
   const editForm = useForm()
   const orderForm = useForm()
+  const nonCashForm = useForm()
 
   const newPrForm = useForm({
     defaultValues: {
@@ -401,6 +404,43 @@ function Purchases() {
     })
 
     taxRef.current?.showModal()
+  }
+
+  function openEditNonCash(purchase: any) {
+    setNonCashEditTarget(purchase)
+    nonCashForm.reset({
+      _id: purchase._id,
+      accountNumber: purchase.nonCashDst?.accountNumber || "",
+      description: purchase.nonCashDst?.description || "",
+    })
+    nonCashRef.current?.showModal()
+  }
+
+  async function editNonCashSubmit(data: any) {
+    const payload = JSON.stringify({
+      _id: data._id,
+      action: "edit_noncash_dst",
+      accountNumber: data.accountNumber,
+      description: data.description,
+    })
+
+    await editFn.fn("", payload, () => {
+      setPr((current) =>
+        current.map((p) =>
+          p._id !== data._id
+            ? p
+            : {
+                ...p,
+                nonCashDst: {
+                  accountNumber: data.accountNumber,
+                  description: data.description,
+                },
+              }
+        )
+      )
+      nonCashRef.current?.close()
+      setNonCashEditTarget(null)
+    })
   }
 
   async function applyTaxSubmit(data: any) {
@@ -1171,6 +1211,24 @@ function Purchases() {
                                         />
                                       </button>
                                     </div>
+                                  )
+                                }
+
+                                {/* ORDERED – edit nonCashDst (product / procurement) */}
+                                {
+                                  purchase.status === "ordered" &&
+                                  (filterType === "product" || filterType === "procurement") && (
+                                    <button
+                                      className="text-blue-600"
+                                      onClick={() => openEditNonCash(purchase)}
+                                      title="Edit Destinasi Non-Cash"
+                                    >
+                                      <HugeiconsIcon
+                                        icon={Edit03Icon}
+                                        size={24}
+                                        color="currentColor"
+                                      />
+                                    </button>
                                   )
                                 }
                               </td>
@@ -2299,6 +2357,96 @@ function Purchases() {
           </div>
         </div>
       </dialog >
+
+      {/* =====================================================
+          MODAL EDIT NON-CASH DESTINATION
+      ===================================================== */}
+      <dialog
+        ref={nonCashRef}
+        className="modal text-black"
+      >
+        <div className="modal-box w-11/12 max-w-lg">
+          <div className="flex flex-col gap-3">
+            <span className="page-title">
+              Edit Destinasi Non-Cash
+            </span>
+
+            {nonCashEditTarget && (
+              <p className="text-sm text-gray-500">
+                PO:{" "}
+                <strong>
+                  {nonCashEditTarget.purchaseOrderNumber}
+                </strong>
+              </p>
+            )}
+
+            <form
+              onSubmit={nonCashForm.handleSubmit(
+                editNonCashSubmit
+              )}
+              className="flex flex-col gap-3"
+            >
+              <input
+                type="hidden"
+                {...nonCashForm.register("_id")}
+              />
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">
+                  No. Rekening Tujuan (accountNumber)
+                </legend>
+
+                <input
+                  {...nonCashForm.register("accountNumber")}
+                  className="input w-full"
+                  type="text"
+                  placeholder="Contoh: 1234567890"
+                />
+              </fieldset>
+
+              <fieldset className="fieldset">
+                <legend className="fieldset-legend">
+                  Keterangan (description)
+                </legend>
+
+                <input
+                  {...nonCashForm.register("description")}
+                  className="input w-full"
+                  type="text"
+                  placeholder="Contoh: Transfer ke supplier X"
+                />
+              </fieldset>
+
+              {(editFn.error || editFn.noResult) && (
+                <label className="input-validator text-red-900">
+                  Terjadi kesalahan, coba lagi.
+                </label>
+              )}
+
+              <div className="mt-auto ml-auto flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    nonCashRef.current?.close()
+                    setNonCashEditTarget(null)
+                  }}
+                  className="p-3 rounded-md text-black bg-gray-200"
+                >
+                  Batal
+                </button>
+
+                <button
+                  type="submit"
+                  className="p-3 rounded-md text-white bg-blue-900"
+                  disabled={editFn.loading}
+                >
+                  {editFn.loading ? "Menyimpan..." : "Simpan"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </dialog>
     </>
   )
 }

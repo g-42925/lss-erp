@@ -62,6 +62,12 @@ export async function PUT(request: NextRequest) {
             appliedTaxes: rest.appliedTaxes,
           });
           return NextResponse.json({ noResult: false, message: "Tax applied", result: true, error: false });
+        case "edit_noncash_dst":
+          await Purchase.findByIdAndUpdate(_id, {
+            "nonCashDst.accountNumber": rest.accountNumber,
+            "nonCashDst.description": rest.description,
+          });
+          return NextResponse.json({ noResult: false, message: "nonCashDst updated", result: true, error: false });
         case "approve_pr":
           await Purchase.findByIdAndUpdate(_id, { status: "approved", approvedBy: rest.userId, approvedAt: new Date() });
           return NextResponse.json({ noResult: false, message: "PR approved", result: true, error: false });
