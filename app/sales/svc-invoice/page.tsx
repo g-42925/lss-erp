@@ -434,7 +434,7 @@ export default function Invoices() {
       return invoice?.order?.payTerm ? new Date(invoice.order.payTerm).toLocaleDateString('id-ID') : '-';
     }
     else {
-      const d = new Date();
+      const d = invoice?.date ? new Date(invoice.date) : new Date();
       const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
       return `${String(lastDay).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
     }
