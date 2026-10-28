@@ -492,7 +492,8 @@ function Purchases() {
         alert("Price harus lebih dari 0")
         return
       }
-    } else if (watchPayAmount === "") {
+    }
+    else if (watchPayAmount === "") {
       alert("Please enter pay amount")
       orderForm.setValue("payAmount", 0)
       return
@@ -532,6 +533,8 @@ function Purchases() {
       purchaseType: filterType,
       userId: user,
       bankAccountId: watchPaymentMethod !== 'Cash' ? selectedPoBankAccountId : undefined,
+      nonCashDstNumber: data.nonCashDstNumber != "" ? data.nonCashDstNumber : '-',
+      nonCashDstDescription: data.nonCashDstDesc != "" ? data.nonCashDstDesc : '-',
     })
 
     await editFn.fn("", payload, () => {
@@ -1250,15 +1253,15 @@ function Purchases() {
                     >
                       {filterType === "product"
                         ? products.map((product) => (
-                            <option key={product._id} value={product._id}>
-                              {product.productName} ({product.conversionRatioX})
-                            </option>
-                          ))
+                          <option key={product._id} value={product._id}>
+                            {product.productName} ({product.conversionRatioX})
+                          </option>
+                        ))
                         : items.map((item) => (
-                            <option key={item._id} value={item._id}>
-                              {item.name} ({item.unit})
-                            </option>
-                          ))}
+                          <option key={item._id} value={item._id}>
+                            {item.name} ({item.unit})
+                          </option>
+                        ))}
                     </select>
 
                     {/* Riwayat harga terakhir */}
@@ -1506,15 +1509,15 @@ function Purchases() {
                     >
                       {filterType === "product"
                         ? products.map((product) => (
-                            <option key={product._id} value={product._id}>
-                              {product.productName} ({product.conversionRatioX})
-                            </option>
-                          ))
+                          <option key={product._id} value={product._id}>
+                            {product.productName} ({product.conversionRatioX})
+                          </option>
+                        ))
                         : items.map((item) => (
-                            <option key={item._id} value={item._id}>
-                              {item.name} ({item.unit})
-                            </option>
-                          ))}
+                          <option key={item._id} value={item._id}>
+                            {item.name} ({item.unit})
+                          </option>
+                        ))}
                     </select>
 
                     {/* Riwayat harga terakhir */}
@@ -1870,6 +1873,41 @@ function Purchases() {
                 </fieldset>
               )}
 
+              {filterType === "procurement" || filterType == "product" ? (
+                <>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">
+                      Destinasi non cash
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...orderForm.register(
+                        "nonCashDstNumber"
+                      )}
+                      type="text"
+                    />
+                  </fieldset>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">
+                      deskripsi
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...orderForm.register(
+                        "nonCashDstDesc"
+                      )}
+                      type="text"
+                    />
+                  </fieldset>
+                </>
+
+              ) : (
+                <></>
+              )}
+
+
               <div className="grid grid-cols-2 gap-3 hidden">
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">
@@ -2001,13 +2039,13 @@ function Purchases() {
               </div>
             </form>
           </div>
-        </div>
-      </dialog>
+        </div >
+      </dialog >
 
       {/* =====================================================
           MODAL APPLY TAX
       ===================================================== */}
-      <dialog
+      < dialog
         ref={taxRef}
         className="modal text-black"
       >
@@ -2260,7 +2298,7 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog >
     </>
   )
 }

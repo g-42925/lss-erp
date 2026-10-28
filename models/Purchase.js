@@ -44,7 +44,6 @@ const PurchaseSchema = new mongoose.Schema({
       'rejected'
     ]
   },
-  link: { type: String, required: false },
   priceAlert: {
     type: {
       previousPrice: { type: Number },
@@ -55,6 +54,10 @@ const PurchaseSchema = new mongoose.Schema({
     required: false,
     default: undefined,
   },
+  nonCashDst: {
+    accountNumber: String,
+    description: String
+  }
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

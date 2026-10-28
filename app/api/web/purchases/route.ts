@@ -87,6 +87,10 @@ export async function PUT(request: NextRequest) {
             taxAmount: rest.taxAmount || 0,
             appliedTaxes: rest.appliedTaxes,
             grossFinalPrice: rest.grossFinalPrice,
+            nonCashDst: {
+              accountNumber: rest.nonCashDstNumber,
+              description: rest.nonCashDstDescription
+            }
           };
           if (rest.purchaseType === 'product') {
             updateData.supplierId = rest.supplierId;

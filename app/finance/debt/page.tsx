@@ -994,6 +994,16 @@ export default function Debt() {
                             (selectedDebt.invoiceNumber || '-')}
                       </span>
                     </div>
+                    {
+                      selectedDebt.nonCashDst && selectedDebt.nonCashDst.accountNumber != '' && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">No. Transaksi</span>
+                          <span className="font-semibold text-gray-800 text-base">
+                            {selectedDebt.nonCashDst.accountNumber} - ({selectedDebt.nonCashDst.description})
+                          </span>
+                        </div>
+                      )
+                    }
                     <div className="flex flex-col gap-1">
                       <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Vendor / Supplier</span>
                       <span className="font-semibold text-gray-800 text-base">
