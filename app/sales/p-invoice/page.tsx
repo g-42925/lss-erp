@@ -537,7 +537,7 @@ export default function Invoices() {
                     const { applicableTax, sellingPrice, sellingPriceTaxType } = selectedInvoice?.product ?? {};
                     if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
                     if (sellingPriceTaxType !== 'exclusive') return null;
-                    const total = selectedInvoice?.order?.cart.map((c) => {
+                    const total = selectedInvoice?.order?.cart.map((c: any) => {
                       return c.qty * sellingPrice
                     })
                       .reduce((a: number, b: number) => a + b, 0)
