@@ -525,7 +525,7 @@ export default function Invoices() {
                   {selectedInvoice?.order?.cart?.length === 1 ? (
                     <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart[0]?.qty * selectedInvoice?.product?.sellingPrice).toLocaleString('id-ID')}</span>
                   ) : (
-                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)).toLocaleString('id-ID')}</span>
+                    <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.order?.cart?.map((c: any) => c.subTotal).reduce((sum: number, current: number) => sum + current, 0)).toLocaleString('id-ID')}</span>
                   )}
                 </div>
                 <div className="flex flex-row">
@@ -533,11 +533,11 @@ export default function Invoices() {
                   <span className="text-gray-800 ml-auto text-sm">{Number(countDiscount(selectedInvoice))?.toLocaleString('id-ID')}</span>
                 </div>
                 {getTaxesFn.result && getTaxesFn.result.length > 0
-                  ? getTaxesFn.result.map((tax: any, idx: number) => {
+                  ? getTaxesFn.result?.map((tax: any, idx: number) => {
                     const { applicableTax, sellingPrice, sellingPriceTaxType } = selectedInvoice?.product ?? {};
                     if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
                     if (sellingPriceTaxType !== 'exclusive') return null;
-                    const total = selectedInvoice?.order?.cart.map((c: any) => {
+                    const total = selectedInvoice?.order?.cart?.map((c: any) => {
                       return c.qty * sellingPrice
                     })
                       .reduce((a: number, b: number) => a + b, 0)
