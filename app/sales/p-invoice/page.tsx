@@ -161,25 +161,27 @@ export default function Invoices() {
     return 0
   }
 
-  function countTotal(invoice: any) {
+  function countTotal(invoice: any, discount: any) {
     let total = 0
     const taxes: { name: string, value: number }[] = []
-    ;(getTaxesFn.result ?? []).map((tax: any, idx: number) => {
-      const { applicableTax, sellingPrice, sellingPriceTaxType } = invoice?.product ?? {};
-      if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
-      if (sellingPriceTaxType !== 'exclusive') return null;
-      if (new RegExp(applicableTax, 'i').test(tax.name) && sellingPriceTaxType === 'exclusive') {
-        taxes.push(tax)
-      }
-      total += (invoice?.order?.cart ?? []).map((c: any) => {
-        return c.qty * sellingPrice
+      ; (getTaxesFn.result ?? []).map((tax: any, idx: number) => {
+        const { applicableTax, sellingPrice, sellingPriceTaxType } = invoice?.product ?? {};
+        if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
+        if (sellingPriceTaxType !== 'exclusive') return null;
+        if (new RegExp(applicableTax, 'i').test(tax.name) && sellingPriceTaxType === 'exclusive') {
+          taxes.push(tax)
+        }
+        total += (invoice?.order?.cart ?? []).map((c: any) => {
+          return c.qty * sellingPrice
+        })
+          .reduce((a: number, b: number) => a + b, 0)
       })
-        .reduce((a: number, b: number) => a + b, 0)
-    })
-    taxes.map(t => {
-      total += total * (t.value / 100)
-    })
-    return total
+
+    const txs = taxes.map(t => {
+      return (total - discount) * (t.value / 100)
+    }).reduce((a: number, b: number) => a + b, 0)
+
+    return (total - discount) + txs
   }
 
   function whatTax(taxName: string) {
@@ -338,11 +340,12 @@ export default function Invoices() {
                                       >
                                         {closeInvoiceFn.loading ? (
                                           <span className="loading loading-spinner loading-xs"></span>
-                                        ) : (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
-                                            <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
-                                          </svg>
-                                        )}
+                                        )
+                                          : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+                                              <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clipRule="evenodd" />
+                                            </svg>
+                                          )}
                                       </button>
                                     )}
                                   </td>
@@ -544,7 +547,7 @@ export default function Invoices() {
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{Number(total * (tax.value / 100)).toLocaleString('id-ID')}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{Number((total - countDiscount(selectedInvoice)) * (tax.value / 100)).toLocaleString('id-ID')}</span>
                       </div>
                     )
                   })
@@ -554,7 +557,7 @@ export default function Invoices() {
                 }
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Total</span>
-                  <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>
+                  <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice, countDiscount(selectedInvoice)))?.toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>
