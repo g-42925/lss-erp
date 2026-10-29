@@ -651,18 +651,24 @@ function OrderContent() {
   }
 
   async function addToCart(data: any) {
-    let taxes: { taxName: string, taxValue: number }[] = []
-    if (data.ppn) {
-      const selectedTaxes = Array.isArray(data.ppn) ? data.ppn : [data.ppn];
-      taxes = selectedTaxes
-        .filter((p: string) => p !== 'no')
-        .map((p: string) => {
-          const [n, v] = p.split('|')
-          return { taxName: n, taxValue: parseFloat(v) }
-        });
-    }
+    const [_id, name, limit, price, discountType, discountValue, applicableTax, sPTT] = data.product.split('/')
 
-    const [_id, name, limit, price, discountType, discountValue] = data.product.split('/')
+    const tax = getTaxesFn?.result?.find((t: any) => new RegExp(applicableTax, 'i').test(t.name));
+
+    console.log({ sPTT })
+
+    const taxes = []
+
+    if (sPTT === "exclusive") {
+      taxes.push(
+        ...[tax].map((t: any) => {
+          return {
+            taxName: t.name,
+            taxValue: t.value
+          }
+        })
+      )
+    }
 
     const item = {
       product: data.product,
@@ -675,7 +681,6 @@ function OrderContent() {
       debt: data.debt,
       warehouseId: data.warehouseId
     }
-
 
     if (data.qty > parseInt(limit)) {
       alert('stock not enough')
@@ -1130,7 +1135,6 @@ function OrderContent() {
   return directSellMode ? (
     <>
       <div className="h-full p-6 flex flex-col gap- text-black">
-        <span className="page-title">Product Order</span>
         <div className="bg-white flex-1 min-h-0 overflow-y-auto border-t-4 border-blue-900 flex flex-row relative divide-x">
           <div className="flex flex-col gap-3 divide-y p-3">
             <form className="flex flex-col p-6 gap-3">
@@ -1220,7 +1224,7 @@ function OrderContent() {
                     getProductsFn?.result?.map((p: any) => {
                       const price = (p.conversionValue && Number(p.conversionValue) > 0) ? (p.smallestUnitPrice || (Number(p.sellingPrice) / Number(p.conversionValue))) : p.sellingPrice;
                       return (
-                        <option key={p._id} value={`${p._id}/${p.productName}/${p.remain}/${price}/${p.discountType}/${p.discountValue}`}>{p.productName}</option>
+                        <option key={p._id} value={`${p._id}/${p.productName}/${p.remain}/${price}/${p.discountType}/${p.discountValue}/${p.applicableTax}/${p.sellingPriceTaxType}`}>{p.productName}</option>
                       )
                     })
                   }
@@ -1246,19 +1250,6 @@ function OrderContent() {
               <div className="flex flex-row items-center gap-3">
                 <label className="w-[70px]">Qty</label>
                 <input placeholder="quantity" {...newOrderForm.register("qty")} type="text" className="input flex-1" />
-              </div>
-              <div className="flex flex-row items-center gap-3">
-                <label className="w-[85px]">Tax</label>
-                <select multiple {...newOrderForm.register('ppn')} className="w-full h-28 overflow-y-auto border border-gray-300 rounded-lg p-2 bg-white text-sm">
-                  <option value="no">
-                    no tax
-                  </option>
-                  {
-                    getTaxesFn?.result?.map((t: any) => {
-                      return <option key={t._id} value={`${t.name}|${t.value}`}>{t.name} ({t.value}%)</option>
-                    })
-                  }
-                </select>
               </div>
               <div className="flex flex-row gap-2 mt-6">
                 <button type="submit" className="bg-black p-3 rounded-md text-white w-full">

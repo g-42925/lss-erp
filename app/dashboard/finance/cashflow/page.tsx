@@ -321,8 +321,13 @@ export default function CashflowReportPage() {
 	};
 
 	const handlePrintInvoiceVoucher = (t: CashflowTransaction) => {
-		if (!t.voucherId) return;
-		window.open(`/finance/voucher/cash/print/${t.voucherId}`, '_blank');
+		const vId = t.bankVoucherId || t.cashVoucherId || t.voucherId;
+		if (!vId) return;
+		if (t.bankVoucherId || (mode === 'bank' && !t.cashVoucherId)) {
+			window.open(`/finance/voucher/bank/print/${vId}`, '_blank');
+		} else {
+			window.open(`/finance/voucher/cash/print/${vId}`, '_blank');
+		}
 	};
 
 	const handleInlineVoucherChange = async (t: CashflowTransaction, voucherId: string) => {
@@ -336,8 +341,13 @@ export default function CashflowReportPage() {
 			});
 			const json = await res.json();
 			if (!json.error) fetchCashflow();
-		} catch (e) { }
-		finally { setInlineSavingId(null); }
+		}
+		catch (e) {
+			console.log(e);
+		}
+		finally {
+			setInlineSavingId(null);
+		}
 	};
 
 	const handleAddSubmit = async (e: React.FormEvent) => {
@@ -945,7 +955,7 @@ export default function CashflowReportPage() {
 												<td className="p-3.5 text-right">
 													<div className="flex items-center justify-end gap-1.5">
 														{/* Print Voucher button */}
-														{(t.source !== 'Manual Entry' || t.source !== 'Sales Invoice' || t.source == 'Purchase Payment') && t.voucherId && (
+														{t.source !== 'Manual Entry' && (t.voucherId || t.bankVoucherId || t.cashVoucherId) && (
 															<button
 																type="button"
 																title="Print Voucher"

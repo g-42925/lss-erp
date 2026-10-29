@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import Product from '@/models/Product'
 import Companie from '@/models/Companie'
+import SalesCatalog from '@/models/SalesCatalog'
 import "@/models/Tax"
 
 export async function PUT(request: NextRequest) {
@@ -250,6 +251,63 @@ export async function POST(request: NextRequest) {
           message: "product added successfully",
           result: null
         });
+
+      // ─── addVariant: create a Product variant linked to a SalesCatalog ───────
+      case 'addVariant': {
+        const catalogId = formData.get('catalogId') as string;
+        const variantName = formData.get('variantName') as string;
+        const variantSellingPrice = formData.get('sellingPrice') as string;
+        const variantApplicableTax = formData.get('applicableTax') as string;
+        const variantTaxType = formData.get('sellingPriceTaxType') as string;
+        const variantDiscountType = formData.get('discountType') as string;
+        const variantDiscountValue = formData.get('discountValue') as string;
+        const variantReorderPoint = formData.get('reorderPoint') as string;
+        const variantSafetyStock = formData.get('safetyStock') as string;
+
+        if (!catalogId || !variantName) {
+          return NextResponse.json({ noResult: true, message: 'catalogId and variantName are required', result: null, error: true });
+        }
+
+        const catalog = await SalesCatalog.findById(catalogId);
+        if (!catalog) {
+          return NextResponse.json({ noResult: true, message: 'Catalog not found', result: null, error: true });
+        }
+
+        const rCompany = await Companie.findOne({ masterAccountId: formData.get('id') });
+        if (!rCompany) {
+          return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
+        }
+
+        const variantProductId = `VAR-${String(Date.now()).slice(-7)}`;
+
+        const variantProduct = await Product.create({
+          productName: `${catalog.name} - ${variantName}`,
+          productId: variantProductId,
+          category: catalog.category || '',
+          subCategory: catalog.subCategory || '',
+          description: catalog.description || catalog.name,
+          image: catalog.image || '',
+          brand: catalog.brand || '',
+          conversionRatioX: catalog.unit || 'pcs',
+          conversionRatioY: catalog.unit || 'pcs',
+          applicableTax: variantApplicableTax || 'none',
+          sellingPriceTaxType: variantTaxType || 'inclusive',
+          productType: 'good',
+          sellingPrice: Number(variantSellingPrice) || 0,
+          productOf: rCompany._id,
+          haveExpiredDate: false,
+          discountType: variantDiscountType || 'none',
+          discountValue: Number(variantDiscountValue) || 0,
+          conversionType: 'value',
+          conversionValue: 1,
+          reorderPoint: Number(variantReorderPoint) || 0,
+          safetyStock: Number(variantSafetyStock) || 0,
+          catalogId: catalog._id,
+          variantName,
+        });
+
+        return NextResponse.json({ noResult: false, message: 'Variant added', result: variantProduct, error: false });
+      }
     }
   }
   catch (e: any) {
@@ -267,6 +325,7 @@ export async function GET(request: NextRequest) {
   const xId = url.searchParams.get('xid')
   const id = url.searchParams.get("id")
   const type = url.searchParams.get("type")
+  const catalogId = url.searchParams.get("catalogId")
 
   try {
     await connectToDatabase()
@@ -275,6 +334,29 @@ export async function GET(request: NextRequest) {
       const company = await Companie.findOne({
         masterAccountId: id
       })
+
+      // ─── Fetch variants for a specific catalog ─────────────────────────────
+      if (catalogId) {
+        const variants = await Product.aggregate([
+          { $match: { productOf: company._id, catalogId: new (await import('mongoose')).default.Types.ObjectId(catalogId) } },
+          {
+            $lookup: {
+              from: 'batches',
+              localField: '_id',
+              foreignField: 'productId',
+              as: 'batches',
+              pipeline: [{ $match: { status: 'ACTIVE' } }]
+            }
+          },
+          { $unwind: { path: '$batches', preserveNullAndEmptyArrays: true } },
+          { $group: { _id: '$_id', doc: { $first: '$$ROOT' }, accumulative: { $sum: '$batches.accumulative' }, out: { $sum: '$batches.outQty' } } },
+          { $addFields: { remain: { $subtract: ['$accumulative', '$out'] } } },
+          { $replaceRoot: { newRoot: { $mergeObjects: ['$doc', { remain: '$remain' }] } } },
+          { $project: { batches: 0 } },
+        ])
+        return NextResponse.json({ noResult: false, message: '', result: variants, error: false })
+      }
+      // ───────────────────────────────────────────────────────────────────────
 
       const byType = await Product.aggregate([
         {

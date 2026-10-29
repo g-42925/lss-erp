@@ -430,12 +430,12 @@ function Purchases() {
           p._id !== data._id
             ? p
             : {
-                ...p,
-                nonCashDst: {
-                  accountNumber: data.accountNumber,
-                  description: data.description,
-                },
-              }
+              ...p,
+              nonCashDst: {
+                accountNumber: data.accountNumber,
+                description: data.description,
+              },
+            }
         )
       )
       nonCashRef.current?.close()
@@ -1705,6 +1705,8 @@ function Purchases() {
                   </fieldset>
                 )}
 
+                {
+                  /*
                 {filterType === "product" && (
                   <fieldset className="fieldset flex-1">
                     <legend className="fieldset-legend">
@@ -1734,6 +1736,25 @@ function Purchases() {
                         )
                       )}
                     </select>
+                  </fieldset>
+                )}
+                  */
+                }
+
+
+                {filterType === "product" && (
+                  <fieldset className="fieldset flex-1">
+                    <legend className="fieldset-legend">
+                      Supplier / Asal
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...newPrForm.register(
+                        "customSupplier"
+                      )}
+                      type="text"
+                    />
                   </fieldset>
                 )}
 
@@ -1855,6 +1876,8 @@ function Purchases() {
                 </fieldset>
               </div>
 
+              {
+                /*
               {filterType === "product" && (
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">
@@ -1885,6 +1908,25 @@ function Purchases() {
                       )
                     )}
                   </select>
+                </fieldset>
+              )}
+                
+                */
+              }
+
+              {filterType === "product" && (
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">
+                    Supplier / Asal
+                  </legend>
+
+                  <input
+                    className="input w-full"
+                    {...orderForm.register(
+                      "customSupplier"
+                    )}
+                    type="text"
+                  />
                 </fieldset>
               )}
 

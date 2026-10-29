@@ -6,9 +6,10 @@ const ProductSchema = new mongoose.Schema({
   productName: { type: String, required: true },
   productId: { type: String, required: true },
   barcodeType: { type: String, required: false },
-  category: { type: String, required: true },
-  description: { type: String, required: true },
-  image: { type: String, required: true },
+  category: { type: String, required: false, default: '' },
+  subCategory: { type: String, required: false, default: '' },
+  description: { type: String, required: false, default: '' },
+  image: { type: String, required: false, default: '' },
   applicableTax: { type: String, required: true },
   sellingPriceTaxType: { type: String, required: false },
   productType: { type: String, required: true, enum: ["service", "good"] },
@@ -25,7 +26,13 @@ const ProductSchema = new mongoose.Schema({
   conversionValue: { type: Number, required: false },
   packagingId: { type: String, required: false },
   reorderPoint: { type: Number, required: false, default: 0 },
-  safetyStock: { type: Number, required: false, default: 0 }
+  safetyStock: { type: Number, required: false, default: 0 },
+  // ─── Catalog-variant fields ────────────────────────────────────────────────
+  // catalogId: reference ke SalesCatalog parent (hanya ada jika produk ini
+  // adalah varian dari sebuah katalog sales)
+  catalogId: { type: mongoose.Schema.Types.ObjectId, ref: 'SalesCatalog', required: false },
+  variantName: { type: String, required: false, default: '' },
+  brand: { type: String, required: false, default: '' },
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

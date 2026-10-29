@@ -162,9 +162,24 @@ export default function Invoices() {
   }
 
   function countTotal(invoice: any) {
-    if (!invoice) return 0
-    // Use the corrected total stored on the Order document (updated during activateInvoice)
-    return invoice.order?.total ?? 0
+    let total = 0
+    const taxes: { name: string, value: number }[] = []
+    getTaxesFn.result.map((tax: any, idx: number) => {
+      const { applicableTax, sellingPrice, sellingPriceTaxType } = invoice?.product ?? {};
+      if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
+      if (sellingPriceTaxType !== 'exclusive') return null;
+      if (new RegExp(applicableTax, 'i').test(tax.name) && sellingPriceTaxType === 'exclusive') {
+        taxes.push(tax)
+      }
+      total += invoice?.order?.cart.map((c) => {
+        return c.qty * sellingPrice
+      })
+        .reduce((a: number, b: number) => a + b, 0)
+    })
+    taxes.map(t => {
+      total += total * (t.value / 100)
+    })
+    return total
   }
 
   function whatTax(taxName: string) {
@@ -519,12 +534,17 @@ export default function Invoices() {
                 </div>
                 {getTaxesFn.result && getTaxesFn.result.length > 0
                   ? getTaxesFn.result.map((tax: any, idx: number) => {
-                    const isApplied = selectedInvoice?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
-                    const taxVal = isApplied ? (isApplied.taxValue || selectedInvoice?.order?.taxValue || 0) : 0;
+                    const { applicableTax, sellingPrice, sellingPriceTaxType } = selectedInvoice?.product ?? {};
+                    if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
+                    if (sellingPriceTaxType !== 'exclusive') return null;
+                    const total = selectedInvoice?.order?.cart.map((c) => {
+                      return c.qty * sellingPrice
+                    })
+                      .reduce((a: number, b: number) => a + b, 0)
                     return (
                       <div key={idx} className="flex flex-row">
                         <span className="text-gray-700 text-sm">{tax.name}</span>
-                        <span className="text-gray-800 ml-auto text-sm">{`${Number(taxVal).toLocaleString('id-ID')} (${isApplied ? tax.value : 0}%)`}</span>
+                        <span className="text-gray-800 ml-auto text-sm">{Number(total * (tax.value / 100)).toLocaleString('id-ID')}</span>
                       </div>
                     )
                   })
@@ -532,10 +552,6 @@ export default function Invoices() {
                     <></>
                   )
                 }
-                <div className="flex flex-row font-bold">
-                  <span className="text-gray-700 text-sm">Refund credit</span>
-                  <span className="text-gray-800 ml-auto text-sm">{Number(selectedInvoice?.refundCredit)?.toLocaleString('id-ID')}</span>
-                </div>
                 <div className="flex flex-row font-bold">
                   <span className="text-gray-700 text-sm">Total</span>
                   <span className="text-gray-800 ml-auto text-sm">{Number(countTotal(selectedInvoice))?.toLocaleString('id-ID')}</span>

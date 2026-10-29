@@ -159,8 +159,10 @@ export async function POST(request: NextRequest) {
       ])
 
       if (product) {
-        const current = Math.round(_product.stockValue / (_product.remain + _product.allocated))
-        const modified = product.stockValue - (current * item.qty)
+        const totalQty = Math.max(1, (_product?.remain || 0) + (_product?.allocated || 0))
+        const current = Math.round((_product?.stockValue || 0) / totalQty)
+        const qtyNum = parseFloat(item.qty) || 0
+        const modified = Math.max(0, (product.stockValue || 0) - (current * qtyNum))
 
         await Product.findByIdAndUpdate(
           product._id,
