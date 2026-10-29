@@ -164,14 +164,14 @@ export default function Invoices() {
   function countTotal(invoice: any) {
     let total = 0
     const taxes: { name: string, value: number }[] = []
-    getTaxesFn.result.map((tax: any, idx: number) => {
+    ;(getTaxesFn.result ?? []).map((tax: any, idx: number) => {
       const { applicableTax, sellingPrice, sellingPriceTaxType } = invoice?.product ?? {};
       if (!new RegExp(applicableTax, 'i').test(tax.name)) return null
       if (sellingPriceTaxType !== 'exclusive') return null;
       if (new RegExp(applicableTax, 'i').test(tax.name) && sellingPriceTaxType === 'exclusive') {
         taxes.push(tax)
       }
-      total += invoice?.order?.cart.map((c: any) => {
+      total += (invoice?.order?.cart ?? []).map((c: any) => {
         return c.qty * sellingPrice
       })
         .reduce((a: number, b: number) => a + b, 0)
@@ -713,7 +713,7 @@ export default function Invoices() {
                   <span className="text-gray-800 ml-auto text-sm">{Number(countDiscount(selectedInvoice))?.toLocaleString('id-ID')}</span>
                 </div>
                 {getTaxesFn.result && getTaxesFn.result.length > 0
-                  ? getTaxesFn.result.map((tax: any, idx: number) => {
+                  ? (getTaxesFn.result ?? []).map((tax: any, idx: number) => {
                     const isApplied = selectedInvoice?.order?.taxes?.find((t: any) => (t.taxName || t.name) === tax.name);
                     const taxVal = isApplied ? (isApplied.taxValue || selectedInvoice?.order?.taxValue || 0) : 0;
                     return (
