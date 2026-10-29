@@ -171,7 +171,7 @@ export default function Invoices() {
       if (new RegExp(applicableTax, 'i').test(tax.name) && sellingPriceTaxType === 'exclusive') {
         taxes.push(tax)
       }
-      total += invoice?.order?.cart.map((c) => {
+      total += invoice?.order?.cart.map((c: any) => {
         return c.qty * sellingPrice
       })
         .reduce((a: number, b: number) => a + b, 0)
