@@ -218,10 +218,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <SidebarItem href="/warehouse/adjust">Adjust</SidebarItem>
               <SidebarItem href="/warehouse/availability">Stock</SidebarItem>
               <SidebarItem href="/warehouse/movement">Shipping</SidebarItem>
-              <SidebarItem href="/warehouse/log">Shipping Log</SidebarItem>
               <SidebarItem href="/warehouse/new">New</SidebarItem>
               <SidebarItem href="/warehouse/receiving">Receiving</SidebarItem>
-              <SidebarItem href="/warehouse/rlog">Receiving Log</SidebarItem>
               <SidebarItem href="/warehouse/qc">Quality Check</SidebarItem>
               <SidebarItem href="/warehouse/alerts">Stock Alerts</SidebarItem>
             </ParentMenu>
