@@ -607,7 +607,7 @@ function Purchases() {
       })
     }
 
-    if (filterType === "procurement") {
+    if (filterType === "procurement" || filterType === "product") {
       orderForm.reset({
         _id: purchase._id,
         quantity: purchase.quantity,
@@ -671,7 +671,7 @@ function Purchases() {
       }
     }
 
-    if (filterType === "procurement") {
+    if (filterType === "procurement" || filterType === "product") {
       editForm.reset({
         _id: purchase._id,
         productId:
@@ -1006,7 +1006,7 @@ function Purchases() {
                               <td>
                                 {new Date(
                                   purchase.date
-                                ).toLocaleString(
+                                ).toLocaleDateString(
                                   "id-ID"
                                 )}
                               </td>
@@ -1422,6 +1422,8 @@ function Purchases() {
                   </fieldset>
                 )}
 
+                {
+                  /*
                 {filterType === "product" && (
                   <fieldset className="fieldset flex-1">
                     <legend className="fieldset-legend">
@@ -1451,6 +1453,25 @@ function Purchases() {
                         )
                       )}
                     </select>
+                  </fieldset>
+                )}
+                  */
+                }
+
+
+                {filterType === "product" && (
+                  <fieldset className="fieldset flex-1">
+                    <legend className="fieldset-legend">
+                      Supplier / Asal
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...editForm.register(
+                        "customSupplier"
+                      )}
+                      type="text"
+                    />
                   </fieldset>
                 )}
 
@@ -1498,13 +1519,13 @@ function Purchases() {
               </div>
             </form>
           </div>
-        </div>
-      </dialog>
+        </div >
+      </dialog >
 
       {/* =====================================================
           MODAL ADD REQUISITION
       ===================================================== */}
-      <dialog
+      < dialog
         ref={modalRef}
         className="modal text-black"
       >
@@ -1712,7 +1733,7 @@ function Purchases() {
                     <legend className="fieldset-legend">
                       Supplier
                     </legend>
-
+    
                     <select
                       {...newPrForm.register(
                         "supplierId"
@@ -1722,7 +1743,7 @@ function Purchases() {
                       <option value="">
                         -- Pilih Supplier --
                       </option>
-
+    
                       {suppliers.map(
                         (supplier) => (
                           <option
@@ -1803,12 +1824,12 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog >
 
       {/* =====================================================
           MODAL MAKE PO
       ===================================================== */}
-      <dialog
+      < dialog
         ref={orderRef}
         className="modal text-black"
       >
@@ -1883,7 +1904,7 @@ function Purchases() {
                   <legend className="fieldset-legend">
                     Supplier
                   </legend>
-
+    
                   <select
                     {...orderForm.register(
                       "supplierId"
@@ -1894,7 +1915,7 @@ function Purchases() {
                     <option value="">
                       -- Pilih Supplier --
                     </option>
-
+    
                     {suppliers.map(
                       (supplier) => (
                         <option
@@ -2403,7 +2424,7 @@ function Purchases() {
       {/* =====================================================
           MODAL EDIT NON-CASH DESTINATION
       ===================================================== */}
-      <dialog
+      < dialog
         ref={nonCashRef}
         className="modal text-black"
       >
@@ -2488,7 +2509,7 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog >
     </>
   )
 }

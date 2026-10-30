@@ -406,7 +406,7 @@ export default function PurchasesApproval() {
                     return (
                       <tr key={purchase._id} className={purchase.priceAlert ? "bg-red-50" : ""}>
                         <td>
-                          {new Date(purchase.date).toLocaleString("id-ID")}
+                          {new Date(purchase.date).toLocaleDateString("id-ID")}
                         </td>
 
                         <td>
