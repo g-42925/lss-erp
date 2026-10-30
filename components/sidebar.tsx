@@ -245,9 +245,10 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             {/* Sales */}
             <ParentMenu
               label="Sales"
-              links={["/sales/items", "/sales/order", "/sales/svc-order", "/sales/refund", "/sales/p-invoice", "/sales/svc-invoice", "/sales/quotation"]}
+              links={["/sales/items", "/sales/goods-quotation", "/sales/order", "/sales/svc-order", "/sales/refund", "/sales/p-invoice", "/sales/svc-invoice", "/sales/quotation"]}
             >
               <SidebarItem href="/sales/items">Items</SidebarItem>
+              <SidebarItem href="/sales/goods-quotation">Quotation Barang</SidebarItem>
               <SidebarItem href="/sales/order">Order</SidebarItem>
               <SidebarItem href="/sales/svc-order">Service Order</SidebarItem>
               <SidebarItem href="/sales/refund">Refund Log</SidebarItem>

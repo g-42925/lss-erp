@@ -7,7 +7,7 @@ import useFetch from "@/hooks/useFetch"
 import withAuth from "@/hofs/withAuth"
 import { Controller, useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
-import { useRef, useState, useEffect } from "react"
+import React, { useRef, useState, useEffect } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   CoinsDollarIcon,
@@ -43,6 +43,25 @@ function Purchases() {
   const [selectedPoBankAccountId, setSelectedPoBankAccountId] = useState<string | undefined>(undefined)
   const [nonCashEditTarget, setNonCashEditTarget] = useState<any>(null)
 
+  // ─── State multi-item untuk Add PR ────────────────────────────────────────
+  // Setiap entry: { productId, quantity, finalPrice (opsional), note (opsional) }
+  const [addItems, setAddItems] = useState<any[]>([])
+  // Form sementara untuk satu item yang sedang diisi
+  const [addItemDraft, setAddItemDraft] = useState<any>({ productId: "", quantity: 1, finalPrice: "", note: "" })
+  // Mode override total: jika true, user bisa isi total manual
+  const [addTotalOverride, setAddTotalOverride] = useState<string>("")
+  const [addTotalMode, setAddTotalMode] = useState<"auto" | "manual">("auto")
+
+  // ─── Expand row untuk melihat detail item multi-item PR ──────────────────────
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  function toggleExpand(id: string) {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   // ─── Riwayat harga terakhir saat pilih item ───────────────────────────────
   const [addLastPriceInfo, setAddLastPriceInfo] = useState<any>(null)
   const [addLastPriceLoading, setAddLastPriceLoading] = useState(false)
@@ -179,12 +198,35 @@ function Purchases() {
   }
 
   function getPurchaseName(purchase: any) {
+    // Multi-item purchase
+    if (Array.isArray(purchase.items) && purchase.items.length > 0) {
+      if (purchase.items.length === 1) {
+        const it = purchase.items[0]
+        return it.product?.productName || it.product?.name || "-"
+      }
+      return `${purchase.items.length} item(s)`
+    }
     return (
       purchase.description ||
       purchase.product?.productName ||
       purchase.product?.name ||
       "-"
     )
+  }
+
+  function getPurchaseQuantity(purchase: any) {
+    if (Array.isArray(purchase.items) && purchase.items.length > 0) {
+      if (purchase.items.length === 1) {
+        const it = purchase.items[0]
+        const unit = filterType === "procurement"
+          ? it.product?.unit
+          : it.product?.conversionRatioX
+        return `${it.quantity}${unit ? ` (${unit})` : ""}`
+      }
+      const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
+      return `${totalQty} total`
+    }
+    return null // fallback ke kolom quantity lama
   }
 
   function getSupplierVendorName(purchase: any) {
@@ -279,7 +321,94 @@ function Purchases() {
     )
   }
 
+  // ─── Tambah item ke daftar (multi-item draft) ──────────────────────────────
+  function addItemToDraft() {
+    if (!addItemDraft.productId) {
+      alert("Pilih produk/item terlebih dahulu")
+      return
+    }
+    if (!addItemDraft.quantity || parseFloat(addItemDraft.quantity) <= 0) {
+      alert("Quantity harus lebih dari 0")
+      return
+    }
+    // Cek apakah produk yang sama sudah ada di list
+    const existing = addItems.find(i => i.productId === addItemDraft.productId)
+    if (existing) {
+      alert("Produk ini sudah ada dalam daftar. Hapus dulu jika ingin mengubahnya.")
+      return
+    }
+    // Temukan info produk untuk ditampilkan
+    const productList = filterType === "procurement" ? items : products
+    const prod = productList.find((p: any) => p._id === addItemDraft.productId)
+    setAddItems(prev => [...prev, {
+      productId: addItemDraft.productId,
+      quantity: parseFloat(addItemDraft.quantity),
+      finalPrice: addItemDraft.finalPrice !== "" ? parseFloat(addItemDraft.finalPrice) || 0 : 0,
+      note: addItemDraft.note || "",
+      _productLabel: filterType === "procurement"
+        ? `${prod?.name || ""} (${prod?.unit || ""})`
+        : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`,
+      _product: prod,
+    }])
+    // Reset draft
+    setAddItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+    setAddLastPriceInfo(null)
+  }
+
+  function removeItemFromDraft(index: number) {
+    setAddItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Hitung auto total dari items
+  function calcAddItemsTotal() {
+    return addItems.reduce((sum, it) => sum + (it.finalPrice || 0) * (it.quantity || 1), 0)
+  }
+
   async function submit(data: any) {
+    const isMultiItem = (filterType === "product" || filterType === "procurement")
+
+    if (isMultiItem) {
+      if (addItems.length === 0) {
+        alert("Tambahkan setidaknya satu item")
+        return
+      }
+
+      const autoTotal = calcAddItemsTotal()
+      const finalPrice = addTotalMode === "manual" && addTotalOverride !== ""
+        ? parseFloat(addTotalOverride) || 0
+        : autoTotal
+
+      const body = JSON.stringify({
+        status: "requested",
+        id: masterAccountId,
+        date: data.customDate ? new Date(data.customDate) : new Date(),
+        purchaseType: filterType,
+        createdBy: user,
+        customSupplier: data.customSupplier || "",
+        items: addItems.map(it => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          finalPrice: it.finalPrice || 0,
+          note: it.note || "",
+        })),
+        finalPrice,
+        ...(addTotalMode === "manual" && addTotalOverride !== "" ? { finalPriceOverride: parseFloat(addTotalOverride) } : {}),
+      })
+
+      addFn.fn("", body, (result) => {
+        setPr((current) => [...current, result])
+        modalRef.current?.close()
+        newPrForm.reset()
+        setAddItems([])
+        setAddItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+        setAddTotalOverride("")
+        setAddTotalMode("auto")
+        setAddLastPriceInfo(null)
+      })
+      return
+    }
+
+    // Service: path lama
     const body = JSON.stringify({
       ...data,
       status: "requested",
@@ -1000,9 +1129,8 @@ function Purchases() {
                             )
 
                           return (
-                            <tr
-                              key={purchase._id}
-                            >
+                            <React.Fragment key={purchase._id}>
+                              <tr>
                               <td>
                                 {new Date(
                                   purchase.date
@@ -1032,9 +1160,25 @@ function Purchases() {
                               </td>
 
                               {filterType !== "service" && (
-                                <td>
-                                  {purchase.quantity} (
-                                  {unit})
+                                <td
+                                  onClick={() => {
+                                    const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 1
+                                    if (isMultiItem) toggleExpand(purchase._id)
+                                  }}
+                                  className={Array.isArray(purchase.items) && purchase.items.length > 1 ? "cursor-pointer" : ""}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    {Array.isArray(purchase.items) && purchase.items.length > 1 && (
+                                      <span className="text-blue-500 text-xs">
+                                        {expandedRows.has(purchase._id) ? "▲" : "▼"}
+                                      </span>
+                                    )}
+                                    {(() => {
+                                      const multiQty = getPurchaseQuantity(purchase)
+                                      if (multiQty !== null) return multiQty
+                                      return `${purchase.quantity} (${unit})`
+                                    })()}
+                                  </div>
                                 </td>
                               )}
 
@@ -1233,6 +1377,54 @@ function Purchases() {
                                 }
                               </td>
                             </tr>
+
+                            {/* ── Expand row untuk multi-item ───────────────── */}
+                            {Array.isArray(purchase.items) && purchase.items.length > 1 && expandedRows.has(purchase._id) && (
+                              <tr className="bg-blue-50">
+                                <td colSpan={10} className="px-4 py-2">
+                                  <table className="table table-xs text-xs w-full">
+                                    <thead className="bg-blue-100">
+                                      <tr>
+                                        <th className="text-left">Produk/Item</th>
+                                        <th className="text-center">Qty</th>
+                                        <th className="text-right">Harga/unit</th>
+                                        <th className="text-right">Subtotal</th>
+                                        {purchase.items.some((it: any) => it.note) && <th>Note</th>}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {purchase.items.map((it: any, idx: number) => {
+                                        const pName = filterType === "procurement"
+                                          ? it.product?.name || "-"
+                                          : it.product?.productName || "-"
+                                        const pUnit = filterType === "procurement"
+                                          ? it.product?.unit || ""
+                                          : it.product?.conversionRatioX || ""
+                                        const hasNotes = purchase.items.some((x: any) => x.note)
+                                        return (
+                                          <tr key={idx} className="hover:bg-blue-50">
+                                            <td>{pName} {pUnit ? `(${pUnit})` : ""}</td>
+                                            <td className="text-center">{it.quantity}</td>
+                                            <td className="text-right">
+                                              {it.finalPrice > 0
+                                                ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
+                                                : <span className="text-gray-400 italic">-</span>}
+                                            </td>
+                                            <td className="text-right font-medium">
+                                              {it.finalPrice > 0
+                                                ? `Rp ${(it.finalPrice * it.quantity).toLocaleString("id-ID")}`
+                                                : "-"}
+                                            </td>
+                                            {hasNotes && <td className="text-gray-600 italic">{it.note || ""}</td>}
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </td>
+                              </tr>
+                            )}
+                            </React.Fragment>
                           )
                         }
                       )}
@@ -1525,89 +1717,181 @@ function Purchases() {
       {/* =====================================================
           MODAL ADD REQUISITION
       ===================================================== */}
-      < dialog
+      <dialog
         ref={modalRef}
         className="modal text-black"
       >
-        <div className="modal-box w-11/12 max-w-2xl">
+        <div className="modal-box w-11/12 max-w-3xl max-h-[90vh] overflow-y-auto">
           <div className="flex flex-col gap-3">
             <span className="page-title">
               Add Purchase Requisition
             </span>
 
             <form
-              onSubmit={newPrForm.handleSubmit(
-                submit
-              )}
-              className="h-92 relative flex flex-col gap-3"
+              onSubmit={newPrForm.handleSubmit(submit)}
+              className="flex flex-col gap-4"
             >
-              <div className="flex flex-col gap-3">
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">
-                    Tanggal Pembelian
-                  </legend>
-
+              {/* ── Header: Tanggal + Supplier ─────────────────────────── */}
+              <div className="grid grid-cols-2 gap-3">
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tanggal Pembelian</legend>
                   <input
-                    {...newPrForm.register(
-                      "customDate",
-                      { required: true }
-                    )}
+                    {...newPrForm.register("customDate", { required: true })}
                     className="input w-full"
                     type="date"
                   />
                 </fieldset>
 
-                {filterType === "service" ? (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Description (Jasa)
-                    </legend>
-
+                {(filterType === "product" || filterType === "procurement") && (
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Supplier / Asal</legend>
                     <input
-                      {...newPrForm.register(
-                        "description",
-                        { required: true }
-                      )}
+                      className="input w-full"
+                      {...newPrForm.register("customSupplier")}
+                      type="text"
+                      placeholder="Nama supplier (opsional)"
+                    />
+                  </fieldset>
+                )}
+
+                {filterType === "service" && (
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Vendor</legend>
+                    <select
+                      {...newPrForm.register("vendorId", { required: true })}
+                      className="select w-full"
+                    >
+                      {vendors.map((vendor) => (
+                        <option value={vendor._id} key={vendor._id}>
+                          {vendor.name}
+                        </option>
+                      ))}
+                    </select>
+                  </fieldset>
+                )}
+              </div>
+
+              {/* ── Service: single description + price ───────────────── */}
+              {filterType === "service" && (
+                <div className="flex flex-col gap-3">
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Description (Jasa)</legend>
+                    <input
+                      {...newPrForm.register("description", { required: true })}
                       className="input w-full"
                     />
                   </fieldset>
-                ) : (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Select item/product
-                    </legend>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Price (Rp)</legend>
+                    <Controller
+                      control={newPrForm.control}
+                      name="finalPrice"
+                      render={({ field: { onChange, ...fieldRest } }) => (
+                        <NumericFormat
+                          {...fieldRest}
+                          value={fieldRest.value ?? ""}
+                          onValueChange={(values) => onChange(values.floatValue ?? "")}
+                          thousandSeparator="."
+                          decimalSeparator=","
+                          decimalScale={2}
+                          fixedDecimalScale
+                          allowNegative={false}
+                          className="input w-full"
+                          placeholder="Contoh: 160000"
+                        />
+                      )}
+                    />
+                  </fieldset>
+                </div>
+              )}
 
-                    <select
-                      {...newPrForm.register("productId")}
-                      className="input w-full"
-                      onChange={(e) => {
-                        newPrForm.setValue("productId", e.target.value)
-                        setAddLastPriceInfo(null)
-                        fetchLastPurchasePrice(e.target.value, "add")
-                      }}
-                    >
-                      {filterType === "product"
-                        ? products.map((product) => (
-                          <option key={product._id} value={product._id}>
-                            {product.productName} ({product.conversionRatioX})
-                          </option>
-                        ))
-                        : items.map((item) => (
-                          <option key={item._id} value={item._id}>
-                            {item.name} ({item.unit})
-                          </option>
-                        ))}
-                    </select>
+              {/* ── Product / Procurement: multi-item ─────────────────── */}
+              {(filterType === "product" || filterType === "procurement") && (
+                <div className="flex flex-col gap-3">
+                  {/* Item draft input */}
+                  <div className="border border-blue-100 rounded-lg bg-blue-50 p-3 flex flex-col gap-2">
+                    <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
+                      Tambah Item ke Daftar
+                    </p>
+
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      {/* Pilih Produk */}
+                      <div className="col-span-5 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">
+                          {filterType === "product" ? "Produk" : "Item"}
+                        </label>
+                        <select
+                          className="input w-full text-sm"
+                          value={addItemDraft.productId}
+                          onChange={(e) => {
+                            setAddItemDraft((d: any) => ({ ...d, productId: e.target.value }))
+                            setAddLastPriceInfo(null)
+                            fetchLastPurchasePrice(e.target.value, "add")
+                          }}
+                        >
+                          <option value="">-- Pilih --</option>
+                          {filterType === "product"
+                            ? products.map((product) => (
+                              <option key={product._id} value={product._id}>
+                                {product.productName} ({product.conversionRatioX})
+                              </option>
+                            ))
+                            : items.map((item) => (
+                              <option key={item._id} value={item._id}>
+                                {item.name} ({item.unit})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Qty */}
+                      <div className="col-span-2 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="input w-full text-sm"
+                          value={addItemDraft.quantity}
+                          onChange={(e) => setAddItemDraft((d: any) => ({ ...d, quantity: e.target.value }))}
+                        />
+                      </div>
+
+                      {/* Harga per item (opsional) */}
+                      <div className="col-span-3 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">Harga / unit (opsional)</label>
+                        <NumericFormat
+                          className="input w-full text-sm"
+                          thousandSeparator="."
+                          decimalSeparator=","
+                          decimalScale={0}
+                          allowNegative={false}
+                          placeholder="0"
+                          value={addItemDraft.finalPrice}
+                          onValueChange={(vals) => setAddItemDraft((d: any) => ({ ...d, finalPrice: vals.value }))}
+                        />
+                      </div>
+
+                      {/* Tombol Tambah */}
+                      <div className="col-span-2">
+                        <button
+                          type="button"
+                          onClick={addItemToDraft}
+                          className="btn w-full bg-blue-700 text-white hover:bg-blue-800 btn-sm h-10"
+                        >
+                          + Tambah
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Riwayat harga terakhir */}
                     {addLastPriceLoading && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
                         <span className="loading loading-spinner loading-xs" />
                         Mengambil riwayat harga...
                       </div>
                     )}
                     {!addLastPriceLoading && addLastPriceInfo && (
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
                           <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1617,9 +1901,7 @@ function Purchases() {
                             Rp {(addLastPriceInfo.finalPrice ?? 0).toLocaleString("id-ID")}
                           </span>
                           <span className="text-amber-600">·</span>
-                          <span>
-                            qty: <span className="font-semibold">{addLastPriceInfo.quantity}</span>
-                          </span>
+                          <span>qty: <span className="font-semibold">{addLastPriceInfo.quantity}</span></span>
                           {addLastPriceInfo.date && (
                             <>
                               <span className="text-amber-600">·</span>
@@ -1628,187 +1910,133 @@ function Purchases() {
                               </span>
                             </>
                           )}
-                          {addLastPriceInfo.customSupplier && (
-                            <>
-                              <span className="text-amber-600">·</span>
-                              <span className="italic text-amber-700">{addLastPriceInfo.customSupplier}</span>
-                            </>
-                          )}
                         </div>
                       </div>
                     )}
-                  </fieldset>
-                )}
+                  </div>
 
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">
-                    Price
-                  </legend>
+                  {/* Daftar item yang sudah ditambahkan */}
+                  {addItems.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Daftar Item ({addItems.length})
+                      </p>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="table table-sm text-sm w-full">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="text-left">Produk/Item</th>
+                              <th className="text-center">Qty</th>
+                              <th className="text-right">Harga/unit</th>
+                              <th className="text-right">Subtotal</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {addItems.map((it, idx) => (
+                              <tr key={idx} className="hover:bg-gray-50">
+                                <td className="text-left">{it._productLabel}</td>
+                                <td className="text-center">{it.quantity}</td>
+                                <td className="text-right">
+                                  {it.finalPrice > 0
+                                    ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
+                                    : <span className="text-gray-400 italic text-xs">belum diisi</span>}
+                                </td>
+                                <td className="text-right font-medium">
+                                  {it.finalPrice > 0
+                                    ? `Rp ${(it.finalPrice * it.quantity).toLocaleString("id-ID")}`
+                                    : "-"}
+                                </td>
+                                <td className="text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeItemFromDraft(idx)}
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                    title="Hapus item"
+                                  >
+                                    <HugeiconsIcon icon={MultiplicationSignIcon} size={16} color="currentColor" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
 
-                  <Controller
-                    control={
-                      newPrForm.control
-                    }
-                    name="finalPrice"
-                    render={({
-                      field: {
-                        onChange,
-                        ...fieldRest
-                      },
-                    }) => (
-                      <NumericFormat
-                        {...fieldRest}
-                        value={
-                          fieldRest.value ??
-                          ""
-                        }
-                        onValueChange={(
-                          values
-                        ) =>
-                          onChange(
-                            values.floatValue ??
-                            ""
-                          )
-                        }
-                        thousandSeparator="."
-                        decimalSeparator=","
-                        decimalScale={2}
-                        fixedDecimalScale
-                        allowNegative={false}
-                        className="input w-full"
-                        placeholder="Contoh: 160000"
-                      />
-                    )}
-                  />
-                </fieldset>
+                      {/* Total Section */}
+                      <div className="flex flex-col gap-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Total Harga:</span>
+                            <label className="flex items-center gap-1 cursor-pointer text-xs text-gray-500">
+                              <input
+                                type="checkbox"
+                                className="checkbox checkbox-xs"
+                                checked={addTotalMode === "manual"}
+                                onChange={(e) => {
+                                  setAddTotalMode(e.target.checked ? "manual" : "auto")
+                                  if (!e.target.checked) setAddTotalOverride("")
+                                }}
+                              />
+                              Override manual
+                            </label>
+                          </div>
+                          {addTotalMode === "auto" ? (
+                            <span className="font-bold text-blue-800 text-base">
+                              Rp {calcAddItemsTotal().toLocaleString("id-ID")}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 line-through">
+                                Rp {calcAddItemsTotal().toLocaleString("id-ID")}
+                              </span>
+                              <NumericFormat
+                                className="input input-sm w-40 text-right font-bold text-blue-800"
+                                thousandSeparator="."
+                                decimalSeparator=","
+                                decimalScale={0}
+                                allowNegative={false}
+                                placeholder="Total harga"
+                                value={addTotalOverride}
+                                onValueChange={(vals) => setAddTotalOverride(vals.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        {addTotalMode === "auto" && calcAddItemsTotal() === 0 && (
+                          <p className="text-xs text-amber-600">
+                            ⚠ Semua item belum memiliki harga. Total akan 0. Centang &quot;Override manual&quot; untuk mengisi total secara manual.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                {filterType !== "service" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Quantity
-                    </legend>
+                  {addItems.length === 0 && (
+                    <div className="text-center py-4 text-sm text-gray-400 border border-dashed rounded-lg">
+                      Belum ada item. Gunakan form di atas untuk menambahkan item.
+                    </div>
+                  )}
+                </div>
+              )}
 
-                    <input
-                      {...newPrForm.register(
-                        "quantity",
-                        { required: true }
-                      )}
-                      className="input w-full"
-                      type="number"
-                    />
-                  </fieldset>
-                )}
-
-                {filterType === "service" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Vendor
-                    </legend>
-
-                    <select
-                      {...newPrForm.register(
-                        "vendorId",
-                        { required: true }
-                      )}
-                      className="select w-full"
-                    >
-                      {vendors.map(
-                        (vendor) => (
-                          <option
-                            value={vendor._id}
-                            key={vendor._id}
-                          >
-                            {vendor.name}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </fieldset>
-                )}
-
-                {
-                  /*
-                {filterType === "product" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Supplier
-                    </legend>
-    
-                    <select
-                      {...newPrForm.register(
-                        "supplierId"
-                      )}
-                      className="select w-full"
-                    >
-                      <option value="">
-                        -- Pilih Supplier --
-                      </option>
-    
-                      {suppliers.map(
-                        (supplier) => (
-                          <option
-                            key={supplier._id}
-                            value={supplier._id}
-                          >
-                            {
-                              supplier.bussinessName
-                            }
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </fieldset>
-                )}
-                  */
-                }
-
-
-                {filterType === "product" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Supplier / Asal
-                    </legend>
-
-                    <input
-                      className="input w-full"
-                      {...newPrForm.register(
-                        "customSupplier"
-                      )}
-                      type="text"
-                    />
-                  </fieldset>
-                )}
-
-                {filterType === "procurement" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Supplier / Asal
-                    </legend>
-
-                    <input
-                      className="input w-full"
-                      {...newPrForm.register(
-                        "customSupplier"
-                      )}
-                      type="text"
-                    />
-                  </fieldset>
-                )}
-              </div>
-
-              {(addFn.noResult ||
-                addFn.error) && (
-                  <label className="input-validator text-red-900">
-                    something went wrong
-                  </label>
-                )}
+              {(addFn.noResult || addFn.error) && (
+                <label className="input-validator text-red-900">
+                  something went wrong
+                </label>
+              )}
 
               <div className="mt-auto ml-auto flex gap-2">
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
                     modalRef.current?.close()
-                  }
+                    setAddItems([])
+                    setAddItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+                    setAddTotalOverride("")
+                    setAddTotalMode("auto")
+                    setAddLastPriceInfo(null)
+                  }}
                   className="p-3 rounded-md text-black bg-gray-200"
                 >
                   Cancel
@@ -1816,15 +2044,16 @@ function Purchases() {
 
                 <button
                   type="submit"
-                  className="p-3 rounded-md text-white bg-blue-900"
+                  disabled={addFn.loading}
+                  className="p-3 rounded-md text-white bg-blue-900 disabled:opacity-50"
                 >
-                  Add
+                  {addFn.loading ? "Menyimpan..." : "Add"}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </dialog >
+      </dialog>
 
       {/* =====================================================
           MODAL MAKE PO

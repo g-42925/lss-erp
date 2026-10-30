@@ -61,12 +61,19 @@ export default function PurchasesApproval() {
   // Data yang ditampilkan mengikuti kata pencarian.
   const displayedPurchases = searchTerm.trim()
     ? pr.filter((purchase) => {
-      const name =
-        filterType === "service"
-          ? purchase.description
-          : purchase.product?.productName || purchase.product?.name
-
-      return name?.toLowerCase().includes(searchTerm.trim().toLowerCase())
+      if (filterType === "service") {
+        return purchase.description?.toLowerCase().includes(searchTerm.trim().toLowerCase())
+      }
+      // Multi-item: cari di setiap item
+      if (Array.isArray(purchase.items) && purchase.items.length > 0) {
+        return purchase.items.some((it: any) =>
+          (it.product?.productName || it.product?.name || "")
+            .toLowerCase().includes(searchTerm.trim().toLowerCase())
+        )
+      }
+      // Single-item lama
+      const name = purchase.product?.productName || purchase.product?.name || ""
+      return name.toLowerCase().includes(searchTerm.trim().toLowerCase())
     })
     : pr
 
@@ -204,16 +211,20 @@ export default function PurchasesApproval() {
     const purchase = pr.find((item) => item._id === id)
     if (!purchase) return
 
+    const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
+    const productLabel = filterType === "service"
+      ? purchase.description
+      : isMultiItem
+        ? purchase.items.map((it: any) =>
+            it.product?.productName || it.product?.name || "?"
+          ).join(", ")
+        : purchase.product?.productName || purchase.product?.name || "Unknown Product"
+
     editPrForm.reset({
       _id: purchase._id,
       description: purchase.description,
       finalPrice: purchase.finalPrice,
-      product:
-        filterType === "service"
-          ? purchase.description
-          : purchase.product?.productName ||
-          purchase.product?.name ||
-          "Unknown Product",
+      product: productLabel,
       status: purchase.status,
       currentStatus: purchase.status
     })
@@ -385,9 +396,16 @@ export default function PurchasesApproval() {
                     const itemName =
                       filterType === "service"
                         ? purchase.description
-                        : purchase.product?.productName ||
-                        purchase.product?.name ||
-                        "-"
+                        : (() => {
+                          if (Array.isArray(purchase.items) && purchase.items.length > 0) {
+                            if (purchase.items.length === 1) {
+                              const it = purchase.items[0]
+                              return it.product?.productName || it.product?.name || "-"
+                            }
+                            return `${purchase.items.length} item(s)`
+                          }
+                          return purchase.product?.productName || purchase.product?.name || "-"
+                        })()
 
                     const unit =
                       filterType === "procurement"
@@ -418,7 +436,18 @@ export default function PurchasesApproval() {
                         <td>
                           {filterType === "service"
                             ? "-"
-                            : `${purchase.quantity} (${unit || "-"})`}
+                            : (() => {
+                              if (Array.isArray(purchase.items) && purchase.items.length > 0) {
+                                const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
+                                if (purchase.items.length === 1) {
+                                  const it = purchase.items[0]
+                                  const u = filterType === "procurement" ? it.product?.unit : it.product?.conversionRatioX
+                                  return `${it.quantity}${u ? ` (${u})` : ""}`
+                                }
+                                return `${totalQty} total (${purchase.items.length} item)`
+                              }
+                              return `${purchase.quantity} (${unit || "-"})`
+                            })()}
                         </td>
 
                         <td>

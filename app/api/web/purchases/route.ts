@@ -702,21 +702,25 @@ export async function POST(request: NextRequest) {
       masterAccountId: params.id
     })
 
-    // Only check for duplicate product PRs (service has no productId)
-    if (params.purchaseType !== 'service' && params.productId) {
-      const p = await Purchase.findOne({
-        companyId: company._id,
-        productId: params.productId,
-        status: 'requested'
-      })
+    const isMultiItem = Array.isArray(params.items) && params.items.length > 0
 
-      if (p) {
-        return NextResponse.json({
-          noResult: true,
-          message: "product already ordered",
-          result: null,
-          error: true
+    if (!isMultiItem) {
+      // ── Legacy single-item: cek duplikasi produk yang sama ──────────────────
+      if (params.purchaseType !== 'service' && params.productId) {
+        const p = await Purchase.findOne({
+          companyId: company._id,
+          productId: params.productId,
+          status: 'requested'
         })
+
+        if (p) {
+          return NextResponse.json({
+            noResult: true,
+            message: "product already ordered",
+            result: null,
+            error: true
+          })
+        }
       }
     }
 
@@ -727,89 +731,134 @@ export async function POST(request: NextRequest) {
 
     // ─── Cek kenaikan harga dibanding pembelian sebelumnya ───────────────────
     let priceAlert = undefined;
-    const currentPrice = parseFloat(params.finalPrice) || 0;
 
-    if (
-      params.purchaseType !== 'service' &&
-      params.productId &&
-      currentPrice > 0
-    ) {
-      const lastPurchase = await Purchase.findOne({
-        companyId: company._id,
-        productId: params.productId,
-        purchaseType: params.purchaseType,
-        status: { $in: ['ordered', 'completed'] },
-      })
-        .sort({ date: -1 })
-        .lean() as any;
+    if (!isMultiItem) {
+      const currentPrice = parseFloat(params.finalPrice) || 0;
 
-      if (lastPurchase) {
-        const previousPrice = parseFloat(lastPurchase.finalPrice) || 0;
-        if (previousPrice > 0 && currentPrice > previousPrice) {
-          const priceDiff = currentPrice - previousPrice;
-          const priceDiffPct = Math.round((priceDiff / previousPrice) * 100 * 10) / 10;
-          priceAlert = {
-            previousPrice,
-            currentPrice,
-            priceDiff,
-            priceDiffPct,
-          };
+      if (
+        params.purchaseType !== 'service' &&
+        params.productId &&
+        currentPrice > 0
+      ) {
+        const lastPurchase = await Purchase.findOne({
+          companyId: company._id,
+          productId: params.productId,
+          purchaseType: params.purchaseType,
+          status: { $in: ['ordered', 'completed'] },
+        })
+          .sort({ date: -1 })
+          .lean() as any;
+
+        if (lastPurchase) {
+          const previousPrice = parseFloat(lastPurchase.finalPrice) || 0;
+          if (previousPrice > 0 && currentPrice > previousPrice) {
+            const priceDiff = currentPrice - previousPrice;
+            const priceDiffPct = Math.round((priceDiff / previousPrice) * 100 * 10) / 10;
+            priceAlert = {
+              previousPrice,
+              currentPrice,
+              priceDiff,
+              priceDiffPct,
+            };
+          }
         }
       }
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    const result = await Purchase.create({
+    // Hitung total finalPrice dari items jika multi-item dan finalPrice belum di-set manual
+    let resolvedFinalPrice = parseFloat(params.finalPrice) || 0;
+    if (isMultiItem && !params.finalPriceOverride) {
+      resolvedFinalPrice = (params.items as any[]).reduce(
+        (sum: number, item: any) => sum + (parseFloat(item.finalPrice) || 0) * (parseFloat(item.quantity) || 1),
+        0
+      );
+      // Jika semua item tidak memiliki price, biarkan 0
+    } else if (isMultiItem && params.finalPriceOverride) {
+      resolvedFinalPrice = parseFloat(params.finalPriceOverride) || 0;
+    }
+
+    const createPayload: any = {
       ...params,
+      finalPrice: resolvedFinalPrice,
       companyId: company._id,
       editable: true,
       receivedQty: 0,
       purchaseOrderNumber: `PO - ${String(Date.now()).slice(-5)} `,
       ...(priceAlert ? { priceAlert } : {}),
-    })
+    }
+
+    // Bersihkan field yang tidak relevan untuk multi-item
+    if (isMultiItem) {
+      delete createPayload.finalPriceOverride
+      // productId & quantity di root tidak dipakai (ada di items)
+      delete createPayload.productId
+      delete createPayload.quantity
+    }
+
+    const result = await Purchase.create(createPayload)
 
     const requested = (result as any)._doc
 
-    const [agg] = await Purchase.aggregate(
-      [
-        {
-          $match: {
-            _id: requested._id
-          }
-        },
-        {
-          $lookup: {
-            from: params.purchaseType === 'procurement' ? 'invitems' : 'products',
-            localField: 'productId',
-            foreignField: '_id',
-            as: 'product'
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'createdBy',
-            foreignField: '_id',
-            as: 'createdBy'
-          }
-        },
-        {
-          $unwind: '$createdBy'
-        },
-        {
-          $unwind: {
-            path: '$product',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-      ]
-    )
+    // ── Build aggregation untuk populate product(s) ──────────────────────────
+    const aggPipeline: any[] = [
+      { $match: { _id: requested._id } },
+      {
+        $lookup: {
+          from: params.purchaseType === 'procurement' ? 'invitems' : 'products',
+          localField: 'productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy'
+        }
+      },
+      { $unwind: '$createdBy' },
+      {
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+    ]
+
+    // Untuk multi-item, populate setiap item.productId via $lookup tambahan
+    if (isMultiItem) {
+      aggPipeline.push({
+        $lookup: {
+          from: params.purchaseType === 'procurement' ? 'invitems' : 'products',
+          localField: 'items.productId',
+          foreignField: '_id',
+          as: '_itemProducts'
+        }
+      })
+    }
+
+    const [agg] = await Purchase.aggregate(aggPipeline)
 
     console.log({ agg })
+
+    // Jika multi-item, gabungkan product info ke setiap item
+    let itemsWithProduct: any[] | undefined = undefined
+    if (isMultiItem && agg?._itemProducts) {
+      itemsWithProduct = (requested.items || []).map((item: any) => {
+        const prod = agg._itemProducts.find(
+          (p: any) => String(p._id) === String(item.productId)
+        )
+        return { ...item, product: prod }
+      })
+    }
 
     const r = {
       ...requested,
       ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: agg?.product }),
+      ...(itemsWithProduct ? { items: itemsWithProduct } : {}),
       createdBy: agg?.createdBy
     }
 
@@ -869,8 +918,47 @@ export async function GET(request: NextRequest) {
             preserveNullAndEmptyArrays: true
           }
         },
+        // ── Populate produk untuk multi-item purchases ─────────────────────────
+        {
+          $lookup: {
+            from: type === 'procurement' ? 'invitems' : 'products',
+            localField: 'items.productId',
+            foreignField: '_id',
+            as: '_itemProducts'
+          }
+        },
+        {
+          $addFields: {
+            items: {
+              $map: {
+                input: { $ifNull: ['$items', []] },
+                as: 'itm',
+                in: {
+                  $mergeObjects: [
+                    '$$itm',
+                    {
+                      product: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: '$_itemProducts',
+                              as: 'p',
+                              cond: { $eq: ['$$p._id', '$$itm.productId'] }
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
         {
           $project: {
+            '_itemProducts': 0,
             'productId': 0,
             'companyId': 0
           }

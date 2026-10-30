@@ -89,3 +89,38 @@ Allow users to delete transactions of type `Manual Entry` on the Cashflow Report
 - [x] **Decimal Comma Support**: Removed `decimalScale={0}`, enabled comma/period input (`allowedDecimalSeparators`), preserved decimal values in state via `values.value`, and updated `IDR` helper with `maximumFractionDigits: 2`.
 - [x] **Testing & Lint**: ESLint checks passed with 0 errors.
 
+---
+
+## 5. Plan & Steps: Quotation Barang (Goods Quotation)
+
+### Objective
+Tambahkan fitur membuat quotation (penawaran harga) untuk **barang** (product/goods), diakses dari `Sales > Items`. Flow: Sales Items → pilih katalog → lihat varian → klik "Buat Quotation" → buat penawaran.
+
+Berbeda dari `Quotation` yang sudah ada (untuk service/jasa), fitur baru ini menggunakan model `GoodsQuotation` tersendiri dengan item-item berupa varian produk dari katalog.
+
+### Files Created / Modified
+
+#### Backend
+- **`models/GoodsQuotation.js`** — Mongoose schema baru untuk quotation barang. Fields: `quotationNumber`, `companyId`, `customerId?` (ref Customer), `customCustomer` (manual entry), `date`, `validUntil`, `items[]` (productId, catalogId, qty, unit, price, discount, tax, subTotal), diskon global, totals (subtotal, totalDiscount, totalTax, grandTotal), `note`, `termsConditions`, `status`, `locked`.
+- **`app/api/web/goods-quotation/route.ts`** — GET (list dengan filter) + POST (create, auto-generate nomor `GQU-YYMM-XXXX`).
+- **`app/api/web/goods-quotation/[id]/route.ts`** — GET, PUT, DELETE per quotation.
+
+#### Frontend
+- **`app/sales/goods-quotation/page.tsx`** — Halaman list + create/edit modal lengkap:
+  - List dengan filter search, summary card per status
+  - Modal create/edit: input pelanggan (custom/dari database), picker produk 2-tahap (katalog → varian), item table (qty, harga, diskon per item, pajak), diskon global, total otomatis, note & T&C
+  - Modal detail (view) dengan tombol Print & Edit
+  - Ubah status via dropdown (draft → sent → accepted → rejected → expired)
+  - `useSearchParams` untuk handle `?catalogId=` dari halaman items (auto-buka modal + pre-pilih katalog)
+- **`app/sales/goods-quotation/print/page.tsx`** — Halaman cetak A4: header perusahaan, info pelanggan, tabel item, totals, catatan, area tanda tangan. Auto-trigger `window.print()` saat load.
+- **`app/sales/items/page.tsx`** — Ditambahkan tombol "Buat Quotation" (teal) di header panel varian, navigasi ke `/sales/goods-quotation?catalogId=<id>`.
+- **`components/sidebar.tsx`** — Ditambahkan `SidebarItem` "Quotation Barang" di bawah "Items" pada menu Sales.
+
+### Status:
+- [x] **Model**: `GoodsQuotation.js` dibuat
+- [x] **API**: GET/POST list + GET/PUT/DELETE by ID
+- [x] **Frontend**: List page, Create/Edit modal, View modal, Print page
+- [x] **Integrasi items**: Tombol "Buat Quotation" di panel varian, auto-open dengan catalog pre-selected
+- [x] **Sidebar**: Menu "Quotation Barang" ditambahkan
+
+
