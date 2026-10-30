@@ -838,7 +838,7 @@ function OrderContent() {
   }
 
 
-  function done() {
+  function done(fDiscount: number) {
     const discountType = discount.includes("%") ? 'percent' : 'fixed'
     const _payAmt = payAmt > 0 ? payAmt : 0
     const discountValue = parseInt(discount)
@@ -920,7 +920,7 @@ function OrderContent() {
       id: masterAccountId,
       cart: _cart,
       discountType,
-      discountValue,
+      discountValue: fDiscount,
       tax,
       taxes: orderTaxesSummary,
       total: payAmount,
@@ -932,6 +932,7 @@ function OrderContent() {
       customCustomer,
       userId
     })
+
 
     directSellFn.fn('', params, async r => {
       window.location.href = `/sales/order`
@@ -1255,7 +1256,7 @@ function OrderContent() {
                 <button type="submit" className="bg-black p-3 rounded-md text-white w-full">
                   add
                 </button>
-                <button onClick={done} type="button" className="bg-black p-3 rounded-md text-white w-full">
+                <button onClick={() => done(getTotalDiscount(cart, discount))} type="button" className="bg-black p-3 rounded-md text-white w-full">
                   done
                 </button>
                 <button onClick={() => setDirectSellMode(false)} type="button" className="bg-red-900 p-3 rounded-md text-white w-full">
