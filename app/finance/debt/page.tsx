@@ -748,6 +748,58 @@ export default function Debt() {
     return (debt.finalPrice ?? 0) - (debt.payAmount ?? 0)
   }
 
+  // ── Helper: ambil label produk dari PR (single atau multi-item) ──────────
+  function getDebtProductLabel(d: any): string {
+    // Single-item
+    if (d.product?.productName) return d.product.productName
+    if (d.invItem?.name) return d.invItem.name
+    if (d.description) return d.description
+    // Multi-item
+    if (Array.isArray(d.items) && d.items.length > 0) {
+      if (d.items.length === 1) {
+        const it = d.items[0]
+        return it.product?.productName || it.product?.name || '-'
+      }
+      // Multi-item: gunakan dropdown komponen (lihat DebtProductCell)
+      return d.items?.length > 0 ? `${d.items.length} item(s)` : '-'
+    }
+    return '-'
+  }
+
+  // ── Komponen dropdown untuk multi-item PR di tabel ────────────────────────
+  function DebtProductCell({ d }: { d: any }) {
+    // Single-item (legacy)
+    if (d.product?.productName) return <span>{d.product.productName}</span>
+    if (d.invItem?.name) return <span>{d.invItem.name}</span>
+    if (d.description && (!Array.isArray(d.items) || d.items.length === 0)) return <span>{d.description}</span>
+    // Multi-item
+    if (Array.isArray(d.items) && d.items.length > 0) {
+      if (d.items.length === 1) {
+        const it = d.items[0]
+        return <span>{it.product?.productName || it.product?.name || '-'}</span>
+      }
+      return (
+        <details className="group cursor-pointer">
+          <summary className="list-none flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium select-none whitespace-nowrap">
+            <svg className="size-3 transition-transform group-open:rotate-90" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+            {d.items.length} item(s)
+          </summary>
+          <ul className="mt-1 space-y-0.5 pl-1">
+            {d.items.map((it: any, idx: number) => (
+              <li key={idx} className="text-xs text-gray-700 whitespace-nowrap">
+                {idx + 1}. {it.product?.productName || it.product?.name || '-'}
+                {it.quantity ? <span className="text-gray-400 ml-1">×{it.quantity}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )
+    }
+    return <span>-</span>
+  }
+
   const filterTabs: { key: FilterType; label: string }[] = [
     { key: 'barang', label: '📦 Hutang Barang' },
     { key: 'jasa', label: '🔧 Hutang Jasa' },
@@ -887,7 +939,11 @@ export default function Debt() {
                         {debts.map((d, index) => (
                           <tr key={index}>
                             <td>{new Date(d.date).toLocaleDateString('id-ID')}</td>
-                            {filterType === 'barang' && <td>{d.product?.productName || d.invItem?.name || d.description || '-'}</td>}
+                            {filterType === 'barang' && (
+                              <td>
+                                <DebtProductCell d={d} />
+                              </td>
+                            )}
                             {filterType === 'jasa' && <td>{d.description ?? '-'}</td>}
                             {filterType === 'vendor' && <td>{d.invoiceNumber}</td>}
                             <td>
@@ -924,21 +980,13 @@ export default function Debt() {
                             <td>
                               {(
                                 filterType === 'vendor'
-                                  ? (d.vendorPaid ?? 0)
-                                  : d.payAmount
+                                  ? (d.vendorPaid ?? 0).toLocaleString('id-ID')
+                                  : (d.payAmount ?? 0).toLocaleString('id-ID')
                               )}
                             </td>
-                            {
-                              filterType !== "vendor" ? (
-                                <td className="font-semibold text-red-700">
-                                  {((d.finalPrice) - d.payAmount)?.toLocaleString('id-ID')}
-                                </td>
-                              ) : (
-                                <td className="font-semibold text-red-700">
-                                  {remaining(d)?.toLocaleString('id-ID')}
-                                </td>
-                              )
-                            }
+                            <td className="font-semibold text-red-700">
+                              {remaining(d)?.toLocaleString('id-ID')}
+                            </td>
                             <td>
                               <div className="flex flex-row gap-1">
                                 {(() => {
@@ -989,7 +1037,7 @@ export default function Debt() {
                         {filterType === 'vendor' ? 'No. Invoice' : 'Produk / Deskripsi'}
                       </span>
                       <span className="font-semibold text-gray-800 text-base">
-                        {filterType === 'barang' ? (selectedDebt.product?.productName || selectedDebt.invItem?.name || selectedDebt.description || '-') :
+                        {filterType === 'barang' ? <DebtProductCell d={selectedDebt} /> :
                           filterType === 'jasa' ? (selectedDebt.description || '-') :
                             (selectedDebt.invoiceNumber || '-')}
                       </span>

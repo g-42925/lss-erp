@@ -5,6 +5,7 @@ const PurchaseItemSchema = new mongoose.Schema({
   quantity: { type: Number, required: true },
   finalPrice: { type: Number, required: false, default: 0 },
   note: { type: String, required: false },
+  receivedQty: { type: Number, required: false, default: 0 },
 }, { _id: false });
 
 const PurchaseSchema = new mongoose.Schema({

@@ -46,13 +46,19 @@ export async function PUT(request: NextRequest) {
     if (rest.action) {
       switch (rest.action) {
         case "edit_pr":
-          const editPrData: any = {
-            quantity: rest.quantity,
-            finalPrice: rest.finalPrice,
-            productId: rest.productId
-          };
+          const editPrData: any = {};
           if (rest.date) editPrData.date = new Date(rest.date);
           if (rest.customSupplier !== undefined) editPrData.customSupplier = rest.customSupplier;
+          if (Array.isArray(rest.items) && rest.items.length > 0) {
+            // Multi-item: update items array and total finalPrice
+            editPrData.items = rest.items;
+            editPrData.finalPrice = rest.finalPrice;
+          } else {
+            // Legacy single-item (service / backward compat)
+            if (rest.quantity !== undefined) editPrData.quantity = rest.quantity;
+            if (rest.finalPrice !== undefined) editPrData.finalPrice = rest.finalPrice;
+            if (rest.productId !== undefined) editPrData.productId = rest.productId;
+          }
           await Purchase.findByIdAndUpdate(_id, editPrData);
           return NextResponse.json({ noResult: false, message: "PR updated", result: true, error: false });
         case "apply_pph_tax":
@@ -531,9 +537,72 @@ export async function PUT(request: NextRequest) {
       const purchase = await Purchase.findById(_id)
       const landedCost = (purchase.finalPrice || 0) + (purchase.shippingCost || 0) + (purchase.taxAmount || 0);
 
+      // ── Resolve productId: untuk multi-item gunakan dari item yang dipilih ──
+      const isMultiItemPr = Array.isArray(purchase.items) && purchase.items.length > 0
+      const itemIndex = rest.itemIndex !== undefined ? parseInt(rest.itemIndex) : -1
+      const resolvedProductId = (isMultiItemPr && itemIndex >= 0)
+        ? purchase.items[itemIndex]?.productId
+        : purchase.productId
+
       if (purchase.purchaseType === 'procurement') {
         const received = parseInt(rest.qty);
         const receivedDate = rest.receivedDate ? new Date(rest.receivedDate) : new Date();
+
+        // ── Multi-item: update receivedQty di item spesifik ──────────────
+        const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
+        const itemIndex = rest.itemIndex !== undefined ? parseInt(rest.itemIndex) : -1
+
+        if (isMultiItem && itemIndex >= 0 && itemIndex < purchase.items.length) {
+          // Increment receivedQty pada items[itemIndex]
+          const updatePath = `items.${itemIndex}.receivedQty`
+          await Purchase.findByIdAndUpdate(_id, {
+            $inc: { [updatePath]: received, receivedQty: received }
+          });
+          // Ambil productId dari item yang bersangkutan
+          const itemProductId = purchase.items[itemIndex].productId
+
+          if (rest.saveAs === 'asset') {
+            const companyId = purchase.companyId;
+            if (companyId && itemProductId) {
+              const invItem = await InvItem.findById(itemProductId);
+              const assetPromises = [];
+              for (let i = 0; i < received; i++) {
+                assetPromises.push(Asset.create({
+                  name: invItem?.name || "Received Asset",
+                  category: rest.assetCategoryId,
+                  addedAt: receivedDate,
+                  condition: "good",
+                  status: "active",
+                  desc: "Received from PO: " + purchase.purchaseOrderNumber,
+                  companyId: companyId
+                }));
+              }
+              await Promise.all(assetPromises);
+            }
+          } else {
+            if (itemProductId) {
+              await InvItem.findByIdAndUpdate(itemProductId, {
+                $inc: { currentStock: received }
+              });
+            }
+          }
+
+          await ProcurementReceivingLog.create({
+            purchaseOrderNumber: purchase.purchaseOrderNumber,
+            purchaseId: purchase._id,
+            itemId: itemProductId,
+            qty: received,
+            saveAs: rest.saveAs || 'inventory',
+            assetCategoryId: rest.assetCategoryId || undefined,
+            receivedDate: receivedDate,
+            receivedBy: rest.userId || undefined,
+            createdAt: new Date(),
+          });
+
+          return NextResponse.json({ noResult: false, message: "", result: {}, error: false })
+        }
+
+        // ── Single-item fallback (path lama) ─────────────────────────────
         await Purchase.findByIdAndUpdate(_id, {
           $inc: { receivedQty: received }
         });
@@ -590,8 +659,7 @@ export async function PUT(request: NextRequest) {
       if (purchase.toObject().hasOwnProperty('measurementId')) {
         const config = await Measurement.findById(purchase.measurementId)
 
-        const product = await Product.findById(purchase.productId)
-
+        const product = await Product.findById(resolvedProductId)
 
         // stockValue update deferred to QC approval
         const warehouse = await Warehouse.findById(rest.warehouseId)
@@ -602,9 +670,9 @@ export async function PUT(request: NextRequest) {
           resolvedLocationId = defaultLoc?._id;
         }
 
-
         const batchCreated = await Batche.create({
           ...rest,
+          productId: resolvedProductId,
           status: 'QUARANTINE',
           batchNumber: `B - ${String(Date.now()).slice(-5)} `,
           accumulative: config.ratio * rest.qty,
@@ -617,17 +685,27 @@ export async function PUT(request: NextRequest) {
 
         await InboundLog.create({
           warehouseId: rest.warehouseId,
-          productId: purchase.productId,
+          productId: resolvedProductId,
           date: new Date(),
           quantity: config.ratio * rest.qty,
           sourceId: batchCreated._id,
           sourceType: 'PURCHASE'
         })
 
+        // Increment receivedQty per item jika multi-item
+        if (isMultiItemPr && itemIndex >= 0 && itemIndex < purchase.items.length) {
+          const updatePath = `items.${itemIndex}.receivedQty`
+          await Purchase.findByIdAndUpdate(_id, {
+            $inc: { [updatePath]: parseInt(rest.qty), receivedQty: parseInt(rest.qty) }
+          })
+        } else {
+          await Purchase.findByIdAndUpdate(_id, { $inc: { receivedQty: parseInt(rest.qty) } })
+        }
+
       }
       else {
         // ─── No Measurement config: handle conversionType "value" or packaging ───
-        const product = await Product.findById(purchase.productId)
+        const product = await Product.findById(resolvedProductId)
         const warehouse = await Warehouse.findById(rest.warehouseId)
 
         // stockValue update deferred to QC approval
@@ -642,11 +720,9 @@ export async function PUT(request: NextRequest) {
         let accumulativeQty = parseInt(rest.qty)
 
         if (product.conversionType === 'value' && product.conversionValue) {
-          // conversionValue: 1 unit of conversionRatioX = conversionValue units of conversionRatioY
           accumulativeQty = product.conversionValue * parseInt(rest.qty)
         }
         else if (product.packagingId) {
-          // Packaging: 1 pack = packaging.qty units
           const packaging = await Packaging.findById(product.packagingId)
           if (packaging && packaging.qty) {
             accumulativeQty = packaging.qty * parseInt(rest.qty)
@@ -655,6 +731,7 @@ export async function PUT(request: NextRequest) {
 
         const batchCreated = await Batche.create({
           ...rest,
+          productId: resolvedProductId,
           status: 'QUARANTINE',
           batchNumber: `B - ${String(Date.now()).slice(-5)} `,
           accumulative: accumulativeQty,
@@ -663,15 +740,24 @@ export async function PUT(request: NextRequest) {
           createdAt: new Date()
         }) as any
 
-
         await InboundLog.create({
           warehouseId: rest.warehouseId,
-          productId: purchase.productId,
+          productId: resolvedProductId,
           date: new Date(),
           quantity: accumulativeQty,
           sourceId: batchCreated._id,
           sourceType: 'PURCHASE'
         })
+
+        // Increment receivedQty per item jika multi-item
+        if (isMultiItemPr && itemIndex >= 0 && itemIndex < purchase.items.length) {
+          const updatePath = `items.${itemIndex}.receivedQty`
+          await Purchase.findByIdAndUpdate(_id, {
+            $inc: { [updatePath]: parseInt(rest.qty), receivedQty: parseInt(rest.qty) }
+          })
+        } else {
+          await Purchase.findByIdAndUpdate(_id, { $inc: { receivedQty: parseInt(rest.qty) } })
+        }
 
         console.log(rest)
       }
@@ -919,10 +1005,21 @@ export async function GET(request: NextRequest) {
           }
         },
         // ── Populate produk untuk multi-item purchases ─────────────────────────
+        // Ekstrak array productId dari items secara explicit
+        {
+          $addFields: {
+            _itemProductIds: {
+              $ifNull: [
+                { $map: { input: { $ifNull: ['$items', []] }, as: 'itm', in: '$$itm.productId' } },
+                []
+              ]
+            }
+          }
+        },
         {
           $lookup: {
             from: type === 'procurement' ? 'invitems' : 'products',
-            localField: 'items.productId',
+            localField: '_itemProductIds',
             foreignField: '_id',
             as: '_itemProducts'
           }
@@ -943,7 +1040,12 @@ export async function GET(request: NextRequest) {
                             $filter: {
                               input: '$_itemProducts',
                               as: 'p',
-                              cond: { $eq: ['$$p._id', '$$itm.productId'] }
+                              cond: {
+                                $eq: [
+                                  { $toString: '$$p._id' },
+                                  { $toString: '$$itm.productId' }
+                                ]
+                              }
                             }
                           },
                           0
@@ -959,6 +1061,7 @@ export async function GET(request: NextRequest) {
         {
           $project: {
             '_itemProducts': 0,
+            '_itemProductIds': 0,
             'productId': 0,
             'companyId': 0
           }

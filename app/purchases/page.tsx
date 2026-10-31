@@ -9,6 +9,7 @@ import { Controller, useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
 import React, { useRef, useState, useEffect } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
+
 import {
   CoinsDollarIcon,
   Edit03Icon,
@@ -42,6 +43,8 @@ function Purchases() {
   const [poBalanceLoading, setPoBalanceLoading] = useState(false)
   const [selectedPoBankAccountId, setSelectedPoBankAccountId] = useState<string | undefined>(undefined)
   const [nonCashEditTarget, setNonCashEditTarget] = useState<any>(null)
+  const [selectedPurchase, setSelectedPurchase] = useState<any>(null)
+  const [fPrice, setFPrice] = useState<number>(0)
 
   // ─── State multi-item untuk Add PR ────────────────────────────────────────
   // Setiap entry: { productId, quantity, finalPrice (opsional), note (opsional) }
@@ -52,8 +55,18 @@ function Purchases() {
   const [addTotalOverride, setAddTotalOverride] = useState<string>("")
   const [addTotalMode, setAddTotalMode] = useState<"auto" | "manual">("auto")
 
+  // ─── State multi-item untuk Edit PR ────────────────────────────────────────
+  const [editItems, setEditItems] = useState<any[]>([])
+  const [editItemDraft, setEditItemDraft] = useState<any>({ productId: "", quantity: 1, finalPrice: "", note: "" })
+  const [editTotalOverride, setEditTotalOverride] = useState<string>("")
+  const [editTotalMode, setEditTotalMode] = useState<"auto" | "manual">("auto")
+  // PR yang sedang diedit (untuk akses data lengkap di modal edit)
+  const [editingPurchase, setEditingPurchase] = useState<any>(null)
+
   // ─── Expand row untuk melihat detail item multi-item PR ──────────────────────
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+
   function toggleExpand(id: string) {
     setExpandedRows(prev => {
       const next = new Set(prev)
@@ -204,7 +217,7 @@ function Purchases() {
         const it = purchase.items[0]
         return it.product?.productName || it.product?.name || "-"
       }
-      return `${purchase.items.length} item(s)`
+      return `${purchase.items.length} item`
     }
     return (
       purchase.description ||
@@ -361,7 +374,60 @@ function Purchases() {
 
   // Hitung auto total dari items
   function calcAddItemsTotal() {
-    return addItems.reduce((sum, it) => sum + (it.finalPrice || 0) * (it.quantity || 1), 0)
+    return addItems.reduce((sum, it) => sum + (it.finalPrice || 0), 0)
+  }
+
+  // ─── Tambah item ke daftar edit (multi-item edit draft) ───────────────────
+  function addEditItemToDraft() {
+    if (!editItemDraft.productId) {
+      alert("Pilih produk/item terlebih dahulu")
+      return
+    }
+    if (!editItemDraft.quantity || parseFloat(editItemDraft.quantity) <= 0) {
+      alert("Quantity harus lebih dari 0")
+      return
+    }
+    const existing = editItems.find(i => i.productId === editItemDraft.productId)
+    if (existing) {
+      alert("Produk ini sudah ada dalam daftar. Hapus dulu jika ingin mengubahnya.")
+      return
+    }
+    const productList = filterType === "procurement" ? items : products
+    const prod = productList.find((p: any) => p._id === editItemDraft.productId)
+    setEditItems(prev => [...prev, {
+      productId: editItemDraft.productId,
+      quantity: parseFloat(editItemDraft.quantity),
+      finalPrice: editItemDraft.finalPrice !== "" ? parseFloat(editItemDraft.finalPrice) || 0 : 0,
+      note: editItemDraft.note || "",
+      _productLabel: filterType === "procurement"
+        ? `${prod?.name || ""} (${prod?.unit || ""})`
+        : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`,
+      _product: prod,
+    }])
+    setEditItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+    setEditLastPriceInfo(null)
+  }
+
+  function removeEditItemFromDraft(index: number) {
+    setEditItems(prev => prev.filter((_, i) => i !== index))
+  }
+
+  function calcTotal(_id: string) {
+    const [{ finalPrice, items }] = pr.filter(
+      (item) => item._id === _id
+    )
+
+    let total = 0
+
+    items.forEach((it: any) => {
+      total += it.finalPrice
+    })
+
+    return total > 0 ? total : finalPrice
+  }
+
+  function calcEditItemsTotal() {
+    return fPrice
   }
 
   async function submit(data: any) {
@@ -421,19 +487,20 @@ function Purchases() {
     console.log(JSON.parse(body))
 
     addFn.fn("", body, (result) => {
-      if (
-        filterType === "service" &&
-        data.vendorId &&
-        vendors.length > 0
-      ) {
-        result.vendor = vendors.find(
-          (vendor) => vendor._id === data.vendorId
-        )
-      }
+      window.location.href = "/purchases"
+      // if (
+      //   filterType === "service" &&
+      //   data.vendorId &&
+      //   vendors.length > 0
+      // ) {
+      //   result.vendor = vendors.find(
+      //     (vendor) => vendor._id === data.vendorId
+      //   )
+      // }
 
-      setPr((current) => [...current, result])
-      modalRef.current?.close()
-      newPrForm.reset()
+      // setPr((current) => [...current, result])
+      // modalRef.current?.close()
+      // newPrForm.reset()
     })
   }
 
@@ -472,38 +539,49 @@ function Purchases() {
 
     if (!target) return
 
+    const isMultiItem = filterType === "product" || filterType === "procurement"
+
+    if (isMultiItem) {
+      if (editItems.length === 0) {
+        alert("Tambahkan setidaknya satu item")
+        return
+      }
+
+      const autoTotal = calcEditItemsTotal()
+      const finalPrice = editTotalMode === "manual" && editTotalOverride !== ""
+        ? parseFloat(editTotalOverride) || 0
+        : autoTotal
+
+      const payload = JSON.stringify({
+        _id: data._id,
+        date: data.customDate ? new Date(data.customDate) : undefined,
+        action: "edit_pr",
+        status: "requested",
+        customSupplier: data.customSupplier || "",
+        items: editItems.map(it => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          finalPrice: it.finalPrice || 0,
+          note: it.note || "",
+        })),
+        finalPrice,
+        ...(editTotalMode === "manual" && editTotalOverride !== "" ? { finalPriceOverride: parseFloat(editTotalOverride) } : {}),
+      })
+
+      await editFn.fn("", payload, () => {
+        window.location.reload()
+      })
+      return
+    }
+
     const payload = JSON.stringify({
       ...data,
       date: data.customDate ? new Date(data.customDate) : undefined,
-      action:
-        filterType === "service"
-          ? undefined
-          : "edit_pr",
+      action: undefined,
       status: "requested",
     })
 
     await editFn.fn("", payload, (result) => {
-      if (filterType === "product") {
-        window.location.reload()
-        return
-      }
-
-      if (filterType === "procurement") {
-        const product = items.find(
-          (item) => item._id === data.productId
-        )
-
-        target.product = product
-        target.quantity = result.quantity
-        target.finalPrice = result.finalPrice
-
-        setPr([...pr])
-        editRef.current?.close()
-        window.location.reload()
-
-        return
-      }
-
       if (filterType === "service") {
         target.description = data.description
         target.finalPrice = data.finalPrice
@@ -712,23 +790,39 @@ function Purchases() {
   }
 
   function openOrder(id: string) {
+
+    // ke sini
+
+    let fPriceX = 0;
+
+    const [{ finalPrice, items }] = pr.filter(
+      (item) => item._id === id
+    )
+
+    items.forEach((it: any) => {
+      fPriceX += it.finalPrice
+    })
+
     const purchase = pr.find(
       (item) => item._id === id
     )
 
     if (!purchase) return
 
+    // Determine product display label for multi-item
+    const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
+
+    const ffPrice = fPriceX > 0 ? fPriceX : finalPrice;
+
     if (filterType === "product") {
+      const productLabel = isMultiItem
+        ? purchase.items.map((it: any) => it.product?.productName || "-").join(", ")
+        : purchase.product?.productName
       orderForm.reset({
         _id: purchase._id,
-        quantity: purchase.quantity,
-        finalPrice: purchase.finalPrice,
-        product:
-          purchase.product?.productName,
-        productId:
-          purchase.product?._id,
-        supplierId:
-          suppliers[0]?._id ?? "",
+        finalPrice: ffPrice,
+        product: productLabel,
+        customSupplier: purchase.customSupplier || "",
         shippingCost: 0,
         taxAmount: 0,
         payAmount: 0,
@@ -736,15 +830,15 @@ function Purchases() {
       })
     }
 
-    if (filterType === "procurement" || filterType === "product") {
+    if (filterType === "procurement") {
+      const productLabel = isMultiItem
+        ? purchase.items.map((it: any) => it.product?.name || "-").join(", ")
+        : purchase.product?.name
       orderForm.reset({
         _id: purchase._id,
-        quantity: purchase.quantity,
-        finalPrice: purchase.finalPrice,
-        product:
-          purchase.product?.name,
-        customSupplier:
-          purchase.customSupplier,
+        finalPrice: ffPrice,
+        product: productLabel,
+        customSupplier: purchase.customSupplier,
         shippingCost: 0,
         taxAmount: 0,
         payAmount: 0,
@@ -768,66 +862,107 @@ function Purchases() {
       })
     }
 
+    setSelectedPurchase(purchase)
     orderRef.current?.showModal()
     setPoAvailableBalance(null)
     fetchPoBalance('Cash', undefined, new Date().toISOString().split('T')[0])
   }
 
   function openEdit(id: string) {
-    const purchase = pr.find(
+    let fPriceX = 0;
+
+    const [{ _id, items, customSupplier, date, description, finalPrice, vendorId }] = pr.filter(
       (item) => item._id === id
     )
 
-    if (!purchase) return
+    //if (!items) return
 
     // Reset riwayat harga sebelum fetch yang baru
     setEditLastPriceInfo(null)
+    //set{ items }EditingPurchase(purchase)
 
-    if (filterType === "product") {
+    const isMultiItem = Array.isArray(items) && items.length > 0
+    const productList = filterType === "procurement" ? items : products
+
+    if (filterType === "product" || filterType === "procurement") {
+      // Load existing items into editItems state
+      if (isMultiItem) {
+        const loaded = items.map((it: any) => {
+          // `it.product` sudah di-embed oleh aggregation pipeline dari API
+          const prod = it.product ||
+            productList.find((p: any) => String(p._id) === String(it.productId?._id || it.productId))
+          // Label: utamakan data embedded dari API
+          const label = filterType === "procurement"
+            ? `${prod?.name || it.product?.name || "Item"} (${prod?.unit || it.product?.unit || ""})`
+            : `${prod?.productName || it.product?.productName || "Produk"} (${prod?.conversionRatioX || it.product?.conversionRatioX || ""})`
+          // finalPrice: pastikan selalu number
+          const itemFinalPrice = typeof it.finalPrice === 'number'
+            ? it.finalPrice
+            : (parseFloat(it.finalPrice) || 0)
+
+          fPriceX += it.finalPrice
+
+          return {
+            productId: it.productId?._id || it.productId,
+            quantity: it.quantity,
+            finalPrice: it.finalPrice,
+            note: it.note || "",
+            _productLabel: label,
+            _product: prod,
+          }
+        })
+
+
+        setEditItems(loaded)
+      }
+      else {
+        // Single item legacy – wrap as single-element editItems
+        // const prod = purchase.product
+        // const productId = prod?._id || purchase.productId
+        // const label = filterType === "procurement"
+        //   ? `${prod?.name || ""} (${prod?.unit || ""})`
+        //   : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`
+        // const legacyFinalPrice = typeof purchase.finalPrice === 'number'
+        //   ? purchase.finalPrice
+        //   : (parseFloat(purchase.finalPrice) || 0)
+        // setEditItems([{
+        //   productId,
+        //   quantity: purchase.quantity || 1,
+        //   finalPrice: legacyFinalPrice,
+        //   note: "",
+        //   _productLabel: label,
+        //   _product: prod,
+        // }])
+      }
+      // Determine auto/manual total mode
+      setEditTotalMode("auto")
+      setEditTotalOverride("")
+      setEditItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+      if (fPriceX > 0) {
+        setFPrice(fPriceX)
+      }
+      else {
+        setFPrice(finalPrice)
+      }
+
       editForm.reset({
-        _id: purchase._id,
-        quantity: purchase.quantity,
-        finalPrice: purchase.finalPrice,
-        productId:
-          purchase.product?._id,
-        customDate: purchase.date
-          ? new Date(purchase.date).toISOString().split("T")[0]
+        _id: _id,
+        customSupplier: customSupplier || "",
+        customDate: date
+          ? new Date(date).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
       })
-      // Auto-fetch riwayat harga untuk produk yang sudah terpilih
-      if (purchase.product?._id) {
-        fetchLastPurchasePrice(String(purchase.product._id), "edit")
-      }
-    }
-
-    if (filterType === "procurement" || filterType === "product") {
-      editForm.reset({
-        _id: purchase._id,
-        productId:
-          purchase.product?._id,
-        quantity: purchase.quantity,
-        finalPrice: purchase.finalPrice,
-        customSupplier:
-          purchase.customSupplier,
-        customDate: purchase.date
-          ? new Date(purchase.date).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0],
-      })
-      // Auto-fetch riwayat harga untuk item yang sudah terpilih
-      if (purchase.product?._id) {
-        fetchLastPurchasePrice(String(purchase.product._id), "edit")
-      }
     }
 
     if (filterType === "service") {
       editForm.reset({
-        _id: purchase._id,
+        _id: _id,
         description:
-          purchase.description,
-        finalPrice: purchase.finalPrice,
-        vendorId: purchase.vendorId,
-        customDate: purchase.date
-          ? new Date(purchase.date).toISOString().split("T")[0]
+          description,
+        finalPrice: finalPrice,
+        vendorId: vendorId,
+        customDate: date
+          ? new Date(date).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0],
       })
     }
@@ -1131,117 +1266,91 @@ function Purchases() {
                           return (
                             <React.Fragment key={purchase._id}>
                               <tr>
-                              <td>
-                                {new Date(
-                                  purchase.date
-                                ).toLocaleDateString(
-                                  "id-ID"
-                                )}
-                              </td>
+                                <td>
+                                  {new Date(
+                                    purchase.date
+                                  ).toLocaleDateString(
+                                    "id-ID"
+                                  )}
+                                </td>
 
-                              <td>
-                                {
-                                  purchase.purchaseOrderNumber
-                                }
-                              </td>
-
-                              {filterType === "product" && (
                                 <td>
                                   {
-                                    purchase
-                                      ?.createdBy
-                                      ?.name
+                                    purchase.purchaseOrderNumber
                                   }
                                 </td>
-                              )}
 
-                              <td>
-                                {itemName}
-                              </td>
-
-                              {filterType !== "service" && (
-                                <td
-                                  onClick={() => {
-                                    const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 1
-                                    if (isMultiItem) toggleExpand(purchase._id)
-                                  }}
-                                  className={Array.isArray(purchase.items) && purchase.items.length > 1 ? "cursor-pointer" : ""}
-                                >
-                                  <div className="flex items-center gap-1">
-                                    {Array.isArray(purchase.items) && purchase.items.length > 1 && (
-                                      <span className="text-blue-500 text-xs">
-                                        {expandedRows.has(purchase._id) ? "▲" : "▼"}
-                                      </span>
-                                    )}
-                                    {(() => {
-                                      const multiQty = getPurchaseQuantity(purchase)
-                                      if (multiQty !== null) return multiQty
-                                      return `${purchase.quantity} (${unit})`
-                                    })()}
-                                  </div>
-                                </td>
-                              )}
-
-                              <td>
-                                {purchase.finalPrice?.toLocaleString(
-                                  "id-ID"
-                                )}
-                              </td>
-
-                              {
-                                /*
+                                {filterType === "product" && (
                                   <td>
                                     {
-                                      purchase.status ===
-                                        "ordered" ||
-                                        purchase.status ===
-                                        "completed"
-                                        ? purchase.payAmount
-                                        : "-"
+                                      purchase
+                                        ?.createdBy
+                                        ?.name
                                     }
                                   </td>
-                              */
-                              }
+                                )}
+
+                                <td
+                                  onClick={() => {
+                                    if (purchase.items?.length > 1) {
+                                      setSelectedPurchase(purchase)
+                                    }
+                                  }}
+                                  className={purchase.items?.length > 1 ? "hover:cursor-pointer underline" : ""}
+                                >
+                                  {itemName}
+                                </td>
+
+                                {filterType !== "service" && (
+                                  <td
+                                    className={Array.isArray(purchase.items) && purchase.items.length > 1 ? "cursor-pointer" : ""}
+                                  >
+                                    <div className="flex items-center gap-1">
+                                      {(() => {
+                                        const multiQty = getPurchaseQuantity(purchase)
+                                        if (multiQty !== null) return '?'
+                                        return `${purchase.quantity} (${unit})`
+                                      })()}
+                                    </div>
+                                  </td>
+                                )}
+                                <td>
+                                  {purchase.items?.length > 0 ? calcTotal(purchase._id) : purchase.finalPrice}
+                                </td>
 
 
-                              <td>
-                                {purchase.status}
-                              </td>
 
-                              <td>
-                                {supplierName}
-                              </td>
 
-                              <td>
-                                {/* REQUESTED */}
-                                {purchase.status ===
-                                  "requested" &&
-                                  filterType ===
-                                  "product" && (
-                                    <button
-                                      className="text-blue-600"
-                                      onClick={() =>
-                                        openEdit(
-                                          purchase._id
-                                        )
+                                {
+                                  /*
+                                    <td>
+                                      {
+                                        purchase.status ===
+                                          "ordered" ||
+                                          purchase.status ===
+                                          "completed"
+                                          ? purchase.payAmount
+                                          : "-"
                                       }
-                                      title="Edit"
-                                    >
-                                      <HugeiconsIcon
-                                        icon={
-                                          Edit03Icon
-                                        }
-                                        size={24}
-                                        color="currentColor"
-                                      />
-                                    </button>
-                                  )}
+                                    </td>
+                                */
+                                }
 
-                                {purchase.status ===
-                                  "requested" &&
-                                  filterType !==
-                                  "product" && (
-                                    <div className="flex flex-row justify-center gap-2">
+
+                                <td>
+                                  {purchase.status}
+                                </td>
+
+                                <td>
+                                  {supplierName}
+                                </td>
+
+                                <td>
+                                  {/* REQUESTED */}
+                                  {purchase.status ===
+                                    "requested" &&
+                                    filterType ===
+                                    "product" && (
                                       <button
                                         className="text-blue-600"
                                         onClick={() =>
@@ -1259,270 +1368,423 @@ function Purchases() {
                                           color="currentColor"
                                         />
                                       </button>
-                                    </div>
-                                  )}
+                                    )}
 
-                                {/* APPROVED */}
-                                {purchase.status ===
-                                  "approved" &&
-                                  filterType ===
-                                  "product" && (
-                                    <button
-                                      className="text-green-700"
-                                      onClick={() =>
-                                        openOrder(
-                                          purchase._id
-                                        )
-                                      }
-                                      title="Create Purchase Order"
-                                    >
-                                      <HugeiconsIcon
-                                        icon={
-                                          CoinsDollarIcon
-                                        }
-                                        size={24}
-                                        color="currentColor"
-                                      />
-                                    </button>
-                                  )}
+                                  {purchase.status ===
+                                    "requested" &&
+                                    filterType !==
+                                    "product" && (
+                                      <div className="flex flex-row justify-center gap-2">
+                                        <button
+                                          className="text-blue-600"
+                                          onClick={() =>
+                                            openEdit(
+                                              purchase._id
+                                            )
+                                          }
+                                          title="Edit"
+                                        >
+                                          <HugeiconsIcon
+                                            icon={
+                                              Edit03Icon
+                                            }
+                                            size={24}
+                                            color="currentColor"
+                                          />
+                                        </button>
+                                      </div>
+                                    )}
 
-                                {purchase.status ===
-                                  "approved" &&
-                                  filterType !==
-                                  "product" && (
-                                    <div className="flex flex-row justify-center gap-2 items-center">
+                                  {/* APPROVED */}
+                                  {purchase.status ===
+                                    "approved" &&
+                                    filterType ===
+                                    "product" && (
                                       <button
-                                        className="btn btn-sm"
+                                        className="text-green-700"
                                         onClick={() =>
                                           openOrder(
                                             purchase._id
                                           )
                                         }
-                                        title="Convert to PO"
-                                      >
-                                        Make PO
-                                      </button>
-                                    </div>
-                                  )}
-
-                                {/* ORDERED / COMPLETED SERVICE */}
-                                {
-                                  (
-                                    purchase.status ===
-                                    "ordered" ||
-                                    purchase.status ===
-                                    "completed"
-                                  ) &&
-                                  filterType ===
-                                  "service" && (
-                                    <div className="flex flex-row justify-center gap-2">
-                                      {purchase.status ===
-                                        "ordered" && (
-                                          <button
-                                            className="text-purple-600"
-                                            onClick={() =>
-                                              openApplyTax(
-                                                purchase
-                                              )
-                                            }
-                                            title="Apply Tax"
-                                          >
-                                            <HugeiconsIcon
-                                              icon={
-                                                BadgePercentIcon
-                                              }
-                                              size={24}
-                                              color="currentColor"
-                                            />
-                                          </button>
-                                        )}
-
-                                      <button
-                                        className="text-red-600"
-                                        onClick={() =>
-                                          makeVoid(
-                                            purchase
-                                          )
-                                        }
-                                        title="Void"
+                                        title="Create Purchase Order"
                                       >
                                         <HugeiconsIcon
                                           icon={
-                                            Cancel02Icon
+                                            CoinsDollarIcon
                                           }
                                           size={24}
                                           color="currentColor"
                                         />
                                       </button>
-                                    </div>
-                                  )
-                                }
+                                    )}
 
-                                {/* ORDERED – edit nonCashDst (product / procurement) */}
-                                {
-                                  purchase.status === "ordered" &&
-                                  (filterType === "product" || filterType === "procurement") && (
-                                    <button
-                                      className="text-blue-600"
-                                      onClick={() => openEditNonCash(purchase)}
-                                      title="Edit Destinasi Non-Cash"
-                                    >
-                                      <HugeiconsIcon
-                                        icon={Edit03Icon}
-                                        size={24}
-                                        color="currentColor"
-                                      />
-                                    </button>
-                                  )
-                                }
-                              </td>
-                            </tr>
+                                  {purchase.status ===
+                                    "approved" &&
+                                    filterType !==
+                                    "product" && (
+                                      <div className="flex flex-row justify-center gap-2 items-center">
+                                        <button
+                                          className="btn btn-sm"
+                                          onClick={() =>
+                                            openOrder(
+                                              purchase._id
+                                            )
+                                          }
+                                          title="Convert to PO"
+                                        >
+                                          Make PO
+                                        </button>
+                                      </div>
+                                    )}
 
-                            {/* ── Expand row untuk multi-item ───────────────── */}
-                            {Array.isArray(purchase.items) && purchase.items.length > 1 && expandedRows.has(purchase._id) && (
-                              <tr className="bg-blue-50">
-                                <td colSpan={10} className="px-4 py-2">
-                                  <table className="table table-xs text-xs w-full">
-                                    <thead className="bg-blue-100">
-                                      <tr>
-                                        <th className="text-left">Produk/Item</th>
-                                        <th className="text-center">Qty</th>
-                                        <th className="text-right">Harga/unit</th>
-                                        <th className="text-right">Subtotal</th>
-                                        {purchase.items.some((it: any) => it.note) && <th>Note</th>}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {purchase.items.map((it: any, idx: number) => {
-                                        const pName = filterType === "procurement"
-                                          ? it.product?.name || "-"
-                                          : it.product?.productName || "-"
-                                        const pUnit = filterType === "procurement"
-                                          ? it.product?.unit || ""
-                                          : it.product?.conversionRatioX || ""
-                                        const hasNotes = purchase.items.some((x: any) => x.note)
-                                        return (
-                                          <tr key={idx} className="hover:bg-blue-50">
-                                            <td>{pName} {pUnit ? `(${pUnit})` : ""}</td>
-                                            <td className="text-center">{it.quantity}</td>
-                                            <td className="text-right">
-                                              {it.finalPrice > 0
-                                                ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
-                                                : <span className="text-gray-400 italic">-</span>}
-                                            </td>
-                                            <td className="text-right font-medium">
-                                              {it.finalPrice > 0
-                                                ? `Rp ${(it.finalPrice * it.quantity).toLocaleString("id-ID")}`
-                                                : "-"}
-                                            </td>
-                                            {hasNotes && <td className="text-gray-600 italic">{it.note || ""}</td>}
-                                          </tr>
-                                        )
-                                      })}
-                                    </tbody>
-                                  </table>
+                                  {/* ORDERED / COMPLETED SERVICE */}
+                                  {
+                                    (
+                                      purchase.status ===
+                                      "ordered" ||
+                                      purchase.status ===
+                                      "completed"
+                                    ) &&
+                                    filterType ===
+                                    "service" && (
+                                      <div className="flex flex-row justify-center gap-2">
+                                        {purchase.status ===
+                                          "ordered" && (
+                                            <button
+                                              className="text-purple-600"
+                                              onClick={() =>
+                                                openApplyTax(
+                                                  purchase
+                                                )
+                                              }
+                                              title="Apply Tax"
+                                            >
+                                              <HugeiconsIcon
+                                                icon={
+                                                  BadgePercentIcon
+                                                }
+                                                size={24}
+                                                color="currentColor"
+                                              />
+                                            </button>
+                                          )}
+
+                                        <button
+                                          className="text-red-600"
+                                          onClick={() =>
+                                            makeVoid(
+                                              purchase
+                                            )
+                                          }
+                                          title="Void"
+                                        >
+                                          <HugeiconsIcon
+                                            icon={
+                                              Cancel02Icon
+                                            }
+                                            size={24}
+                                            color="currentColor"
+                                          />
+                                        </button>
+                                      </div>
+                                    )
+                                  }
+
+                                  {/* ORDERED – edit nonCashDst (product / procurement) */}
+                                  {
+                                    purchase.status === "ordered" &&
+                                    (filterType === "product" || filterType === "procurement") && (
+                                      <button
+                                        className="text-blue-600"
+                                        onClick={() => openEditNonCash(purchase)}
+                                        title="Edit Destinasi Non-Cash"
+                                      >
+                                        <HugeiconsIcon
+                                          icon={Edit03Icon}
+                                          size={24}
+                                          color="currentColor"
+                                        />
+                                      </button>
+                                    )
+                                  }
                                 </td>
                               </tr>
-                            )}
                             </React.Fragment>
                           )
                         }
                       )}
                     </tbody>
                   </table>
+                  {selectedPurchase && (
+                    <dialog open className="modal modal-open">
+                      <div className="modal-box w-11/12 max-w-4xl">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-bold text-lg">
+                              Purchase Details
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                              {selectedPurchase.purchaseOrderNumber}
+                            </p>
+                          </div>
+
+                          <button
+                            className="btn btn-sm btn-circle btn-ghost"
+                            onClick={() => setSelectedPurchase(null)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="table table-xs text-xs w-full">
+                            <thead className="bg-base-200">
+                              <tr>
+                                <th>Produk/Item</th>
+                                <th className="text-center">Qty</th>
+                                <th className="text-right">Harga/unit</th>
+                                <th className="text-right">Subtotal</th>
+                                {selectedPurchase.items.some((it: any) => it.note) && (
+                                  <th>Note</th>
+                                )}
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {selectedPurchase.items.map((it: any, idx: number) => {
+                                const pName = filterType === "procurement"
+                                  ? it.product?.name || "-"
+                                  : it.product?.productName || ""
+
+                                const pUnit = filterType === "procurement"
+                                  ? it.product?.unit || ""
+                                  : it.product?.conversionRatioX || ""
+
+                                const hasNotes = selectedPurchase.items.some(
+                                  (x: any) => x.note
+                                )
+
+                                return (
+                                  <tr key={idx}>
+                                    <td>
+                                      {pName} {pUnit ? `(${pUnit})` : ""}
+                                    </td>
+                                    <td className="text-center">
+                                      {it.quantity}
+                                    </td>
+                                    <td className="text-right">
+                                      {it.finalPrice > 0
+                                        ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
+                                        : "-"
+                                      }
+                                    </td>
+                                    <td className="text-right font-medium">
+                                      {it.finalPrice > 0
+                                        ? `Rp ${(it.finalPrice * it.quantity).toLocaleString("id-ID")}`
+                                        : "-"
+                                      }
+                                    </td>
+                                    {hasNotes && (
+                                      <td className="text-gray-600 italic">
+                                        {it.note || ""}
+                                      </td>
+                                    )}
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="modal-action">
+                          <button
+                            className="btn"
+                            onClick={() => setSelectedPurchase(null)}
+                          >
+                            Tutup
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        className="modal-backdrop"
+                        onClick={() => setSelectedPurchase(null)}
+                      />
+                    </dialog>
+                  )}
                 </div>
               </div>
             )
           }
         </div>
-      </div>
+      </div >
 
       {/* =====================================================
           MODAL EDIT REQUISITION
       ===================================================== */}
-      <dialog
+      < dialog
         ref={editRef}
         className="modal text-black"
       >
-        <div className="modal-box w-11/12 max-w-2xl">
+        <div className="modal-box w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex flex-col gap-3">
             <span className="page-title">
               Edit Purchase Requisition
             </span>
 
             <form
-              onSubmit={editForm.handleSubmit(
-                editSubmit
-              )}
-              className="h-92 relative flex flex-col gap-3"
+              onSubmit={editForm.handleSubmit(editSubmit)}
+              className="flex flex-col gap-4"
             >
-              <div className="flex flex-col gap-3">
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">
-                    Tanggal Pembelian
-                  </legend>
-
+              {/* ── Header: Tanggal + Supplier ─────────────────────────── */}
+              <div className="grid grid-cols-2 gap-3">
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tanggal Pembelian</legend>
                   <input
-                    {...editForm.register(
-                      "customDate",
-                      { required: true }
-                    )}
+                    {...editForm.register("customDate", { required: true })}
                     className="input w-full"
                     type="date"
                   />
                 </fieldset>
 
-                {filterType === "service" ? (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Description (Jasa)
-                    </legend>
-
+                {(filterType === "product" || filterType === "procurement") && (
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Supplier / Asal</legend>
                     <input
-                      {...editForm.register(
-                        "description",
-                        { required: true }
-                      )}
+                      className="input w-full"
+                      {...editForm.register("customSupplier")}
+                      type="text"
+                      placeholder="Nama supplier (opsional)"
+                    />
+                  </fieldset>
+                )}
+
+                {filterType === "service" && (
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Vendor</legend>
+                    <select
+                      {...editForm.register("vendorId", { required: true })}
+                      className="select w-full"
+                    >
+                      {vendors.map((vendor) => (
+                        <option value={vendor._id} key={vendor._id}>
+                          {vendor.name}
+                        </option>
+                      ))}
+                    </select>
+                  </fieldset>
+                )}
+              </div>
+
+              {/* ── Service: single fields ─────────────────────────────── */}
+              {filterType === "service" && (
+                <div className="flex flex-col gap-3">
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Description (Jasa)</legend>
+                    <input
+                      {...editForm.register("description", { required: true })}
                       className="input w-full"
                     />
                   </fieldset>
-                ) : (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Select item/product
-                    </legend>
-
-                    <select
-                      {...editForm.register("productId")}
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">Price (Rp)</legend>
+                    <input
+                      {...editForm.register("finalPrice", { required: true })}
                       className="input w-full"
-                      onChange={(e) => {
-                        editForm.setValue("productId", e.target.value)
-                        setEditLastPriceInfo(null)
-                        fetchLastPurchasePrice(e.target.value, "edit")
-                      }}
-                    >
-                      {filterType === "product"
-                        ? products.map((product) => (
-                          <option key={product._id} value={product._id}>
-                            {product.productName} ({product.conversionRatioX})
-                          </option>
-                        ))
-                        : items.map((item) => (
-                          <option key={item._id} value={item._id}>
-                            {item.name} ({item.unit})
-                          </option>
-                        ))}
-                    </select>
+                      type="number"
+                    />
+                  </fieldset>
+                </div>
+              )}
+
+              {/* ── Product / Procurement: multi-item ─────────────────── */}
+              {(filterType === "product" || filterType === "procurement") && (
+                <div className="flex flex-col gap-3">
+                  {/* Item draft input */}
+                  <div className="border border-blue-100 rounded-lg bg-blue-50 p-3 flex flex-col gap-2">
+                    <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
+                      Tambah / Ubah Item
+                    </p>
+
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      {/* Pilih Produk */}
+                      <div className="col-span-5 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">
+                          {filterType === "product" ? "Produk" : "Item"}
+                        </label>
+                        <select
+                          className="input w-full text-sm"
+                          value={editItemDraft.productId}
+                          onChange={(e) => {
+                            setEditItemDraft((d: any) => ({ ...d, productId: e.target.value }))
+                            setEditLastPriceInfo(null)
+                            fetchLastPurchasePrice(e.target.value, "edit")
+                          }}
+                        >
+                          <option value="">-- Pilih --</option>
+                          {filterType === "product"
+                            ? products.map((product) => (
+                              <option key={product._id} value={product._id}>
+                                {product.productName} ({product.conversionRatioX})
+                              </option>
+                            ))
+                            : items.map((item) => (
+                              <option key={item._id} value={item._id}>
+                                {item.name} ({item.unit})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      {/* Qty */}
+                      <div className="col-span-2 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">Qty</label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="input w-full text-sm"
+                          value={editItemDraft.quantity}
+                          onChange={(e) => setEditItemDraft((d: any) => ({ ...d, quantity: e.target.value }))}
+                        />
+                      </div>
+
+                      {/* Harga per item */}
+                      <div className="col-span-3 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600">total / item</label>
+                        <NumericFormat
+                          className="input w-full text-sm"
+                          thousandSeparator="."
+                          decimalSeparator=","
+                          decimalScale={0}
+                          allowNegative={false}
+                          placeholder="0"
+                          value={editItemDraft.finalPrice}
+                          onValueChange={(vals) => setEditItemDraft((d: any) => ({ ...d, finalPrice: vals.value }))}
+                        />
+                      </div>
+
+                      {/* Tombol Tambah */}
+                      <div className="col-span-2">
+                        <button
+                          type="button"
+                          onClick={addEditItemToDraft}
+                          className="btn w-full bg-blue-700 text-white hover:bg-blue-800 btn-sm h-10"
+                        >
+                          + Tambah
+                        </button>
+                      </div>
+                    </div>
 
                     {/* Riwayat harga terakhir */}
                     {editLastPriceLoading && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
                         <span className="loading loading-spinner loading-xs" />
                         Mengambil riwayat harga...
                       </div>
                     )}
                     {!editLastPriceLoading && editLastPriceInfo && (
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
                           <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1532,9 +1794,7 @@ function Purchases() {
                             Rp {(editLastPriceInfo.finalPrice ?? 0).toLocaleString("id-ID")}
                           </span>
                           <span className="text-amber-600">·</span>
-                          <span>
-                            qty: <span className="font-semibold">{editLastPriceInfo.quantity}</span>
-                          </span>
+                          <span>qty: <span className="font-semibold">{editLastPriceInfo.quantity}</span></span>
                           {editLastPriceInfo.date && (
                             <>
                               <span className="text-amber-600">·</span>
@@ -1552,151 +1812,147 @@ function Purchases() {
                         </div>
                       </div>
                     )}
-                  </fieldset>
-                )}
+                  </div>
 
-                <fieldset className="fieldset flex-1">
-                  <legend className="fieldset-legend">
-                    Price
-                  </legend>
+                  {/* Daftar item yang sudah ada */}
+                  {editItems.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        Daftar Item ({editItems.length})
+                      </p>
+                      <div className="border rounded-lg overflow-hidden">
+                        <table className="table table-sm text-sm w-full">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="text-left">Produk/Item</th>
+                              <th className="text-center">Qty</th>
+                              <th className="text-right">Total/Item</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {editItems.map((it, idx) => (
+                              <tr key={idx} className="hover:bg-gray-50">
+                                <td className="text-left">{it._productLabel}</td>
+                                <td className="text-center">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="input input-xs w-16 text-center"
+                                    value={it.quantity}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 1
+                                      setEditItems(prev => prev.map((x, i) =>
+                                        i === idx ? { ...x, quantity: val } : x
+                                      ))
+                                    }}
+                                  />
+                                </td>
+                                <td className="text-right">
+                                  <NumericFormat
+                                    className="input input-xs w-28 text-right"
+                                    thousandSeparator="."
+                                    decimalSeparator=","
+                                    decimalScale={0}
+                                    allowNegative={false}
+                                    placeholder="0"
+                                    value={it.finalPrice > 0 ? it.finalPrice : ""}
+                                    onValueChange={(vals) => {
+                                      const val = vals.floatValue ?? 0
+                                      setEditItems(prev => prev.map((x, i) =>
+                                        i === idx ? { ...x, finalPrice: val } : x
+                                      ))
+                                    }}
+                                  />
+                                </td>
+                                <td className="text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEditItemFromDraft(idx)}
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                    title="Hapus item"
+                                  >
+                                    <HugeiconsIcon icon={MultiplicationSignIcon} size={16} color="currentColor" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
 
-                  <input
-                    {...editForm.register(
-                      "finalPrice",
-                      { required: true }
-                    )}
-                    className="input w-full"
-                    type="number"
-                  />
-                </fieldset>
+                      {/* Total Section */}
+                      <div className="flex flex-col gap-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">Total Harga:</span>
+                            <label className="flex items-center gap-1 cursor-pointer text-xs text-gray-500">
+                              <input
+                                type="checkbox"
+                                className="checklist checklist-xs"
+                                checked={editTotalMode === "manual"}
+                                onChange={(e) => {
+                                  setEditTotalMode(e.target.checked ? "manual" : "auto")
+                                  if (!e.target.checked) setEditTotalOverride("")
+                                }}
+                              />
+                              Override
+                            </label>
+                          </div>
+                          {editTotalMode === "auto" ? (
+                            <span className="font-bold text-blue-800 text-base">
+                              Rp {calcEditItemsTotal().toLocaleString("id-ID")}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <NumericFormat
+                                className="input input-sm w-40 text-right font-bold text-blue-800"
+                                thousandSeparator="."
+                                decimalSeparator=","
+                                decimalScale={0}
+                                allowNegative={false}
+                                placeholder="Total harga"
+                                value={editTotalOverride}
+                                onValueChange={(vals) => setEditTotalOverride(vals.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        {editTotalMode === "auto" && calcEditItemsTotal() === 0 && (
+                          <p className="text-xs text-amber-600">
+                            ⚠ Semua item belum memiliki harga. Centang &quot;Override&quot; untuk mengisi total secara manual.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                {filterType !== "service" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Quantity
-                    </legend>
+                  {editItems.length === 0 && (
+                    <div className="text-center py-4 text-sm text-gray-400 border border-dashed rounded-lg">
+                      Belum ada item. Gunakan form di atas untuk menambahkan item.
+                    </div>
+                  )}
+                </div>
+              )}
 
-                    <input
-                      {...editForm.register(
-                        "quantity",
-                        { required: true }
-                      )}
-                      className="input w-full"
-                      type="number"
-                    />
-                  </fieldset>
-                )}
-
-                {filterType === "service" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Vendor
-                    </legend>
-
-                    <select
-                      {...editForm.register(
-                        "vendorId",
-                        { required: true }
-                      )}
-                      className="select w-full"
-                    >
-                      {vendors.map(
-                        (vendor) => (
-                          <option
-                            value={vendor._id}
-                            key={vendor._id}
-                          >
-                            {vendor.name}
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </fieldset>
-                )}
-
-                {
-                  /*
-                {filterType === "product" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Supplier
-                    </legend>
-
-                    <select
-                      {...editForm.register(
-                        "supplierId"
-                      )}
-                      className="select w-full"
-                    >
-                      <option value="">
-                        -- Pilih Supplier --
-                      </option>
-
-                      {suppliers.map(
-                        (supplier) => (
-                          <option
-                            key={supplier._id}
-                            value={supplier._id}
-                          >
-                            {
-                              supplier.bussinessName
-                            }
-                          </option>
-                        )
-                      )}
-                    </select>
-                  </fieldset>
-                )}
-                  */
-                }
-
-
-                {filterType === "product" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Supplier / Asal
-                    </legend>
-
-                    <input
-                      className="input w-full"
-                      {...editForm.register(
-                        "customSupplier"
-                      )}
-                      type="text"
-                    />
-                  </fieldset>
-                )}
-
-                {filterType === "procurement" && (
-                  <fieldset className="fieldset flex-1">
-                    <legend className="fieldset-legend">
-                      Supplier / Asal
-                    </legend>
-
-                    <input
-                      className="input w-full"
-                      {...editForm.register(
-                        "customSupplier"
-                      )}
-                      type="text"
-                    />
-                  </fieldset>
-                )}
-              </div>
-
-              {(editFn.noResult ||
-                editFn.error) && (
-                  <label className="input-validator text-red-900">
-                    something went wrong
-                  </label>
-                )}
+              {(editFn.noResult || editFn.error) && (
+                <label className="input-validator text-red-900">
+                  something went wrong
+                </label>
+              )}
 
               <div className="mt-auto ml-auto flex gap-2">
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
                     editRef.current?.close()
-                  }
+                    setEditItems([])
+                    setEditItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+                    setEditTotalOverride("")
+                    setEditTotalMode("auto")
+                    setEditLastPriceInfo(null)
+                    setEditingPurchase(null)
+                  }}
                   className="p-3 rounded-md text-black bg-gray-200"
                 >
                   Cancel
@@ -1717,11 +1973,12 @@ function Purchases() {
       {/* =====================================================
           MODAL ADD REQUISITION
       ===================================================== */}
-      <dialog
+      < dialog
         ref={modalRef}
+        id="add-purchase-requisition"
         className="modal text-black"
       >
-        <div className="modal-box w-11/12 max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="modal-box max-h-[90vh] overflow-y-auto">
           <div className="flex flex-col gap-3">
             <span className="page-title">
               Add Purchase Requisition
@@ -1858,7 +2115,7 @@ function Purchases() {
 
                       {/* Harga per item (opsional) */}
                       <div className="col-span-3 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">Harga / unit (opsional)</label>
+                        <label className="text-xs text-gray-600">total / item</label>
                         <NumericFormat
                           className="input w-full text-sm"
                           thousandSeparator="."
@@ -1927,7 +2184,7 @@ function Purchases() {
                             <tr>
                               <th className="text-left">Produk/Item</th>
                               <th className="text-center">Qty</th>
-                              <th className="text-right">Harga/unit</th>
+                              <th className="text-right">Total/Item</th>
                               <th className="text-right">Subtotal</th>
                               <th></th>
                             </tr>
@@ -1944,7 +2201,7 @@ function Purchases() {
                                 </td>
                                 <td className="text-right font-medium">
                                   {it.finalPrice > 0
-                                    ? `Rp ${(it.finalPrice * it.quantity).toLocaleString("id-ID")}`
+                                    ? `Rp ${(it.finalPrice).toLocaleString("id-ID")}`
                                     : "-"}
                                 </td>
                                 <td className="text-center">
@@ -1971,14 +2228,14 @@ function Purchases() {
                             <label className="flex items-center gap-1 cursor-pointer text-xs text-gray-500">
                               <input
                                 type="checkbox"
-                                className="checkbox checkbox-xs"
+                                className="checklist checklist-xs"
                                 checked={addTotalMode === "manual"}
                                 onChange={(e) => {
                                   setAddTotalMode(e.target.checked ? "manual" : "auto")
                                   if (!e.target.checked) setAddTotalOverride("")
                                 }}
                               />
-                              Override manual
+                              Override
                             </label>
                           </div>
                           {addTotalMode === "auto" ? (
@@ -1987,9 +2244,6 @@ function Purchases() {
                             </span>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-500 line-through">
-                                Rp {calcAddItemsTotal().toLocaleString("id-ID")}
-                              </span>
                               <NumericFormat
                                 className="input input-sm w-40 text-right font-bold text-blue-800"
                                 thousandSeparator="."
@@ -2053,7 +2307,7 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog >
 
       {/* =====================================================
           MODAL MAKE PO
@@ -2062,7 +2316,7 @@ function Purchases() {
         ref={orderRef}
         className="modal text-black"
       >
-        <div className="modal-box w-11/12 max-w-2xl">
+        <div className="modal-box w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex flex-col gap-3">
             <span className="page-title">
               Create Purchase Order
@@ -2074,53 +2328,72 @@ function Purchases() {
               )}
               className="flex flex-col gap-3 pb-4"
             >
-              <div className="grid grid-cols-2 gap-3">
-                <fieldset className="fieldset col-span-2">
-                  <legend className="fieldset-legend">
-                    {filterType === "service"
-                      ? "Description"
-                      : "Product/Item"}
-                  </legend>
+              {/* ── Multi-item summary (product / procurement) ────────── */}
+              {(filterType === "product" || filterType === "procurement") &&
+                selectedPurchase &&
+                Array.isArray(selectedPurchase.items) &&
+                selectedPurchase.items.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                      Items dalam PR ({selectedPurchase.items.length})
+                    </p>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="table table-xs text-xs w-full">
+                        <thead className="bg-base-200">
+                          <tr>
+                            <th className="text-left">Produk/Item</th>
+                            <th className="text-center">Qty</th>
+                            <th className="text-right">Harga/item</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedPurchase.items.map((it: any, idx: number) => {
+                            const pName = filterType === "procurement"
+                              ? it.product?.name || "-"
+                              : it.product?.productName || "-"
+                            const pUnit = filterType === "procurement"
+                              ? it.product?.unit || ""
+                              : it.product?.conversionRatioX || ""
+                            return (
+                              <tr key={idx}>
+                                <td>{pName} {pUnit ? `(${pUnit})` : ""}</td>
+                                <td className="text-center">{it.quantity}</td>
+                                <td className="text-right">
+                                  {it.finalPrice > 0
+                                    ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
+                                    : "-"}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
+              {/* ── Service: description readonly ─────────────────────── */}
+              {filterType === "service" && (
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Description</legend>
                   <input
                     className="input w-full bg-gray-50"
-                    {...orderForm.register(
-                      filterType === "service"
-                        ? "description"
-                        : "product"
-                    )}
+                    {...orderForm.register("description")}
                     type="text"
                     readOnly
                   />
                 </fieldset>
+              )}
 
-                {filterType !== "service" && (
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">
-                      Quantity
-                    </legend>
-
-                    <input
-                      className="input w-full bg-gray-50"
-                      {...orderForm.register(
-                        "quantity"
-                      )}
-                      type="text"
-                      readOnly
-                    />
-                  </fieldset>
-                )}
-
-                <fieldset className="fieldset">
+              {/* ── Price editable ────────────────────────────────────── */}
+              <div className="grid grid-cols-2 gap-3">
+                <fieldset className="fieldset col-span-2 sm:col-span-1">
                   <legend className="fieldset-legend">
                     Price (Rp)
                   </legend>
-
                   <input
-                    className="input w-full bg-gray-50"
-                    {...orderForm.register(
-                      "finalPrice"
-                    )}
+                    className="input w-full"
+                    {...orderForm.register("finalPrice")}
                     type="number"
                   />
                 </fieldset>
@@ -2133,7 +2406,7 @@ function Purchases() {
                   <legend className="fieldset-legend">
                     Supplier
                   </legend>
-    
+     
                   <select
                     {...orderForm.register(
                       "supplierId"
@@ -2144,7 +2417,7 @@ function Purchases() {
                     <option value="">
                       -- Pilih Supplier --
                     </option>
-    
+     
                     {suppliers.map(
                       (supplier) => (
                         <option

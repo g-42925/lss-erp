@@ -90,6 +90,70 @@ export async function GET(request: NextRequest) {
           }
         },
         { $unwind: { path: '$vendor', preserveNullAndEmptyArrays: true } },
+        // ── Populate items[].product untuk multi-item PR ──────────────────
+        // Ekstrak array productId dari items (explicit untuk semua MongoDB version)
+        {
+          $addFields: {
+            _itemProductIds: {
+              $ifNull: [
+                { $map: { input: { $ifNull: ['$items', []] }, as: 'itm', in: '$$itm.productId' } },
+                []
+              ]
+            }
+          }
+        },
+        {
+          $lookup: {
+            from: 'products',
+            localField: '_itemProductIds',
+            foreignField: '_id',
+            as: '_itemProducts'
+          }
+        },
+        {
+          $lookup: {
+            from: 'invitems',
+            localField: '_itemProductIds',
+            foreignField: '_id',
+            as: '_itemInvItems'
+          }
+        },
+        {
+          $addFields: {
+            items: {
+              $map: {
+                input: { $ifNull: ['$items', []] },
+                as: 'itm',
+                in: {
+                  $mergeObjects: [
+                    '$$itm',
+                    {
+                      product: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: { $concatArrays: ['$_itemProducts', '$_itemInvItems'] },
+                              as: 'p',
+                              // pakai $toString agar ObjectId vs string tidak mismatch
+                              cond: {
+                                $eq: [
+                                  { $toString: '$$p._id' },
+                                  { $toString: '$$itm.productId' }
+                                ]
+                              }
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        { $project: { '_itemProducts': 0, '_itemInvItems': 0, '_itemProductIds': 0 } },
       ])
 
       return NextResponse.json({ noResult: false, message: "", result: debts, error: false })

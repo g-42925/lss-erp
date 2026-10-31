@@ -216,8 +216,8 @@ export default function PurchasesApproval() {
       ? purchase.description
       : isMultiItem
         ? purchase.items.map((it: any) =>
-            it.product?.productName || it.product?.name || "?"
-          ).join(", ")
+          it.product?.productName || it.product?.name || "?"
+        ).join(", ")
         : purchase.product?.productName || purchase.product?.name || "Unknown Product"
 
     editPrForm.reset({
@@ -402,7 +402,7 @@ export default function PurchasesApproval() {
                               const it = purchase.items[0]
                               return it.product?.productName || it.product?.name || "-"
                             }
-                            return `${purchase.items.length} item(s)`
+                            return `${purchase.items.length} item`
                           }
                           return purchase.product?.productName || purchase.product?.name || "-"
                         })()
@@ -444,7 +444,7 @@ export default function PurchasesApproval() {
                                   const u = filterType === "procurement" ? it.product?.unit : it.product?.conversionRatioX
                                   return `${it.quantity}${u ? ` (${u})` : ""}`
                                 }
-                                return `${totalQty} total (${purchase.items.length} item)`
+                                return `?`
                               }
                               return `${purchase.quantity} (${unit || "-"})`
                             })()}
