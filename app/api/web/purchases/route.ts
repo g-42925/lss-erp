@@ -53,7 +53,8 @@ export async function PUT(request: NextRequest) {
             // Multi-item: update items array and total finalPrice
             editPrData.items = rest.items;
             editPrData.finalPrice = rest.finalPrice;
-          } else {
+          }
+          else {
             // Legacy single-item (service / backward compat)
             if (rest.quantity !== undefined) editPrData.quantity = rest.quantity;
             if (rest.finalPrice !== undefined) editPrData.finalPrice = rest.finalPrice;
@@ -302,7 +303,7 @@ export async function PUT(request: NextRequest) {
               const _px = await Purchase.findById(_id)
               const paymentCode = _px.purchaseOrderNumber.split("-")[1].trim()
               const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
-              rf = `pl ${paymentCode} | pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount}`
+              rf = `pl ${paymentCode} | pembayaran procurement senilai ${_px.payAmount}`
             }
 
             rf = px.purchaseType === "procurement" ? rf : reference
@@ -374,7 +375,7 @@ export async function PUT(request: NextRequest) {
               const _px = await Purchase.findById(_id)
               const paymentCode = _px.purchaseOrderNumber.split("-")[1].trim()
               const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
-              rf = `pl ${paymentCode} | pembayaran procurement ${inv.name} ${_px.quantity} ${inv.unit} senilai ${_px.payAmount} `
+              rf = `pl ${paymentCode} | pembayaran procurement ${_px.quantity} ${inv.unit} senilai ${_px.payAmount} `
             }
 
             rf = px.purchaseType === "procurement" ? rf : reference
