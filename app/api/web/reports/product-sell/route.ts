@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
           companyId: cid,
           invoiceType: 'service',
           status: 'active',
-          date: { $gte: startDate, $lte: endDate }
+          date: { $gte: startDate, $lte: endDate },
+          void: { $ne: true }
         }
       },
       {
@@ -120,7 +121,8 @@ export async function GET(request: NextRequest) {
         $match: {
           companyId: cid,
           status: 'active',
-          date: { $gte: startDate, $lte: endDate }
+          date: { $gte: startDate, $lte: endDate },
+          void: { $ne: true }
         }
       },
       {
