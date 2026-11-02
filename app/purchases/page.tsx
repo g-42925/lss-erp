@@ -1308,8 +1308,9 @@ function Purchases() {
                                     <div className="flex items-center gap-1">
                                       {(() => {
                                         const multiQty = getPurchaseQuantity(purchase)
-                                        if (purchase.items?.length > 1) return '?'
-                                        if (purchase.items?.length < 2) return `${multiQty}`
+                                        if (multiQty !== null && purchase.items?.length > 1) return '?'
+                                        if (multiQty !== null && purchase.items?.length < 2) return `${multiQty}`
+                                        return `${purchase.quantity} (${unit})`
                                       })()}
                                     </div>
                                   </td>
