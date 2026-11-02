@@ -107,7 +107,19 @@ export default function ProductSellReportPage() {
       const res = await fetch(`/api/web/reports/product-sell?${params}`)
       const data = await res.json()
 
+
+
       if (!data.error && data.result) {
+
+        data.result.data.forEach((d: any, idx: number) => {
+          const taxes = d.taxes
+          taxes.forEach((t: any, tIdx: number) => {
+            d.taxes[tIdx].percentage = (t.taxValue / d.dpp) * 100
+          })
+
+          data.result.data[idx].taxes = taxes
+        })
+
         console.log("--------------------")
         console.log(data.result.data)
         console.log("--------------------")
@@ -231,10 +243,9 @@ export default function ProductSellReportPage() {
     unifiedData.forEach(row => {
       if (Array.isArray(row.taxes)) {
         row.taxes.forEach((t: any) => {
-          if (t && t.name) {
-            // Cek apakah nama pajak mengandung kata "pph"
-            const isPPh = t.name.toLowerCase().includes('pph') || !!t.isPPh
-            taxInfo.set(t.name, isPPh)
+          if (t && t.taxName) {
+            const isPPh = t.isPPh
+            taxInfo.set(t.taxName, isPPh)
           }
         })
       }
@@ -259,12 +270,13 @@ export default function ProductSellReportPage() {
       // Assign tax percentage or nominal based on isPPh
       if (Array.isArray(row.taxes)) {
         row.taxes.forEach((t: any) => {
-          if (t && t.name) {
+          if (t && t.taxName) {
             const pct = parseFloat(t.percentage) || 0
-            if (taxInfo.get(t.name)) {
-              rowData[t.name] = (row.value * pct) / 100
-            } else {
-              rowData[t.name] = pct ? `${pct}%` : '0%'
+            if (taxInfo.get(t.taxName)) {
+              rowData[t.taxName] = t.taxValue
+            }
+            else {
+              rowData[t.taxName] = pct ? `${pct}%` : '0%'
             }
           }
         })

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
           invoiceType: 'service',
           status: 'active',
           date: { $gte: startDate, $lte: endDate },
-          void: { $ne: true }
+          void: { $ne: true },
         }
       },
       {
@@ -242,6 +242,9 @@ export async function GET(request: NextRequest) {
       summary[pn].qty += qty;
       summary[pn].subTotal += subTotal;
 
+      console.log("====================")
+      console.log(inv.snapshot.order)
+      console.log("====================")
 
       reportData.push({
         id: `${inv._id.toString()}`,
@@ -254,7 +257,7 @@ export async function GET(request: NextRequest) {
         qty: qty,
         subTotal: subTotal,
         source: 'Service Invoice',
-        taxes: inv.snapshot?.tax || [],
+        taxes: inv.snapshot?.order.taxes,
         npwp: inv.svcOrderDoc?.taxNumber || ''
       });
     }
