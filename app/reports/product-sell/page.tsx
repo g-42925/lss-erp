@@ -248,8 +248,20 @@ export default function ProductSellReportPage() {
             taxInfo.set(t.taxName, isPPh)
           }
         })
+
+        // jika row.taxes tidak menyertakan pajak yang status isPPh nya false, tambahkan pajak "PPN" dengan nilai 0
+        if (!row.taxes.some((t: any) => t && !t.isPPh)) {
+          row.taxes.push({
+            taxName: 'PPN',
+            percentage: 0,
+            taxValue: 0,
+            isPPh: false
+          })
+          taxInfo.set('PPN', false)
+        }
       }
     })
+
     const taxCols = Array.from(taxInfo.keys())
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -302,7 +314,8 @@ export default function ProductSellReportPage() {
     taxCols.forEach(tc => {
       if (taxInfo.get(tc)) {
         grandTotalRow[tc] = data.reduce((acc, row) => acc + (typeof row[tc] === 'number' ? row[tc] : 0), 0)
-      } else {
+      }
+      else {
         grandTotalRow[tc] = ''
       }
     })
