@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 "use client"
 
@@ -8,7 +9,12 @@ import { useForm, useWatch } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Edit03Icon, CheckmarkCircle01Icon, MultiplicationSignIcon, ArrowLeftRightIcon } from "@hugeicons/core-free-icons"
+import {
+  Edit03Icon,
+  CheckmarkCircle01Icon,
+  MultiplicationSignIcon,
+  ArrowLeftRightIcon
+} from "@hugeicons/core-free-icons"
 
 export default function PurchasesApproval() {
   const user = useAuth((state) => state.userId)
@@ -18,11 +24,13 @@ export default function PurchasesApproval() {
 
   const editRef = useRef<HTMLDialogElement>(null)
   const _editRef = useRef<HTMLDialogElement>(null)
+  const itemRef = useRef<HTMLDialogElement>(null)
 
   const [pr, setPr] = useState<any[]>([])
   const [filterType, setFilterType] = useState("product")
   const [searchTerm, setSearchTerm] = useState("")
   const [approvingAll, setApprovingAll] = useState(false)
+  const [selectedPurchase, setSelectedPurchase] = useState<any>(null)
 
   const editPrForm = useForm()
   const router = useRouter()
@@ -58,20 +66,27 @@ export default function PurchasesApproval() {
     )
   }
 
+  // Tampilkan modal detail item.
+  function showPurchaseItems(purchase: any) {
+    setSelectedPurchase(purchase)
+    itemRef.current?.showModal()
+  }
+
   // Data yang ditampilkan mengikuti kata pencarian.
   const displayedPurchases = searchTerm.trim()
     ? pr.filter((purchase) => {
       if (filterType === "service") {
         return purchase.description?.toLowerCase().includes(searchTerm.trim().toLowerCase())
       }
-      // Multi-item: cari di setiap item
+
       if (Array.isArray(purchase.items) && purchase.items.length > 0) {
         return purchase.items.some((it: any) =>
           (it.product?.productName || it.product?.name || "")
-            .toLowerCase().includes(searchTerm.trim().toLowerCase())
+            .toLowerCase()
+            .includes(searchTerm.trim().toLowerCase())
         )
       }
-      // Single-item lama
+
       const name = purchase.product?.productName || purchase.product?.name || ""
       return name.toLowerCase().includes(searchTerm.trim().toLowerCase())
     })
@@ -212,6 +227,7 @@ export default function PurchasesApproval() {
     if (!purchase) return
 
     const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
+
     const productLabel = filterType === "service"
       ? purchase.description
       : isMultiItem
@@ -297,7 +313,8 @@ export default function PurchasesApproval() {
         <span className="page-title">Purchases Approval</span>
 
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
-          {/* Toolbar: kategori dan pencarian */}
+
+          {/* Toolbar */}
           <div className="sticky top-0 z-30 bg-white">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="flex flex-wrap items-center gap-2">
@@ -362,7 +379,6 @@ export default function PurchasesApproval() {
             </div>
           </div>
 
-
           {/* Loading, error, atau tabel */}
           {getFn.loading ? (
             <div className="flex-1 flex flex-col justify-center items-center">
@@ -378,7 +394,7 @@ export default function PurchasesApproval() {
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Product/Service</th>
+                    <th>Product</th>
                     <th>Quantity</th>
                     <th>Price</th>
                     <th>Pay Amount</th>
@@ -393,19 +409,24 @@ export default function PurchasesApproval() {
 
                 <tbody>
                   {displayedPurchases.map((purchase) => {
+                    const hasItems =
+                      Array.isArray(purchase.items) &&
+                      purchase.items.length > 0
+
+                    const isMultiItem = hasItems && purchase.items.length > 1
+
                     const itemName =
                       filterType === "service"
                         ? purchase.description
-                        : (() => {
-                          if (Array.isArray(purchase.items) && purchase.items.length > 0) {
-                            if (purchase.items.length === 1) {
-                              const it = purchase.items[0]
-                              return it.product?.productName || it.product?.name || "-"
-                            }
-                            return `${purchase.items.length} item`
-                          }
-                          return purchase.product?.productName || purchase.product?.name || "-"
-                        })()
+                        : hasItems
+                          ? purchase.items.length === 1
+                            ? purchase.items[0].product?.productName ||
+                            purchase.items[0].product?.name ||
+                            "-"
+                            : `${purchase.items.length} item`
+                          : purchase.product?.productName ||
+                          purchase.product?.name ||
+                          "-"
 
                     const unit =
                       filterType === "procurement"
@@ -422,49 +443,81 @@ export default function PurchasesApproval() {
                           "-"
 
                     return (
-                      <tr key={purchase._id} className={purchase.priceAlert ? "bg-red-50" : ""}>
+                      <tr
+                        key={purchase._id}
+                        className={purchase.priceAlert ? "bg-red-50" : ""}
+                      >
                         <td>
                           {new Date(purchase.date).toLocaleDateString("id-ID")}
                         </td>
 
+                        {/* Product / Service */}
                         <td>
-                          <div className="flex flex-col items-center gap-1">
+                          {isMultiItem ? (
+                            <button
+                              type="button"
+                              onClick={() => showPurchaseItems(purchase)}
+                              className="font-semibold underline underline-offset-2 hover:text-blue-900"
+                            >
+                              {itemName}
+                            </button>
+                          ) : (
                             <span>{itemName}</span>
-                          </div>
+                          )}
                         </td>
 
+                        {/* Quantity */}
                         <td>
                           {filterType === "service"
                             ? "-"
-                            : (() => {
-                              if (Array.isArray(purchase.items) && purchase.items.length > 0) {
-                                const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
-                                if (purchase.items.length === 1) {
-                                  const it = purchase.items[0]
-                                  const u = filterType === "procurement" ? it.product?.unit : it.product?.conversionRatioX
-                                  return `${it.quantity}${u ? ` (${u})` : ""}`
-                                }
-                                return `?`
-                              }
-                              return `${purchase.quantity} (${unit || "-"})`
-                            })()}
+                            : isMultiItem
+                              ? (
+                                <button
+                                  type="button"
+                                  className="font-semibold"
+                                >
+                                  ?
+                                </button>
+                              )
+                              : hasItems
+                                ? (() => {
+                                  const item = purchase.items[0]
+                                  const itemUnit =
+                                    filterType === "procurement"
+                                      ? item.product?.unit
+                                      : item.product?.conversionRatioX
+
+                                  return `${item.quantity}${itemUnit ? ` (${itemUnit})` : ""}`
+                                })()
+                                : `${purchase.quantity} (${unit || "-"})`}
                         </td>
 
+                        {/* Price */}
                         <td>
                           <div className="flex flex-col items-center gap-0.5">
-                            <span className={purchase.priceAlert ? "font-bold text-red-700" : ""}>
+                            <span
+                              className={
+                                purchase.priceAlert
+                                  ? "font-bold text-red-700"
+                                  : ""
+                              }
+                            >
                               {(purchase.finalPrice ?? 0).toLocaleString("id-ID")}
                             </span>
+
                             {purchase.priceAlert && (
                               <span className="text-[10px] text-gray-500 line-through">
-                                Sebelumnya: {(purchase.priceAlert.previousPrice ?? 0).toLocaleString("id-ID")}
+                                Sebelumnya:{" "}
+                                {(purchase.priceAlert.previousPrice ?? 0).toLocaleString("id-ID")}
                               </span>
                             )}
                           </div>
                         </td>
+
                         <td>{purchase.payAmount}</td>
                         <td>{suppName}</td>
 
+                        {/* Received */}
                         <td>
                           {filterType === "service"
                             ? "-"
@@ -478,9 +531,7 @@ export default function PurchasesApproval() {
                             <span>
                               {purchase.approvedBy?.name ?? "-"} (
                               {purchase.approvedAt
-                                ? new Date(
-                                  purchase.approvedAt
-                                ).toLocaleDateString("id-ID")
+                                ? new Date(purchase.approvedAt).toLocaleDateString("id-ID")
                                 : "-"}
                               )
                             </span>
@@ -492,15 +543,14 @@ export default function PurchasesApproval() {
                             <span>
                               {purchase.voidedBy?.name ?? "-"} (
                               {purchase.voidedAt
-                                ? new Date(
-                                  purchase.voidedAt
-                                ).toLocaleDateString("id-ID")
+                                ? new Date(purchase.voidedAt).toLocaleDateString("id-ID")
                                 : "-"}
                               )
                             </span>
                           </td>
                         )}
 
+                        {/* Actions */}
                         <td className="flex flex-row gap-2 justify-center">
                           {purchase.status === "requested" && (
                             <>
@@ -548,10 +598,11 @@ export default function PurchasesApproval() {
                               </button>
                             )}
 
-                          {purchase.status === "ordered" && (
+                          {purchase.status === "xxx" && (
                             <button
                               type="button"
                               onClick={() => _edit(purchase._id)}
+                              disabled
                             >
                               <HugeiconsIcon
                                 icon={Edit03Icon}
@@ -583,6 +634,105 @@ export default function PurchasesApproval() {
         </div>
       </div>
 
+      {/* Modal detail purchase items */}
+      <dialog ref={itemRef} className="modal text-black">
+        <div className="modal-box w-11/12 max-w-2xl">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="page-title">Purchase Items</span>
+
+              <button
+                type="button"
+                onClick={() => itemRef.current?.close()}
+                className="btn btn-sm btn-circle btn-ghost"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-sm text-gray-500">
+              {selectedPurchase?.date
+                ? new Date(selectedPurchase.date).toLocaleDateString("id-ID")
+                : "-"}
+              {" · "}
+              {selectedPurchase?.items?.length || 0} items
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th className="text-left">Product</th>
+                    <th className="text-center">Quantity</th>
+                    <th className="text-center">Unit</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {selectedPurchase?.items?.map((item: any, index: number) => {
+                    const productName =
+                      item.product?.productName ||
+                      item.product?.name ||
+                      "Unknown Product"
+
+                    const itemUnit =
+                      filterType === "procurement"
+                        ? item.product?.unit
+                        : item.product?.conversionRatioX
+
+                    return (
+                      <tr key={item._id || index}>
+                        <td>{productName}</td>
+
+                        <td className="text-center font-semibold">
+                          {Number(item.quantity || 0).toLocaleString("id-ID")}
+                        </td>
+
+                        <td className="text-center">
+                          {itemUnit || "-"}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+
+                <tfoot>
+                  <tr>
+                    <th>Total</th>
+
+                    <th className="text-center">
+                      {selectedPurchase?.items
+                        ?.reduce(
+                          (total: number, item: any) =>
+                            total + Number(item.quantity || 0),
+                          0
+                        )
+                        .toLocaleString("id-ID") || 0}
+                    </th>
+
+                    <th></th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className="modal-action">
+              <button
+                type="button"
+                onClick={() => itemRef.current?.close()}
+                className="btn bg-gray-200 text-black"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+
       {/* Modal edit purchase order */}
       <dialog ref={editRef} className="modal text-black">
         <div className="modal-box w-11/12 max-w-2xl">
@@ -596,7 +746,7 @@ export default function PurchasesApproval() {
               className="flex flex-col gap-3 pb-4"
             >
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product/Service</legend>
+                <legend className="fieldset-legend">Product</legend>
                 <input
                   className="input w-full"
                   {...editPrForm.register("product")}
@@ -644,7 +794,9 @@ export default function PurchasesApproval() {
                   >
                     Pending
                   </option>
+
                   <option value="approved">Approved</option>
+
                   <option
                     value="rejected"
                     disabled={currentStatus === "ordered"}
@@ -690,7 +842,7 @@ export default function PurchasesApproval() {
               className="flex flex-col gap-3 pb-4"
             >
               <fieldset className="fieldset">
-                <legend className="fieldset-legend">Product/Service</legend>
+                <legend className="fieldset-legend">Product</legend>
                 <input
                   className="input w-full"
                   {...editPrForm.register("product")}
@@ -715,6 +867,7 @@ export default function PurchasesApproval() {
                 <legend className="fieldset-legend">
                   Tanggal Pembayaran
                 </legend>
+
                 <input
                   className="input w-full"
                   {...editPrForm.register("payDate")}
@@ -725,6 +878,7 @@ export default function PurchasesApproval() {
 
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Pay amount</legend>
+
                 <input
                   className="input w-full"
                   {...editPrForm.register("payAmount")}
@@ -735,6 +889,7 @@ export default function PurchasesApproval() {
 
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Type</legend>
+
                 <select
                   {...editPrForm.register("type")}
                   className="select w-full"
@@ -746,9 +901,10 @@ export default function PurchasesApproval() {
 
               <fieldset className="fieldset">
                 <legend className="fieldset-legend">Payment Method</legend>
+
                 <select
-                  {...editPrForm.register("paymentMethod")}
                   className="select w-full"
+                  {...editPrForm.register("paymentMethod")}
                 >
                   <option value="Cash">Cash</option>
                   <option value="Bank Transfer">Bank Transfer</option>
@@ -760,6 +916,7 @@ export default function PurchasesApproval() {
               {type === "adjustment" && (
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Adjust to</legend>
+
                   <input
                     className="input w-full"
                     {...editPrForm.register("reference")}

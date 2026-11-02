@@ -276,6 +276,289 @@ function Purchases() {
     )
   }
 
+  function printPurchase(purchase: any) {
+    const printWindow = window.open("", "_blank", "width=900,height=700")
+
+    if (!printWindow) {
+      alert("Popup diblokir browser. Izinkan popup untuk mencetak purchase.")
+      return
+    }
+
+    const escapeHtml = (value: any) =>
+      String(value ?? "-")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+
+    const currency = (value: any) =>
+      `Rp ${Number(value || 0).toLocaleString("id-ID")}`
+
+    const date = purchase.date
+      ? new Date(purchase.date).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+      : "-"
+
+    const isMultiItem =
+      Array.isArray(purchase.items) && purchase.items.length > 0
+
+    const purchaseItems = isMultiItem
+      ? purchase.items
+      : [{
+        product: purchase.product,
+        quantity: purchase.quantity || 1,
+        finalPrice: purchase.finalPrice,
+        note: "",
+      }]
+
+    const rows = purchaseItems.map((item: any, index: number) => {
+      const name = filterType === "service"
+        ? purchase.description
+        : filterType === "procurement"
+          ? item.product?.name || "-"
+          : item.product?.productName || "-"
+
+      const unit = filterType === "procurement"
+        ? item.product?.unit || ""
+        : item.product?.conversionRatioX || ""
+
+      const quantity = Number(item.quantity || 1)
+      const price = Number(item.finalPrice || 0)
+      const subtotal = quantity * price
+
+      return `
+      <tr>
+        <td>${index + 1}</td>
+        <td>
+          ${escapeHtml(name)}
+          ${unit ? `(${escapeHtml(unit)})` : ""}
+        </td>
+        <td class="number">${quantity.toLocaleString("id-ID")}</td>
+        <td class="number">${currency(price)}</td>
+        <td class="number">${currency(price)}</td>
+        <td>${escapeHtml(item.note || "-")}</td>
+      </tr>
+    `
+    }).join("")
+
+    const total = Number(
+      purchase.grossFinalPrice ??
+      purchase.finalPrice ??
+      0
+    )
+
+    const shippingCost = Number(purchase.shippingCost || 0)
+    const taxAmount = Number(purchase.taxAmount || 0)
+
+    const html = `
+    <!DOCTYPE html>
+    <html lang="id">
+    <head>
+      <meta charset="UTF-8" />
+      <title>Purchase ${escapeHtml(purchase.purchaseOrderNumber)}</title>
+
+      <style>
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: Arial, sans-serif;
+          color: #111;
+          font-size: 12px;
+          padding: 24px;
+        }
+
+        h2 {
+          margin: 0 0 5px;
+          font-size: 20px;
+        }
+
+        .subtitle {
+          color: #666;
+          margin-bottom: 24px;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          border-bottom: 2px solid #222;
+          padding-bottom: 16px;
+          margin-bottom: 20px;
+        }
+
+        .meta {
+          display: grid;
+          grid-template-columns: 130px 1fr;
+          gap: 8px;
+          margin-bottom: 24px;
+        }
+
+        .meta strong {
+          font-weight: 600;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 12px;
+        }
+
+        th, td {
+          border: 1px solid #ccc;
+          padding: 9px;
+          text-align: left;
+        }
+
+        th {
+          background: #f2f2f2;
+        }
+
+        .number {
+          text-align: right;
+          white-space: nowrap;
+        }
+
+        .summary {
+          width: 320px;
+          margin: 20px 0 0 auto;
+        }
+
+        .summary div {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+        }
+
+        .grand-total {
+          border-top: 2px solid #222;
+          font-size: 15px;
+          font-weight: bold;
+          margin-top: 5px;
+          padding-top: 10px !important;
+        }
+
+        .signatures {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 50px;
+          margin-top: 80px;
+          text-align: center;
+        }
+
+        .signature-line {
+          border-top: 1px solid #222;
+          padding-top: 8px;
+          margin-top: 65px;
+        }
+
+        @media print {
+          body {
+            padding: 0;
+          }
+
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="header">
+        <div>
+          <h2>PURCHASE REQUISITION</h2>
+          <div class="subtitle">Purchase Document</div>
+        </div>
+
+        <div>
+          <strong>${escapeHtml(purchase.purchaseOrderNumber)}</strong>
+          <div>Status: ${escapeHtml(purchase.status)}</div>
+        </div>
+      </div>
+
+      <div class="meta">
+        <strong>Tanggal</strong>
+        <span>${escapeHtml(date)}</span>
+
+        <strong>Supplier / Vendor</strong>
+        <span>${escapeHtml(getSupplierVendorName(purchase))}</span>
+
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th width="35">No.</th>
+            <th>Item / Produk</th>
+            <th>Qty</th>
+            <th>Harga</th>
+            <th>Subtotal</th>
+            <th>Catatan</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+
+      <div class="summary">
+        <div>
+          <span>Harga Purchase</span>
+          <strong>${currency(total)}</strong>
+        </div>
+
+        ${shippingCost > 0 ? `
+          <div>
+            <span>Shipping Cost</span>
+            <strong>${currency(shippingCost)}</strong>
+          </div>
+        ` : ""}
+
+        ${taxAmount > 0 ? `
+          <div>
+            <span>Tax Amount</span>
+            <strong>${currency(taxAmount)}</strong>
+          </div>
+        ` : ""}
+
+        <div class="grand-total">
+          <span>Total</span>
+          <span>${currency(total + shippingCost + taxAmount)}</span>
+        </div>
+      </div>
+
+      <div class="signatures">
+        <div>
+          <div class="signature-line">Dibuat oleh</div>
+        </div>
+
+        <div>
+          <div class="signature-line">Disetujui oleh</div>
+        </div>
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.focus()
+          window.print()
+        }
+      </script>
+    </body>
+    </html>
+  `
+
+    printWindow.document.open()
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
   function calculateTaxes(
     grossPrice: number,
     taxIds: string[]
@@ -1345,9 +1628,122 @@ function Purchases() {
                                 <td>
                                   {supplierName}
                                 </td>
-
                                 <td>
-                                  {/* REQUESTED */}
+                                  <div className="flex flex-row justify-center items-center gap-2">
+                                    {/* PRINT */}
+                                    {["requested", "approved", "ordered"].includes(purchase.status) && (
+                                      <button
+                                        type="button"
+                                        className="text-gray-700 hover:text-black"
+                                        onClick={() => printPurchase(purchase)}
+                                        title="Print Purchase"
+                                      >
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          strokeWidth="1.7"
+                                          stroke="currentColor"
+                                          className="size-6"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M6.75 8.25V3.75h10.5v4.5M6.75 17.25H4.5a1.5 1.5 0 0 1-1.5-1.5v-6a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-2.25M6.75 14.25h10.5v6H6.75v-6Z"
+                                          />
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M17.25 11.25h.008v.008h-.008z"
+                                          />
+                                        </svg>
+                                      </button>
+                                    )}
+
+                                    {/* REQUESTED */}
+                                    {purchase.status === "requested" && (
+                                      <button
+                                        type="button"
+                                        className="text-blue-600"
+                                        onClick={() => openEdit(purchase._id)}
+                                        title="Edit"
+                                      >
+                                        <HugeiconsIcon
+                                          icon={Edit03Icon}
+                                          size={24}
+                                          color="currentColor"
+                                        />
+                                      </button>
+                                    )}
+
+                                    {/* APPROVED */}
+                                    {purchase.status === "approved" && (
+                                      <button
+                                        type="button"
+                                        className="text-green-700"
+                                        onClick={() => openOrder(purchase._id)}
+                                        title="Create Purchase Order"
+                                      >
+                                        <HugeiconsIcon
+                                          icon={CoinsDollarIcon}
+                                          size={24}
+                                          color="currentColor"
+                                        />
+                                      </button>
+                                    )}
+
+                                    {/* ORDERED SERVICE */}
+                                    {purchase.status === "ordered" && filterType === "service" && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          className="text-purple-600"
+                                          onClick={() => openApplyTax(purchase)}
+                                          title="Apply Tax"
+                                        >
+                                          <HugeiconsIcon
+                                            icon={BadgePercentIcon}
+                                            size={24}
+                                            color="currentColor"
+                                          />
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          className="text-red-600"
+                                          onClick={() => makeVoid(purchase)}
+                                          title="Void"
+                                        >
+                                          <HugeiconsIcon
+                                            icon={Cancel02Icon}
+                                            size={24}
+                                            color="currentColor"
+                                          />
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {/* ORDERED PRODUCT / PROCUREMENT */}
+                                    {purchase.status === "ordered" &&
+                                      (filterType === "product" || filterType === "procurement") && (
+                                        <button
+                                          type="button"
+                                          className="text-blue-600"
+                                          onClick={() => openEditNonCash(purchase)}
+                                          title="Edit Destinasi Non-Cash"
+                                        >
+                                          <HugeiconsIcon
+                                            icon={Edit03Icon}
+                                            size={24}
+                                            color="currentColor"
+                                          />
+                                        </button>
+                                      )}
+                                  </div>
+                                </td>
+                                {
+                                  /*
+                                <td>
                                   {purchase.status ===
                                     "requested" &&
                                     filterType ===
@@ -1396,7 +1792,6 @@ function Purchases() {
                                       </div>
                                     )}
 
-                                  {/* APPROVED */}
                                   {purchase.status ===
                                     "approved" &&
                                     filterType ===
@@ -1439,7 +1834,6 @@ function Purchases() {
                                       </div>
                                     )}
 
-                                  {/* ORDERED / COMPLETED SERVICE */}
                                   {
                                     (
                                       purchase.status ===
@@ -1492,7 +1886,6 @@ function Purchases() {
                                     )
                                   }
 
-                                  {/* ORDERED – edit nonCashDst (product / procurement) */}
                                   {
                                     purchase.status === "ordered" &&
                                     (filterType === "product" || filterType === "procurement") && (
@@ -1509,7 +1902,10 @@ function Purchases() {
                                       </button>
                                     )
                                   }
+
                                 </td>
+                                  */
+                                }
                               </tr>
                             </React.Fragment>
                           )
