@@ -399,7 +399,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <AlertCard
                   icon="⚠️"
-                  label="Segera Expired (10 hari)"
+                  label="Segera Expired (11 hari)"
                   value={`${data.expiringCount}`}
                   severity="warn"
                   sub=""
