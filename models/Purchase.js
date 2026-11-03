@@ -6,6 +6,7 @@ const PurchaseItemSchema = new mongoose.Schema({
   finalPrice: { type: Number, required: false, default: 0 },
   note: { type: String, required: false },
   receivedQty: { type: Number, required: false, default: 0 },
+  pricePerUnit: { type: Number, required: false }
 }, { _id: false });
 
 const PurchaseSchema = new mongoose.Schema({
@@ -69,6 +70,10 @@ const PurchaseSchema = new mongoose.Schema({
   nonCashDst: {
     accountNumber: String,
     description: String
+  },
+  pricePerUnit: {
+    type: Number,
+    required: false
   }
 });
 

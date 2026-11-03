@@ -822,11 +822,7 @@ export async function POST(request: NextRequest) {
     if (!isMultiItem) {
       const currentPrice = parseFloat(params.finalPrice) || 0;
 
-      if (
-        params.purchaseType !== 'service' &&
-        params.productId &&
-        currentPrice > 0
-      ) {
+      if (params.purchaseType !== 'service' && params.productId && currentPrice > 0) {
         const lastPurchase = await Purchase.findOne({
           companyId: company._id,
           productId: params.productId,
@@ -882,6 +878,8 @@ export async function POST(request: NextRequest) {
       delete createPayload.productId
       delete createPayload.quantity
     }
+
+    if (createPayload.purchaseType === 'service') delete createPayload.productId
 
     const result = await Purchase.create(createPayload)
 
@@ -989,6 +987,11 @@ export async function GET(request: NextRequest) {
           $match: {
             companyId: cmp._id,
             purchaseType: type
+          }
+        },
+        {
+          $sort: {
+            date: -1
           }
         },
         {
