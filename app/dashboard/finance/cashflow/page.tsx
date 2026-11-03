@@ -478,7 +478,7 @@ export default function CashflowReportPage() {
 		const nonCashDst = editData.accountType === 'bank' &&
 			(editData.nonCashDstAccountNumber || editData.nonCashDstDescription)
 			? {
-				accountNumber: editData.nonCashDstAccoutNumber,
+				accountNumber: editData.nonCashDstAccountNumber,
 				description: editData.nonCashDstDescription
 			}
 			: null;
