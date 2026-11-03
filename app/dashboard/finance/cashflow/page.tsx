@@ -832,7 +832,7 @@ export default function CashflowReportPage() {
 					{/* Table */}
 					<div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
 						<div className="overflow-x-auto">
-							<table className="w-full text-left text-xs">
+							<table className="w-full text-center text-xs">
 								<thead className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-500">
 									<tr>
 										<th className="p-3.5 whitespace-nowrap">
