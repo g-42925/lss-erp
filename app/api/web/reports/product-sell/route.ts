@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
           invoiceType: 'service',
           status: 'active',
           date: { $gte: startDate, $lte: endDate },
-          void: { $ne: true },
         }
       },
       {
@@ -122,7 +121,6 @@ export async function GET(request: NextRequest) {
           companyId: cid,
           status: 'active',
           date: { $gte: startDate, $lte: endDate },
-          void: { $ne: true }
         }
       },
       {
@@ -242,10 +240,6 @@ export async function GET(request: NextRequest) {
       summary[pn].qty += qty;
       summary[pn].subTotal += subTotal;
 
-      console.log("====================")
-      console.log(inv.snapshot.order)
-      console.log("====================")
-
       reportData.push({
         id: `${inv._id.toString()}`,
         dpp: inv.price,
@@ -258,11 +252,18 @@ export async function GET(request: NextRequest) {
         subTotal: subTotal,
         source: 'Service Invoice',
         taxes: inv.snapshot?.order.taxes,
-        npwp: inv.svcOrderDoc?.taxNumber || ''
+        npwp: inv.svcOrderDoc?.taxNumber || '',
+        void: inv.void
       });
+
+
     }
 
     reportData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const totalMinus = reportData.filter((r) => r.void === true).map((i) => i.dpp).reduce((sum, num) => sum + num, 0)
+
+    const totalVoid = reportData.filter((r) => r.void === true).length
 
     return NextResponse.json({
       noResult: false,
@@ -273,6 +274,8 @@ export async function GET(request: NextRequest) {
         // Total revenue dihitung dengan pipeline IDENTIK dengan baseRevenuePipeline dashboard
         totalRevenue: totalRevenueData?.total ?? 0,
         totalTransactions: totalRevenueData?.count ?? 0,
+        totalMinus,
+        totalVoid
       },
       error: false
     });

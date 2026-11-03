@@ -361,21 +361,24 @@ export default function Invoices() {
       paymentMethod: data.paymentMethod,
     })
     closeInvoiceFn.fn('', body, () => {
-      getInvoicesFn.reset(
-        getInvoicesFn.result?.map((inv: any) =>
-          inv._id === data._id
-            ? { ...inv, date: data.date, missing: Number(data.missing || 0), payAmount: Number(data.payAmount || 0), paid: data.paid === 'true' }
-            : inv
-        )
-      )
-      setSearchResult(
-        searchResult.map((inv: any) =>
-          inv._id === data._id
-            ? { ...inv, date: data.date, missing: Number(data.missing || 0), payAmount: Number(data.payAmount || 0), paid: data.paid === 'true' }
-            : inv
-        )
-      )
-      editInvoiceModalRef.current?.close()
+      // reload
+      window.location.href = '/sales/svc-invoice'
+
+      // getInvoicesFn.reset(
+      //   getInvoicesFn.result?.map((inv: any) =>
+      //     inv._id === data._id
+      //       ? { ...inv, date: data.date, missing: Number(data.missing || 0), payAmount: Number(data.payAmount || 0), paid: data.paid === 'true' }
+      //       : inv
+      //   )
+      // )
+      // setSearchResult(
+      //   searchResult.map((inv: any) =>
+      //     inv._id === data._id
+      //       ? { ...inv, date: data.date, missing: Number(data.missing || 0), payAmount: Number(data.payAmount || 0), paid: data.paid === 'true' }
+      //       : inv
+      //   )
+      // )
+      // editInvoiceModalRef.current?.close()
     })
   }
 

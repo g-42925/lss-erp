@@ -18,7 +18,9 @@ type ProductSellEntry = {
   source: string,
   dpp: number,
   taxes: { name: string, percentage: number, isPPh?: boolean }[],
-  npwp?: string
+  npwp?: string,
+  void: boolean,
+
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,6 +71,9 @@ export default function ProductSellReportPage() {
   // Total dari API (konsisten dengan perhitungan dashboard)
   const [apiTotalRevenue, setApiTotalRevenue] = useState<number>(0)
   const [apiTotalTransactions, setApiTotalTransactions] = useState<number>(0)
+
+  const [totalMinus, setTotalMinus] = useState<number>(0)
+  const [totalVoid, setTotalVoid] = useState<number>(0)
 
   // ─── Fetch Products for Dropdown ─────────────────────────────────────────────
   useEffect(() => {
@@ -130,6 +135,8 @@ export default function ProductSellReportPage() {
         // Total dari API: dihitung dengan pipeline identik dengan dashboard
         setApiTotalRevenue(data.result.totalRevenue ?? 0)
         setApiTotalTransactions(data.result.totalTransactions ?? 0)
+        setTotalMinus(data.result.totalMinus)
+        setTotalVoid(data.result.totalVoid)
 
         setHasRun(true)
       }
@@ -172,9 +179,6 @@ export default function ProductSellReportPage() {
     )
   }
 
-  console.log("================")
-  console.log(filtered)
-  console.log("=================")
 
 
   // Bangun unifiedData dari items yang sudah difilter
@@ -194,7 +198,8 @@ export default function ProductSellReportPage() {
       paid: true,
       type: 'Good',
       qty: row.qty,
-      npwp: row.npwp
+      npwp: row.npwp,
+      void: row.void
     }))
     unifiedData = [...unifiedData, ...goodData]
   }
@@ -214,7 +219,8 @@ export default function ProductSellReportPage() {
       qty: row.qty,
       dpp: row.dpp,
       taxes: row.taxes,
-      npwp: row.npwp
+      npwp: row.npwp,
+      void: row.void
     }))
     unifiedData = [...unifiedData, ...serviceData]
   }
@@ -236,6 +242,21 @@ export default function ProductSellReportPage() {
   const totalTransactionCount = isFiltered ? unifiedData.length : apiTotalTransactions
 
   function toExcel() {
+    unifiedData.forEach((row, index) => {
+      if (!row.void) {
+        unifiedData[index].void = false
+      }
+    })
+
+    const totalMinus = unifiedData.filter((row) => row.void).map((r) => r.dpp).reduce((sum, num) => sum + num, 0)
+
+    const pphGrandTotalCorrectionValue = unifiedData
+      .filter((row) => row.void)
+      .flatMap((row) => row.taxes || [])
+      .filter((tax) => tax?.isPPh)
+      .reduce((sum, tax) => sum + (Number(tax.taxValue) || 0), 0)
+
+
     if (unifiedData.length === 0) return alert('Tidak ada data untuk diexport')
 
     // Collect all unique tax names and their type (isPPh) by checking the name
@@ -307,13 +328,20 @@ export default function ProductSellReportPage() {
       'TGL PENJUALAN': '',
       'NAMA CUSTOMER': '',
       'DESKRIPSI': 'GRAND TOTAL',
-      'DPP': totalNilai,
+      'DPP': totalNilai - totalMinus,
     }
 
     // Jumlahkan hanya kolom nominal (PPh), sisanya biarkan kosong
     taxCols.forEach(tc => {
       if (taxInfo.get(tc)) {
-        grandTotalRow[tc] = data.reduce((acc, row) => acc + (typeof row[tc] === 'number' ? row[tc] : 0), 0)
+        grandTotalRow[tc] = data.reduce(
+          (acc, row) => acc + (typeof row[tc] === 'number' ? row[tc] : 0),
+          0
+        ) - unifiedData
+          .filter((row) => row.void)
+          .flatMap((row) => row.taxes || [])
+          .filter((tax) => tax?.isPPh && tax.taxName === tc)
+          .reduce((sum, tax) => sum + (Number(tax.taxValue) || 0), 0)
       }
       else {
         grandTotalRow[tc] = ''
@@ -334,6 +362,33 @@ export default function ProductSellReportPage() {
 
     // Add data table starting at row 3 (skip row 2)
     SXLSX.utils.sheet_add_json(worksheet, data, { origin: "A3" })
+
+    unifiedData.forEach((row, index) => {
+      if (!row.void) return
+
+      const excelRow = index + 3 // Data pertama berada di Excel row 3
+
+      for (let col = 0; col < Object.keys(data[0]).length; col++) {
+        const cellAddress = SXLSX.utils.encode_cell({
+          r: excelRow,
+          c: col
+        })
+
+        if (!worksheet[cellAddress]) continue
+
+        worksheet[cellAddress].s = {
+          ...worksheet[cellAddress].s,
+          fill: {
+            patternType: 'solid',
+            fgColor: { rgb: 'FFFF0000' }
+          },
+          font: {
+            ...worksheet[cellAddress].s?.font,
+            color: { rgb: 'FFFFFFFF' }
+          }
+        }
+      }
+    })
 
     // Format numbers so they show with thousands separator in Excel (and sum works)
     for (const key in worksheet) {
@@ -379,7 +434,9 @@ export default function ProductSellReportPage() {
     const workbook = SXLSX.utils.book_new()
     SXLSX.utils.book_append_sheet(workbook, worksheet, 'Product Sales')
     SXLSX.writeFile(workbook, `product-sales-${new Date().toISOString().slice(0, 10)}.xlsx`)
+
   }
+
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -475,8 +532,8 @@ export default function ProductSellReportPage() {
       {/* ── Summary Cards ────────────────────────────────────────────────────── */}
       {hasRun && !loading && (
         <div className="mb-6 flex gap-4 ">
-          <SummaryCard label="Total Pendapatan" value={fmtMoney(Math.round(totalCalculatedRevenue))} color="emerald" icon="💰" />
-          <SummaryCard label="Total Transaksi" value={totalTransactionCount} color="amber" icon="📄" />
+          <SummaryCard label="Total Pendapatan" value={fmtMoney(Math.round(totalCalculatedRevenue - totalMinus))} color="emerald" icon="💰" />
+          <SummaryCard label="Total Transaksi" value={totalTransactionCount - totalVoid} color="amber" icon="📄" />
         </div>
       )}
 
@@ -525,7 +582,7 @@ export default function ProductSellReportPage() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {unifiedData.map((row) => (
-                  <tr key={row.id} className={row.void > 0 ? `text-red-900` : ``}>
+                  <tr key={row.id} className={row.void ? 'text-red-900' : ''}>
                     <td className="px-4 py-3.5 text-xs whitespace-nowrap">{fmtDate(row.date)}</td>
                     <td className="px-4 py-3.5 font-mono text-xs">{row.invoiceNumber}</td>
                     <td className="px-4 py-3.5 font-medium truncate text-xs">{row.customerName}</td>
