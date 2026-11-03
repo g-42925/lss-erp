@@ -320,11 +320,6 @@ export async function GET(request: NextRequest) {
           }
         },
         // Filter status lunas / belum lunas
-        {
-          $match: status === 'unpaid'
-            ? { remaining: { $gt: 0 } }
-            : { remaining: { $lte: 0 } }
-        }
       ])
 
       console.log(invoices)
