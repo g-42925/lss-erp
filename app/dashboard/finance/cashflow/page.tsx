@@ -114,6 +114,8 @@ export default function CashflowReportPage() {
 			bankAccountId: '',
 			from: '',
 			to: '',
+			nonCashDstAccountNumber: '',
+			nonCashDstDescription: '',
 		};
 	}
 
