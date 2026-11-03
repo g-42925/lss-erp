@@ -96,6 +96,8 @@ export default function CashflowReportPage() {
 		bankAccountId: '',
 		from: '',
 		to: '',
+		nonCashDstAccountNumber: '',
+		nonCashDstDescription: ''
 	});
 
 	function getInitialModalData(currentMode: string) {
@@ -361,6 +363,14 @@ export default function CashflowReportPage() {
 			const isInitial = modalData.type === 'initial';
 			const additional: any = isInitial ? {} : (modalData.type === 'out' ? { to: modalData.to } : { from: modalData.from });
 			const reference = isInitial && !modalData.reference ? `Saldo Awal-${selectedReference}` : `${modalData.reference}-${selectedReference}`;
+			const nonCashDst = modalData.accountType === 'bank' &&
+				(modalData.nonCashDstAccountNumber || modalData.nonCashDstDescription)
+				? {
+					accountNumber: modalData.nonCashDstAccountNumber,
+					description: modalData.nonCashDstDescription
+				}
+				: undefined;
+
 			const res = await fetch('/api/web/finance/reports/cashflow', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -375,7 +385,8 @@ export default function CashflowReportPage() {
 					date: modalData.date,
 					time: modalData.time,
 					recordedBy: null,
-					additional
+					additional,
+					nonCashDst
 				})
 			});
 			const json = await res.json();
@@ -429,6 +440,8 @@ export default function CashflowReportPage() {
 			bankAccountId: sourceBankAccountId,
 			from: t.from || '',
 			to: t.to || '',
+			nonCashDstAccountNumber: t.nonCashDst?.accountNumber || '',
+			nonCashDstDescription: t.nonCashDst?.description || ''
 		});
 
 		setShowEditModal(true);
@@ -457,6 +470,13 @@ export default function CashflowReportPage() {
 	const handleEditSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setEditSaving(true);
+		const nonCashDst = editData.accountType === 'bank' &&
+			(editData.nonCashDstAccountNumber || editData.nonCashDstDescription)
+			? {
+				accountNumber: editData.nonCashDstAccountNumber,
+				description: editData.nonCashDstDescription
+			}
+			: null;
 		try {
 			const res = await fetch('/api/web/finance/reports/cashflow', {
 				method: 'PUT',
@@ -473,6 +493,7 @@ export default function CashflowReportPage() {
 					time: editData.time,
 					from: editData.type === 'in' ? editData.from : undefined,
 					to: editData.type === 'out' ? editData.to : undefined,
+					nonCashDst
 				})
 			});
 			const json = await res.json();
@@ -869,19 +890,26 @@ export default function CashflowReportPage() {
 														<span className="block text-[10px] font-normal text-slate-400 mt-0.5">{utcToIndonesiaTime(t.date)}</span>
 													)}
 												</td>
-												<td className="p-3.5 whitespace-nowrap text-slate-600">
-													{t.from || <span className="text-slate-300">-</span>}
-												</td>
-												<td className="p-3.5 whitespace-nowrap text-slate-600">
-													{
-														t.method != 'Cash' && t.nonCashDst ? (
-															<span>{t.nonCashDst.accountNumber} ({t.nonCashDst.description})</span>
-														)
-															: (
-																<span>{t.to || <span className="text-slate-300">-</span>}</span>
-															)
-													}
-												</td>
+												{
+													t.from && (
+														<td>{t.from} {t.nonCashDst ? `(${t.nonCashDst?.accountNumber})` : ''}</td>
+													)
+												}
+												{
+													!t.from && (
+														<td>-</td>
+													)
+												}
+												{
+													t.to && (
+														<td>{t.to} {t.nonCashDst ? `(${t.nonCashDst?.accountNumber})` : ''}</td>
+													)
+												}
+												{
+													!t.to && (
+														<td>-</td>
+													)
+												}
 												<td className="p-3.5 whitespace-nowrap">
 													<span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${t.source === 'Manual Entry' ? 'bg-amber-100 text-amber-700'
 														: t.source === 'Purchase Payment' ? 'bg-violet-100 text-violet-700'
@@ -1114,9 +1142,38 @@ export default function CashflowReportPage() {
 													</select>
 												</div>
 											)}
-
 										</div>
+										{modalData.accountType === 'bank' && (
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+												<div>
+													<label className="label">Destination Account Number</label>
+													<input
+														type="text"
+														className="input input-bordered w-full"
+														value={editData.nonCashDstAccountNumber}
+														onChange={(e) => setModalData(prev => ({
+															...prev,
+															nonCashDstAccountNumber: e.target.value
+														}))}
+														placeholder="Account number"
+													/>
+												</div>
 
+												<div>
+													<label className="label">Destination Description</label>
+													<input
+														type="text"
+														className="input input-bordered w-full"
+														value={editData.nonCashDstDescription}
+														onChange={(e) => setModalData(prev => ({
+															...prev,
+															nonCashDstDescription: e.target.value
+														}))}
+														placeholder="Destination description"
+													/>
+												</div>
+											</div>
+										)}
 										{/* Nominal */}
 										<div>
 											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
@@ -1512,6 +1569,37 @@ export default function CashflowReportPage() {
 														<option key={b._id} value={`${b._id}-${b.accountNumber}`}>{b.accountName}</option>
 													))}
 												</select>
+											</div>
+										)}
+										{modalData.accountType === 'bank' && (
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+												<div>
+													<label className="label">Destination Account Number</label>
+													<input
+														type="text"
+														className="input input-bordered w-full"
+														value={modalData.nonCashDstAccountNumber}
+														onChange={(e) => setModalData(prev => ({
+															...prev,
+															nonCashDstAccountNumber: e.target.value
+														}))}
+														placeholder="Account number"
+													/>
+												</div>
+
+												<div>
+													<label className="label">Destination Description</label>
+													<input
+														type="text"
+														className="input input-bordered w-full"
+														value={modalData.nonCashDstDescription}
+														onChange={(e) => setModalData(prev => ({
+															...prev,
+															nonCashDstDescription: e.target.value
+														}))}
+														placeholder="Destination description"
+													/>
+												</div>
 											</div>
 										)}
 									</div>

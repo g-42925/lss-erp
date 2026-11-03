@@ -905,7 +905,7 @@ export async function POST(request: NextRequest) {
 	try {
 		await connectToDatabase();
 		const body = await request.json();
-		const { masterAccountId, additional, ...rest } = body;
+		const { masterAccountId, nonCashDst, additional, ...rest } = body;
 
 		if (!masterAccountId) {
 			return NextResponse.json({ error: true, message: "Missing masterAccountId" });
@@ -936,12 +936,14 @@ export async function POST(request: NextRequest) {
 		const cashflowData = {
 			companyId: company._id,
 			...rest,
-			...additional
+			...additional,
+			...(nonCashDst && { nonCashDst })
 		};
 
 		await Cashflow.create(cashflowData);
 		return NextResponse.json({ error: false, message: "success" });
-	} catch (e: any) {
+	}
+	catch (e: any) {
 		console.error("Cashflow POST Error:", e);
 		return NextResponse.json({ error: true, message: e.message || "Failed to save cashflow" });
 	}
@@ -951,7 +953,7 @@ export async function PUT(request: NextRequest) {
 	try {
 		await connectToDatabase();
 		const body = await request.json();
-		const { id, masterAccountId, additional, ...rest } = body;
+		const { id, masterAccountId, nonCashDst, additional, ...rest } = body;
 
 		if (!id) {
 			return NextResponse.json({ error: true, message: "Missing id" });
@@ -959,7 +961,9 @@ export async function PUT(request: NextRequest) {
 
 		const cashflowData = {
 			...rest,
-			...additional
+			...additional,
+			...(nonCashDst && { nonCashDst })
+
 		};
 
 		await Cashflow.findByIdAndUpdate(id, cashflowData);
