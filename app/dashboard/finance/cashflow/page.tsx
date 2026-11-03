@@ -27,6 +27,9 @@ type CashflowTransaction = {
 	bankVoucherId?: string;
 	bankVoucherNumber?: string;
 	time?: string;
+	nonCashDstAccountNumber: string;
+	nonCashDstDescription: string
+
 };
 
 type Summary = {
@@ -127,6 +130,8 @@ export default function CashflowReportPage() {
 		bankAccountId: '',
 		from: '',
 		to: '',
+		nonCashDstAccountNumber: '',
+		nonCashDstDescription: ''
 	});
 	const [editSaving, setEditSaving] = useState(false);
 
@@ -440,8 +445,8 @@ export default function CashflowReportPage() {
 			bankAccountId: sourceBankAccountId,
 			from: t.from || '',
 			to: t.to || '',
-			nonCashDstAccountNumber: t.nonCashDst?.accountNumber || '',
-			nonCashDstDescription: t.nonCashDst?.description || ''
+			nonCashDstAccountNumber: t.nonCashDstAccountNumber || '',
+			nonCashDstDescription: t.nonCashDstDescription || ''
 		});
 
 		setShowEditModal(true);
@@ -473,7 +478,7 @@ export default function CashflowReportPage() {
 		const nonCashDst = editData.accountType === 'bank' &&
 			(editData.nonCashDstAccountNumber || editData.nonCashDstDescription)
 			? {
-				accountNumber: editData.nonCashDstAccountNumber,
+				accountNumber: editData.,
 				description: editData.nonCashDstDescription
 			}
 			: null;
