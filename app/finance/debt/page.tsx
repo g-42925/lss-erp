@@ -768,16 +768,36 @@ export default function Debt() {
 
   // ── Komponen dropdown untuk multi-item PR di tabel ────────────────────────
   function DebtProductCell({ d }: { d: any }) {
-    // Single-item (legacy)
-    if (d.product?.productName) return <span>{d.product.productName}</span>
-    if (d.invItem?.name) return <span>{d.invItem.name}</span>
-    if (d.description && (!Array.isArray(d.items) || d.items.length === 0)) return <span>{d.description}</span>
-    // Multi-item
+    // Single-item
+    if (d.product?.productName || d.invItem?.name) {
+      return (
+        <span>
+          {d.product?.productName || d.invItem?.name}
+          {d.quantity != null && (
+            <span className="text-gray-400 ml-1">×{d.quantity}</span>
+          )}
+        </span>
+      )
+    }
+
+    if (d.description && (!Array.isArray(d.items) || d.items.length === 0)) {
+      return <span>{d.description}</span>
+    }
+
+    // Multi-item procurement
     if (Array.isArray(d.items) && d.items.length > 0) {
       if (d.items.length === 1) {
         const it = d.items[0]
-        return <span>{it.product?.productName || it.product?.name || '-'}</span>
+        return (
+          <span>
+            {it.product?.productName || it.product?.name || '-'}
+            {it.quantity != null && (
+              <span className="text-gray-400 ml-1">×{it.quantity}</span>
+            )}
+          </span>
+        )
       }
+
       return (
         <details className="group cursor-pointer">
           <summary className="list-none flex items-center gap-1 text-blue-700 hover:text-blue-900 font-medium select-none whitespace-nowrap">
@@ -786,17 +806,21 @@ export default function Debt() {
             </svg>
             {d.items.length} item(s)
           </summary>
+
           <ul className="mt-1 space-y-0.5 pl-1">
             {d.items.map((it: any, idx: number) => (
               <li key={idx} className="text-xs text-gray-700 whitespace-nowrap">
                 {idx + 1}. {it.product?.productName || it.product?.name || '-'}
-                {it.quantity ? <span className="text-gray-400 ml-1">×{it.quantity}</span> : null}
+                {it.quantity != null && (
+                  <span className="text-gray-400 ml-1"><span className="font-bold">×{it.quantity}</span></span>
+                )}
               </li>
             ))}
           </ul>
         </details>
       )
     }
+
     return <span>-</span>
   }
 

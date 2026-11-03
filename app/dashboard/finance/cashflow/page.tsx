@@ -215,7 +215,8 @@ export default function CashflowReportPage() {
 			const res = await fetch(`/api/web/bank-accounts?id=${masterAccountId}`);
 			const data = await res.json();
 			if (!data.error) setBankAccounts(data.result || []);
-		} catch (e) { }
+		}
+		catch (e) { }
 	}, [masterAccountId]);
 
 	const fetchCompany = useCallback(async () => {
