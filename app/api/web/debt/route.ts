@@ -1,6 +1,6 @@
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
+import mongoose, { PipelineStage } from "mongoose"
 import BankAccount from '@/models/BankAccount'
 import Purchase from '@/models/Purchase'
 import Invoice from '@/models/Invoice'
@@ -10,7 +10,6 @@ import Log from '@/models/Log'
 import Cashflow from '@/models/Cashflow'
 import "@/models/Tax"
 import { getAvailableBalance } from '@/lib/finance/balance'
-
 
 
 export async function GET(request: NextRequest) {
@@ -35,8 +34,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Filter periode
-    const dateFilter: any = {}
+    // ─── Filter periode ────────────────────────────────────
+
+    const dateFilter: Record<string, any> = {}
 
     if (month) {
       const [year, m] = month.split("-").map(Number)
@@ -45,89 +45,95 @@ export async function GET(request: NextRequest) {
 
       dateFilter.date = {
         $gte: new Date(`${month}-01T00:00:00+07:00`),
-        $lt: new Date(`${nextYear}-${String(nextMonth).padStart(2, "0")}-01T00:00:00+07:00`)
+        $lt: new Date(
+          `${nextYear}-${String(nextMonth).padStart(2, "0")}-01T00:00:00+07:00`
+        )
       }
     }
 
-    // Mengambil transaksi sebelumnya yang memiliki produk sama.
-    // Mendukung purchase lama (productId) dan procurement baru (items).
-    const historyLookup = {
+    // ─── Helper: mendapatkan seluruh productId ─────────────
+
+    const getProductIds = (root: string) => ({
+      $setUnion: [
+        {
+          $cond: [
+            { $ne: [`${root}.productId`, null] },
+            [{ $toString: `${root}.productId` }],
+            []
+          ]
+        },
+        {
+          $map: {
+            input: { $ifNull: [`${root}.items`, []] },
+            as: "item",
+            in: {
+              $cond: [
+                { $ne: ["$$item.productId", null] },
+                { $toString: "$$item.productId" },
+                null
+              ]
+            }
+          }
+        }
+      ]
+    })
+
+    // ─── Helper: mencari produk yang sama ──────────────────
+
+    const historyProductMatch = {
+      $gt: [
+        {
+          $size: {
+            $setIntersection: [
+              "$$currentProductIds",
+              getProductIds("$$ROOT")
+            ]
+          }
+        },
+        0
+      ]
+    }
+
+    // ─── Lookup: riwayat pembelian sebelumnya ──────────────
+
+    const historyPipeline: PipelineStage[] = [
+      {
+        $match: {
+          $expr: {
+            $and: [
+              { $ne: ["$_id", "$$currentId"] },
+              { $eq: ["$companyId", "$$currentCompanyId"] },
+              { $in: ["$purchaseType", ["product", "procurement"]] },
+              { $lt: ["$date", "$$currentDate"] },
+              historyProductMatch
+            ]
+          }
+        }
+      },
+      {
+        $sort: {
+          date: -1,
+          _id: -1
+        }
+      }
+    ]
+
+    const historyLookup: PipelineStage = {
       $lookup: {
         from: "purchases",
         let: {
           currentId: "$_id",
           currentDate: "$date",
           currentCompanyId: "$companyId",
-          currentProductIds: {
-            $setUnion: [
-              {
-                $cond: [
-                  { $ne: ["$productId", null] },
-                  [{ $toString: "$productId" }],
-                  []
-                ]
-              },
-              {
-                $map: {
-                  input: { $ifNull: ["$items", []] },
-                  as: "item",
-                  in: { $toString: "$$item.productId" }
-                }
-              }
-            ]
-          }
+          currentProductIds: getProductIds("$$ROOT")
         },
-        pipeline: [
-          {
-            $match: {
-              $expr: {
-                $and: [
-                  { $ne: ["$_id", "$$currentId"] },
-                  { $eq: ["$companyId", "$$currentCompanyId"] },
-                  { $in: ["$purchaseType", ["product", "procurement"]] },
-                  { $lt: ["$date", "$$currentDate"] },
-                  {
-                    $gt: [
-                      {
-                        $size: {
-                          $setIntersection: [
-                            "$$currentProductIds",
-                            {
-                              $setUnion: [
-                                {
-                                  $cond: [
-                                    { $ne: ["$productId", null] },
-                                    [{ $toString: "$productId" }],
-                                    []
-                                  ]
-                                },
-                                {
-                                  $map: {
-                                    input: { $ifNull: ["$items", []] },
-                                    as: "item",
-                                    in: { $toString: "$$item.productId" }
-                                  }
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      },
-                      0
-                    ]
-                  }
-                ]
-              }
-            }
-          },
-          { $sort: { date: -1, _id: -1 } }
-        ],
+        pipeline: historyPipeline,
         as: "_historyCandidates"
       }
     }
 
-    // Memasangkan history terakhir ke setiap productId.
-    // Satu dokumen history bisa berasal dari purchase maupun procurement.
+    // ─── Helper: mendapatkan history terakhir per produk ──
+
     const getLastHistory = (productId: string) => ({
       $let: {
         vars: {
@@ -150,9 +156,13 @@ export async function GET(request: NextRequest) {
                           { $toString: productId },
                           {
                             $map: {
-                              input: { $ifNull: ["$$purchase.items", []] },
+                              input: {
+                                $ifNull: ["$$purchase.items", []]
+                              },
                               as: "item",
-                              in: { $toString: "$$item.productId" }
+                              in: {
+                                $toString: "$$item.productId"
+                              }
                             }
                           }
                         ]
@@ -176,7 +186,12 @@ export async function GET(request: NextRequest) {
                     $arrayElemAt: [
                       {
                         $filter: {
-                          input: { $ifNull: ["$$previousPurchase.items", []] },
+                          input: {
+                            $ifNull: [
+                              "$$previousPurchase.items",
+                              []
+                            ]
+                          },
                           as: "item",
                           cond: {
                             $eq: [
@@ -219,7 +234,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const attachHistory = {
+    // ─── Attach history ke setiap produk ───────────────────
+
+    const attachHistory: PipelineStage = {
       $addFields: {
         items: {
           $map: {
@@ -245,21 +262,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ─── Hutang Barang ─────────────────────────────────────
-    if (filterType === "barang") {
-      const matchQuery: any = {
-        companyId: cmp._id,
-        purchaseType: { $in: ["product", "procurement"] },
-        ...dateFilter
-      }
+    // ─── Helper: filter vendor ─────────────────────────────
 
+    const applyVendorFilter = (query: Record<string, any>) => {
       if (vendorId) {
         const vendorObjectId = new mongoose.Types.ObjectId(vendorId)
-        matchQuery.$or = [
+
+        query.$or = [
           { vendorId: vendorObjectId },
           { supplierId: vendorObjectId }
         ]
       }
+
+      return query
+    }
+
+    // ─── Hutang Barang ─────────────────────────────────────
+
+    if (filterType === "barang") {
+      const matchQuery = applyVendorFilter({
+        companyId: cmp._id,
+        purchaseType: {
+          $in: ["product", "procurement"]
+        },
+        ...dateFilter
+      })
 
       const debts = await Purchase.aggregate([
         { $match: matchQuery },
@@ -272,7 +299,12 @@ export async function GET(request: NextRequest) {
             as: "product"
           }
         },
-        { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$product",
+            preserveNullAndEmptyArrays: true
+          }
+        },
 
         {
           $lookup: {
@@ -282,7 +314,12 @@ export async function GET(request: NextRequest) {
             as: "invItem"
           }
         },
-        { $unwind: { path: "$invItem", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$invItem",
+            preserveNullAndEmptyArrays: true
+          }
+        },
 
         {
           $lookup: {
@@ -292,7 +329,12 @@ export async function GET(request: NextRequest) {
             as: "supplier"
           }
         },
-        { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$supplier",
+            preserveNullAndEmptyArrays: true
+          }
+        },
 
         {
           $lookup: {
@@ -302,9 +344,15 @@ export async function GET(request: NextRequest) {
             as: "vendor"
           }
         },
-        { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$vendor",
+            preserveNullAndEmptyArrays: true
+          }
+        },
 
         // Populate items[].product
+
         {
           $addFields: {
             _itemProductIds: {
@@ -372,6 +420,8 @@ export async function GET(request: NextRequest) {
           }
         },
 
+        // Attach purchase history
+
         historyLookup,
         attachHistory,
 
@@ -381,6 +431,69 @@ export async function GET(request: NextRequest) {
             _itemProducts: 0,
             _itemInvItems: 0,
             _itemProductIds: 0
+          }
+        }
+      ] as PipelineStage[])
+
+      return NextResponse.json({
+        noResult: debts.length === 0,
+        message: "",
+        result: debts,
+        error: false
+      })
+    }
+
+    // ─── Hutang Jasa ────────────────────────────────────────
+
+    if (filterType === "jasa") {
+      const matchQuery: Record<string, any> = {
+        companyId: cmp._id,
+        purchaseType: "service",
+        ...dateFilter
+      }
+
+      if (status === "unpaid") {
+        matchQuery.$expr = {
+          $gt: ["$finalPrice", "$payAmount"]
+        }
+      } else if (status === "paid") {
+        matchQuery.$expr = {
+          $lte: ["$finalPrice", "$payAmount"]
+        }
+      }
+
+      applyVendorFilter(matchQuery)
+
+      const debts = await Purchase.aggregate([
+        { $match: matchQuery },
+
+        {
+          $lookup: {
+            from: "vendors",
+            localField: "vendorId",
+            foreignField: "_id",
+            as: "vendor"
+          }
+        },
+        {
+          $unwind: {
+            path: "$vendor",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+
+        {
+          $lookup: {
+            from: "suppliers",
+            localField: "supplierId",
+            foreignField: "_id",
+            as: "supplier"
+          }
+        },
+        {
+          $unwind: {
+            path: "$supplier",
+            preserveNullAndEmptyArrays: true
           }
         }
       ])
@@ -393,61 +506,10 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // ─── Hutang Jasa ────────────────────────────────────────
-    if (filterType === "jasa") {
-      const matchQuery: any = {
-        companyId: cmp._id,
-        purchaseType: "service",
-        ...dateFilter
-      }
+    // ─── Hutang Vendor ──────────────────────────────────────
 
-      if (status === "unpaid") {
-        matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
-      } else if (status === "paid") {
-        matchQuery.$expr = { $lte: ["$finalPrice", "$payAmount"] }
-      }
-
-      if (vendorId) {
-        const vendorObjectId = new mongoose.Types.ObjectId(vendorId)
-        matchQuery.$or = [
-          { vendorId: vendorObjectId },
-          { supplierId: vendorObjectId }
-        ]
-      }
-
-      const debts = await Purchase.aggregate([
-        { $match: matchQuery },
-        {
-          $lookup: {
-            from: "vendors",
-            localField: "vendorId",
-            foreignField: "_id",
-            as: "vendor"
-          }
-        },
-        { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
-        {
-          $lookup: {
-            from: "suppliers",
-            localField: "supplierId",
-            foreignField: "_id",
-            as: "supplier"
-          }
-        },
-        { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } }
-      ])
-
-      return NextResponse.json({
-        noResult: debts.length === 0,
-        message: "",
-        result: debts,
-        error: false
-      })
-    }
-
-    // ─── Hutang Vendor ─────────────────────────────────────
     if (filterType === "vendor") {
-      const matchQuery: any = {
+      const matchQuery: Record<string, any> = {
         companyId: cmp._id,
         invoiceType: "vendor_manual",
         void: { $ne: true },
@@ -469,17 +531,27 @@ export async function GET(request: NextRequest) {
             as: "vendor"
           }
         },
-        { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
+        {
+          $unwind: {
+            path: "$vendor",
+            preserveNullAndEmptyArrays: true
+          }
+        },
 
         {
           $lookup: {
             from: "invoices",
-            let: { manualInvoiceNumber: "$invoiceNumber" },
+            let: {
+              manualInvoiceNumber: "$invoiceNumber"
+            },
             pipeline: [
               {
                 $match: {
                   $expr: {
-                    $eq: ["$vendorInvoiceNumber", "$$manualInvoiceNumber"]
+                    $eq: [
+                      "$vendorInvoiceNumber",
+                      "$$manualInvoiceNumber"
+                    ]
                   },
                   void: { $ne: true }
                 }
@@ -500,7 +572,9 @@ export async function GET(request: NextRequest) {
 
         {
           $addFields: {
-            vendorPaid: { $ifNull: ["$vendorPaid", 0] },
+            vendorPaid: {
+              $ifNull: ["$vendorPaid", 0]
+            },
             baseVendorAmount: {
               $cond: {
                 if: {
@@ -520,13 +594,19 @@ export async function GET(request: NextRequest) {
           $addFields: {
             taxRatePct: {
               $reduce: {
-                input: { $ifNull: ["$vendor.populatedTaxes", []] },
+                input: {
+                  $ifNull: ["$vendor.populatedTaxes", []]
+                },
                 initialValue: 0,
                 in: {
                   $cond: {
                     if: "$$this.isPPh",
-                    then: { $subtract: ["$$value", "$$this.value"] },
-                    else: { $add: ["$$value", "$$this.value"] }
+                    then: {
+                      $subtract: ["$$value", "$$this.value"]
+                    },
+                    else: {
+                      $add: ["$$value", "$$this.value"]
+                    }
                   }
                 }
               }
@@ -541,7 +621,12 @@ export async function GET(request: NextRequest) {
                 "$baseVendorAmount",
                 {
                   $divide: [
-                    { $multiply: ["$baseVendorAmount", "$taxRatePct"] },
+                    {
+                      $multiply: [
+                        "$baseVendorAmount",
+                        "$taxRatePct"
+                      ]
+                    },
                     100
                   ]
                 }
@@ -554,7 +639,10 @@ export async function GET(request: NextRequest) {
         {
           $addFields: {
             remaining: {
-              $subtract: ["$totalVendorAmount", "$vendorPaid"]
+              $subtract: [
+                "$totalVendorAmount",
+                "$vendorPaid"
+              ]
             }
           }
         }
@@ -575,15 +663,590 @@ export async function GET(request: NextRequest) {
       error: true
     })
 
-  } catch (e: unknown) {
+  }
+  catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e instanceof Error ? e.message : "Something went wrong",
+      message: e instanceof Error
+        ? e.message
+        : "Something went wrong",
       result: null,
       error: true
     })
   }
 }
+
+// export async function GET(request: NextRequest) {
+//   try {
+//     const url = new URL(request.url)
+//     const id = url.searchParams.get("id")
+//     const filterType = url.searchParams.get("filterType") ?? "barang"
+//     const status = url.searchParams.get("status") ?? "unpaid"
+//     const month = url.searchParams.get("month")
+//     const vendorId = url.searchParams.get("vendorId")
+
+//     await connectToDatabase()
+
+//     const cmp = await Companie.findOne({ masterAccountId: id })
+
+//     if (!cmp) {
+//       return NextResponse.json({
+//         noResult: true,
+//         message: "Company tidak ditemukan",
+//         result: [],
+//         error: false
+//       })
+//     }
+
+//     // Filter periode
+//     const dateFilter: any = {}
+
+//     if (month) {
+//       const [year, m] = month.split("-").map(Number)
+//       const nextYear = m === 12 ? year + 1 : year
+//       const nextMonth = m === 12 ? 1 : m + 1
+
+//       dateFilter.date = {
+//         $gte: new Date(`${month}-01T00:00:00+07:00`),
+//         $lt: new Date(`${nextYear}-${String(nextMonth).padStart(2, "0")}-01T00:00:00+07:00`)
+//       }
+//     }
+
+//     // Mengambil transaksi sebelumnya yang memiliki produk sama.
+//     // Mendukung purchase lama (productId) dan procurement baru (items).
+//     const historyLookup: PipelineStage = {
+//       $lookup: {
+//         from: "purchases",
+//         let: {
+//           currentId: "$_id",
+//           currentDate: "$date",
+//           currentCompanyId: "$companyId",
+//           currentProductIds: {
+//             $setUnion: [
+//               {
+//                 $cond: [
+//                   { $ne: ["$productId", null] },
+//                   [{ $toString: "$productId" }],
+//                   []
+//                 ]
+//               },
+//               {
+//                 $map: {
+//                   input: { $ifNull: ["$items", []] },
+//                   as: "item",
+//                   in: { $toString: "$$item.productId" }
+//                 }
+//               }
+//             ]
+//           }
+//         },
+//         pipeline: [
+//           {
+//             $match: {
+//               $expr: {
+//                 $and: [
+//                   { $ne: ["$_id", "$$currentId"] },
+//                   { $eq: ["$companyId", "$$currentCompanyId"] },
+//                   { $in: ["$purchaseType", ["product", "procurement"]] },
+//                   { $lt: ["$date", "$$currentDate"] },
+//                   {
+//                     $gt: [
+//                       {
+//                         $size: {
+//                           $setIntersection: [
+//                             "$$currentProductIds",
+//                             {
+//                               $setUnion: [
+//                                 {
+//                                   $cond: [
+//                                     { $ne: ["$productId", null] },
+//                                     [{ $toString: "$productId" }],
+//                                     []
+//                                   ]
+//                                 },
+//                                 {
+//                                   $map: {
+//                                     input: { $ifNull: ["$items", []] },
+//                                     as: "item",
+//                                     in: { $toString: "$$item.productId" }
+//                                   }
+//                                 }
+//                               ]
+//                             }
+//                           ]
+//                         }
+//                       },
+//                       0
+//                     ]
+//                   }
+//                 ]
+//               }
+//             }
+//           },
+//           { $sort: { date: -1, _id: -1 } }
+//         ],
+//         as: "_historyCandidates"
+//       }
+//     }
+
+//     // Memasangkan history terakhir ke setiap productId.
+//     // Satu dokumen history bisa berasal dari purchase maupun procurement.
+//     const getLastHistory = (productId: string) => ({
+//       $let: {
+//         vars: {
+//           previousPurchase: {
+//             $arrayElemAt: [
+//               {
+//                 $filter: {
+//                   input: "$_historyCandidates",
+//                   as: "purchase",
+//                   cond: {
+//                     $or: [
+//                       {
+//                         $eq: [
+//                           { $toString: "$$purchase.productId" },
+//                           { $toString: productId }
+//                         ]
+//                       },
+//                       {
+//                         $in: [
+//                           { $toString: productId },
+//                           {
+//                             $map: {
+//                               input: { $ifNull: ["$$purchase.items", []] },
+//                               as: "item",
+//                               in: { $toString: "$$item.productId" }
+//                             }
+//                           }
+//                         ]
+//                       }
+//                     ]
+//                   }
+//                 }
+//               },
+//               0
+//             ]
+//           }
+//         },
+//         in: {
+//           $cond: [
+//             { $eq: ["$$previousPurchase", null] },
+//             null,
+//             {
+//               $let: {
+//                 vars: {
+//                   previousItem: {
+//                     $arrayElemAt: [
+//                       {
+//                         $filter: {
+//                           input: { $ifNull: ["$$previousPurchase.items", []] },
+//                           as: "item",
+//                           cond: {
+//                             $eq: [
+//                               { $toString: "$$item.productId" },
+//                               { $toString: productId }
+//                             ]
+//                           }
+//                         }
+//                       },
+//                       0
+//                     ]
+//                   }
+//                 },
+//                 in: {
+//                   $mergeObjects: [
+//                     {
+//                       $ifNull: [
+//                         "$$previousItem",
+//                         {
+//                           productId: "$$previousPurchase.productId",
+//                           pricePerUnit: "$$previousPurchase.pricePerUnit",
+//                           finalPrice: "$$previousPurchase.finalPrice",
+//                           payAmount: "$$previousPurchase.payAmount",
+//                           quantity: "$$previousPurchase.quantity",
+//                           price: "$$previousPurchase.price"
+//                         }
+//                       ]
+//                     },
+//                     {
+//                       purchaseId: "$$previousPurchase._id",
+//                       date: "$$previousPurchase.date",
+//                       purchaseType: "$$previousPurchase.purchaseType"
+//                     }
+//                   ]
+//                 }
+//               }
+//             }
+//           ]
+//         }
+//       }
+//     })
+
+//     const attachHistory = {
+//       $addFields: {
+//         items: {
+//           $map: {
+//             input: { $ifNull: ["$items", []] },
+//             as: "currentItem",
+//             in: {
+//               $mergeObjects: [
+//                 "$$currentItem",
+//                 {
+//                   history: getLastHistory("$$currentItem.productId")
+//                 }
+//               ]
+//             }
+//           }
+//         },
+//         history: {
+//           $cond: [
+//             { $eq: ["$productId", null] },
+//             null,
+//             getLastHistory("$productId")
+//           ]
+//         }
+//       }
+//     }
+
+//     // ─── Hutang Barang ─────────────────────────────────────
+//     if (filterType === "barang") {
+//       const matchQuery: any = {
+//         companyId: cmp._id,
+//         purchaseType: { $in: ["product", "procurement"] },
+//         ...dateFilter
+//       }
+
+//       if (vendorId) {
+//         const vendorObjectId = new mongoose.Types.ObjectId(vendorId)
+//         matchQuery.$or = [
+//           { vendorId: vendorObjectId },
+//           { supplierId: vendorObjectId }
+//         ]
+//       }
+
+//       const debts = await Purchase.aggregate([
+//         { $match: matchQuery },
+
+//         {
+//           $lookup: {
+//             from: "products",
+//             localField: "productId",
+//             foreignField: "_id",
+//             as: "product"
+//           }
+//         },
+//         { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+
+//         {
+//           $lookup: {
+//             from: "invitems",
+//             localField: "productId",
+//             foreignField: "_id",
+//             as: "invItem"
+//           }
+//         },
+//         { $unwind: { path: "$invItem", preserveNullAndEmptyArrays: true } },
+
+//         {
+//           $lookup: {
+//             from: "suppliers",
+//             localField: "supplierId",
+//             foreignField: "_id",
+//             as: "supplier"
+//           }
+//         },
+//         { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+
+//         {
+//           $lookup: {
+//             from: "vendors",
+//             localField: "vendorId",
+//             foreignField: "_id",
+//             as: "vendor"
+//           }
+//         },
+//         { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
+
+//         // Populate items[].product
+//         {
+//           $addFields: {
+//             _itemProductIds: {
+//               $map: {
+//                 input: { $ifNull: ["$items", []] },
+//                 as: "item",
+//                 in: "$$item.productId"
+//               }
+//             }
+//           }
+//         },
+//         {
+//           $lookup: {
+//             from: "products",
+//             localField: "_itemProductIds",
+//             foreignField: "_id",
+//             as: "_itemProducts"
+//           }
+//         },
+//         {
+//           $lookup: {
+//             from: "invitems",
+//             localField: "_itemProductIds",
+//             foreignField: "_id",
+//             as: "_itemInvItems"
+//           }
+//         },
+//         {
+//           $addFields: {
+//             items: {
+//               $map: {
+//                 input: { $ifNull: ["$items", []] },
+//                 as: "item",
+//                 in: {
+//                   $mergeObjects: [
+//                     "$$item",
+//                     {
+//                       product: {
+//                         $arrayElemAt: [
+//                           {
+//                             $filter: {
+//                               input: {
+//                                 $concatArrays: [
+//                                   "$_itemProducts",
+//                                   "$_itemInvItems"
+//                                 ]
+//                               },
+//                               as: "product",
+//                               cond: {
+//                                 $eq: [
+//                                   { $toString: "$$product._id" },
+//                                   { $toString: "$$item.productId" }
+//                                 ]
+//                               }
+//                             }
+//                           },
+//                           0
+//                         ]
+//                       }
+//                     }
+//                   ]
+//                 }
+//               }
+//             }
+//           }
+//         },
+
+//         historyLookup,
+//         attachHistory,
+
+//         {
+//           $project: {
+//             _historyCandidates: 0,
+//             _itemProducts: 0,
+//             _itemInvItems: 0,
+//             _itemProductIds: 0
+//           }
+//         }
+//       ])
+
+//       return NextResponse.json({
+//         noResult: debts.length === 0,
+//         message: "",
+//         result: debts,
+//         error: false
+//       })
+//     }
+
+//     // ─── Hutang Jasa ────────────────────────────────────────
+//     if (filterType === "jasa") {
+//       const matchQuery: any = {
+//         companyId: cmp._id,
+//         purchaseType: "service",
+//         ...dateFilter
+//       }
+
+//       if (status === "unpaid") {
+//         matchQuery.$expr = { $gt: ["$finalPrice", "$payAmount"] }
+//       } else if (status === "paid") {
+//         matchQuery.$expr = { $lte: ["$finalPrice", "$payAmount"] }
+//       }
+
+//       if (vendorId) {
+//         const vendorObjectId = new mongoose.Types.ObjectId(vendorId)
+//         matchQuery.$or = [
+//           { vendorId: vendorObjectId },
+//           { supplierId: vendorObjectId }
+//         ]
+//       }
+
+//       const debts = await Purchase.aggregate([
+//         { $match: matchQuery },
+//         {
+//           $lookup: {
+//             from: "vendors",
+//             localField: "vendorId",
+//             foreignField: "_id",
+//             as: "vendor"
+//           }
+//         },
+//         { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
+//         {
+//           $lookup: {
+//             from: "suppliers",
+//             localField: "supplierId",
+//             foreignField: "_id",
+//             as: "supplier"
+//           }
+//         },
+//         { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } }
+//       ])
+
+//       return NextResponse.json({
+//         noResult: debts.length === 0,
+//         message: "",
+//         result: debts,
+//         error: false
+//       })
+//     }
+
+//     // ─── Hutang Vendor ─────────────────────────────────────
+//     if (filterType === "vendor") {
+//       const matchQuery: any = {
+//         companyId: cmp._id,
+//         invoiceType: "vendor_manual",
+//         void: { $ne: true },
+//         ...dateFilter
+//       }
+
+//       if (vendorId) {
+//         matchQuery.vendorId = new mongoose.Types.ObjectId(vendorId)
+//       }
+
+//       const invoices = await Invoice.aggregate([
+//         { $match: matchQuery },
+
+//         {
+//           $lookup: {
+//             from: "vendors",
+//             localField: "vendorId",
+//             foreignField: "_id",
+//             as: "vendor"
+//           }
+//         },
+//         { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
+
+//         {
+//           $lookup: {
+//             from: "invoices",
+//             let: { manualInvoiceNumber: "$invoiceNumber" },
+//             pipeline: [
+//               {
+//                 $match: {
+//                   $expr: {
+//                     $eq: ["$vendorInvoiceNumber", "$$manualInvoiceNumber"]
+//                   },
+//                   void: { $ne: true }
+//                 }
+//               }
+//             ],
+//             as: "relatedInvoices"
+//           }
+//         },
+
+//         {
+//           $lookup: {
+//             from: "taxes",
+//             localField: "vendor.taxes",
+//             foreignField: "_id",
+//             as: "vendor.populatedTaxes"
+//           }
+//         },
+
+//         {
+//           $addFields: {
+//             vendorPaid: { $ifNull: ["$vendorPaid", 0] },
+//             baseVendorAmount: {
+//               $cond: {
+//                 if: {
+//                   $gt: [
+//                     { $size: { $ifNull: ["$relatedInvoices", []] } },
+//                     0
+//                   ]
+//                 },
+//                 then: { $sum: "$relatedInvoices.debt" },
+//                 else: { $ifNull: ["$debt", 0] }
+//               }
+//             }
+//           }
+//         },
+
+//         {
+//           $addFields: {
+//             taxRatePct: {
+//               $reduce: {
+//                 input: { $ifNull: ["$vendor.populatedTaxes", []] },
+//                 initialValue: 0,
+//                 in: {
+//                   $cond: {
+//                     if: "$$this.isPPh",
+//                     then: { $subtract: ["$$value", "$$this.value"] },
+//                     else: { $add: ["$$value", "$$this.value"] }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         },
+
+//         {
+//           $addFields: {
+//             totalVendorAmount: {
+//               $add: [
+//                 "$baseVendorAmount",
+//                 {
+//                   $divide: [
+//                     { $multiply: ["$baseVendorAmount", "$taxRatePct"] },
+//                     100
+//                   ]
+//                 }
+//               ]
+//             },
+//             originalDebt: "$debt"
+//           }
+//         },
+
+//         {
+//           $addFields: {
+//             remaining: {
+//               $subtract: ["$totalVendorAmount", "$vendorPaid"]
+//             }
+//           }
+//         }
+//       ])
+
+//       return NextResponse.json({
+//         noResult: invoices.length === 0,
+//         message: "",
+//         result: invoices,
+//         error: false
+//       })
+//     }
+
+//     return NextResponse.json({
+//       noResult: true,
+//       message: "filterType tidak valid",
+//       result: null,
+//       error: true
+//     })
+
+//   } catch (e: unknown) {
+//     return NextResponse.json({
+//       noResult: true,
+//       message: e instanceof Error ? e.message : "Something went wrong",
+//       result: null,
+//       error: true
+//     })
+//   }
+// }
 
 
 // export async function GET(request: NextRequest) {
