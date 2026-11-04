@@ -126,6 +126,8 @@ export default function Debt() {
   const [editDestinationAccountNumber, setEditDestinationAccountNumber] = useState("")
   const [editDestinationDescription, setEditDestinationDescription] = useState("")
 
+  const priceComparisonRef = useRef<HTMLDialogElement>(null)
+
 
   const router = useRouter()
 
@@ -1009,7 +1011,20 @@ export default function Debt() {
 
                             {filterType === 'barang' && (
                               <td>
-                                <DebtProductCell d={d} />
+                                <div className="flex items-center gap-2">
+                                  <DebtProductCell d={d} />
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs btn-outline btn-info"
+                                    onClick={() => {
+                                      setSelectedDebt(d)
+                                      setExpandedItem(null)
+                                      priceComparisonRef.current?.showModal()
+                                    }}
+                                  >
+                                    Perbandingan
+                                  </button>
+                                </div>
                               </td>
                             )}
                             {filterType === 'jasa' && <td>{d.description ?? '-'}</td>}
@@ -1370,6 +1385,77 @@ export default function Debt() {
                   {paySubmitting ? <span className="loading loading-spinner loading-sm"></span> : 'Simpan Pembayaran'}
                 </button>
               </div>
+            </div>
+          </div>
+        </dialog>
+
+        <dialog ref={priceComparisonRef} className="modal text-black">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-4">
+              Perbandingan Harga Pembelian
+            </h3>
+
+            {selectedDebt?.items?.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {selectedDebt.items.map((item: any, index: number) => (
+                  <div key={index} className="border rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedItem(
+                        expandedItem === index ? null : index
+                      )}
+                      className="w-full flex justify-between items-center p-3 text-sm font-medium"
+                    >
+                      <span>{index + 1}. {item.product?.name || '-'}</span>
+                      <span>{expandedItem === index ? '▲' : '▼'}</span>
+                    </button>
+
+                    {expandedItem === index && (
+                      <div className="px-3 pb-3 text-sm space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Harga sekarang</span>
+                          <span>
+                            Rp{Math.floor(
+                              item.finalPrice / item.quantity
+                            ).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+
+                        {item.history && (
+                          <>
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Harga sebelumnya</span>
+                              <span>
+                                Rp{Math.floor(
+                                  item.history.finalPrice / item.history.quantity
+                                ).toLocaleString('id-ID')}
+                              </span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">Pembelian terakhir</span>
+                              <span>
+                                {new Date(item.history.date).toLocaleDateString('id-ID')}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Tidak ada data barang.</p>
+            )}
+
+            <div className="modal-action">
+              <button
+                className="btn"
+                onClick={() => priceComparisonRef.current?.close()}
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </dialog>
