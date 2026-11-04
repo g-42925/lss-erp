@@ -94,7 +94,9 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // ─── Lookup: riwayat pembelian sebelumnya ──────────────
+    type LookupPipeline = NonNullable<
+      Extract<PipelineStage, { $lookup: unknown }>["$lookup"]["pipeline"]
+    >
 
     const historyPipeline = [
       {
@@ -116,9 +118,9 @@ export async function GET(request: NextRequest) {
           _id: -1
         }
       }
-    ]
+    ] satisfies LookupPipeline
 
-    const historyLookup = {
+    const historyLookup: PipelineStage = {
       $lookup: {
         from: "purchases",
         let: {
@@ -130,7 +132,7 @@ export async function GET(request: NextRequest) {
         pipeline: historyPipeline,
         as: "_historyCandidates"
       }
-    } satisfies PipelineStage
+    }
     // ─── Helper: mendapatkan history terakhir per produk ──
 
     const getLastHistory = (productId: string) => ({
