@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
 
     // Memasangkan history terakhir ke setiap productId.
     // Satu dokumen history bisa berasal dari purchase maupun procurement.
-    const getLastHistory = (productId) => ({
+    const getLastHistory = (productId: string) => ({
       $let: {
         vars: {
           previousPurchase: {
