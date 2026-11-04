@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     // ─── Lookup: riwayat pembelian sebelumnya ──────────────
 
-    const historyPipeline: Exclude<PipelineStage, PipelineStage.Merge>[] = [
+    const historyPipeline = [
       {
         $match: {
           $expr: {
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
       }
     ]
 
-    const historyLookup: PipelineStage = {
+    const historyLookup = {
       $lookup: {
         from: "purchases",
         let: {
@@ -130,8 +130,7 @@ export async function GET(request: NextRequest) {
         pipeline: historyPipeline,
         as: "_historyCandidates"
       }
-    }
-
+    } satisfies PipelineStage
     // ─── Helper: mendapatkan history terakhir per produk ──
 
     const getLastHistory = (productId: string) => ({
