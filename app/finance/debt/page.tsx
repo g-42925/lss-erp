@@ -1125,16 +1125,6 @@ export default function Debt() {
                             (selectedDebt.invoiceNumber || '-')}
                       </span>
                     </div>
-                    {
-                      selectedDebt.nonCashDst && selectedDebt.nonCashDst.accountNumber != '' && (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">No. Transaksi</span>
-                          <span className="font-semibold text-gray-800 text-base">
-                            {selectedDebt.nonCashDst.accountNumber} - ({selectedDebt.nonCashDst.description})
-                          </span>
-                        </div>
-                      )
-                    }
                     <div className="flex flex-col gap-1">
                       <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">Vendor / Supplier</span>
                       <span className="font-semibold text-gray-800 text-base">
@@ -1241,13 +1231,14 @@ export default function Debt() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <fieldset className="fieldset">
                         <legend className="fieldset-legend">
-                          Destinasi
+                          Rekening tujuan
                         </legend>
                         <input
+                          readOnly
                           type="text"
                           className="input w-full"
                           placeholder="Nomor rekening tujuan"
-                          value={payFormData.destinationAccountNumber}
+                          value={selectedDebt.nonCashDst.accountNumber}
                           onChange={e =>
                             setPayFormData(p => ({
                               ...p,
@@ -1259,13 +1250,14 @@ export default function Debt() {
 
                       <fieldset className="fieldset">
                         <legend className="fieldset-legend">
-                          Destinasi deskripsi
+                          Deksripsi tujuan
                         </legend>
                         <input
+                          readOnly
                           type="text"
                           className="input w-full"
                           placeholder="Keterangan tujuan transfer"
-                          value={payFormData.destinationDescription}
+                          value={selectedDebt.nonCashDst.description}
                           onChange={e =>
                             setPayFormData(p => ({
                               ...p,

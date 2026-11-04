@@ -633,18 +633,22 @@ function Purchases() {
       alert("Produk ini sudah ada dalam daftar. Hapus dulu jika ingin mengubahnya.")
       return
     }
+
+    const fFinalPrice = addItemDraft.finalPrice !== "" ? parseFloat(addItemDraft.finalPrice) || 0 : 0
+
     // Temukan info produk untuk ditampilkan
     const productList = filterType === "procurement" ? items : products
     const prod = productList.find((p: any) => p._id === addItemDraft.productId)
     setAddItems(prev => [...prev, {
       productId: addItemDraft.productId,
       quantity: parseFloat(addItemDraft.quantity),
-      finalPrice: addItemDraft.finalPrice !== "" ? parseFloat(addItemDraft.finalPrice) || 0 : 0,
+      finalPrice: fFinalPrice,
       note: addItemDraft.note || "",
       _productLabel: filterType === "procurement"
         ? `${prod?.name || ""} (${prod?.unit || ""})`
         : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`,
       _product: prod,
+      ppu: fFinalPrice / parseFloat(addItemDraft.quantity)
     }])
     // Reset draft
     setAddItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
@@ -2281,21 +2285,6 @@ function Purchases() {
                       {/* Total Section */}
                       <div className="flex flex-col gap-2 pt-1">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Total Harga:</span>
-                            <label className="flex items-center gap-1 cursor-pointer text-xs text-gray-500">
-                              <input
-                                type="checkbox"
-                                className="checklist checklist-xs"
-                                checked={editTotalMode === "manual"}
-                                onChange={(e) => {
-                                  setEditTotalMode(e.target.checked ? "manual" : "auto")
-                                  if (!e.target.checked) setEditTotalOverride("")
-                                }}
-                              />
-                              Override
-                            </label>
-                          </div>
                           {editTotalMode === "auto" ? (
                             <span className="font-bold text-blue-800 text-base">
                               Rp {calcEditItemsTotal().toLocaleString("id-ID")}
@@ -2315,11 +2304,6 @@ function Purchases() {
                             </div>
                           )}
                         </div>
-                        {editTotalMode === "auto" && calcEditItemsTotal() === 0 && (
-                          <p className="text-xs text-amber-600">
-                            ⚠ Semua item belum memiliki harga. Centang &quot;Override&quot; untuk mengisi total secara manual.
-                          </p>
-                        )}
                       </div>
                     </div>
                   )}
@@ -2510,6 +2494,7 @@ function Purchases() {
                         />
                       </div>
 
+
                       {/* Harga per item (opsional) */}
                       <div className="col-span-3 flex flex-col gap-1">
                         <label className="text-xs text-gray-600">total / item</label>
@@ -2581,6 +2566,7 @@ function Purchases() {
                             <tr>
                               <th className="text-left">Produk/Item</th>
                               <th className="text-center">Qty</th>
+                              <th className="text-center">Ppu</th>
                               <th className="text-right">Total/Item</th>
                               <th className="text-right">Subtotal</th>
                               <th></th>
@@ -2591,6 +2577,7 @@ function Purchases() {
                               <tr key={idx} className="hover:bg-gray-50">
                                 <td className="text-left">{it._productLabel}</td>
                                 <td className="text-center">{it.quantity}</td>
+                                <td className="text-center">{it.ppu.toLocaleString("id-ID")}</td>
                                 <td className="text-right">
                                   {it.finalPrice > 0
                                     ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
@@ -2620,21 +2607,6 @@ function Purchases() {
                       {/* Total Section */}
                       <div className="flex flex-col gap-2 pt-1">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Total Harga:</span>
-                            <label className="flex items-center gap-1 cursor-pointer text-xs text-gray-500">
-                              <input
-                                type="checkbox"
-                                className="checklist checklist-xs"
-                                checked={addTotalMode === "manual"}
-                                onChange={(e) => {
-                                  setAddTotalMode(e.target.checked ? "manual" : "auto")
-                                  if (!e.target.checked) setAddTotalOverride("")
-                                }}
-                              />
-                              Override
-                            </label>
-                          </div>
                           {addTotalMode === "auto" ? (
                             <span className="font-bold text-blue-800 text-base">
                               Rp {calcAddItemsTotal().toLocaleString("id-ID")}
@@ -2654,11 +2626,6 @@ function Purchases() {
                             </div>
                           )}
                         </div>
-                        {addTotalMode === "auto" && calcAddItemsTotal() === 0 && (
-                          <p className="text-xs text-amber-600">
-                            ⚠ Semua item belum memiliki harga. Total akan 0. Centang &quot;Override manual&quot; untuk mengisi total secara manual.
-                          </p>
-                        )}
                       </div>
                     </div>
                   )}
