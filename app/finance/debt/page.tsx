@@ -14,6 +14,46 @@ import { usePermission } from "@/hooks/usePermission"
 
 type FilterType = 'barang' | 'jasa' | 'vendor'
 
+function PriceAlert({ alert, currentPrice, label }: {
+  alert: any
+  currentPrice?: number
+  label: string
+}) {
+  if (!alert?.date) return null
+
+  return (
+    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+      <div className="font-semibold text-amber-800 mb-2">
+        Riwayat Pembelian Terakhir
+      </div>
+
+      <div className="font-medium text-gray-800 mb-1">{label}</div>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
+        <span>
+          Tanggal: <strong>
+            {new Date(alert.date).toLocaleDateString('id-ID')}
+          </strong>
+        </span>
+
+        <span>
+          Harga terakhir: <strong>
+            Rp {Number(alert.pricePerUnit).toLocaleString('id-ID')}
+          </strong>
+        </span>
+
+        {currentPrice != null && (
+          <span>
+            Harga sekarang: <strong>
+              Rp {Number(currentPrice).toLocaleString('id-ID')}
+            </strong>
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function Debt() {
   const loggedIn = useAuth((state) => state.loggedIn)
   const isSuperAdmin = useAuth((state) => state.isSuperAdmin)
@@ -50,6 +90,9 @@ export default function Debt() {
   const [bulkPaySubmitting, setBulkPaySubmitting] = useState(false)
   const [selectedDebt, setSelectedDebt] = useState<any>(null)
   const [selectedLogDebt, setSelectedLogDebt] = useState<any>(null)
+
+  const [expandedItem, setExpandedItem] = useState<number | null>(null)
+
   const [payFormData, setPayFormData] = useState({
     payAmount: 0 as number | string,
     paymentMethod: 'Cash',
@@ -963,6 +1006,7 @@ export default function Debt() {
                         {debts.map((d, index) => (
                           <tr key={index}>
                             <td>{new Date(d.date).toLocaleDateString('id-ID')}</td>
+
                             {filterType === 'barang' && (
                               <td>
                                 <DebtProductCell d={d} />
@@ -1066,6 +1110,66 @@ export default function Debt() {
                             (selectedDebt.invoiceNumber || '-')}
                       </span>
                     </div>
+                    {filterType === 'barang' && (
+                      <details className="mt-3 border rounded-lg group">
+                        <summary className="cursor-pointer select-none flex justify-between items-center p-3 text-sm font-medium hover:bg-gray-50 rounded-lg">
+                          <span>Perbandingan ({selectedDebt.items?.length || 0})</span>
+                          <span className="text-gray-400 transition-transform group-open:rotate-180">
+                            ▼
+                          </span>
+                        </summary>
+
+                        <div className="p-3 pt-0 flex flex-col gap-2">
+                          {selectedDebt.items?.length > 0 ? (
+                            selectedDebt.items.map((item: any, index: number) => (
+                              <div key={index} className="border rounded-lg">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedItem(expandedItem === index ? null : index)}
+                                  className="w-full flex justify-between items-center p-3 text-sm font-medium"
+                                >
+                                  <span>{index + 1}. {item.product?.name || '-'}</span>
+                                  <span className="text-gray-400">
+                                    {expandedItem === index ? '▲' : '▼'}
+                                  </span>
+                                </button>
+
+                                {expandedItem === index && (
+                                  <div className="px-3 pb-3 text-sm space-y-2">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">Harga sekarang</span>
+                                      <span>
+                                        Rp{Math.floor(item.finalPrice / item.quantity).toLocaleString('id-ID')}
+                                      </span>
+                                    </div>
+
+                                    {item.history && (
+                                      <>
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-500">Harga sebelumnya</span>
+                                          <span>
+                                            Rp{Math.floor(item.history.finalPrice / item.history.quantity).toLocaleString('id-ID')}
+                                          </span>
+                                        </div>
+
+                                        <div className="flex justify-between">
+                                          <span className="text-gray-500">Pembelian terakhir</span>
+                                          <span>
+                                            {new Date(item.history.date).toLocaleDateString('id-ID')}
+                                          </span>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-500">Tidak ada data barang</p>
+                          )}
+                        </div>
+                      </details>
+                    )}
                     {
                       selectedDebt.nonCashDst && selectedDebt.nonCashDst.accountNumber != '' && (
                         <div className="flex flex-col gap-1">
@@ -1769,4 +1873,3 @@ export default function Debt() {
     </>
   )
 }
-
