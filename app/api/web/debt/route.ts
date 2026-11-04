@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     // ─── Lookup: riwayat pembelian sebelumnya ──────────────
 
-    const historyPipeline: PipelineStage[] = [
+    const historyPipeline: Exclude<PipelineStage, PipelineStage.Merge>[] = [
       {
         $match: {
           $expr: {
