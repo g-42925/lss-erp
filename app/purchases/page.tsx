@@ -235,7 +235,7 @@ function Purchases() {
         const unit = filterType === "procurement"
           ? it.product?.unit
           : it.product?.conversionRatioX
-        return `${it.product.name} ${unit ? ` (${unit})` : ""}`
+        return `${it.quantity} ${unit ? ` (${unit})` : ""}`
       }
       const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
       return `${totalQty} total`
@@ -1991,13 +1991,13 @@ function Purchases() {
                                     </td>
                                     <td className="text-right">
                                       {it.finalPrice > 0
-                                        ? `Rp ${it.finalPrice.toLocaleString("id-ID")}`
+                                        ? `Rp ${(it.finalPrice / it.quantity).toLocaleString("id-ID")}`
                                         : "-"
                                       }
                                     </td>
                                     <td className="text-right font-medium">
                                       {it.finalPrice > 0
-                                        ? `Rp ${(it.finalPrice * it.quantity).toLocaleString("id-ID")}`
+                                        ? `Rp ${(it.finalPrice).toLocaleString("id-ID")}`
                                         : "-"
                                       }
                                     </td>
