@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
               { $ne: ["$_id", "$$currentId"] },
               { $eq: ["$companyId", "$$currentCompanyId"] },
               { $in: ["$purchaseType", ["product", "procurement"]] },
-              { $lt: ["$date", "$$currentDate"] },
+              { $lte: ["$date", "$$currentDate"] },
               historyProductMatch
             ]
           }
@@ -135,64 +135,150 @@ export async function GET(request: NextRequest) {
     }
     // ─── Helper: mendapatkan history terakhir per produk ──
 
+    // const getLastHistory = (productId: string) => ({
+    //   $let: {
+    //     vars: {
+    //       previousPurchase: {
+    //         $arrayElemAt: [
+    //           {
+    //             $filter: {
+    //               input: "$_historyCandidates",
+    //               as: "purchase",
+    //               cond: {
+    //                 $or: [
+    //                   {
+    //                     $eq: [
+    //                       { $toString: "$$purchase.productId" },
+    //                       { $toString: productId }
+    //                     ]
+    //                   },
+    //                   {
+    //                     $in: [
+    //                       { $toString: productId },
+    //                       {
+    //                         $map: {
+    //                           input: {
+    //                             $ifNull: ["$$purchase.items", []]
+    //                           },
+    //                           as: "item",
+    //                           in: {
+    //                             $toString: "$$item.productId"
+    //                           }
+    //                         }
+    //                       }
+    //                     ]
+    //                   }
+    //                 ]
+    //               }
+    //             }
+    //           },
+    //           0
+    //         ]
+    //       }
+    //     },
+    //     in: {
+    //       $cond: [
+    //         { $eq: ["$$previousPurchase", null] },
+    //         null,
+    //         {
+    //           $let: {
+    //             vars: {
+    //               previousItem: {
+    //                 $arrayElemAt: [
+    //                   {
+    //                     $filter: {
+    //                       input: {
+    //                         $ifNull: [
+    //                           "$$previousPurchase.items",
+    //                           []
+    //                         ]
+    //                       },
+    //                       as: "item",
+    //                       cond: {
+    //                         $eq: [
+    //                           { $toString: "$$item.productId" },
+    //                           { $toString: productId }
+    //                         ]
+    //                       }
+    //                     }
+    //                   },
+    //                   0
+    //                 ]
+    //               }
+    //             },
+    //             in: {
+    //               $mergeObjects: [
+    //                 {
+    //                   $ifNull: [
+    //                     "$$previousItem",
+    //                     {
+    //                       productId: "$$previousPurchase.productId",
+    //                       pricePerUnit: "$$previousPurchase.pricePerUnit",
+    //                       finalPrice: "$$previousPurchase.finalPrice",
+    //                       payAmount: "$$previousPurchase.payAmount",
+    //                       quantity: "$$previousPurchase.quantity",
+    //                       price: "$$previousPurchase.price"
+    //                     }
+    //                   ]
+    //                 },
+    //                 {
+    //                   purchaseId: "$$previousPurchase._id",
+    //                   date: "$$previousPurchase.date",
+    //                   purchaseType: "$$previousPurchase.purchaseType"
+    //                 }
+    //               ]
+    //             }
+    //           }
+    //         }
+    //       ]
+    //     }
+    //   }
+    // })
+
     const getLastHistory = (productId: string) => ({
       $let: {
         vars: {
-          previousPurchase: {
-            $arrayElemAt: [
-              {
-                $filter: {
-                  input: "$_historyCandidates",
-                  as: "purchase",
-                  cond: {
-                    $or: [
+          previousPurchases: {
+            $filter: {
+              input: "$_historyCandidates",
+              as: "purchase",
+              cond: {
+                $or: [
+                  {
+                    $eq: [
+                      { $toString: "$$purchase.productId" },
+                      { $toString: productId }
+                    ]
+                  },
+                  {
+                    $in: [
+                      { $toString: productId },
                       {
-                        $eq: [
-                          { $toString: "$$purchase.productId" },
-                          { $toString: productId }
-                        ]
-                      },
-                      {
-                        $in: [
-                          { $toString: productId },
-                          {
-                            $map: {
-                              input: {
-                                $ifNull: ["$$purchase.items", []]
-                              },
-                              as: "item",
-                              in: {
-                                $toString: "$$item.productId"
-                              }
-                            }
-                          }
-                        ]
+                        $map: {
+                          input: { $ifNull: ["$$purchase.items", []] },
+                          as: "item",
+                          in: { $toString: "$$item.productId" }
+                        }
                       }
                     ]
                   }
-                }
-              },
-              0
-            ]
+                ]
+              }
+            }
           }
         },
         in: {
-          $cond: [
-            { $eq: ["$$previousPurchase", null] },
-            null,
-            {
+          $map: {
+            input: { $slice: ["$$previousPurchases", 0, 3] },
+            as: "purchase",
+            in: {
               $let: {
                 vars: {
                   previousItem: {
                     $arrayElemAt: [
                       {
                         $filter: {
-                          input: {
-                            $ifNull: [
-                              "$$previousPurchase.items",
-                              []
-                            ]
-                          },
+                          input: { $ifNull: ["$$purchase.items", []] },
                           as: "item",
                           cond: {
                             $eq: [
@@ -212,25 +298,25 @@ export async function GET(request: NextRequest) {
                       $ifNull: [
                         "$$previousItem",
                         {
-                          productId: "$$previousPurchase.productId",
-                          pricePerUnit: "$$previousPurchase.pricePerUnit",
-                          finalPrice: "$$previousPurchase.finalPrice",
-                          payAmount: "$$previousPurchase.payAmount",
-                          quantity: "$$previousPurchase.quantity",
-                          price: "$$previousPurchase.price"
+                          productId: "$$purchase.productId",
+                          pricePerUnit: "$$purchase.pricePerUnit",
+                          finalPrice: "$$purchase.finalPrice",
+                          payAmount: "$$purchase.payAmount",
+                          quantity: "$$purchase.quantity",
+                          price: "$$purchase.price"
                         }
                       ]
                     },
                     {
-                      purchaseId: "$$previousPurchase._id",
-                      date: "$$previousPurchase.date",
-                      purchaseType: "$$previousPurchase.purchaseType"
+                      purchaseId: "$$purchase._id",
+                      date: "$$purchase.date",
+                      purchaseType: "$$purchase.purchaseType"
                     }
                   ]
                 }
               }
             }
-          ]
+          }
         }
       }
     })

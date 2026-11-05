@@ -1347,26 +1347,47 @@ export default function Debt() {
                         <div className="flex justify-between">
                           <span className="text-gray-500">Harga sekarang</span>
                           <span>
-                            {item.pricePerUnit}@{item.quantity}
+                            {(item.finalPrice / item.quantity).toLocaleString("id-ID")}
                           </span>
                         </div>
 
-                        {item.history && (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Harga sebelumnya</span>
-                              <span>
-                                {Math.floor(item.history.finalPrice / item.history.quantity).toLocaleString('id-ID')}@{item.history.quantity}
-                              </span>
+                        {Array.isArray(item.history) && item.history.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="font-semibold text-gray-700">
+                              Riwayat Pembelian
                             </div>
 
-                            <div className="flex justify-between">
-                              <span className="text-gray-500">Pembelian terakhir</span>
-                              <span>
-                                {new Date(item.history.date).toLocaleDateString('id-ID')}
-                              </span>
-                            </div>
-                          </>
+                            {item.history.map((history: any, historyIndex: number) => (
+                              <div
+                                key={history.purchaseId || historyIndex}
+                                className="flex justify-between items-center border-b pb-2"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-gray-500">
+                                    History {historyIndex + 1}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(history.date).toLocaleDateString('id-ID')}
+                                  </span>
+                                </div>
+
+                                <div className="text-right">
+                                  <div className="font-medium">
+                                    Rp {Math.floor(
+                                      history.finalPrice / history.quantity
+                                    ).toLocaleString('id-ID')}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    Qty: {history.quantity}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400">
+                            Belum ada riwayat pembelian sebelumnya
+                          </p>
                         )}
                       </div>
                     )}
