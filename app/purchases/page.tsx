@@ -45,6 +45,7 @@ function Purchases() {
   const [nonCashEditTarget, setNonCashEditTarget] = useState<any>(null)
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null)
   const [fPrice, setFPrice] = useState<number>(0)
+  const [newFPrice, setNewFPrice] = useState<number>(0)
 
   // ─── State multi-item untuk Add PR ────────────────────────────────────────
   // Setiap entry: { productId, quantity, finalPrice (opsional), note (opsional) }
@@ -234,7 +235,7 @@ function Purchases() {
         const unit = filterType === "procurement"
           ? it.product?.unit
           : it.product?.conversionRatioX
-        return `${it.quantity}${unit ? ` (${unit})` : ""}`
+        return `${it.product.name} ${unit ? ` (${unit})` : ""}`
       }
       const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
       return `${totalQty} total`
@@ -690,6 +691,7 @@ function Purchases() {
         ? `${prod?.name || ""} (${prod?.unit || ""})`
         : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`,
       _product: prod,
+      pricePerUnit: editItemDraft.finalPrice / editItemDraft.quantity
     }])
     setEditItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
     setEditLastPriceInfo(null)
@@ -743,6 +745,7 @@ function Purchases() {
           quantity: it.quantity,
           finalPrice: it.finalPrice || 0,
           note: it.note || "",
+          pricePerUnit: it.ppu
         })),
         finalPrice,
         ...(addTotalMode === "manual" && addTotalOverride !== "" ? { finalPriceOverride: parseFloat(addTotalOverride) } : {}),
@@ -1156,6 +1159,7 @@ function Purchases() {
   }
 
   function openEdit(id: string) {
+    console.log('test')
     let fPriceX = 0;
 
     const [{ _id, items, customSupplier, date, description, finalPrice, vendorId }] = pr.filter(
@@ -1189,6 +1193,8 @@ function Purchases() {
 
           fPriceX += it.finalPrice
 
+          //console.log('test', it._doc)
+
           return {
             productId: it.productId?._id || it.productId,
             quantity: it.quantity,
@@ -1196,8 +1202,11 @@ function Purchases() {
             note: it.note || "",
             _productLabel: label,
             _product: prod,
+            pticePerUnit: it.pricePerUnit
           }
         })
+
+        console.log({ loaded })
 
 
         setEditItems(loaded)
@@ -1325,6 +1334,12 @@ function Purchases() {
       )
     })
   }
+
+  useEffect(() => {
+    setFPrice(
+      editItems.reduce((sum, item) => sum + (Number(item.finalPrice) || 0), 0)
+    )
+  }, [editItems])
 
   useEffect(() => {
     if (!hasHydrated) return
@@ -2227,6 +2242,7 @@ function Purchases() {
                             <tr>
                               <th className="text-left">Produk/Item</th>
                               <th className="text-center">Qty</th>
+                              <th className="text-center">Ppu</th>
                               <th className="text-right">Total/Item</th>
                               <th></th>
                             </tr>
@@ -2235,6 +2251,7 @@ function Purchases() {
                             {editItems.map((it, idx) => (
                               <tr key={idx} className="hover:bg-gray-50">
                                 <td className="text-left">{it._productLabel}</td>
+
                                 <td className="text-center">
                                   <input
                                     type="number"
@@ -2242,13 +2259,32 @@ function Purchases() {
                                     className="input input-xs w-16 text-center"
                                     value={it.quantity}
                                     onChange={(e) => {
-                                      const val = parseFloat(e.target.value) || 1
+                                      const quantity = Math.max(1, parseFloat(e.target.value) || 1)
+
                                       setEditItems(prev => prev.map((x, i) =>
-                                        i === idx ? { ...x, quantity: val } : x
+                                        i === idx
+                                          ? {
+                                            ...x,
+                                            quantity,
+                                            pricePerUnit: x.finalPrice / quantity,
+                                            finalPrice: (x.finalPrice / quantity) * quantity,
+
+                                          }
+                                          : x
                                       ))
                                     }}
                                   />
                                 </td>
+
+                                <td className="text-center">
+                                  <input
+                                    readOnly
+                                    type="number"
+                                    className="input input-xs w-16 text-center"
+                                    value={it.pricePerUnit ?? it.finalPrice / it.quantity}
+                                  />
+                                </td>
+
                                 <td className="text-right">
                                   <NumericFormat
                                     className="input input-xs w-28 text-right"
@@ -2259,13 +2295,21 @@ function Purchases() {
                                     placeholder="0"
                                     value={it.finalPrice > 0 ? it.finalPrice : ""}
                                     onValueChange={(vals) => {
-                                      const val = vals.floatValue ?? 0
+                                      const finalPrice = vals.floatValue ?? 0
+
                                       setEditItems(prev => prev.map((x, i) =>
-                                        i === idx ? { ...x, finalPrice: val } : x
+                                        i === idx
+                                          ? {
+                                            ...x,
+                                            finalPrice,
+                                            pricePerUnit: finalPrice / x.quantity
+                                          }
+                                          : x
                                       ))
                                     }}
                                   />
                                 </td>
+
                                 <td className="text-center">
                                   <button
                                     type="button"
@@ -2273,7 +2317,11 @@ function Purchases() {
                                     className="text-red-500 hover:text-red-700 p-1"
                                     title="Hapus item"
                                   >
-                                    <HugeiconsIcon icon={MultiplicationSignIcon} size={16} color="currentColor" />
+                                    <HugeiconsIcon
+                                      icon={MultiplicationSignIcon}
+                                      size={16}
+                                      color="currentColor"
+                                    />
                                   </button>
                                 </td>
                               </tr>
