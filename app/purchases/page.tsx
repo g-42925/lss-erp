@@ -2615,7 +2615,7 @@ function Purchases() {
 
                         {showPurchaseHistory && (
                           <div className="border-t border-amber-200 divide-y divide-amber-200">
-                            {addLastPriceInfo.map((item, index) => (
+                            {addLastPriceInfo.map((item: any, index: number) => (
                               <div
                                 key={`${item.date}-${index}`}
                                 className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
