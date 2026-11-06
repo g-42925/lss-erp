@@ -82,6 +82,8 @@ function Purchases() {
   const [editLastPriceInfo, setEditLastPriceInfo] = useState<any>(null)
   const [editLastPriceLoading, setEditLastPriceLoading] = useState(false)
 
+  const [showPurchaseHistory, setShowPurchaseHistory] = useState(false)
+
   const bankAccount = useFetch<any[], any>({
     url: "",
     method: "GET",
@@ -154,10 +156,7 @@ function Purchases() {
   const watchTaxFormTaxIds = taxForm.watch("taxIds") || []
 
   // ─── Fetch riwayat harga terakhir untuk item yang dipilih ───────────────────
-  async function fetchLastPurchasePrice(
-    productId: string,
-    form: "add" | "edit"
-  ) {
+  async function fetchLastPurchasePrice(productId: string, form: "add" | "edit") {
     if (!productId || !masterAccountId) {
       if (form === "add") setAddLastPriceInfo(null)
       else setEditLastPriceInfo(null)
@@ -167,7 +166,8 @@ function Purchases() {
     if (form === "add") {
       setAddLastPriceLoading(true)
       setAddLastPriceInfo(null)
-    } else {
+    }
+    else {
       setEditLastPriceLoading(true)
       setEditLastPriceInfo(null)
     }
@@ -183,10 +183,16 @@ function Purchases() {
       } else {
         setEditLastPriceInfo(json.noResult ? null : json.result)
       }
-    } catch {
-      if (form === "add") setAddLastPriceInfo(null)
-      else setEditLastPriceInfo(null)
-    } finally {
+    }
+    catch {
+      if (form === "add") {
+        setAddLastPriceInfo(null)
+      }
+      else {
+        setEditLastPriceInfo(null)
+      }
+    }
+    finally {
       if (form === "add") setAddLastPriceLoading(false)
       else setEditLastPriceLoading(false)
     }
@@ -2577,27 +2583,71 @@ function Purchases() {
                         Mengambil riwayat harga...
                       </div>
                     )}
-                    {!addLastPriceLoading && addLastPriceInfo && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    {!addLastPriceLoading && addLastPriceInfo?.length > 0 && (
+                      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50">
+                        <button
+                          type="button"
+                          onClick={() => setShowPurchaseHistory(prev => !prev)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-xs"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+
+                            <span className="text-amber-800">
+                              Riwayat pembelian
+                            </span>
+                          </div>
+
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className={`size-4 shrink-0 text-amber-700 transition-transform ${showPurchaseHistory ? "rotate-180" : ""
+                              }`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
                           </svg>
-                          <span className="font-medium">Terakhir dibeli:</span>
-                          <span className="font-bold text-amber-900">
-                            Rp {(addLastPriceInfo.finalPrice ?? 0).toLocaleString("id-ID")}
-                          </span>
-                          <span className="text-amber-600">·</span>
-                          <span>qty: <span className="font-semibold">{addLastPriceInfo.quantity}</span></span>
-                          {addLastPriceInfo.date && (
-                            <>
-                              <span className="text-amber-600">·</span>
-                              <span className="text-amber-600">
-                                {new Date(addLastPriceInfo.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                              </span>
-                            </>
-                          )}
-                        </div>
+                        </button>
+
+                        {showPurchaseHistory && (
+                          <div className="border-t border-amber-200 divide-y divide-amber-200">
+                            {addLastPriceInfo.map((item, index) => (
+                              <div
+                                key={`${item.date}-${index}`}
+                                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                              >
+                                <div>
+                                  <div className="text-xs font-bold text-amber-900">
+                                    Rp {Number(item.pricePerUnit ?? 0).toLocaleString("id-ID")}
+                                    {index === 0 && (
+                                      <span className="ml-2 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium">
+                                        Terbaru
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="mt-1 text-[11px] text-amber-700">
+                                    Qty: {item.quantity}
+                                    <span className="mx-1">·</span>
+                                    Total: Rp {Number(item.finalPrice ?? 0).toLocaleString("id-ID")}
+                                  </div>
+                                </div>
+
+                                <span className="text-[11px] text-amber-700">
+                                  {new Date(item.date).toLocaleDateString("id-ID", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric"
+                                  })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

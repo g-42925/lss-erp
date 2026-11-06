@@ -9,6 +9,8 @@ const vendorSchema = new mongoose.Schema({
   taxNumber: { type: String, default: '' },
   vendorOf: { type: mongoose.Schema.Types.ObjectId, required: true },
   taxes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tax' }],
+  bankAccountNumber: { type: String, required: false },
+  bankAccountType: { type: String, required: false }
 });
 
 

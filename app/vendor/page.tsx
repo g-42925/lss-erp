@@ -215,7 +215,9 @@ export default function Vendor() {
       address: vendor.address,
       mobile: vendor.mobile,
       taxNumber: vendor.taxNumber || "",
-      _id: vendor._id
+      _id: vendor._id,
+      bankAccountNumber: vendor.bankAccountNumber,
+      bankAccountType: vendor.bankAccountType
     })
 
     editRef.current?.show()
@@ -386,6 +388,14 @@ export default function Vendor() {
               <fieldset className="fieldset">
                 <legend className="fieldset-legend text-black">Tax Number</legend>
                 <input className="input w-full bg-white" {...editVendorForm.register("taxNumber")} type="text" placeholder="NPWP / KTP" />
+              </fieldset>
+              <fieldset>
+                <legend className="fieldset-legend text-black">Bank Number</legend>
+                <input className="input w-full bg-white" {...editVendorForm.register("bankAccountNumber")} type="text" placeholder="Bank Nunber" />
+              </fieldset>
+              <fieldset>
+                <legend className="fieldset-legend text-black">Bank Type</legend>
+                <input className="input w-full bg-white" {...editVendorForm.register("bankAccountType")} type="text" placeholder="Bank Type" />
               </fieldset>
               {editFn.noResult || editFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}
               <div className="flex justify-end gap-2 mt-4">

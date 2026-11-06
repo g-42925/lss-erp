@@ -5,6 +5,9 @@ import { NextRequest, NextResponse } from "next/server";
 import Purchase from "@/models/Purchase";
 import Companie from "@/models/Companie";
 
+import mongoose from "mongoose"
+
+
 /**
  * GET /api/web/purchases/last-price
  * Query params:
@@ -43,38 +46,65 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Find the most recent purchase (ordered or completed) for this product
-    const lastPurchase = await Purchase.findOne({
-      companyId: company._id,
-      productId,
-      purchaseType,
-      status: { $in: ["ordered", "completed"] },
-    })
-      .sort({ date: -1 })
-      .lean() as any;
+    const productObjectId = new mongoose.Types.ObjectId(productId!)
 
-    if (!lastPurchase) {
-      return NextResponse.json({
-        noResult: true,
-        message: "Belum ada riwayat pembelian untuk item ini",
-        result: null,
-        error: false,
-      });
-    }
+    const history = await Purchase.aggregate([
+      {
+        $match: {
+          companyId: company._id,
+          purchaseType,
+          "items.productId": productObjectId,
+          status: "ordered"
+        }
+      },
+      {
+        $sort: {
+          date: -1,
+          _id: -1
+        }
+      },
+      {
+        $limit: 3
+      },
+      {
+        $project: {
+          _id: 0,
+          date: 1,
+          item: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$items",
+                  as: "item",
+                  cond: {
+                    $eq: ["$$item.productId", productObjectId]
+                  }
+                }
+              },
+              0
+            ]
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          date: 1,
+          pricePerUnit: "$item.pricePerUnit",
+          quantity: "$item.quantity",
+          finalPrice: "$item.finalPrice"
+        }
+      }
+    ])
 
     return NextResponse.json({
       noResult: false,
       message: "",
-      result: {
-        finalPrice: lastPurchase.finalPrice ?? 0,
-        quantity: lastPurchase.quantity ?? 0,
-        date: lastPurchase.date,
-        purchaseOrderNumber: lastPurchase.purchaseOrderNumber,
-        customSupplier: lastPurchase.customSupplier ?? null,
-      },
+      result: history,
       error: false,
     });
-  } catch (e: any) {
+  }
+  catch (e: any) {
     return NextResponse.json({
       noResult: true,
       message: e.message,

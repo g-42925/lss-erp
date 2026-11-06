@@ -510,7 +510,8 @@ export default function Debt() {
           userId,
           masterAccountId,
           description,
-          time: payTime
+          time: payTime,
+          vendor: selectedDebt.vendor._id
         })
       })
       const json = await res.json()
@@ -1141,7 +1142,15 @@ export default function Debt() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Vendor Id</legend>
+                  <input
+                    className="input w-full"
+                    type="text"
+                    value={selectedDebt?.vendor?._id}
+                    required
+                  />
+                </fieldset>
                 <fieldset className="fieldset">
                   <legend className="fieldset-legend">Tanggal Pembayaran</legend>
                   <input
@@ -1238,7 +1247,7 @@ export default function Debt() {
                           type="text"
                           className="input w-full"
                           placeholder="Nomor rekening tujuan"
-                          value={selectedDebt.nonCashDst.accountNumber}
+                          value={filterType === 'vendor' ? selectedDebt.vendor?.bankAccountNumber : selectedDebt?.nonCashDst?.accountNumber}
                           onChange={e =>
                             setPayFormData(p => ({
                               ...p,
@@ -1257,7 +1266,7 @@ export default function Debt() {
                           type="text"
                           className="input w-full"
                           placeholder="Keterangan tujuan transfer"
-                          value={selectedDebt.nonCashDst.description}
+                          value={filterType === 'vendor' ? selectedDebt.vendor?.bankAccountType : selectedDebt?.nonCashDst?.accountNumber}
                           onChange={e =>
                             setPayFormData(p => ({
                               ...p,

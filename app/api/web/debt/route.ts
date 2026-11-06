@@ -8,6 +8,7 @@ import ServiceOrder from '@/models/ServiceOrder'
 import Companie from '@/models/Companie'
 import Log from '@/models/Log'
 import Cashflow from '@/models/Cashflow'
+import Vendor from '@/models/Vendor'
 import "@/models/Tax"
 import { getAvailableBalance } from '@/lib/finance/balance'
 
@@ -1814,7 +1815,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
     const body = await request.json()
-    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId, description, voucher, time } = body
+    const { invoiceId, payAmount, paymentMethod, payDate, userId, bankAccountId, masterAccountId, description, voucher, time, vendor } = body
 
     if (!invoiceId || !payAmount || payAmount <= 0) {
       return NextResponse.json({ noResult: true, message: "Parameter tidak valid", result: null, error: true })
@@ -1901,6 +1902,11 @@ export async function POST(request: NextRequest) {
 
     // ─── Catat Cashflow ──────────────────────────────────────────────────────
 
+
+    const v = await Vendor.findById(vendor)
+
+
+
     if (cmp) {
       await Cashflow.create({
         companyId: cmp._id,
@@ -1911,7 +1917,7 @@ export async function POST(request: NextRequest) {
         reference: `VL ${vnSuffix} | Inv ${invoice.invoiceNumber || invoiceId}${refText ? ` | ${refText}` : ''}`,
         date: payDate ? new Date(payDate) : new Date(),
         recordedBy: userId ? new mongoose.Types.ObjectId(userId) : null,
-        to: 'Vendor',
+        to: `Vendor ${v.name}`,
         source: 'purchase_payment',
         time: time
       })
