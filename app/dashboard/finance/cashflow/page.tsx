@@ -1506,25 +1506,46 @@ export default function CashflowReportPage() {
 					)}
 
 					{/* Modal Catat Kas Manual */}
+
 					{showModal && (
-						<div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/40 backdrop-blur-sm">
-							<div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100">
-								<div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-									<h2 className="text-sm font-bold text-slate-800">Catat Kas (Manual)</h2>
+						<div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm">
+							<div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
+								{/* Header */}
+								<div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+									<h2 className="text-sm font-bold text-slate-800">
+										Catat Kas (Manual)
+									</h2>
+
 									<button
 										type="button"
 										onClick={() => setShowModal(false)}
-										className="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full transition-colors"
+										className="rounded-full bg-slate-100 p-1.5 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600"
 									>
-										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-											<path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											className="h-4 w-4"
+											viewBox="0 0 20 20"
+											fill="currentColor"
+										>
+											<path
+												fillRule="evenodd"
+												d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+												clipRule="evenodd"
+											/>
 										</svg>
 									</button>
 								</div>
 
-								<form onSubmit={handleAddSubmit} className="p-4 space-y-3">
+								<form
+									onSubmit={handleAddSubmit}
+									className="space-y-4 overflow-y-auto p-5"
+								>
+									{/* Jenis Aliran */}
 									<div>
-										<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jenis Aliran</label>
+										<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+											Jenis Aliran
+										</label>
+
 										<select
 											required
 											value={modalData.type}
@@ -1532,7 +1553,7 @@ export default function CashflowReportPage() {
 												setModalData({ ...modalData, type: e.target.value });
 												onTransactionChange(e.target.value as 'in' | 'out' | 'initial');
 											}}
-											className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+											className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
 										>
 											<option value="in">Uang Masuk (Cash In)</option>
 											<option value="out">Uang Keluar (Cash Out)</option>
@@ -1540,200 +1561,311 @@ export default function CashflowReportPage() {
 										</select>
 									</div>
 
-									<div className="grid grid-cols-2 gap-3">
+									{/* Informasi Akun */}
+									<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 										{modalData.type !== 'initial' && (
 											<div>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tipe Akun</label>
+												<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+													Tipe Akun
+												</label>
+
 												<select
-													required={modalData.type !== 'initial'}
+													required
 													value={modalData.accountType}
 													onChange={(e) => {
 														const newAccountType = e.target.value;
-														setModalData({ ...modalData, accountType: newAccountType });
-														if (modalData.type === 'out') fetchCashOutBalance(newAccountType, modalData.bankAccountId, modalData.date);
+
+														setModalData({
+															...modalData,
+															accountType: newAccountType
+														});
+
+														if (modalData.type === 'out') {
+															fetchCashOutBalance(
+																newAccountType,
+																modalData.bankAccountId,
+																modalData.date
+															);
+														}
 													}}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+													className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
 												>
 													<option value="cash">Kas Tunai</option>
 													<option value="bank">Rekening Bank</option>
 												</select>
 											</div>
 										)}
+
 										{modalData.accountType === 'bank' && (
-											<div className={modalData.type === 'initial' ? 'col-span-2' : ''}>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Pilih Bank</label>
+											<div className={modalData.type === 'initial' ? 'sm:col-span-2' : ''}>
+												<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+													Pilih Bank
+												</label>
+
 												<select
 													required
 													onChange={(e) => {
-														const newBankAccountId = e.target.value.split('-')[0];
-														setModalData({ ...modalData, bankAccountId: newBankAccountId });
-														if (modalData.type === 'initial' || modalData.type === 'in' || modalData.type === 'out') setSelectedReference(e.target.value.split('-')[1]);
-														if (modalData.type === 'out') fetchCashOutBalance(modalData.accountType, newBankAccountId, modalData.date);
+														const [newBankAccountId, accountNumber] = e.target.value.split('-');
+
+														setModalData({
+															...modalData,
+															bankAccountId: newBankAccountId
+														});
+
+														if (modalData.type === 'initial' || modalData.type === 'in' || modalData.type === 'out') {
+															setSelectedReference(accountNumber);
+														}
+
+														if (modalData.type === 'out') {
+															fetchCashOutBalance(
+																modalData.accountType,
+																newBankAccountId,
+																modalData.date
+															);
+														}
 													}}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+													className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
 												>
 													<option value="">-- Pilih Bank --</option>
-													{bankAccounts.map(b => (
-														<option key={b._id} value={`${b._id}-${b.accountNumber}`}>{b.accountName}</option>
+
+													{bankAccounts.map((b) => (
+														<option
+															key={b._id}
+															value={`${b._id}-${b.accountNumber}`}
+														>
+															{b.accountName}
+														</option>
 													))}
 												</select>
 											</div>
 										)}
-										{modalData.accountType === 'bank' && (
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+									</div>
+
+									{/* Informasi Destinasi Non-Cash */}
+									{modalData.accountType === 'bank' && (
+										<div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+											<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 												<div>
-													<label className="label">Destination Account Number</label>
+													<label className="mb-1.5 block text-[10px] font-semibold text-slate-600">
+														Nomor Rekening Tujuan
+													</label>
+
 													<input
 														type="text"
-														className="input input-bordered w-full"
 														value={modalData.nonCashDstAccountNumber}
 														onChange={(e) => setModalData(prev => ({
 															...prev,
 															nonCashDstAccountNumber: e.target.value
 														}))}
-														placeholder="Account number"
+														className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+														placeholder="Contoh: 1234567890"
 													/>
 												</div>
 
 												<div>
-													<label className="label">Destination Description</label>
+													<label className="mb-1.5 block text-[10px] font-semibold text-slate-600">
+														Type Rekening Tujuan
+													</label>
+
 													<input
 														type="text"
-														className="input input-bordered w-full"
 														value={modalData.nonCashDstDescription}
 														onChange={(e) => setModalData(prev => ({
 															...prev,
 															nonCashDstDescription: e.target.value
 														}))}
-														placeholder="Destination description"
+														className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+														placeholder="Contoh: BCA"
 													/>
 												</div>
 											</div>
-										)}
-									</div>
+										</div>
+									)}
 
+									{/* Nominal */}
 									<div>
-										<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Nominal (Rp)</label>
+										<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+											Nominal (Rp)
+										</label>
+
 										<NumericFormat
 											thousandSeparator="."
 											decimalSeparator=","
 											allowedDecimalSeparators={[",", "."]}
 											allowNegative={false}
 											value={modalData.amount}
-											onValueChange={(values) => setModalData({ ...modalData, amount: values.value })}
-											className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:outline-indigo-500 bg-slate-50"
+											onValueChange={(values) =>
+												setModalData({ ...modalData, amount: values.value })
+											}
+											className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 											placeholder="Contoh: 150.000 atau 150.000,50"
 										/>
 									</div>
 
-									<div className="grid grid-cols-2 gap-3">
+									{/* Tanggal dan Jam */}
+									<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 										<div>
-											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Tanggal</label>
+											<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+												Tanggal
+											</label>
+
 											<input
 												type="date"
 												required
 												value={modalData.date}
 												onChange={(e) => {
 													const newDate = e.target.value;
+
 													setModalData({ ...modalData, date: newDate });
-													if (modalData.type === 'out') fetchCashOutBalance(modalData.accountType, modalData.bankAccountId, newDate);
+
+													if (modalData.type === 'out') {
+														fetchCashOutBalance(
+															modalData.accountType,
+															modalData.bankAccountId,
+															newDate
+														);
+													}
 												}}
-												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+												className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 											/>
 										</div>
+
 										<div>
-											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jam (HH:MM)</label>
+											<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+												Jam (HH:MM)
+											</label>
+
 											<input
 												type="time"
 												required
 												value={modalData.time}
-												onChange={(e) => setModalData({ ...modalData, time: e.target.value })}
-												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+												onChange={(e) =>
+													setModalData({ ...modalData, time: e.target.value })
+												}
+												className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 											/>
 										</div>
 									</div>
 
+									{/* Referensi */}
 									{modalData.type !== 'initial' && (
 										<div>
-											<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Referensi / Keterangan</label>
+											<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+												Referensi / Keterangan
+											</label>
+
 											<input
 												type="text"
-												required={modalData.type !== 'initial'}
+												required
 												value={modalData.reference}
-												onChange={(e) => setModalData({ ...modalData, reference: e.target.value })}
-												className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
+												onChange={(e) =>
+													setModalData({ ...modalData, reference: e.target.value })
+												}
+												className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 												placeholder="Contoh: Bayar Listrik Bulan Ini"
 											/>
 										</div>
 									)}
 
+									{/* Kepada / Dari */}
 									{modalData.type !== 'initial' && (
-										isCashOut ? (
-											<div>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Kepada</label>
-												<input
-													type="text"
-													value={modalData.to}
-													onChange={(e) => setModalData({ ...modalData, to: e.target.value })}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
-													placeholder="Contoh: Ke Siapa"
-												/>
-											</div>
-										) : (
-											<div>
-												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Dari</label>
-												<input
-													type="text"
-													value={modalData.from}
-													onChange={(e) => setModalData({ ...modalData, from: e.target.value })}
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-indigo-500 bg-slate-50"
-													placeholder="Contoh: Dari Siapa"
-												/>
-											</div>
-										)
-									)}
-
-									{/* Tampilan Saldo Tersedia (hanya untuk Cash Out) */}
-									{isCashOut && (
 										<div>
-											{cashOutBalanceLoading ? (
-												<span className="text-xs text-slate-400 flex items-center gap-1">
-													<span className="loading loading-spinner loading-xs"></span> Memuat saldo...
-												</span>
-											) : cashOutBalance !== null ? (
-												<div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border ${(Number(modalData.amount) > 0 && Number(modalData.amount) > cashOutBalance)
-													? 'bg-rose-50 border-rose-200 text-rose-700'
-													: 'bg-emerald-50 border-emerald-200 text-emerald-700'
-													}`}>
-													<svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-														<path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-													</svg>
-													<span>Saldo tersedia: <strong>Rp {cashOutBalance.toLocaleString('id-ID')}</strong></span>
-												</div>
-											) : null}
-											{cashOutBalance !== null && Number(modalData.amount) > 0 && Number(modalData.amount) > cashOutBalance && (
-												<p className="text-[10px] text-rose-600 mt-1 font-medium">
-													⚠ Pengeluaran melebihi saldo tersedia pada tanggal ini
-												</p>
-											)}
+											<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+												{isCashOut ? 'Kepada' : 'Dari'}
+											</label>
+
+											<input
+												type="text"
+												value={isCashOut ? modalData.to : modalData.from}
+												onChange={(e) =>
+													setModalData({
+														...modalData,
+														[isCashOut ? 'to' : 'from']: e.target.value
+													})
+												}
+												className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+												placeholder={isCashOut ? 'Contoh: Ke Siapa' : 'Contoh: Dari Siapa'}
+											/>
 										</div>
 									)}
 
-									<div className="pt-2 flex justify-end gap-2">
+									{/* Saldo Tersedia */}
+									{isCashOut && (
+										<div>
+											{cashOutBalanceLoading ? (
+												<span className="flex items-center gap-1.5 text-xs text-slate-400">
+													<span className="loading loading-spinner loading-xs" />
+													Memuat saldo...
+												</span>
+											) : cashOutBalance !== null ? (
+												<div
+													className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-medium ${Number(modalData.amount) > 0 &&
+														Number(modalData.amount) > cashOutBalance
+														? 'border-rose-200 bg-rose-50 text-rose-700'
+														: 'border-emerald-200 bg-emerald-50 text-emerald-700'
+														}`}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														className="size-3.5 shrink-0"
+														fill="none"
+														viewBox="0 0 24 24"
+														strokeWidth="1.5"
+														stroke="currentColor"
+													>
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"
+														/>
+													</svg>
+
+													<span>
+														Saldo tersedia:{' '}
+														<strong>
+															Rp {cashOutBalance.toLocaleString('id-ID')}
+														</strong>
+													</span>
+												</div>
+											) : null}
+
+											{cashOutBalance !== null &&
+												Number(modalData.amount) > 0 &&
+												Number(modalData.amount) > cashOutBalance && (
+													<p className="mt-1.5 text-[10px] font-medium text-rose-600">
+														⚠ Pengeluaran melebihi saldo tersedia pada tanggal ini
+													</p>
+												)}
+										</div>
+									)}
+
+									{/* Actions */}
+									<div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
 										<button
 											type="button"
 											onClick={() => setShowModal(false)}
 											disabled={addSaving}
-											className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+											className="rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
 										>
 											Batal
 										</button>
+
 										<button
 											type="submit"
-											disabled={addSaving || (isCashOut && cashOutBalance !== null && Number(modalData.amount) > 0 && Number(modalData.amount) > cashOutBalance)}
-											className="px-4 py-2 rounded-lg text-xs text-white font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-600/30 disabled:opacity-60 flex items-center gap-1.5 transition-all active:scale-95"
+											disabled={
+												addSaving ||
+												(
+													isCashOut &&
+													cashOutBalance !== null &&
+													Number(modalData.amount) > 0 &&
+													Number(modalData.amount) > cashOutBalance
+												)
+											}
+											className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-indigo-600/30 transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-60"
 										>
-											{addSaving && <span className="loading loading-spinner loading-xs" />}
+											{addSaving && (
+												<span className="loading loading-spinner loading-xs" />
+											)}
 											Simpan Entri
 										</button>
 									</div>
@@ -1741,6 +1873,7 @@ export default function CashflowReportPage() {
 							</div>
 						</div>
 					)}
+
 
 					{/* Modal Hapus Cashflow Manual dengan Approval Code */}
 					{deleteModalOpen && deleteTargetTx && (
