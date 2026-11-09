@@ -794,7 +794,7 @@ export async function GET(request: NextRequest) {
 				source:
 					(entry as any).source === "purchase_payment"
 						? "Purchase Payment"
-						: "Manual Entry",
+						: (entry as any).source === "Refund" ? "Refund" : "Manual Entry",
 				type: entry.type,
 				from: entry.from,
 				to: entry.to,

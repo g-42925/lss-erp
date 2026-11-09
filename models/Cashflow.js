@@ -70,7 +70,7 @@ const cashflowSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['manual', 'purchase_payment', 'Manual Entry'],
+    enum: ['manual', 'purchase_payment', 'Manual Entry', 'Refund'],
     default: 'manual',
     required: false
   },

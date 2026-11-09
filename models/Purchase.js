@@ -74,7 +74,23 @@ const PurchaseSchema = new mongoose.Schema({
   pricePerUnit: {
     type: Number,
     required: false
-  }
+  },
+  refundLog: [{
+    refundAmount: { type: Number, required: true },
+    refundMethod: {
+      type: String,
+      enum: ['Cash', 'Bank'],
+      required: true
+    },
+    refundBankAccountId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false
+    },
+    refundDate: { type: Date, default: Date.now },
+    refundDescription: { type: String },
+    refundNumber: { type: String },
+    refundTime: { type: String }
+  }]
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

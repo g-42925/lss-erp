@@ -69,6 +69,7 @@ export default function Debt() {
   const listInvoiceRef = useRef<HTMLDialogElement>(null)
   const relatedInvoicesRef = useRef<HTMLDialogElement>(null)
   const selectInvoicesRef = useRef<HTMLDialogElement>(null)
+  const refundRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<FilterType>('barang')
   const [statusFilter, setStatusFilter] = useState<'unpaid' | 'paid'>('unpaid')
@@ -126,7 +127,27 @@ export default function Debt() {
   const [editDestinationAccountNumber, setEditDestinationAccountNumber] = useState("")
   const [editDestinationDescription, setEditDestinationDescription] = useState("")
 
+  const [selectedRefundLog, setSelectedRefundLog] = useState<any>(null)
+  const [refundAmount, setRefundAmount] = useState<number | string>(0)
+  const [refundMethod, setRefundMethod] = useState<'Cash' | 'Bank'>('Cash')
+  const [refundBankAccountId, setRefundBankAccountId] = useState('')
+  const [refundDate, setRefundDate] = useState(getLocalDateTime().date)
+  const [refundTime, setRefundTime] = useState(getLocalDateTime().time)
+  const [refundDescription, setRefundDescription] = useState('')
+  const [refundSubmitting, setRefundSubmitting] = useState(false)
+
   const priceComparisonRef = useRef<HTMLDialogElement>(null)
+
+  function openRefund(log: any) {
+    setSelectedRefundLog(log)
+    setRefundAmount(Math.abs(log.amount))
+    setRefundMethod('Cash')
+    setRefundBankAccountId('')
+    setRefundDate(getLocalDateTime().date)
+    setRefundDescription('')
+
+    refundRef.current?.showModal()
+  }
 
 
   const router = useRouter()
@@ -149,6 +170,11 @@ export default function Debt() {
   const getVendorsFn = useFetch<any[], any>({
     url: '',
     method: 'GET'
+  })
+
+  const refundFn = useFetch<any, any>({
+    url: '/api/web/debt/refund',
+    method: 'POST'
   })
 
   function fetchDebts(type: FilterType = filterType, stat: string = statusFilter, mon: string = monthFilter, ven: string = vendorFilter) {
@@ -431,6 +457,28 @@ export default function Debt() {
     finally {
       setPaySubmitting(false)
     }
+  }
+
+  const _refund = () => {
+    // call post endpoint
+
+    const poNumber = selectedLogDebt.purchaseOrderNumber
+
+    const param = JSON.stringify({
+      refundAmount,
+      refundMethod,
+      refundBankAccountId,
+      refundDate,
+      refundDescription,
+      refundTime,
+      poNumber
+    })
+
+    refundFn.fn('', param, (result) => {
+      console.log(result)
+    })
+
+
   }
 
 
@@ -1457,6 +1505,7 @@ export default function Debt() {
                         <td className="flex flex-row gap-1">
                           <button className="btn btn-xs btn-warning" onClick={() => openEditLog(L)}>Edit</button>
                           <button className="btn btn-xs btn-error" onClick={() => deleteLog(L)}>Hapus</button>
+                          <button className="btn btn-xs btn-warning" onClick={() => openRefund(L)}>Refund</button>
                         </td>
                       </tr>
                     ))}
@@ -1466,6 +1515,296 @@ export default function Debt() {
             )}
           </div>
         </dialog>
+
+        {/* ─── Refund Modal ─── */}
+        <dialog id="refund_modal" ref={refundRef} className="modal text-black">
+          <div className="modal-box w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-bold text-xl">Refund Pembayaran</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Catat pengembalian dana dari pembayaran sebelumnya
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-sm btn-circle btn-ghost"
+                onClick={() => refundRef.current?.close()}
+              >
+                ✕
+              </button>
+            </div>
+
+            {selectedRefundLog && (
+              <div className="flex flex-col gap-5">
+                {/* Informasi pembayaran */}
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Informasi Pembayaran
+                    </span>
+                    <span className="badge badge-warning">Refund</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">No. Pembayaran</p>
+                      <p className="font-semibold mt-1">
+                        {selectedRefundLog.paymentNumber || '-'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Tanggal Pembayaran</p>
+                      <p className="font-semibold mt-1">
+                        {new Date(selectedRefundLog.date).toLocaleDateString('id-ID')}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Metode Pembayaran Asal</p>
+                      <p className="font-semibold mt-1">
+                        {selectedRefundLog.paymentMethod || 'Cash'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-gray-500">Nominal Pembayaran</p>
+                      <p className="font-bold text-gray-900 mt-1">
+                        Rp {Math.abs(Number(selectedRefundLog.amount || 0)).toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nominal refund */}
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">
+                    Nominal Refund
+                  </legend>
+
+                  <NumericFormat
+                    className="input input-lg w-full font-bold text-lg"
+                    value={refundAmount}
+                    thousandSeparator="."
+                    decimalSeparator=","
+                    prefix="Rp "
+                    allowNegative={false}
+                    onValueChange={(values) => setRefundAmount(values.floatValue ?? '')}
+                  />
+
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maksimal nominal refund: Rp{' '}
+                    {Math.abs(Number(selectedRefundLog.amount || 0)).toLocaleString('id-ID')}
+                  </p>
+                </fieldset>
+
+                {/* Tujuan penerimaan dana */}
+                <div>
+                  <label className="label mb-2">
+                    <span className="label-text font-semibold">
+                      Dana Diterima Melalui
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Cash */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRefundMethod('Cash')
+                        setRefundBankAccountId('')
+                      }}
+                      className={`rounded-xl border-2 p-4 text-left transition-all ${refundMethod === 'Cash'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl">💵</span>
+                        {refundMethod === 'Cash' && (
+                          <span className="text-primary font-bold">✓</span>
+                        )}
+                      </div>
+
+                      <p className="font-bold mt-3">Cash</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Uang diterima secara tunai
+                      </p>
+                    </button>
+
+                    {/* Bank */}
+                    <button
+                      type="button"
+                      onClick={() => setRefundMethod('Bank')}
+                      className={`rounded-xl border-2 p-4 text-left transition-all ${refundMethod === 'Bank'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl">🏦</span>
+                        {refundMethod === 'Bank' && (
+                          <span className="text-primary font-bold">✓</span>
+                        )}
+                      </div>
+
+                      <p className="font-bold mt-3">Rekening Bank</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Dana masuk ke rekening perusahaan
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pilihan rekening */}
+                {refundMethod === 'Bank' && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <fieldset className="fieldset">
+                      <legend className="fieldset-legend text-blue-900">
+                        Pilih Rekening Perusahaan
+                      </legend>
+
+                      <select
+                        className="select select-bordered w-full bg-white"
+                        value={refundBankAccountId}
+                        onChange={(e) => setRefundBankAccountId(e.target.value)}
+                      >
+                        <option value="">-- Pilih rekening --</option>
+
+                        {bankAccountFn.result?.map((bank: any) => (
+                          <option key={bank._id} value={bank._id}>
+                            {bank.bank} - {bank.accountNumber} ({bank.accountName})
+                          </option>
+                        ))}
+                      </select>
+                    </fieldset>
+
+                    {refundBankAccountId && (() => {
+                      const selectedBank = bankAccountFn.result?.find(
+                        (bank: any) => bank._id === refundBankAccountId
+                      )
+
+                      return selectedBank ? (
+                        <div className="mt-3 rounded-lg bg-white border border-blue-100 p-3">
+                          <p className="text-xs text-gray-500">
+                            Rekening penerima refund
+                          </p>
+                          <p className="font-bold text-gray-800 mt-1">
+                            {selectedBank.bank}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {selectedBank.accountNumber}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            A.n. {selectedBank.accountName}
+                          </p>
+                        </div>
+                      ) : null
+                    })()}
+                  </div>
+                )}
+
+                {/* Tanggal */}
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Tanggal Refund</legend>
+                  <input
+                    type="date"
+                    className="input w-full"
+                    value={refundDate}
+                    onChange={(e) => setRefundDate(e.target.value)}
+                  />
+                </fieldset>
+
+                {/* Waktu */}
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Waktu Refund</legend>
+                  <input
+                    type="time"
+                    className="input w-full"
+                    value={refundTime}
+                    onChange={(e) => setRefundTime(e.target.value)}
+                  />
+                </fieldset>
+
+                {/* Keterangan */}
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">
+                    Keterangan <span className="text-gray-400">(Opsional)</span>
+                  </legend>
+
+                  <textarea
+                    className="textarea textarea-bordered w-full"
+                    rows={3}
+                    placeholder="Contoh: Pengembalian dana karena kelebihan pembayaran..."
+                    value={refundDescription}
+                    onChange={(e) => setRefundDescription(e.target.value)}
+                  />
+                </fieldset>
+
+                {/* Ringkasan */}
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                  <p className="text-xs text-amber-700 font-semibold mb-2">
+                    RINGKASAN REFUND
+                  </p>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Dana diterima melalui
+                    </span>
+                    <span className="font-semibold text-sm">
+                      {refundMethod === 'Cash'
+                        ? 'Cash'
+                        : bankAccountFn.result?.find(
+                          (bank: any) => bank._id === refundBankAccountId
+                        )?.bank || 'Rekening Bank'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-amber-200">
+                    <span className="font-semibold">Total Refund</span>
+                    <span className="font-bold text-xl text-amber-800">
+                      Rp {Number(refundAmount || 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="modal-action mt-0">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-warning"
+                    onClick={() => _refund()}
+                    disabled={
+                      refundSubmitting ||
+                      Number(refundAmount) <= 0 ||
+                      Number(refundAmount) > Math.abs(Number(selectedRefundLog.amount || 0)) ||
+                      !refundDate ||
+                      (refundMethod === 'Bank' && !refundBankAccountId)
+                    }
+                  >
+                    {refundSubmitting ? (
+                      <span className="loading loading-spinner loading-sm" />
+                    ) : (
+                      'Proses Refund'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </dialog>
+
+
 
         {/* ─── Edit Log Modal ─── */}
         <dialog id="edit_log_modal" ref={editLogRef} className="modal text-black">
