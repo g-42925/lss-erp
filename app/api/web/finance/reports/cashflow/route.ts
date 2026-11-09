@@ -827,22 +827,29 @@ export async function GET(request: NextRequest) {
 		}
 
 		const getFullDateTime = (transaction: any): number => {
-			const date = new Date(transaction.date);
+			const d = new Date(transaction.date);
+			if (Number.isNaN(d.getTime())) return 0;
 
 			if (transaction.time && typeof transaction.time === "string") {
-				const [hours, minutes] = transaction.time.split(":").map(Number);
-
-				if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
-					date.setHours(hours, minutes, 0, 0);
+				const parts = transaction.time.trim().replace(".", ":").split(":");
+				const h = parseInt(parts[0], 10);
+				const m = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+				const s = parts.length > 2 ? parseInt(parts[2], 10) : 0;
+				if (!Number.isNaN(h)) {
+					d.setHours(h, Number.isNaN(m) ? 0 : m, Number.isNaN(s) ? 0 : s, 0);
 				}
 			}
 
-			return date.getTime();
+			return d.getTime();
 		};
 
-		finalTransactions.sort(
-			(a, b) => getFullDateTime(a) - getFullDateTime(b),
-		);
+		finalTransactions.sort((a, b) => {
+			const diff = getFullDateTime(b) - getFullDateTime(a);
+			if (diff !== 0) return diff;
+			if (a.type === "initial") return 1;
+			if (b.type === "initial") return -1;
+			return 0;
+		});
 
 		let totalIn = 0;
 		let totalOut = 0;

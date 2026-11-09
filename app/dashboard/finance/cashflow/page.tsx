@@ -80,7 +80,7 @@ export default function CashflowReportPage() {
 	const [error, setError] = useState('');
 
 	const [isCashOut, setIsCashOut] = useState(false);
-	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
 	const [selectedReference, setSelectedReference] = useState('');
 	const [search, setSearch] = useState('');
@@ -259,10 +259,13 @@ export default function CashflowReportPage() {
 				// while Invoice/Purchase entries embed time in the Date field.
 				const getFullDateTime = (t: any): number => {
 					const d = new Date(t.date);
+					if (isNaN(d.getTime())) return 0;
 					if (t.time && typeof t.time === 'string') {
-						const [hh, mm] = t.time.split(':').map(Number);
-						if (!isNaN(hh) && !isNaN(mm)) {
-							d.setHours(hh, mm, 0, 0);
+						const parts = t.time.trim().replace('.', ':').split(':');
+						const hh = parseInt(parts[0], 10);
+						const mm = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+						if (!isNaN(hh)) {
+							d.setHours(hh, isNaN(mm) ? 0 : mm, 0, 0);
 						}
 					}
 					return d.getTime();
@@ -611,7 +614,8 @@ export default function CashflowReportPage() {
 
 	function toExcel() {
 		if (transactions.length === 0) return alert('Tidak ada data untuk diexport');
-		const data = transactions.map(t => ({
+		const displayList = sortOrder === 'desc' ? [...transactions].reverse() : transactions;
+		const data = displayList.map(t => ({
 			'Tanggal': new Date(t.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
 			'No. Voucher': t.voucherNumber || '-',
 			'Dari': t.from || '-',
