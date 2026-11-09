@@ -1142,7 +1142,7 @@ export default function Debt() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <fieldset className="fieldset">
+                <fieldset className="fieldset hidden">
                   <legend className="fieldset-legend">Vendor Id</legend>
                   <input
                     className="input w-full"

@@ -299,11 +299,19 @@ export async function PUT(request: NextRequest) {
 
             console.log({ px2: px })
 
+
+
             if (px.purchaseType == "procurement") {
               const _px = await Purchase.findById(_id)
-              const paymentCode = _px.purchaseOrderNumber.split("-")[1].trim()
-              const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
-              rf = `pl ${paymentCode} | pembayaran procurement senilai ${_px.payAmount}`
+              const paymentCode = _px?.purchaseOrderNumber?.split("-")[1]?.trim() || ''
+              const itemParts = await Promise.all(
+                (_px?.items || []).map(async (i: any) => {
+                  const item = await InvItem.findById(i.productId)
+                  return item ? `${item.name} ${i.quantity} ${item.unit || ''}`.trim() : ''
+                })
+              )
+              const message = itemParts.filter(Boolean).join(', ')
+              rf = `pl ${paymentCode} | ${message} | ${_px?.payAmount || ''} `
             }
 
             rf = px.purchaseType === "procurement" ? rf : reference
@@ -373,9 +381,15 @@ export async function PUT(request: NextRequest) {
 
             if (px.purchaseType == "procurement") {
               const _px = await Purchase.findById(_id)
-              const paymentCode = _px.purchaseOrderNumber.split("-")[1].trim()
-              const inv = await InvItem.findOne({ _id: new Types.ObjectId(px.productId) })
-              rf = `pl ${paymentCode} | pembayaran procurement ${_px.quantity} ${inv.unit} senilai ${_px.payAmount} `
+              const paymentCode = _px?.purchaseOrderNumber?.split("-")[1]?.trim() || ''
+              const itemParts = await Promise.all(
+                (_px?.items || []).map(async (i: any) => {
+                  const item = await InvItem.findById(i.productId)
+                  return item ? `${item.name} ${i.quantity} ${item.unit || ''}`.trim() : ''
+                })
+              )
+              const message = itemParts.filter(Boolean).join(', ')
+              rf = `pl ${paymentCode} | ${message} | ${_px?.payAmount || ''} `
             }
 
             rf = px.purchaseType === "procurement" ? rf : reference
