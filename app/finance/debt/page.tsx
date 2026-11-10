@@ -159,7 +159,7 @@ export default function Debt() {
     setEditRefundTime(refund.refundTime);
     setEditRefundDescription(refund.refundDescription || "");
 
-    document.getElementById("edit_refund_modal")?.showModal();
+    (document.getElementById("edit_refund_modal") as HTMLDialogElement).showModal();
   };
 
   const _updateRefund = async () => {
@@ -183,6 +183,7 @@ export default function Debt() {
     setEditingRefund(true);
 
     updateRefundFn.fn('', JSON.stringify(payload), (r) => {
+      (document.getElementById("edit_refund_modal") as HTMLDialogElement).close();
       window.location.href = '/finance/debt'
     })
 
@@ -1723,7 +1724,7 @@ export default function Debt() {
               <button
                 className="btn"
                 onClick={() =>
-                  document.getElementById("edit_refund_modal")?.close()
+                  (document.getElementById("edit_refund_modal") as HTMLDialogElement).close()
                 }
               >
                 Batal
