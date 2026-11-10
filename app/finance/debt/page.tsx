@@ -138,6 +138,57 @@ export default function Debt() {
 
   const priceComparisonRef = useRef<HTMLDialogElement>(null)
 
+  const [refundLogs, setRefundLogs] = useState<any[]>([])
+  const [refundLogsLoading, setRefundLogsLoading] = useState(false)
+  const refundLogsRef = useRef<HTMLDialogElement>(null)
+
+  const [editingRefund, setEditingRefund] = useState<any>(null);
+  const [editRefundAmount, setEditRefundAmount] = useState(0);
+  const [editRefundMethod, setEditRefundMethod] = useState<"Cash" | "Bank">("Cash");
+  const [editRefundBankAccountId, setEditRefundBankAccountId] = useState("");
+  const [editRefundDate, setEditRefundDate] = useState("");
+  const [editRefundTime, setEditRefundTime] = useState("");
+  const [editRefundDescription, setEditRefundDescription] = useState("");
+
+  const openEditRefund = (refund: any) => {
+    setEditingRefund(refund);
+    setEditRefundAmount(refund.refundAmount);
+    setEditRefundMethod(refund.refundMethod);
+    setEditRefundBankAccountId(refund.refundBankAccountId || "");
+    setEditRefundDate(new Date(refund.refundDate).toISOString().split("T")[0]);
+    setEditRefundTime(refund.refundTime);
+    setEditRefundDescription(refund.refundDescription || "");
+
+    document.getElementById("edit_refund_modal")?.showModal();
+  };
+
+  const _updateRefund = async () => {
+    if (!editingRefund) return;
+
+    const payload = {
+      _id: editingRefund._id,
+      refundAmount: Number(editRefundAmount),
+      refundMethod: editRefundMethod,
+      refundBankAccountId:
+        editRefundMethod === "Bank" ? editRefundBankAccountId : null,
+      refundDate: new Date(editRefundDate).toISOString(),
+      refundTime: editRefundTime,
+      refundDescription: editRefundDescription,
+      refundNumber: editingRefund?.refundNumber,
+      purchaseOrderNumber: selectedDebt.purchaseOrderNumber,
+    };
+
+    console.table(payload)
+
+    setEditingRefund(true);
+
+    updateRefundFn.fn('', JSON.stringify(payload), (r) => {
+      window.location.href = '/finance/debt'
+    })
+
+
+  };
+
   function openRefund(log: any) {
     setSelectedRefundLog(log)
     setRefundAmount(Math.abs(log.amount))
@@ -175,6 +226,20 @@ export default function Debt() {
   const refundFn = useFetch<any, any>({
     url: '/api/web/debt/refund',
     method: 'POST'
+  })
+
+  const refundLogsFn = useFetch<any[], any>({
+    url: '',
+    method: 'GET',
+    onError: () => {
+      setRefundLogs([])
+      setRefundLogsLoading(false)
+    }
+  })
+
+  const updateRefundFn = useFetch<any, any>({
+    url: '/api/web/debt/refund',
+    method: 'PUT'
   })
 
   function fetchDebts(type: FilterType = filterType, stat: string = statusFilter, mon: string = monthFilter, ven: string = vendorFilter) {
@@ -475,7 +540,8 @@ export default function Debt() {
     })
 
     refundFn.fn('', param, (result) => {
-      console.log(result)
+      refundRef?.current?.close()
+      window.location.href = '/finance/debt'
     })
 
 
@@ -670,11 +736,24 @@ export default function Debt() {
       }
       alert(`Berhasil melunasi ${successCount} dari ${unpaidDebts.length} tagihan.`);
       fetchDebts();
-    } catch (e: any) {
+    }
+    catch (e: any) {
       alert(e.message);
-    } finally {
+    }
+    finally {
       setBulkPaySubmitting(false);
     }
+  }
+
+  async function viewRefundLogs(debt: any) {
+    setSelectedDebt(debt)
+    setRefundLogsLoading(true)
+    refundLogsRef?.current?.showModal()
+    refundLogsFn.fn(`/api/web/debt/refund?po=${debt.purchaseOrderNumber}`, {}, (r) => {
+      console.table(r[0])
+      setRefundLogs(r)
+      setRefundLogsLoading(false)
+    })
   }
 
   async function viewLogs(debt: any) {
@@ -691,9 +770,11 @@ export default function Debt() {
       else {
         setLogs(data.result || [])
       }
-    } catch (e) {
+    }
+    catch (e) {
       setLogs([])
-    } finally {
+    }
+    finally {
       setLogsLoading(false)
     }
   }
@@ -1144,6 +1225,13 @@ export default function Debt() {
                                 >
                                   Riwayat
                                 </button>
+                                <button
+                                  className="btn btn-xs btn-outline"
+                                  onClick={() => viewRefundLogs(d)}
+                                  title="Lihat & Edit Riwayat Refund"
+                                >
+                                  Refund log
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1461,6 +1549,188 @@ export default function Debt() {
                 onClick={() => priceComparisonRef.current?.close()}
               >
                 Tutup
+              </button>
+            </div>
+          </div>
+        </dialog>
+
+        {/* --- logs refund --- */}
+        <dialog id="logs_modal" ref={refundLogsRef} className="modal text-black">
+          <div className="modal-box max-w-3xl">
+            <h3 className="font-bold text-lg mb-4">Riwayat Refund</h3>
+
+            {refundLogsLoading ? (
+              <div className="text-center py-8">Memuat data...</div>
+            ) : refundLogs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Belum ada riwayat refund
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="table table-sm w-full">
+                  <thead>
+                    <tr>
+                      <th>No. Refund</th>
+                      <th>Tanggal</th>
+                      <th>Metode</th>
+                      <th>Jumlah</th>
+                      <th>Keterangan</th>
+                      <th>...</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {refundLogs.map((log: any) => (
+                      <tr key={log._id}>
+                        <td className="font-medium">{log.refundNumber}</td>
+                        <td>
+                          {new Date(log.refundDate).toLocaleDateString("id-ID")}{" "}
+                          {log.refundTime}
+                        </td>
+                        <td>
+                          {log.refundMethod === "Bank" ? (
+                            <div>
+                              <div>Bank</div>
+                              <div className="text-xs text-gray-500">
+                                {log.refundBankAccountId || "-"}
+                              </div>
+                            </div>
+                          ) : (
+                            "Cash"
+                          )}
+                        </td>
+                        <td className="font-semibold whitespace-nowrap">
+                          Rp {Number(log.refundAmount).toLocaleString("id-ID")}
+                        </td>
+                        <td>{log.refundDescription || "-"}</td>
+                        <td>
+                          <button
+                            className="btn btn-xs btn-warning"
+                            onClick={() => openEditRefund(log)}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="modal-action">
+              <button
+                className="btn"
+                onClick={() => refundLogsRef.current?.close()}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </dialog>
+
+        <dialog id="edit_refund_modal" className="modal text-black">
+          <div className="modal-box max-w-lg">
+            <h3 className="font-bold text-lg mb-4">
+              Edit Refund
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="label">Nomor Refund</label>
+                <input
+                  className="input input-bordered w-full"
+                  value={editingRefund?.refundNumber || ""}
+                  disabled
+                />
+              </div>
+
+              <div>
+                <label className="label">Jumlah Refund</label>
+                <NumericFormat
+                  className="input input-bordered w-full"
+                  thousandSeparator="."
+                  decimalSeparator=","
+                  value={editRefundAmount}
+                  onValueChange={(values) =>
+                    setEditRefundAmount(Number(values.value))
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="label">Metode Refund</label>
+                <select
+                  className="select select-bordered w-full"
+                  value={editRefundMethod}
+                  onChange={(e) =>
+                    setEditRefundMethod(e.target.value as "Cash" | "Bank")
+                  }
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="Bank">Bank</option>
+                </select>
+              </div>
+
+              {editRefundMethod === "Bank" && (
+                <div>
+                  <label className="label">Rekening Bank</label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={editRefundBankAccountId}
+                    onChange={(e) => setEditRefundBankAccountId(e.target.value)}
+                  >
+                    <option value="">-- Pilih rekening --</option>
+                    {bankAccountFn.result?.map((bank: any) => (
+                      <option key={bank._id} value={bank._id}>
+                        {bank.bank} - {bank.accountNumber} ({bank.accountName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="label">Tanggal Refund</label>
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
+                  value={editRefundDate}
+                  onChange={(e) => setEditRefundDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="label">Waktu Refund</label>
+                <input
+                  type="time"
+                  className="input input-bordered w-full"
+                  value={editRefundTime}
+                  onChange={(e) => setEditRefundTime(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="label">Keterangan</label>
+                <textarea
+                  className="textarea textarea-bordered w-full"
+                  value={editRefundDescription}
+                  onChange={(e) => setEditRefundDescription(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="modal-action">
+              <button
+                className="btn"
+                onClick={() =>
+                  document.getElementById("edit_refund_modal")?.close()
+                }
+              >
+                Batal
+              </button>
+
+              <button className="btn btn-primary" onClick={_updateRefund}>
+                Simpan Perubahan
               </button>
             </div>
           </div>

@@ -319,7 +319,9 @@ export default function Invoices() {
   }
 
   function submitCloseInvoice(data: any) {
-    const combinedDate = data.paymentTime ? `${data.paymentDate}T${data.paymentTime}` : data.paymentDate
+    const combinedDate = data.paymentTime
+      ? `${data.paymentDate}T${data.paymentTime}:00+07:00`
+      : `${data.paymentDate}T00:00:00+07:00`
     const params = {
       _id: selectedInvoice?._id,
       salesOrderNumber: data.salesOrderNumber,
