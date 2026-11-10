@@ -657,7 +657,7 @@ export default function CashflowReportPage() {
 				<div className="max-w-[1400px] mx-auto space-y-6">
 
 					{/* Sticky Section: Header, Filter Bar & Summary Cards */}
-					<div className="sticky top-0 z-20 backdrop-blur-md -mt-6 pt-6 pb-2 space-y-4">
+					<div className="relative lg:sticky lg:top-0 lg:z-20 backdrop-blur-md -mt-6 pt-6 pb-2 space-y-4">
 						{/* Header dengan Action Group di Kanan */}
 						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
 							<div>
