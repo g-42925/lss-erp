@@ -78,8 +78,11 @@ const hasConversion = (product?: Product) =>
 const getRemaining = (item: PurchaseItem) =>
   (item.quantity || 0) - (item.receivedQty || 0)
 
+const hasItems = (purchase?: Purchase | null) =>
+  Array.isArray(purchase?.items) && purchase.items.length > 0
+
 const isMultiItem = (purchase: Purchase) =>
-  Array.isArray(purchase.items) && purchase.items.length > 1
+  hasItems(purchase) && purchase.items!.length > 1
 
 const getItems = (purchase: Purchase): PurchaseItem[] =>
   purchase.items?.length ? purchase.items : [{
@@ -235,7 +238,7 @@ export default function Receiving() {
       qty,
       userId,
       ...(locationId ? { locationId } : {}),
-      ...(isMultiItem(activePurchase!) ? {
+      ...(hasItems(activePurchase) ? {
         itemIndex: selectedItemIndex
       } : {})
     }
@@ -273,6 +276,7 @@ export default function Receiving() {
       )
 
       editRef.current?.close()
+      window.location.href = '/warehouse/receiving'
     })
   }
 
@@ -535,7 +539,6 @@ export default function Receiving() {
                     <th>Product</th>
                     <th>Quantity</th>
                     <th>Received</th>
-                    <th>Conversion</th>
                     <th>...</th>
                   </tr>
                 </thead>
