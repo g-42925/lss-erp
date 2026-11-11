@@ -67,7 +67,8 @@ export default function InvUsagePage() {
     setQty(String(usage.qty))
     setNote(usage.note || "")
 
-      (document.getElementById("edit_usage_modal") as HTMLDialogElement)?.showModal()
+    const modal = document.getElementById("edit_usage_modal") as HTMLDialogElement
+    modal?.showModal()
   }
 
   const closeEdit = () => {
