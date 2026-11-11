@@ -82,3 +82,152 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
   }
 }
+
+export async function PUT(request: NextRequest) {
+  let status = 500
+
+  try {
+    await connectToDatabase()
+
+    const url = new URL(request.url)
+    const masterAccountId = url.searchParams.get('id')
+    const body = await request.json()
+
+    const { _id, qty, note } = body
+
+    if (!masterAccountId || !_id || qty === undefined || qty === null) {
+      status = 400
+      throw new Error('id, _id, and qty are required')
+    }
+
+    const newQty = Number(qty)
+
+    if (!Number.isFinite(newQty) || newQty <= 0) {
+      status = 400
+      throw new Error('Quantity must be greater than zero')
+    }
+
+    const company = await Companie.findOne({ masterAccountId })
+
+    if (!company) {
+      status = 404
+      throw new Error('Company not found')
+    }
+
+    const session = await InvUsage.db.startSession()
+
+    let updatedUsage: any = null
+
+    try {
+      await session.withTransaction(async () => {
+        // Find existing usage
+        const usage = await InvUsage.findOne({
+          _id,
+          companyId: company._id,
+        }).session(session)
+
+        if (!usage) {
+          status = 404
+          throw new Error('Usage record not found')
+        }
+
+        // Find related inventory item
+        const item = await InvItem.findOne({
+          _id: usage.itemId,
+          companyId: company._id,
+        }).session(session)
+
+        if (!item) {
+          status = 404
+          throw new Error('Inventory item not found')
+        }
+
+        // Calculate quantity difference
+        const difference = newQty - usage.qty
+
+        if (difference > 0) {
+          // Additional usage: decrement stock
+          const result = await InvItem.updateOne(
+            {
+              _id: item._id,
+              companyId: company._id,
+              currentStock: { $gte: difference },
+            },
+            {
+              $inc: { currentStock: -difference },
+            },
+            { session }
+          )
+
+          if (result.modifiedCount === 0) {
+            status = 400
+            throw new Error(
+              `Insufficient stock. Available: ${item.currentStock}`
+            )
+          }
+        } else if (difference < 0) {
+          // Reduced usage: return stock
+          await InvItem.updateOne(
+            {
+              _id: item._id,
+              companyId: company._id,
+            },
+            {
+              $inc: { currentStock: Math.abs(difference) },
+            },
+            { session }
+          )
+        }
+
+        // Update usage record
+        const updateData: Record<string, any> = {
+          qty: newQty,
+        }
+
+        if (note !== undefined) {
+          updateData.note = String(note).trim()
+        }
+
+        updatedUsage = await InvUsage.findOneAndUpdate(
+          {
+            _id,
+            companyId: company._id,
+          },
+          {
+            $set: updateData,
+          },
+          {
+            new: true,
+            runValidators: true,
+            session,
+          }
+        )
+      })
+
+      await updatedUsage.populate(
+        'itemId',
+        'name unit itemCode category'
+      )
+
+    }
+    finally {
+      await session.endSession()
+    }
+
+    return NextResponse.json({
+      noResult: false,
+      message: 'Usage updated and stock adjusted successfully',
+      result: updatedUsage,
+      error: false,
+    })
+
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: (e as Error).message,
+      result: null,
+      error: true,
+    }, { status })
+  }
+}

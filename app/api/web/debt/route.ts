@@ -13,6 +13,7 @@ import "@/models/Tax"
 import { getAvailableBalance } from '@/lib/finance/balance'
 
 
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
@@ -35,7 +36,14 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // ─── Filter periode ────────────────────────────────────
+    // ─── Shared helpers ────────────────────────────────────
+
+    const sortLatest: PipelineStage = {
+      $sort: {
+        date: -1,
+        _id: -1
+      }
+    }
 
     const dateFilter: Record<string, any> = {}
 
@@ -52,7 +60,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ─── Helper: mendapatkan seluruh productId ─────────────
+    const applyVendorFilter = (query: Record<string, any>) => {
+      if (vendorId) {
+        const vendorObjectId = new mongoose.Types.ObjectId(vendorId)
+
+        query.$or = [
+          { vendorId: vendorObjectId },
+          { supplierId: vendorObjectId }
+        ]
+      }
+
+      return query
+    }
 
     const getProductIds = (root: string) => ({
       $setUnion: [
@@ -79,7 +98,7 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    // ─── Helper: mencari produk yang sama ──────────────────
+    // ─── Purchase history ──────────────────────────────────
 
     const historyProductMatch = {
       $gt: [
@@ -134,107 +153,6 @@ export async function GET(request: NextRequest) {
         as: "_historyCandidates"
       }
     }
-    // ─── Helper: mendapatkan history terakhir per produk ──
-
-    // const getLastHistory = (productId: string) => ({
-    //   $let: {
-    //     vars: {
-    //       previousPurchase: {
-    //         $arrayElemAt: [
-    //           {
-    //             $filter: {
-    //               input: "$_historyCandidates",
-    //               as: "purchase",
-    //               cond: {
-    //                 $or: [
-    //                   {
-    //                     $eq: [
-    //                       { $toString: "$$purchase.productId" },
-    //                       { $toString: productId }
-    //                     ]
-    //                   },
-    //                   {
-    //                     $in: [
-    //                       { $toString: productId },
-    //                       {
-    //                         $map: {
-    //                           input: {
-    //                             $ifNull: ["$$purchase.items", []]
-    //                           },
-    //                           as: "item",
-    //                           in: {
-    //                             $toString: "$$item.productId"
-    //                           }
-    //                         }
-    //                       }
-    //                     ]
-    //                   }
-    //                 ]
-    //               }
-    //             }
-    //           },
-    //           0
-    //         ]
-    //       }
-    //     },
-    //     in: {
-    //       $cond: [
-    //         { $eq: ["$$previousPurchase", null] },
-    //         null,
-    //         {
-    //           $let: {
-    //             vars: {
-    //               previousItem: {
-    //                 $arrayElemAt: [
-    //                   {
-    //                     $filter: {
-    //                       input: {
-    //                         $ifNull: [
-    //                           "$$previousPurchase.items",
-    //                           []
-    //                         ]
-    //                       },
-    //                       as: "item",
-    //                       cond: {
-    //                         $eq: [
-    //                           { $toString: "$$item.productId" },
-    //                           { $toString: productId }
-    //                         ]
-    //                       }
-    //                     }
-    //                   },
-    //                   0
-    //                 ]
-    //               }
-    //             },
-    //             in: {
-    //               $mergeObjects: [
-    //                 {
-    //                   $ifNull: [
-    //                     "$$previousItem",
-    //                     {
-    //                       productId: "$$previousPurchase.productId",
-    //                       pricePerUnit: "$$previousPurchase.pricePerUnit",
-    //                       finalPrice: "$$previousPurchase.finalPrice",
-    //                       payAmount: "$$previousPurchase.payAmount",
-    //                       quantity: "$$previousPurchase.quantity",
-    //                       price: "$$previousPurchase.price"
-    //                     }
-    //                   ]
-    //                 },
-    //                 {
-    //                   purchaseId: "$$previousPurchase._id",
-    //                   date: "$$previousPurchase.date",
-    //                   purchaseType: "$$previousPurchase.purchaseType"
-    //                 }
-    //               ]
-    //             }
-    //           }
-    //         }
-    //       ]
-    //     }
-    //   }
-    // })
 
     const getLastHistory = (productId: string) => ({
       $let: {
@@ -256,9 +174,13 @@ export async function GET(request: NextRequest) {
                       { $toString: productId },
                       {
                         $map: {
-                          input: { $ifNull: ["$$purchase.items", []] },
+                          input: {
+                            $ifNull: ["$$purchase.items", []]
+                          },
                           as: "item",
-                          in: { $toString: "$$item.productId" }
+                          in: {
+                            $toString: "$$item.productId"
+                          }
                         }
                       }
                     ]
@@ -270,7 +192,9 @@ export async function GET(request: NextRequest) {
         },
         in: {
           $map: {
-            input: { $slice: ["$$previousPurchases", 0, 3] },
+            input: {
+              $slice: ["$$previousPurchases", 0, 3]
+            },
             as: "purchase",
             in: {
               $let: {
@@ -279,7 +203,9 @@ export async function GET(request: NextRequest) {
                     $arrayElemAt: [
                       {
                         $filter: {
-                          input: { $ifNull: ["$$purchase.items", []] },
+                          input: {
+                            $ifNull: ["$$purchase.items", []]
+                          },
                           as: "item",
                           cond: {
                             $eq: [
@@ -322,8 +248,6 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // ─── Attach history ke setiap produk ───────────────────
-
     const attachHistory: PipelineStage = {
       $addFields: {
         items: {
@@ -350,21 +274,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ─── Helper: filter vendor ─────────────────────────────
-
-    const applyVendorFilter = (query: Record<string, any>) => {
-      if (vendorId) {
-        const vendorObjectId = new mongoose.Types.ObjectId(vendorId)
-
-        query.$or = [
-          { vendorId: vendorObjectId },
-          { supplierId: vendorObjectId }
-        ]
-      }
-
-      return query
-    }
-
     // ─── Hutang Barang ─────────────────────────────────────
 
     if (filterType === "barang") {
@@ -378,6 +287,10 @@ export async function GET(request: NextRequest) {
 
       const debts = await Purchase.aggregate([
         { $match: matchQuery },
+
+        sortLatest,
+
+        // Populate main product
 
         {
           $lookup: {
@@ -394,6 +307,8 @@ export async function GET(request: NextRequest) {
           }
         },
 
+        // Populate main inventory item
+
         {
           $lookup: {
             from: "invitems",
@@ -409,6 +324,8 @@ export async function GET(request: NextRequest) {
           }
         },
 
+        // Populate supplier
+
         {
           $lookup: {
             from: "suppliers",
@@ -423,6 +340,8 @@ export async function GET(request: NextRequest) {
             preserveNullAndEmptyArrays: true
           }
         },
+
+        // Populate vendor
 
         {
           $lookup: {
@@ -513,6 +432,8 @@ export async function GET(request: NextRequest) {
         historyLookup,
         attachHistory,
 
+        // Cleanup temporary fields
+
         {
           $project: {
             _historyCandidates: 0,
@@ -534,11 +455,11 @@ export async function GET(request: NextRequest) {
     // ─── Hutang Jasa ────────────────────────────────────────
 
     if (filterType === "jasa") {
-      const matchQuery: Record<string, any> = {
+      const matchQuery = applyVendorFilter({
         companyId: cmp._id,
         purchaseType: "service",
         ...dateFilter
-      }
+      })
 
       if (status === "unpaid") {
         matchQuery.$expr = {
@@ -550,10 +471,10 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      applyVendorFilter(matchQuery)
-
       const debts = await Purchase.aggregate([
         { $match: matchQuery },
+
+        sortLatest,
 
         {
           $lookup: {
@@ -569,7 +490,6 @@ export async function GET(request: NextRequest) {
             preserveNullAndEmptyArrays: true
           }
         },
-
         {
           $lookup: {
             from: "suppliers",
@@ -611,6 +531,10 @@ export async function GET(request: NextRequest) {
       const invoices = await Invoice.aggregate([
         { $match: matchQuery },
 
+        sortLatest,
+
+        // Populate vendor
+
         {
           $lookup: {
             from: "vendors",
@@ -625,6 +549,8 @@ export async function GET(request: NextRequest) {
             preserveNullAndEmptyArrays: true
           }
         },
+
+        // Find related invoices
 
         {
           $lookup: {
@@ -649,6 +575,8 @@ export async function GET(request: NextRequest) {
           }
         },
 
+        // Populate vendor taxes
+
         {
           $lookup: {
             from: "taxes",
@@ -657,6 +585,8 @@ export async function GET(request: NextRequest) {
             as: "vendor.populatedTaxes"
           }
         },
+
+        // Calculate base amount
 
         {
           $addFields: {
@@ -671,12 +601,18 @@ export async function GET(request: NextRequest) {
                     0
                   ]
                 },
-                then: { $sum: "$relatedInvoices.debt" },
-                else: { $ifNull: ["$debt", 0] }
+                then: {
+                  $sum: "$relatedInvoices.debt"
+                },
+                else: {
+                  $ifNull: ["$debt", 0]
+                }
               }
             }
           }
         },
+
+        // Calculate tax percentage
 
         {
           $addFields: {
@@ -702,6 +638,8 @@ export async function GET(request: NextRequest) {
           }
         },
 
+        // Calculate total amount
+
         {
           $addFields: {
             totalVendorAmount: {
@@ -724,6 +662,8 @@ export async function GET(request: NextRequest) {
           }
         },
 
+        // Calculate remaining debt
+
         {
           $addFields: {
             remaining: {
@@ -734,7 +674,7 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      ])
+      ] as PipelineStage[])
 
       return NextResponse.json({
         noResult: invoices.length === 0,
@@ -751,8 +691,7 @@ export async function GET(request: NextRequest) {
       error: true
     })
 
-  }
-  catch (e: unknown) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
       message: e instanceof Error
@@ -763,6 +702,7 @@ export async function GET(request: NextRequest) {
     })
   }
 }
+
 
 // export async function GET(request: NextRequest) {
 //   try {
