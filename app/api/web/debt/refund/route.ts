@@ -159,6 +159,13 @@ export async function PUT(request: NextRequest) {
 				}
 			}
 		)
+
+		return NextResponse.json({
+			noResult: false,
+			message: "Refund berhasil diupdate",
+			result: {},
+			error: false
+		})
 	}
 	catch (e: unknown) {
 		return NextResponse.json({

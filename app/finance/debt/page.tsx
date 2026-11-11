@@ -177,14 +177,11 @@ export default function Debt() {
       refundNumber: editingRefund?.refundNumber,
       purchaseOrderNumber: selectedDebt.purchaseOrderNumber,
     };
-
-    console.table(payload)
-
     setEditingRefund(true);
 
     updateRefundFn.fn('', JSON.stringify(payload), (r) => {
       (document.getElementById("edit_refund_modal") as HTMLDialogElement).close();
-      window.location.href = '/finance/debt'
+      fetchDebts();
     })
 
 
