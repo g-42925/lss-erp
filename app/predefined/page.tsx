@@ -39,7 +39,7 @@ export default function UnitManager() {
 			setUnits(data.result)
 		}
 		catch (error) {
-			setError(error.message)
+			setError(error instanceof Error ? error.message : String(error))
 		}
 		finally {
 			setLoading(false)
