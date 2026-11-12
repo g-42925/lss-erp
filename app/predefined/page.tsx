@@ -79,7 +79,7 @@ export default function UnitManager() {
 		setError("")
 	}
 
-	const handleSubmit = async (e) => {
+	const handleSubmit = async (e: any) => {
 		e.preventDefault()
 		setSaving(true)
 		setError("")
