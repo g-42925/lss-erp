@@ -301,9 +301,21 @@ export default function InvItemsPage() {
                           {item.unit?.name} ({item.unit?.symbol})
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
-                            {item.currentStock} ({item.currentStock * item?.ftb?.factorToBase}{item?.ftb?.symbol})
-                          </span>
+                          {
+                            item.ftb ? (
+                              <>
+                                <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
+                                  {item.currentStock} ({item.currentStock * item?.ftb?.factorToBase}{item?.ftb?.symbol})
+                                </span>
+                              </>
+                            )
+                              :
+                              <>
+                                <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
+                                  {item.currentStock}
+                                </span>
+                              </>
+                          }
                         </td>
                         <td className="px-6 py-4 text-slate-400 text-xs">
                           {new Date(item.createdAt).toLocaleDateString("id-ID")}
