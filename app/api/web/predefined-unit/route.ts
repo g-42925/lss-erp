@@ -19,15 +19,12 @@ export async function GET() {
 
 		//return NextResponse.json(units)
 	}
-	catch (error) {
-		return NextResponse.json(
-			{ message: error.message },
-			{ status: 500 }
-		)
+	catch (e: unknown) {
+		return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
 	}
 }
 
-export async function POST(req) {
+export async function POST(req: any) {
 	try {
 		await connectToDatabase()
 
@@ -48,22 +45,8 @@ export async function POST(req) {
 			error: false
 		});
 
-		return NextResponse.json(unit, { status: 201 })
 	}
-	catch (error) {
-		if (error.code === 11000) return NextResponse.json(
-			{ message: "Simbol satuan sudah digunakan" },
-			{ status: 409 }
-		)
-
-		if (error.name === "ValidationError") return NextResponse.json(
-			{ message: error.message },
-			{ status: 400 }
-		)
-
-		return NextResponse.json(
-			{ message: error.message },
-			{ status: 500 }
-		)
+	catch (e: unknown) {
+		return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
 	}
 }
