@@ -406,6 +406,30 @@ export default function VoucherBankPage() {
   // ──────────────────────────────────────────────
   // Voucher number / form
   // ──────────────────────────────────────────────
+  // const generateVoucherBankNumber = useCallback(
+  //   (bankAccountId: string, dateStr: string, type: VoucherType) => {
+  //     const account = bankAccounts.find((item) => item._id === bankAccountId);
+  //     if (!account) return "";
+
+  //     const bankName = account.bank
+  //       .toUpperCase()
+  //       .replace(/BANK/g, "")
+  //       .replace(/[^A-Z0-9]/g, "");
+  //     const last4 = account.accountNumber.slice(-4);
+  //     const date = dateStr ? new Date(dateStr) : new Date();
+  //     const month = ROMAN_MONTHS[date.getMonth()];
+  //     const year = date.getFullYear().toString().slice(-2);
+  //     const count = vouchers.filter(
+  //       (voucher) => voucher.companyBankAccountId === bankAccountId
+  //     ).length + 1;
+  //     const sequence = count.toString().padStart(3, "0");
+  //     const prefix = type === "in" ? "BM" : "BK";
+
+  //     return `${prefix}-${bankName}${last4}/${month}/${year}/${sequence}`;
+  //   },
+  //   [bankAccounts, vouchers]
+  // );
+
   const generateVoucherBankNumber = useCallback(
     (bankAccountId: string, dateStr: string, type: VoucherType) => {
       const account = bankAccounts.find((item) => item._id === bankAccountId);
@@ -415,13 +439,21 @@ export default function VoucherBankPage() {
         .toUpperCase()
         .replace(/BANK/g, "")
         .replace(/[^A-Z0-9]/g, "");
+
       const last4 = account.accountNumber.slice(-4);
-      const date = dateStr ? new Date(dateStr) : new Date();
-      const month = ROMAN_MONTHS[date.getMonth()];
-      const year = date.getFullYear().toString().slice(-2);
-      const count = vouchers.filter(
-        (voucher) => voucher.companyBankAccountId === bankAccountId
-      ).length + 1;
+      const date = dateStr || todayStr();
+      const monthIndex = Number(date.slice(5, 7)) - 1;
+      const year = date.slice(2, 4);
+      const month = ROMAN_MONTHS[monthIndex];
+
+      const count = vouchers.filter((voucher) => {
+        return (
+          voucher.companyBankAccountId === bankAccountId &&
+          voucher.date?.slice(0, 7) === date.slice(0, 7) &&
+          voucher.type === type
+        );
+      }).length + 1;
+
       const sequence = count.toString().padStart(3, "0");
       const prefix = type === "in" ? "BM" : "BK";
 
@@ -762,10 +794,10 @@ export default function VoucherBankPage() {
                   {realizationVoucher.items.map((item, idx) => {
                     const refLabel =
                       item.refModel === "Invoice" ? "📄 Invoice" :
-                      item.refModel === "Cashflow" ? "🏦 Cashflow" :
-                      item.refModel === "Purchase" ? "🛒 Purchase" :
-                      item.refModel === "Debt" ? "🤝 Hutang Vendor" :
-                      "📝 Manual";
+                        item.refModel === "Cashflow" ? "🏦 Cashflow" :
+                          item.refModel === "Purchase" ? "🛒 Purchase" :
+                            item.refModel === "Debt" ? "🤝 Hutang Vendor" :
+                              "📝 Manual";
 
                     const hasRef = !!item.refModel;
 
@@ -787,9 +819,9 @@ export default function VoucherBankPage() {
                                 badge badge-sm
                                 ${item.refModel === "Invoice" ? "badge-primary" :
                                   item.refModel === "Cashflow" ? "badge-info" :
-                                  item.refModel === "Purchase" ? "badge-warning" :
-                                  item.refModel === "Debt" ? "badge-error" :
-                                  "badge-ghost"
+                                    item.refModel === "Purchase" ? "badge-warning" :
+                                      item.refModel === "Debt" ? "badge-error" :
+                                        "badge-ghost"
                                 }
                               `}>
                                 {refLabel}
@@ -1282,7 +1314,7 @@ function BasicInfo({
       </div>
 
       <div className="form-control">
-        <label className="label label-text font-semibold">Tanggal</label>
+        <label className="label label-text font-semibold">Tanggalx</label>
         <input
           type="date"
           className="input input-bordered input-sm"

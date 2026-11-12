@@ -766,6 +766,8 @@ function Purchases() {
         setAddTotalOverride("")
         setAddTotalMode("auto")
         setAddLastPriceInfo(null)
+        modalRef?.current?.close()
+        window.location.href = '/purchases'
       })
       return
     }
