@@ -50,7 +50,7 @@ export default function UnitManager() {
 		fetchUnits()
 	}, [])
 
-	const handleChange = (e) => {
+	const handleChange = (e: any) => {
 		const { name, value, type, checked } = e.target
 
 		setForm(prev => ({
