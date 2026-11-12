@@ -8,12 +8,18 @@ import Link from "next/link"
 import React, { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 
+type Unit = {
+  _id?: string
+  name?: string
+  symbol?: string
+}
+
 type Product = {
   _id?: string
   name?: string
   productName?: string
-  unit?: string
-  saleUnit?: string
+  unit?: string | Unit
+  saleUnit?: string | Unit
   conversionRatioX?: string
   conversionRatioY?: string
   conversionType?: string
@@ -67,10 +73,17 @@ const getProductName = (product?: Product) =>
   product?.productName || product?.name || "-"
 
 const getUnit = (product?: Product) =>
-  product?.conversionRatioX || typeof product?.unit === 'string' ? product?.unit : product?.unit?.symbol || ""
+  product?.conversionRatioX ||
+  (typeof product?.unit === "string"
+    ? product.unit
+    : product?.unit?.symbol || "")
+
 
 const getSaleUnit = (product?: Product) =>
-  product?.conversionRatioY || typeof product?.saleUnit === 'string' ? product?.saleUnit : getUnit(product)
+  product?.conversionRatioY ||
+  (typeof product?.saleUnit === "string"
+    ? product.saleUnit
+    : getUnit(product))
 
 const hasConversion = (product?: Product) =>
   product?.conversionType === "value" && !!product?.conversionValue
