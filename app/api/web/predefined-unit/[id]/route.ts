@@ -9,21 +9,13 @@ export async function GET(req: any, { params }: any) {
 
 		const { id } = await params
 
-		if (!mongoose.Types.ObjectId.isValid(id)) {
-			return NextResponse.json(
-				{ message: "ID satuan tidak valid" },
-				{ status: 400 }
-			)
-		}
+		if (!mongoose.Types.ObjectId.isValid(id)) return NextResponse.json({ noResult: true, message: "ID satuan tidak valid", result: null, error: true });
 
 		const unit = await PredefinedUnit.findById(id).lean()
 
-		if (!unit) return NextResponse.json(
-			{ message: "Satuan tidak ditemukan" },
-			{ status: 404 }
-		)
+		if (!unit) return NextResponse.json({ noResult: true, message: "Unit tidak ditemukan", result: null, error: true });
 
-		return NextResponse.json(unit)
+		return NextResponse.json({ noResult: false, message: "Unit ditemukan", result: unit, error: false });
 	}
 	catch (e: unknown) {
 		return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
@@ -36,12 +28,7 @@ export async function PUT(req: any, { params }: any) {
 
 		const { id } = await params
 
-		if (!mongoose.Types.ObjectId.isValid(id)) {
-			return NextResponse.json(
-				{ message: "ID satuan tidak valid" },
-				{ status: 400 }
-			)
-		}
+		if (!mongoose.Types.ObjectId.isValid(id)) return NextResponse.json({ noResult: true, message: "ID satuan tidak valid", result: null, error: true });
 
 		const body = await req.json()
 
@@ -60,14 +47,9 @@ export async function PUT(req: any, { params }: any) {
 			}
 		)
 
-		if (!unit) {
-			return NextResponse.json(
-				{ message: "Satuan tidak ditemukan" },
-				{ status: 404 }
-			)
-		}
+		if (!unit) return NextResponse.json({ noResult: true, message: "Unit tidak ditemukan", result: null, error: true });
 
-		return NextResponse.json(unit)
+		return NextResponse.json({ noResult: false, message: "Unit berhasil diperbarui", result: unit, error: false });
 	}
 	catch (e: unknown) {
 		return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
