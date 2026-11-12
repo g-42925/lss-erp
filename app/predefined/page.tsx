@@ -10,6 +10,15 @@ const initialForm = {
 	isActive: true
 }
 
+interface Unit {
+	_id: string
+	name: string
+	symbol: string
+	category: string
+	factorToBase: number
+	isActive: boolean
+}
+
 const categories = [
 	{ value: "weight", label: "Berat" },
 	{ value: "volume", label: "Volume" },
@@ -20,9 +29,9 @@ const categories = [
 ]
 
 export default function UnitManager() {
-	const [units, setUnits] = useState([])
+	const [units, setUnits] = useState<Unit[]>([])
 	const [form, setForm] = useState(initialForm)
-	const [editing, setEditing] = useState(null)
+	const [editing, setEditing] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [saving, setSaving] = useState(false)
 	const [error, setError] = useState("")
