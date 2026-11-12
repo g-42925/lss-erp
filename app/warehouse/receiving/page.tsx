@@ -67,10 +67,10 @@ const getProductName = (product?: Product) =>
   product?.productName || product?.name || "-"
 
 const getUnit = (product?: Product) =>
-  product?.conversionRatioX || product?.unit || ""
+  product?.conversionRatioX || typeof product?.unit === 'string' ? product?.unit : product?.unit?.symbol || ""
 
 const getSaleUnit = (product?: Product) =>
-  product?.conversionRatioY || product?.saleUnit || getUnit(product)
+  product?.conversionRatioY || typeof product?.saleUnit === 'string' ? product?.saleUnit : getUnit(product)
 
 const hasConversion = (product?: Product) =>
   product?.conversionType === "value" && !!product?.conversionValue

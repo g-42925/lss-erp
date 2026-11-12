@@ -8,11 +8,21 @@ import { useForm } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+type Unit = {
+  _id: string
+  name: string
+  symbol: string
+  category: string
+  isActive: boolean
+  factorToBase: number
+}
+
 type InvItem = {
   _id: string
   itemCode: string
   name: string
-  unit: string
+  unit: Unit
+  ftb?: Unit | null
   category: string
   currentStock: number
   createdAt: string
@@ -29,7 +39,14 @@ export default function InvItemsPage() {
   const [items, setItems] = useState<InvItem[]>([])
   const [search, setSearch] = useState("")
 
-  const addForm = useForm<{ name: string; unit: string; category: string }>()
+  const addForm = useForm<{
+    name: string
+    unit: string
+    ftb?: string
+    category: string
+  }>()
+
+
   const editForm = useForm<{ name: string; unit: string; category: string }>()
   const useFormRef = useForm<{ qty: number; note: string }>()
 
@@ -37,10 +54,19 @@ export default function InvItemsPage() {
   const [selectedItem, setSelectedItem] = useState<InvItem | null>(null)
   const [editItem, setEditItem] = useState<InvItem | null>(null)
 
+  const [predefinedUnits, setPredefinedUnits] = useState<any[]>([])
+
+  const [selectedUnit, setSelectedUnit] = useState<any>(null)
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const getFn = useFetch<InvItem[], any>({
     url: `/api/web/inv-items?id=${masterAccountId}`,
+    method: "GET",
+    onError: (m) => alert(m),
+  })
+
+  const getPredefinedUnits = useFetch<any[], any>({
+    url: `/api/web/predefined-unit`,
     method: "GET",
     onError: (m) => alert(m),
   })
@@ -64,10 +90,16 @@ export default function InvItemsPage() {
   })
 
 
+
+
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
       getFn.fn(`/api/web/inv-items?id=${masterAccountId}`, {}, (result) => {
         setItems(result)
+      })
+      getPredefinedUnits.fn("", {}, (result) => {
+        console.table(result)
+        setPredefinedUnits(result)
       })
     }
   }, [masterAccountId])
@@ -85,10 +117,15 @@ export default function InvItemsPage() {
     )
     : items
 
-  async function handleAdd(data: { name: string; unit: string; category: string }) {
+  async function handleAdd(data: {
+    name: string
+    unit: string
+    ftb?: string
+    category: string
+  }) {
     await postFn.fn(
       "",
-      JSON.stringify({ id: masterAccountId, ...data }) as any,
+      JSON.stringify({ id: masterAccountId, ...data }),
       (result) => {
         setItems((prev) => [result, ...prev])
         addForm.reset()
@@ -100,7 +137,7 @@ export default function InvItemsPage() {
   function openEdit(item: InvItem) {
     setEditItem(item)
     editForm.setValue("name", item.name)
-    editForm.setValue("unit", item.unit)
+    editForm.setValue("unit", item.unit?._id ?? "")
     editForm.setValue("category", item.category ?? "")
     editRef.current?.showModal()
   }
@@ -121,22 +158,39 @@ export default function InvItemsPage() {
     )
   }
 
-  async function handleUse(data: { qty: number; note: string }) {
+  async function handleUse(data: any) {
     if (!selectedItem) return
-    await useFn.fn(
-      "",
-      JSON.stringify({ id: masterAccountId, itemId: selectedItem._id, ...data }) as any,
-      (result) => {
-        // Update local stock
-        setItems((prev) =>
-          prev.map((i) =>
-            i._id === selectedItem._id ? { ...i, currentStock: i.currentStock - data.qty } : i
-          )
+
+    let fStock = 0
+
+    const { qty, number, ...rest } = data;
+
+    if (selectedItem.ftb) {
+      fStock = ((selectedItem.currentStock * selectedItem.ftb.factorToBase) - data.qty) / selectedItem.ftb.factorToBase
+    }
+    else {
+      fStock = selectedItem.currentStock - data.qty
+    }
+
+
+    const param = JSON.stringify({
+      id: masterAccountId,
+      itemId: selectedItem._id,
+      fStock,
+      ...data
+    })
+
+    await useFn.fn("", param, (result) => {
+      // Update local stock
+      setItems((prev) =>
+        prev.map((i) =>
+          i._id === selectedItem._id ? { ...i, currentStock: fStock } : i
         )
-        useFormRef.reset()
-        useModalRef.current?.close()
-        setSelectedItem(null)
-      }
+      )
+      useFormRef.reset()
+      useModalRef.current?.close()
+      setSelectedItem(null)
+    }
     )
   }
 
@@ -243,10 +297,12 @@ export default function InvItemsPage() {
                             <span className="text-slate-300 text-xs">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-slate-500">{item.unit}</td>
+                        <td className="px-6 py-4 text-slate-500">
+                          {item.unit?.name} ({item.unit?.symbol})
+                        </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
-                            {item.currentStock}
+                            {item.currentStock} ({item.currentStock * item?.ftb?.factorToBase}{item?.ftb?.symbol})
                           </span>
                         </td>
                         <td className="px-6 py-4 text-slate-400 text-xs">
@@ -309,14 +365,46 @@ export default function InvItemsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Unit <span className="text-red-500">*</span></label>
-              <input
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Unit <span className="text-red-500">*</span>
+              </label>
+
+              <select
                 id="input-item-unit"
                 {...addForm.register("unit", { required: true })}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                placeholder="e.g. pcs, box, liter, rim"
-              />
-              {addForm.formState.errors.unit && <p className="text-red-500 text-xs mt-1">Unit is required.</p>}
+              >
+                <option value="">Select Unit</option>
+                {predefinedUnits.map((unit) => (
+                  <option key={unit._id} value={unit._id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+
+              {addForm.formState.errors.unit && (
+                <p className="text-red-500 text-xs mt-1">Unit is required.</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Factor to Base{" "}
+                <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+
+              <select
+                id="input-item-factor-to-base"
+                {...addForm.register("ftb")}
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
+                <option value="">None</option>
+                {predefinedUnits.map((unit) => (
+                  <option key={unit._id} value={unit._id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -370,18 +458,15 @@ export default function InvItemsPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">
                 Quantity to Use <span className="text-red-500">*</span>
-                <span className="ml-2 text-xs font-normal text-slate-400">Available: {selectedItem?.currentStock} {selectedItem?.unit}</span>
+                <span className="ml-2 text-xs font-normal text-slate-400">Available: {selectedItem?.currentStock} {selectedItem?.unit?.symbol}</span>
               </label>
               <input
                 id="input-use-qty"
                 type="number"
-                {...useFormRef.register("qty", {
-                  required: true,
-                  min: 1,
-                  max: selectedItem?.currentStock
-                })}
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-black text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
                 placeholder="How many items are being used?"
+                {...useFormRef.register("qty")}
+
               />
               {useFormRef.formState.errors.qty && (
                 <p className="text-red-500 text-xs mt-1">
@@ -451,12 +536,18 @@ export default function InvItemsPage() {
 
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">Unit <span className="text-red-500">*</span></label>
-              <input
+              <select
                 id="input-edit-item-unit"
                 {...editForm.register("unit", { required: true })}
-                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                placeholder="e.g. pcs, box, liter, rim"
-              />
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
+              >
+                <option value="">Select Unit</option>
+                {predefinedUnits.map((unit) => (
+                  <option key={unit._id} value={unit._id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
               {editForm.formState.errors.unit && <p className="text-red-500 text-xs mt-1">Unit is required.</p>}
             </div>
 

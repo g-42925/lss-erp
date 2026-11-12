@@ -241,7 +241,8 @@ function Purchases() {
         const unit = filterType === "procurement"
           ? it.product?.unit
           : it.product?.conversionRatioX
-        return `${it.quantity} ${unit ? ` (${unit})` : ""}`
+        //return `${it.quantity} ${unit ? ` (${unit})` : ""}`
+        return `${it.quantity} ${unit ? typeof unit === 'string' ? ` (${unit})` : ` (${unit?.symbol})` : ""}`
       }
       const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
       return `${totalQty} total`
@@ -2155,7 +2156,7 @@ function Purchases() {
                             ))
                             : items.map((item) => (
                               <option key={item._id} value={item._id}>
-                                {item.name} ({item.unit})
+                                {item.name} x
                               </option>
                             ))}
                         </select>
@@ -2532,7 +2533,7 @@ function Purchases() {
                             ))
                             : items.map((item) => (
                               <option key={item._id} value={item._id}>
-                                {item.name} ({item.unit})
+                                {item.name} ({item?.unit?.symbol})
                               </option>
                             ))}
                         </select>
@@ -2820,7 +2821,7 @@ function Purchases() {
                               : it.product?.conversionRatioX || ""
                             return (
                               <tr key={idx}>
-                                <td>{pName} {pUnit ? `(${pUnit})` : ""}</td>
+                                <td>{pName} {pUnit ? typeof pUnit === 'string' ? `(${pUnit})` : `(${pUnit?.symbol})` : ""}</td>
                                 <td className="text-center">{it.quantity}</td>
                                 <td className="text-right">
                                   {it.finalPrice > 0

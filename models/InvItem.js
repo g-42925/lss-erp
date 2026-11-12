@@ -20,9 +20,14 @@ const InvItemSchema = new mongoose.Schema(
       trim: true,
     },
     unit: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PredefinedUnit',
       required: true,
-      trim: true,
+    },
+    ftb: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false,
+      ref: 'PredefinedUnit'
     },
     category: {
       type: String,

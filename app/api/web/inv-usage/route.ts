@@ -39,25 +39,18 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { id, itemId, qty, note } = body;
+    const { id, itemId, qty, note, fStock } = body;
 
-    if (!id || !itemId || !qty) {
-      return NextResponse.json({ noResult: true, message: 'id, itemId, and qty are required', result: null, error: true });
-    }
+    if (!id || !itemId || !qty) return NextResponse.json({ noResult: true, message: 'id, itemId, and qty are required', result: null, error: true });
 
     const company = await Companie.findOne({ masterAccountId: id });
-    if (!company) {
-      return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
-    }
+
+    if (!company) return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
+
 
     const item = await InvItem.findOne({ _id: itemId, companyId: company._id });
-    if (!item) {
-      return NextResponse.json({ noResult: true, message: 'Item not found', result: null, error: true });
-    }
+    if (!item) return NextResponse.json({ noResult: true, message: 'Item not found', result: null, error: true });
 
-    if (item.currentStock < qty) {
-      return NextResponse.json({ noResult: true, message: `Insufficient stock. Available: ${item.currentStock}`, result: null, error: true });
-    }
 
     const usageNumber = `USG-${String(Date.now()).slice(-7)}`;
 
@@ -74,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Atomically decrement stock
     await InvItem.updateOne(
       { _id: itemId },
-      { $inc: { currentStock: -Number(qty) } }
+      { currentStock: fStock }
     );
 
     return NextResponse.json({ noResult: false, message: 'Stock decremented successfully', result: usage, error: false });

@@ -2,6 +2,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 import Companie from '@/models/Companie';
 import InvItem from '@/models/InvItem';
+import PredefinedUnit from '@/models/PredefinedUnit';
 
 // ─── GET /api/web/inv-items?id=<masterAccountId> ─────────────────────────────
 // Returns all internal items for the company, sorted by name.
@@ -20,48 +21,141 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
     }
 
-    const items = await InvItem.find({ companyId: company._id }).sort({ name: 1 });
+    const items = await InvItem.find({ companyId: company._id }).populate('unit').populate('ftb').sort({ name: 1 });
 
     return NextResponse.json({ noResult: false, message: '', result: items, error: false });
-  } catch (e: unknown) {
+  }
+  catch (e: unknown) {
     return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    await connectToDatabase()
+
+    const body = await request.json()
+    const { id, name, unit, ftb, category } = body
+
+    if (!id || !name?.trim() || !unit) {
+      return NextResponse.json({
+        noResult: true,
+        message: "id, name, and unit are required",
+        result: null,
+        error: true,
+      })
+    }
+
+    const company = await Companie.findOne({ masterAccountId: id })
+
+    if (!company) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Company not found",
+        result: null,
+        error: true,
+      })
+    }
+
+    // Validate unit references
+    const unitExists = await PredefinedUnit.findOne({
+      _id: unit,
+      isActive: true,
+    })
+
+    if (!unitExists) {
+      return NextResponse.json({
+        noResult: true,
+        message: "Invalid unit",
+        result: null,
+        error: true,
+      })
+    }
+
+    // FTB is optional
+    if (ftb) {
+      const ftbExists = await PredefinedUnit.findOne({
+        _id: ftb,
+        isActive: true,
+      })
+
+      if (!ftbExists) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Invalid factor to base unit",
+          result: null,
+          error: true,
+        })
+      }
+    }
+
+    const itemCode = `ITM-${String(Date.now()).slice(-7)}`
+
+    const item = await InvItem.create({
+      companyId: company._id,
+      name: name.trim(),
+      unit,
+      ftb: ftb || undefined,
+      category: category?.trim() ?? "",
+      currentStock: 0,
+      itemCode,
+    })
+
+
+    const populatedItem = await InvItem.findById(item._id)
+      .populate("unit")
+      .populate("ftb")
+
+    return NextResponse.json({
+      noResult: false,
+      message: "",
+      result: populatedItem,
+      error: false,
+    })
+  } catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: (e as Error).message,
+      result: null,
+      error: true,
+    })
   }
 }
 
 // ─── POST /api/web/inv-items ──────────────────────────────────────────────────
 // Creates a new internal item. Price is NOT stored here.
 // Body: { id (masterAccountId), name, unit, category? }
-export async function POST(request: NextRequest) {
-  try {
-    await connectToDatabase();
-    const body = await request.json();
-    const { id, name, unit, category } = body;
+// export async function POST(request: NextRequest) {
+//   try {
+//     await connectToDatabase();
+//     const body = await request.json();
+//     const { id, name, unit, category } = body;
 
-    if (!id || !name || !unit) {
-      return NextResponse.json({ noResult: true, message: 'id, name, and unit are required', result: null, error: true });
-    }
+//     if (!id || !name || !unit) {
+//       return NextResponse.json({ noResult: true, message: 'id, name, and unit are required', result: null, error: true });
+//     }
 
-    const company = await Companie.findOne({ masterAccountId: id });
-    if (!company) {
-      return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
-    }
+//     const company = await Companie.findOne({ masterAccountId: id });
+//     if (!company) {
+//       return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
+//     }
 
-    const itemCode = `ITM-${String(Date.now()).slice(-7)}`;
+//     const itemCode = `ITM-${String(Date.now()).slice(-7)}`;
 
-    const item = await InvItem.create({
-      companyId: company._id,
-      name: name.trim(),
-      unit: unit.trim(),
-      category: category?.trim() ?? '',
-      currentStock: 0,
-      itemCode,
-    });
+//     const item = await InvItem.create({
+//       companyId: company._id,
+//       name: name.trim(),
+//       unit: unit.trim(),
+//       category: category?.trim() ?? '',
+//       currentStock: 0,
+//       itemCode,
+//     });
 
-    return NextResponse.json({ noResult: false, message: '', result: item, error: false });
-  } catch (e: unknown) {
-    return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
-  }
-}
+//     return NextResponse.json({ noResult: false, message: '', result: item, error: false });
+//   } catch (e: unknown) {
+//     return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
+//   }
+// }
 
 // ─── PUT /api/web/inv-items ───────────────────────────────────────────────────
 // Updates an existing internal item.

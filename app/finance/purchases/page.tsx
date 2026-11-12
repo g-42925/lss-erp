@@ -487,7 +487,7 @@ export default function PurchasesApproval() {
                                       ? item.product?.unit
                                       : item.product?.conversionRatioX
 
-                                  return `${item.quantity}${itemUnit ? ` (${itemUnit})` : ""}`
+                                  return `${item.quantity}${itemUnit ? typeof itemUnit === 'string' ? ` (${itemUnit})` : ` (${itemUnit?.symbol})` : ""}`
                                 })()
                                 : `${purchase.quantity} (${unit || "-"})`}
                         </td>

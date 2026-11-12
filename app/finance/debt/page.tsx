@@ -1400,7 +1400,7 @@ export default function Debt() {
                           type="text"
                           className="input w-full"
                           placeholder="Keterangan tujuan transfer"
-                          value={filterType === 'vendor' ? selectedDebt.vendor?.bankAccountType : selectedDebt?.nonCashDst?.accountNumber}
+                          value={filterType === 'vendor' ? selectedDebt.vendor?.bankAccountType : selectedDebt?.nonCashDst?.description}
                           onChange={e =>
                             setPayFormData(p => ({
                               ...p,

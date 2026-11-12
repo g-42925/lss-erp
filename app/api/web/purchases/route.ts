@@ -995,188 +995,542 @@ export async function GET(request: NextRequest) {
       masterAccountId: id
     })
 
-    const prs = await Purchase.aggregate(
-      [
-        {
-          $match: {
-            companyId: cmp._id,
-            purchaseType: type
-          }
-        },
-        {
-          $sort: {
-            date: -1
-          }
-        },
-        {
-          $lookup: {
-            from: type === 'procurement' ? 'invitems' : 'products',
-            localField: 'productId',
-            foreignField: '_id',
-            as: 'product'
-          }
-        },
-        {
-          $unwind: {
-            path: '$product',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        // ── Populate produk untuk multi-item purchases ─────────────────────────
-        // Ekstrak array productId dari items secara explicit
-        {
-          $addFields: {
-            _itemProductIds: {
-              $ifNull: [
-                { $map: { input: { $ifNull: ['$items', []] }, as: 'itm', in: '$$itm.productId' } },
-                []
-              ]
-            }
-          }
-        },
-        {
-          $lookup: {
-            from: type === 'procurement' ? 'invitems' : 'products',
-            localField: '_itemProductIds',
-            foreignField: '_id',
-            as: '_itemProducts'
-          }
-        },
-        {
-          $addFields: {
-            items: {
-              $map: {
-                input: { $ifNull: ['$items', []] },
-                as: 'itm',
-                in: {
-                  $mergeObjects: [
-                    '$$itm',
+    const productCollection = type === 'procurement' ? 'invitems' : 'products';
+
+    const prs = await Purchase.aggregate([
+      {
+        $match: {
+          companyId: cmp._id,
+          purchaseType: type,
+        }
+      },
+      {
+        $sort: {
+          date: -1
+        }
+      },
+
+      // 1. Lookup produk utama
+      {
+        $lookup: {
+          from: productCollection,
+          localField: 'productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // 2. Fallback: lookup produk items hanya jika produk utama tidak ditemukan
+      {
+        $lookup: {
+          from: productCollection,
+          let: {
+            mainProduct: '$product',
+            itemProductIds: '$items.productId'
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: [{ $ifNull: ['$$mainProduct', null] }, null] },
                     {
-                      product: {
-                        $arrayElemAt: [
-                          {
-                            $filter: {
-                              input: '$_itemProducts',
-                              as: 'p',
-                              cond: {
-                                $eq: [
-                                  { $toString: '$$p._id' },
-                                  { $toString: '$$itm.productId' }
-                                ]
-                              }
-                            }
-                          },
-                          0
-                        ]
-                      }
+                      $in: [
+                        '$_id',
+                        { $ifNull: ['$$itemProductIds', []] }
+                      ]
                     }
                   ]
                 }
               }
             }
-          }
-        },
-        {
-          $project: {
-            '_itemProducts': 0,
-            '_itemProductIds': 0,
-            'productId': 0,
-            'companyId': 0
-          }
-        },
-        {
-          $lookup: {
-            from: 'vendors',
-            localField: 'vendorId',
-            foreignField: '_id',
-            as: 'vendor'
-          }
-        },
-        {
-          $unwind: {
-            path: '$vendor',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $lookup: {
-            from: 'suppliers',
-            localField: 'supplierId',
-            foreignField: '_id',
-            as: 'supplier'
-          }
-        },
-        {
-          $unwind: {
-            path: '$supplier',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $lookup: {
-            from: 'batches',
-            localField: 'purchaseOrderNumber',
-            foreignField: 'purchaseOrderNumber',
-            as: 'batches'
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'createdBy',
-            foreignField: '_id',
-            as: 'createdBy'
-          }
-        },
-        {
-          $unwind: '$createdBy'
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'approvedBy',
-            foreignField: '_id',
-            as: 'approvedBy'
-          }
-        },
-        {
-          $unwind: {
-            path: '$approvedBy',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'voidedBy',
-            foreignField: '_id',
-            as: 'voidedBy'
-          }
-        },
-        {
-          $unwind: {
-            path: '$voidedBy',
-            preserveNullAndEmptyArrays: true
-          }
-        },
-        {
-          $addFields: {
-            receivedQty: {
-              $cond: {
-                if: { $eq: ["$purchaseType", "procurement"] },
-                then: { $ifNull: ["$receivedQty", 0] },
-                else: { $sum: "$batches.qty" }
+          ],
+          as: '_itemProducts'
+        }
+      },
+
+      // 3. Lookup unit produk fallback
+      {
+        $lookup: {
+          from: 'predefinedunits',
+          localField: '_itemProducts.unit',
+          foreignField: '_id',
+          as: '_itemUnits'
+        }
+      },
+
+      // 4. Lookup factor to base produk fallback
+      {
+        $lookup: {
+          from: 'predefinedunits',
+          localField: '_itemProducts.ftb',
+          foreignField: '_id',
+          as: '_itemFtbs'
+        }
+      },
+
+      // 5. Masukkan produk beserta unit dan ftb ke items
+      {
+        $addFields: {
+          items: {
+            $map: {
+              input: { $ifNull: ['$items', []] },
+              as: 'itm',
+              in: {
+                $mergeObjects: [
+                  '$$itm',
+                  {
+                    product: {
+                      $let: {
+                        vars: {
+                          p: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: '$_itemProducts',
+                                  as: 'p',
+                                  cond: {
+                                    $eq: [
+                                      { $toString: '$$p._id' },
+                                      { $toString: '$$itm.productId' }
+                                    ]
+                                  }
+                                }
+                              },
+                              0
+                            ]
+                          }
+                        },
+                        in: {
+                          $cond: [
+                            { $ne: ['$$p', null] },
+                            {
+                              $mergeObjects: [
+                                '$$p',
+                                {
+                                  unit: {
+                                    $arrayElemAt: [
+                                      {
+                                        $filter: {
+                                          input: '$_itemUnits',
+                                          as: 'u',
+                                          cond: {
+                                            $eq: ['$$u._id', '$$p.unit']
+                                          }
+                                        }
+                                      },
+                                      0
+                                    ]
+                                  },
+                                  ftb: {
+                                    $arrayElemAt: [
+                                      {
+                                        $filter: {
+                                          input: '$_itemFtbs',
+                                          as: 'u',
+                                          cond: {
+                                            $eq: ['$$u._id', '$$p.ftb']
+                                          }
+                                        }
+                                      },
+                                      0
+                                    ]
+                                  }
+                                }
+                              ]
+                            },
+                            null
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
               }
             }
           }
-        },
-        {
-          $project: {
-            'batches': 0
+        }
+      },
+
+      // 6. Bersihkan field sementara
+      {
+        $project: {
+          _itemProducts: 0,
+          _itemUnits: 0,
+          _itemFtbs: 0,
+          productId: 0,
+          companyId: 0
+        }
+      },
+
+      // 7. Lookup vendor
+      {
+        $lookup: {
+          from: 'vendors',
+          localField: 'vendorId',
+          foreignField: '_id',
+          as: 'vendor'
+        }
+      },
+      {
+        $unwind: {
+          path: '$vendor',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // 8. Lookup supplier
+      {
+        $lookup: {
+          from: 'suppliers',
+          localField: 'supplierId',
+          foreignField: '_id',
+          as: 'supplier'
+        }
+      },
+      {
+        $unwind: {
+          path: '$supplier',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // 9. Lookup batches
+      {
+        $lookup: {
+          from: 'batches',
+          localField: 'purchaseOrderNumber',
+          foreignField: 'purchaseOrderNumber',
+          as: 'batches'
+        }
+      },
+
+      // 10. Lookup createdBy
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy'
+        }
+      },
+      {
+        $unwind: '$createdBy'
+      },
+
+      // 11. Lookup approvedBy
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'approvedBy',
+          foreignField: '_id',
+          as: 'approvedBy'
+        }
+      },
+      {
+        $unwind: {
+          path: '$approvedBy',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // 12. Lookup voidedBy
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'voidedBy',
+          foreignField: '_id',
+          as: 'voidedBy'
+        }
+      },
+      {
+        $unwind: {
+          path: '$voidedBy',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+
+      // 13. Hitung receivedQty
+      {
+        $addFields: {
+          receivedQty: {
+            $cond: {
+              if: { $eq: ['$purchaseType', 'procurement'] },
+              then: { $ifNull: ['$receivedQty', 0] },
+              else: { $sum: '$batches.qty' }
+            }
           }
         }
-      ]
-    )
+      },
+
+      // 14. Hapus batches
+      {
+        $project: {
+          batches: 0
+        }
+      }
+    ]);
+
+
+    // const prs = await Purchase.aggregate(
+    //   [
+    //     {
+    //       $match: {
+    //         companyId: cmp._id,
+    //         purchaseType: type,
+    //         purchaseOrderNumber:'PO-39026'
+    //       }
+    //     },
+    //     {
+    //       $sort: {
+    //         date: -1
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: type === 'procurement' ? 'invitems' : 'products',
+    //         localField: 'productId',
+    //         foreignField: '_id',
+    //         as: 'product'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$product',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: type === 'procurement' ? 'invitems' : 'products',
+    //         localField: 'items.productId',
+    //         foreignField: '_id',
+    //         as: 'product'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$product',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'predefinedunits',
+    //         localField: 'product.unit',
+    //         foreignField: '_id',
+    //         as: 'product.unit'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$product.unit',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'predefinedunits',
+    //         localField: 'product.ftb',
+    //         foreignField: '_id',
+    //         as: 'product.ftb'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$product.ftb',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $addFields: {
+    //         _itemProductIds: {
+    //           $ifNull: [
+    //             { $map: { input: { $ifNull: ['$items', []] }, as: 'itm', in: '$$itm.productId' } },
+    //             []
+    //           ]
+    //         }
+    //       }
+    //     },
+    //     {
+    //       $addFields: {
+    //         items: {
+    //           $map: {
+    //             input: { $ifNull: ['$items', []] },
+    //             as: 'itm',
+    //             in: {
+    //               $mergeObjects: [
+    //                 '$$itm',
+    //                 {
+    //                   product: {
+    //                     $let: {
+    //                       vars: {
+    //                         p: {
+    //                           $arrayElemAt: [
+    //                             {
+    //                               $filter: {
+    //                                 input: '$_itemProducts',
+    //                                 as: 'p',
+    //                                 cond: {
+    //                                   $eq: [
+    //                                     { $toString: '$$p._id' },
+    //                                     { $toString: '$$itm.productId' }
+    //                                   ]
+    //                                 }
+    //                               }
+    //                             },
+    //                             0
+    //                           ]
+    //                         }
+    //                       },
+    //                       in: {
+    //                         $mergeObjects: [
+    //                           '$$p',
+    //                           {
+    //                             unit: {
+    //                               $arrayElemAt: [
+    //                                 {
+    //                                   $filter: {
+    //                                     input: '$_itemUnits',
+    //                                     as: 'u',
+    //                                     cond: { $eq: ['$$u._id', '$$p.unit'] }
+    //                                   }
+    //                                 },
+    //                                 0
+    //                               ]
+    //                             },
+    //                             ftb: {
+    //                               $arrayElemAt: [
+    //                                 {
+    //                                   $filter: {
+    //                                     input: '$_itemFtbs',
+    //                                     as: 'u',
+    //                                     cond: { $eq: ['$$u._id', '$$p.ftb'] }
+    //                                   }
+    //                                 },
+    //                                 0
+    //                               ]
+    //                             }
+    //                           }
+    //                         ]
+    //                       }
+    //                     }
+    //                   }
+    //                 }
+    //               ]
+    //             }
+    //           }
+    //         }
+    //       }
+    //     },
+    //     {
+    //       $project: {
+    //         '_itemProductIds': 0,
+    //         'productId': 0,
+    //         'companyId': 0
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'vendors',
+    //         localField: 'vendorId',
+    //         foreignField: '_id',
+    //         as: 'vendor'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$vendor',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'suppliers',
+    //         localField: 'supplierId',
+    //         foreignField: '_id',
+    //         as: 'supplier'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$supplier',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'batches',
+    //         localField: 'purchaseOrderNumber',
+    //         foreignField: 'purchaseOrderNumber',
+    //         as: 'batches'
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'users',
+    //         localField: 'createdBy',
+    //         foreignField: '_id',
+    //         as: 'createdBy'
+    //       }
+    //     },
+    //     {
+    //       $unwind: '$createdBy'
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'users',
+    //         localField: 'approvedBy',
+    //         foreignField: '_id',
+    //         as: 'approvedBy'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$approvedBy',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $lookup: {
+    //         from: 'users',
+    //         localField: 'voidedBy',
+    //         foreignField: '_id',
+    //         as: 'voidedBy'
+    //       }
+    //     },
+    //     {
+    //       $unwind: {
+    //         path: '$voidedBy',
+    //         preserveNullAndEmptyArrays: true
+    //       }
+    //     },
+    //     {
+    //       $addFields: {
+    //         receivedQty: {
+    //           $cond: {
+    //             if: { $eq: ["$purchaseType", "procurement"] },
+    //             then: { $ifNull: ["$receivedQty", 0] },
+    //             else: { $sum: "$batches.qty" }
+    //           }
+    //         }
+    //       }
+    //     },
+    //     {
+    //       $project: {
+    //         'batches': 0
+    //       }
+    //     },
+    //   ]
+    // )
+
+    console.log(JSON.stringify(prs, null, 2))
 
     return NextResponse.json(
       {
