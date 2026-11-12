@@ -3,7 +3,7 @@ import mongoose from "mongoose"
 import { connectToDatabase } from "@/lib/mongodb"
 import PredefinedUnit from "@/models/PredefinedUnit"
 
-export async function GET(req, { params: any }) {
+export async function GET(req, { params }: any) {
 	try {
 		await connectToDatabase()
 
@@ -33,11 +33,11 @@ export async function GET(req, { params: any }) {
 	}
 }
 
-export async function PUT(req, { params: any }) {
+export async function PUT(req, { params }: any) {
 	try {
 		await connectToDatabase()
 
-		const { id } = await params
+		const { id } = awaist params
 
 		if (!mongoose.Types.ObjectId.isValid(id)) {
 			return NextResponse.json(
