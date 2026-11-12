@@ -109,7 +109,7 @@ export default function UnitManager() {
 			await fetchUnits()
 		}
 		catch (error) {
-			setError(error.message)
+			setError(error instanceof Error ? error.message : String(error))
 		}
 		finally {
 			setSaving(false)
