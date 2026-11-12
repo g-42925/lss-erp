@@ -59,7 +59,7 @@ export default function UnitManager() {
 		}))
 	}
 
-	const handleEdit = (unit) => {
+	const handleEdit = (unit: any) => {
 		setEditing(unit._id)
 
 		setForm({
