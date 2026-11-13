@@ -157,6 +157,7 @@ export default function InvItemsPage() {
       editForm.reset()
       editRef.current?.close()
       setEditItem(null)
+      window.location.href = "/inventory/items"
     })
   }
 
@@ -472,21 +473,46 @@ export default function InvItemsPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">
                 Quantity to Use <span className="text-red-500">*</span>
-                <span className="ml-2 text-xs font-normal text-slate-400">Available: {selectedItem?.currentStock} {selectedItem?.unit?.symbol}</span>
               </label>
+
+
+
+              {
+                selectedItem?.ftb ? (
+                  <>
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
+                      <p className="text-xs text-blue-700">
+                        Stock usage must be in {selectedItem?.ftb?.symbol}
+                      </p>
+                    </div>
+                  </>
+                )
+                  :
+                  (
+                    <>
+                      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
+                        <p className="text-xs text-blue-700">
+                          Stock usage must be in {selectedItem?.unit?.symbol}
+                        </p>
+                      </div>
+                    </>
+                  )
+              }
+
+
               <input
                 id="input-use-qty"
                 type="number"
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-black text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                placeholder="How many items are being used?"
-                {...useFormRef.register("qty")}
-
+                step="any"
+                min="0.000001"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-black text-sm"
+                placeholder="Enter quantity in base unit"
+                {...useFormRef.register("qty", {
+                  required: true,
+                  min: 0.000001,
+                  valueAsNumber: true
+                })}
               />
-              {useFormRef.formState.errors.qty && (
-                <p className="text-red-500 text-xs mt-1">
-                  {useFormRef.formState.errors.qty.type === "max" ? "Cannot use more than available stock." : "Quantity is required (min 1)."}
-                </p>
-              )}
             </div>
 
             <div>
