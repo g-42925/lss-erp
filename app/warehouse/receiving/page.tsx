@@ -447,7 +447,7 @@ export default function Receiving() {
             }}
             className="text-blue-700 hover:underline"
           >
-            {totalReceived} {!multi && unit}
+            {totalReceived}
           </Link>
         </td>
 
@@ -458,20 +458,6 @@ export default function Receiving() {
             </span>
           ) : (
             <span className="text-slate-300">—</span>
-          )}
-        </td>
-
-        <td>
-          {canReceive && (
-            multi ? (
-              completed && (
-                <span className="text-green-600 text-xs font-medium">
-                  Completed
-                </span>
-              )
-            ) : (
-              receiveAction
-            )
           )}
         </td>
       </tr>
