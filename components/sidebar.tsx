@@ -231,6 +231,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             >
               <SidebarItem href="/inventory/items">Items</SidebarItem>
               <SidebarItem href="/inventory/usage">Usage Logs</SidebarItem>
+              <SidebarItem href="/predefined">Config</SidebarItem>
+
             </ParentMenu>
 
             {/* Purchases */}
