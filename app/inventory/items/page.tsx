@@ -25,7 +25,7 @@ type InvItem = {
   ftb?: Unit | null
   category: string
   currentStock: number
-  createdAt: string
+  createdAt: string,
 }
 
 export default function InvItemsPage() {
@@ -43,11 +43,14 @@ export default function InvItemsPage() {
     name: string
     unit: string
     ftb?: string
-    category: string
+    category: string,
   }>()
 
 
-  const editForm = useForm<{ name: string; unit: string; category: string }>()
+  const editForm = useForm<{
+    name: string; unit: string; category: string; ftb?: string
+
+  }>()
   const useFormRef = useForm<{ qty: number; note: string }>()
 
   const useModalRef = useRef<HTMLDialogElement>(null)
@@ -88,9 +91,6 @@ export default function InvItemsPage() {
     method: "POST",
     onError: (m) => alert(m),
   })
-
-
-
 
   useEffect(() => {
     if (hasHydrated && masterAccountId) {
@@ -139,23 +139,25 @@ export default function InvItemsPage() {
     editForm.setValue("name", item.name)
     editForm.setValue("unit", item.unit?._id ?? "")
     editForm.setValue("category", item.category ?? "")
+    editForm.setValue("ftb", item?.ftb?._id ?? "")
     editRef.current?.showModal()
   }
 
-  async function handleEdit(data: { name: string; unit: string; category: string }) {
+  async function handleEdit(data: { name: string; unit: string; category: string, ftb?: string }) {
     if (!editItem) return
-    await putFn.fn(
-      "",
-      JSON.stringify({ id: masterAccountId, itemId: editItem._id, ...data }) as any,
-      (result) => {
-        setItems((prev) =>
-          prev.map((i) => (i._id === editItem._id ? result : i))
-        )
-        editForm.reset()
-        editRef.current?.close()
-        setEditItem(null)
-      }
-    )
+
+    const payload = JSON.stringify({
+      id: masterAccountId,
+      itemId: editItem._id,
+      ...data
+    })
+
+    await putFn.fn("", payload, (result) => {
+      setItems((prev) => prev.map((i) => (i._id === editItem._id ? result : i)))
+      editForm.reset()
+      editRef.current?.close()
+      setEditItem(null)
+    })
   }
 
   async function handleUse(data: any) {
@@ -551,6 +553,23 @@ export default function InvItemsPage() {
               <select
                 id="input-edit-item-unit"
                 {...editForm.register("unit", { required: true })}
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
+              >
+                <option value="">Select Unit</option>
+                {predefinedUnits.map((unit) => (
+                  <option key={unit._id} value={unit._id}>
+                    {unit.name} ({unit.symbol})
+                  </option>
+                ))}
+              </select>
+              {editForm.formState.errors.unit && <p className="text-red-500 text-xs mt-1">Unit is required.</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">Factor to base</label>
+              <select
+                id="input-edit-item-unit"
+                {...editForm.register("ftb")}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
               >
                 <option value="">Select Unit</option>

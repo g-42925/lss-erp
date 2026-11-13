@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { id, name, unit, ftb, category } = body
 
+    console.log(body)
+
     if (!id || !name?.trim() || !unit) {
       return NextResponse.json({
         noResult: true,
@@ -164,33 +166,59 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { id, itemId, name, unit, category } = body;
+    const { id, itemId, name, unit, category, ftb } = body;
 
-    if (!id || !itemId || !name || !unit) {
-      return NextResponse.json({ noResult: true, message: 'id, itemId, name, and unit are required', result: null, error: true });
-    }
+    if (!id || !itemId || !name || !unit) return NextResponse.json({
+      noResult: true,
+      message: 'payload incomplete',
+      result: null,
+      error: true
+    });
+
 
     const company = await Companie.findOne({ masterAccountId: id });
-    if (!company) {
-      return NextResponse.json({ noResult: true, message: 'Company not found', result: null, error: true });
-    }
+
+    if (!company) return NextResponse.json({
+      noResult: true,
+      message: 'Company not found',
+      result: null, error: true
+    });
+
 
     const item = await InvItem.findOneAndUpdate(
       { _id: itemId, companyId: company._id },
       {
         name: name.trim(),
-        unit: unit.trim(),
+        unit: unit,
         category: category?.trim() ?? '',
+        ftb: ftb
       },
-      { new: true }
+      {
+        new: true
+      }
     );
 
-    if (!item) {
-      return NextResponse.json({ noResult: true, message: 'Item not found', result: null, error: true });
-    }
+    if (!item) return NextResponse.json({
+      noResult: true,
+      message: 'Item not found',
+      result: null,
+      error: true
+    });
 
-    return NextResponse.json({ noResult: false, message: '', result: item, error: false });
-  } catch (e: unknown) {
-    return NextResponse.json({ noResult: true, message: (e as Error).message, result: null, error: true });
+
+    return NextResponse.json({
+      noResult: false,
+      message: '',
+      result: item,
+      error: false
+    });
+  }
+  catch (e: unknown) {
+    return NextResponse.json({
+      noResult: true,
+      message: (e as Error).message,
+      result: null,
+      error: true
+    });
   }
 }

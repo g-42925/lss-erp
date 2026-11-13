@@ -1124,9 +1124,11 @@ export default function Debt() {
                           <th>
                             {filterType === 'barang' ? 'Supplier/Vendor' : 'Vendor'}
                           </th>
+                          {filterType === 'barang' && <th>Rek. Tujuan</th>}
                           {filterType === 'vendor' && <th>Tagihan</th>}
                           {filterType === 'vendor' && <th>Total Hutang</th>}
                           {filterType != 'vendor' && <th>Total</th>}
+
                           <th>Sudah Dibayar</th>
                           <th>Sisa</th>
                           <th>Aksi</th>
@@ -1162,6 +1164,20 @@ export default function Debt() {
                                 ? (d.vendor?.name || '-')
                                 : (d.supplier?.bussinessName || d.vendor?.name || d.customSupplier || '-')}
                             </td>
+                            {
+                              filterType === 'barang' && d.nonCashDst && (
+                                <>
+                                  <td>{d.nonCashDst.accountNumber}</td>
+                                </>
+                              )
+                            }
+                            {
+                              filterType === 'barang' && !d.nonCashDst && (
+                                <>
+                                  <td>-</td>
+                                </>
+                              )
+                            }
                             <td>
                               {(filterType === 'vendor'
                                 ? (d.originalDebt ?? d.debt)
@@ -1230,6 +1246,7 @@ export default function Debt() {
                                 >
                                   Refund log
                                 </button>
+
                               </div>
                             </td>
                           </tr>
