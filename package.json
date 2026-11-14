@@ -30,6 +30,7 @@
     "react-number": "^0.0.1-alpha4",
     "react-number-format": "^5.4.4",
     "react-redux": "^9.2.0",
+    "react-select": "^5.10.2",
     "resend": "^6.34.1",
     "sweetalert2": "^11.26.25",
     "uuid": "^13.0.0",

@@ -1,5 +1,9 @@
+
+
 import { connectToDatabase } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
+
+import mongoose from "mongoose";
 import Companie from '@/models/Companie';
 import InvItem from '@/models/InvItem';
 import PredefinedUnit from '@/models/PredefinedUnit';
@@ -35,9 +39,7 @@ export async function POST(request: NextRequest) {
     await connectToDatabase()
 
     const body = await request.json()
-    const { id, name, unit, ftb, category } = body
-
-    console.log(body)
+    const { id, name, unit, ftb, category, itemType } = body
 
     if (!id || !name?.trim() || !unit) {
       return NextResponse.json({
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
       category: category?.trim() ?? "",
       currentStock: 0,
       itemCode,
+      itemType
     })
 
 
@@ -163,10 +166,12 @@ export async function POST(request: NextRequest) {
 // Updates an existing internal item.
 // Body: { id (masterAccountId), itemId, name, unit, category? }
 export async function PUT(request: NextRequest) {
+  let payload = {}
+
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { id, itemId, name, unit, category, ftb } = body;
+    const { id, itemId, name, unit, category, ftb, itemType } = body;
 
     if (!id || !itemId || !name || !unit) return NextResponse.json({
       noResult: true,
@@ -178,6 +183,8 @@ export async function PUT(request: NextRequest) {
 
     const company = await Companie.findOne({ masterAccountId: id });
 
+    const factorToBase = PredefinedUnit.findById(ftb)
+
     if (!company) return NextResponse.json({
       noResult: true,
       message: 'Company not found',
@@ -185,13 +192,28 @@ export async function PUT(request: NextRequest) {
     });
 
 
-    const item = await InvItem.findOneAndUpdate(
-      { _id: itemId, companyId: company._id },
-      {
+    if (ftb) {
+      payload = {
         name: name.trim(),
         unit: unit,
         category: category?.trim() ?? '',
-        ftb: ftb
+        ftb: ftb,
+        itemType
+      }
+    }
+    else {
+      payload = {
+        name: name.trim(),
+        unit: unit,
+        category: category?.trim() ?? '',
+        itemType
+      }
+    }
+
+    const item = await InvItem.findOneAndUpdate(
+      { _id: itemId, companyId: company._id },
+      {
+        ...payload
       },
       {
         new: true

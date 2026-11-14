@@ -1,10 +1,12 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 "use client"
 
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch"
-import { useForm } from "react-hook-form"
+import CreatableSelect from "react-select/creatable"
 
+import { useForm, Controller } from "react-hook-form"
 import { useRef, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
@@ -24,8 +26,17 @@ type InvItem = {
   unit: Unit
   ftb?: Unit | null
   category: string
+  itemType: string
   currentStock: number
-  createdAt: string,
+  createdAt: string
+}
+
+type ItemForm = {
+  name: string
+  unit: string
+  ftb?: string
+  category: string
+  itemType: string
 }
 
 export default function InvItemsPage() {
@@ -36,32 +47,23 @@ export default function InvItemsPage() {
 
   const addRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const useModalRef = useRef<HTMLDialogElement>(null)
+
   const [items, setItems] = useState<InvItem[]>([])
   const [search, setSearch] = useState("")
+  const [selectedType, setSelectedType] = useState("all")
 
-  const addForm = useForm<{
-    name: string
-    unit: string
-    ftb?: string
-    category: string,
-  }>()
-
-
-  const editForm = useForm<{
-    name: string; unit: string; category: string; ftb?: string
-
-  }>()
-  const useFormRef = useForm<{ qty: number; note: string }>()
-
-  const useModalRef = useRef<HTMLDialogElement>(null)
   const [selectedItem, setSelectedItem] = useState<InvItem | null>(null)
   const [editItem, setEditItem] = useState<InvItem | null>(null)
 
   const [predefinedUnits, setPredefinedUnits] = useState<any[]>([])
 
-  const [selectedUnit, setSelectedUnit] = useState<any>(null)
+  const addForm = useForm<ItemForm>()
+  const editForm = useForm<ItemForm>()
+  const useFormRef = useForm<{ qty: number; note: string }>()
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // ── Fetch ───────────────────────────────────────────────────────────────
+
   const getFn = useFetch<InvItem[], any>({
     url: `/api/web/inv-items?id=${masterAccountId}`,
     method: "GET",
@@ -93,110 +95,44 @@ export default function InvItemsPage() {
   })
 
   useEffect(() => {
-    if (hasHydrated && masterAccountId) {
-      getFn.fn(`/api/web/inv-items?id=${masterAccountId}`, {}, (result) => {
-        setItems(result)
-      })
-      getPredefinedUnits.fn("", {}, (result) => {
-        console.table(result)
-        setPredefinedUnits(result)
-      })
-    }
-  }, [masterAccountId])
+    if (!hasHydrated || !masterAccountId) return
 
-
-  if (!hasHydrated) return null
-  if (!loggedIn) { router.push("/login"); return null }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const filtered = search.trim()
-    ? items.filter((i) =>
-      i.name.toLowerCase().includes(search.toLowerCase()) ||
-      i.category?.toLowerCase().includes(search.toLowerCase()) ||
-      i.itemCode.toLowerCase().includes(search.toLowerCase())
-    )
-    : items
-
-  async function handleAdd(data: {
-    name: string
-    unit: string
-    ftb?: string
-    category: string
-  }) {
-    await postFn.fn(
-      "",
-      JSON.stringify({ id: masterAccountId, ...data }),
-      (result) => {
-        setItems((prev) => [result, ...prev])
-        addForm.reset()
-        addRef.current?.close()
-      }
-    )
-  }
-
-  function openEdit(item: InvItem) {
-    setEditItem(item)
-    editForm.setValue("name", item.name)
-    editForm.setValue("unit", item.unit?._id ?? "")
-    editForm.setValue("category", item.category ?? "")
-    editForm.setValue("ftb", item?.ftb?._id ?? "")
-    editRef.current?.showModal()
-  }
-
-  async function handleEdit(data: { name: string; unit: string; category: string, ftb?: string }) {
-    if (!editItem) return
-
-    const payload = JSON.stringify({
-      id: masterAccountId,
-      itemId: editItem._id,
-      ...data
+    getFn.fn(`/api/web/inv-items?id=${masterAccountId}`, {}, (result) => {
+      setItems(result)
     })
 
-    await putFn.fn("", payload, (result) => {
-      setItems((prev) => prev.map((i) => (i._id === editItem._id ? result : i)))
-      editForm.reset()
-      editRef.current?.close()
-      setEditItem(null)
-      window.location.href = "/inventory/items"
+    getPredefinedUnits.fn("", {}, (result) => {
+      setPredefinedUnits(result)
     })
-  }
+  }, [hasHydrated, masterAccountId])
 
-  async function handleUse(data: any) {
-    if (!selectedItem) return
+  // ── Helpers ─────────────────────────────────────────────────────────────
 
-    let fStock = 0
-
-    const { qty, number, ...rest } = data;
-
-    if (selectedItem.ftb) {
-      fStock = ((selectedItem.currentStock * selectedItem.ftb.factorToBase) - data.qty) / selectedItem.ftb.factorToBase
-    }
-    else {
-      fStock = selectedItem.currentStock - data.qty
-    }
-
-
-    const param = JSON.stringify({
-      id: masterAccountId,
-      itemId: selectedItem._id,
-      fStock,
-      ...data
-    })
-
-    await useFn.fn("", param, (result) => {
-      // Update local stock
-      setItems((prev) =>
-        prev.map((i) =>
-          i._id === selectedItem._id ? { ...i, currentStock: fStock } : i
-        )
-      )
-      useFormRef.reset()
-      useModalRef.current?.close()
-      setSelectedItem(null)
-    }
+  const itemTypeOptions = Array.from(
+    new Set(
+      items
+        .map(item => item.itemType?.trim())
+        .filter((type): type is string => Boolean(type))
     )
-  }
+  ).map(type => ({
+    value: type,
+    label: type,
+    count: items.filter(item => item.itemType?.trim() === type).length,
+  }))
 
+  const filtered = items.filter((item) => {
+    const keyword = search.trim().toLowerCase()
+
+    const matchesSearch = !keyword ||
+      item.name.toLowerCase().includes(keyword) ||
+      item.category?.toLowerCase().includes(keyword) ||
+      item.itemCode.toLowerCase().includes(keyword)
+
+    const matchesType = selectedType === "all" ||
+      item.itemType?.trim() === selectedType
+
+    return matchesSearch && matchesType
+  })
 
   const stockBadgeClass = (stock: number) =>
     stock === 0
@@ -205,16 +141,117 @@ export default function InvItemsPage() {
         ? "badge badge-warning badge-sm"
         : "badge badge-success badge-sm text-white"
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Add Item ────────────────────────────────────────────────────────────
+
+  async function handleAdd(data: ItemForm) {
+    await postFn.fn("", JSON.stringify({
+      id: masterAccountId,
+      ...data,
+    }), (result) => {
+      setItems(prev => [result, ...prev])
+      addForm.reset()
+      addRef.current?.close()
+    })
+  }
+
+  // ── Edit Item ───────────────────────────────────────────────────────────
+
+  function openEdit(item: InvItem) {
+    setEditItem(item)
+
+    editForm.reset({
+      name: item.name,
+      unit: item.unit?._id ?? "",
+      category: item.category ?? "",
+      ftb: item.ftb?._id ?? "",
+      itemType: item.itemType ?? "",
+    })
+
+    editRef.current?.showModal()
+  }
+
+  async function handleEdit(data: ItemForm) {
+    if (!editItem) return
+
+    await putFn.fn("", JSON.stringify({
+      id: masterAccountId,
+      itemId: editItem._id,
+      ...data,
+    }), (result) => {
+      setItems(prev =>
+        prev.map(item =>
+          item._id === editItem._id ? result : item
+        )
+      )
+
+      editForm.reset()
+      editRef.current?.close()
+      setEditItem(null)
+    })
+  }
+
+  // ── Stock Out ───────────────────────────────────────────────────────────
+
+  async function handleUse(data: { qty: number; note: string }) {
+    if (!selectedItem) return
+
+    const fStock = selectedItem.ftb
+      ? (
+        selectedItem.currentStock * selectedItem.ftb.factorToBase - data.qty
+      ) / selectedItem.ftb.factorToBase
+      : selectedItem.currentStock - data.qty
+
+    if (data.qty <= 0 || fStock < 0) {
+      alert("Insufficient stock.")
+      return
+    }
+
+    const param = JSON.stringify({
+      id: masterAccountId,
+      itemId: selectedItem._id,
+      fStock,
+      ...data,
+    })
+
+    await useFn.fn("", param, () => {
+      setItems(prev =>
+        prev.map(item =>
+          item._id === selectedItem._id
+            ? { ...item, currentStock: fStock }
+            : item
+        )
+      )
+
+      useFormRef.reset()
+      useModalRef.current?.close()
+      setSelectedItem(null)
+    })
+  }
+
+  if (!hasHydrated) return null
+
+  if (!loggedIn) {
+    router.push("/login")
+    return null
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────
+
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Inventory Items</h1>
-            <p className="text-slate-500 text-sm mt-1">Internal-use item master — office supplies, maintenance goods, etc.</p>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">
+              Inventory Items
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">
+              Internal-use item master — office supplies, maintenance goods, etc.
+            </p>
           </div>
+
           <button
             id="btn-add-item"
             onClick={() => addRef.current?.showModal()}
@@ -227,47 +264,93 @@ export default function InvItemsPage() {
           </button>
         </div>
 
-        {/* Stats cards */}
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-1">Total Items</p>
-            <p className="text-3xl font-bold text-slate-800">{items.length}</p>
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-1">
+              Total Items
+            </p>
+            <p className="text-3xl font-bold text-slate-800">
+              {items.length}
+            </p>
           </div>
+
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-1">Out of Stock</p>
-            <p className="text-3xl font-bold text-red-500">{items.filter((i) => i.currentStock === 0).length}</p>
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-1">
+              Out of Stock
+            </p>
+            <p className="text-3xl font-bold text-red-500">
+              {items.filter(item => item.currentStock === 0).length}
+            </p>
           </div>
+
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-1">Low Stock (≤5)</p>
-            <p className="text-3xl font-bold text-amber-500">{items.filter((i) => i.currentStock > 0 && i.currentStock <= 5).length}</p>
+            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-1">
+              Low Stock (≤5)
+            </p>
+            <p className="text-3xl font-bold text-amber-500">
+              {items.filter(item => item.currentStock > 0 && item.currentStock <= 5).length}
+            </p>
           </div>
         </div>
 
-        {/* Table card */}
+        {/* Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-            <span className="text-slate-600 font-medium text-sm">{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-slate-100">
+            <span className="text-slate-600 font-medium text-sm">
+              {filtered.length} item{filtered.length !== 1 ? "s" : ""}
+            </span>
+
             <input
               type="search"
               placeholder="Search name, category, code…"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="text-black border border-slate-200 rounded-xl px-4 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              onChange={e => setSearch(e.target.value)}
+              className="text-black border border-slate-200 rounded-xl px-4 py-2 text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
 
+          {/* Item Type Filters */}
+          <div className="flex flex-wrap items-center gap-2 px-6 py-4 border-b border-slate-100">
+            <button
+              onClick={() => setSelectedType("all")}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${selectedType === "all"
+                  ? "bg-blue-700 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+            >
+              All ({items.length})
+            </button>
+
+            {itemTypeOptions.map(type => (
+              <button
+                key={type.value}
+                onClick={() => setSelectedType(type.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${selectedType === type.value
+                    ? "bg-blue-700 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+              >
+                {type.label} ({type.count})
+              </button>
+            ))}
+          </div>
+
+          {/* Table Content */}
           {getFn.loading ? (
             <div className="flex justify-center items-center py-20">
               <span className="loading loading-spinner loading-lg text-blue-600" />
             </div>
           ) : getFn.error || getFn.noResult ? (
             <div className="text-center py-16 text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-12 mx-auto mb-3 text-slate-300">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-              </svg>
-              <p className="font-medium">{getFn.message || "No items found"}</p>
-              <p className="text-xs mt-1 text-slate-300">Add your first inventory item using the button above.</p>
+              <p className="font-medium">
+                {getFn.message || "No items found"}
+              </p>
+              <p className="text-xs mt-1 text-slate-300">
+                Add your first inventory item using the button above.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -280,49 +363,60 @@ export default function InvItemsPage() {
                     <th className="px-6 py-3 text-left">Unit</th>
                     <th className="px-6 py-3 text-center">Current Stock</th>
                     <th className="px-6 py-3 text-left">Added</th>
+                    <th className="px-6 py-3 text-center">Type</th>
                     <th className="px-6 py-3 text-center">Actions</th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-slate-50">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-10 text-slate-400 text-sm">No items match your search.</td>
+                      <td colSpan={8} className="text-center py-10 text-slate-400 text-sm">
+                        No items match your filter.
+                      </td>
                     </tr>
                   ) : (
-                    filtered.map((item) => (
+                    filtered.map(item => (
                       <tr key={item._id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-4 font-mono text-slate-400 text-xs">{item.itemCode}</td>
-                        <td className="px-6 py-4 font-semibold text-slate-800">{item.name}</td>
+                        <td className="px-6 py-4 font-mono text-slate-400 text-xs">
+                          {item.itemCode}
+                        </td>
+
+                        <td className="px-6 py-4 font-semibold text-slate-800">
+                          {item.name}
+                        </td>
+
                         <td className="px-6 py-4">
                           {item.category ? (
-                            <span className="bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">{item.category}</span>
+                            <span className="bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                              {item.category}
+                            </span>
                           ) : (
                             <span className="text-slate-300 text-xs">—</span>
                           )}
                         </td>
+
                         <td className="px-6 py-4 text-slate-500">
                           {item.unit?.symbol}
                         </td>
+
                         <td className="px-6 py-4 text-center">
-                          {
-                            item.ftb ? (
-                              <>
-                                <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
-                                  {item.currentStock} ({item.currentStock * item?.ftb?.factorToBase} {item?.ftb?.symbol})
-                                </span>
-                              </>
-                            )
-                              :
-                              <>
-                                <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
-                                  {item.currentStock}
-                                </span>
-                              </>
-                          }
+                          <span className={`${stockBadgeClass(item.currentStock)} font-bold text-sm px-3 py-1 rounded-full`}>
+                            {item.currentStock}
+                            {item.ftb && (
+                              <> ({item.currentStock * item.ftb.factorToBase} {item.ftb.symbol})</>
+                            )}
+                          </span>
                         </td>
+
                         <td className="px-6 py-4 text-slate-400 text-xs">
                           {new Date(item.createdAt).toLocaleDateString("id-ID")}
                         </td>
+
+                        <td className="px-6 py-4 text-center">
+                          {item.itemType || "—"}
+                        </td>
+
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -332,10 +426,14 @@ export default function InvItemsPage() {
                             >
                               Edit
                             </button>
+
                             <button
                               id={`btn-use-${item.itemCode}`}
-                              onClick={() => { setSelectedItem(item); useModalRef.current?.showModal() }}
-                              disabled={item.currentStock === 0}
+                              onClick={() => {
+                                setSelectedItem(item)
+                                useModalRef.current?.showModal()
+                              }}
+                              disabled={item.currentStock <= 0}
                               className="bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 font-semibold text-xs px-3 py-1.5 rounded-lg transition-all"
                             >
                               Stock out
@@ -352,51 +450,55 @@ export default function InvItemsPage() {
         </div>
       </div>
 
-      {/* ── Add Item Modal ─────────────────────────────────────────────────── */}
+      {/* Add Item Modal */}
       <dialog ref={addRef} id="modal-add-item" className="modal">
         <div className="modal-box rounded-2xl max-w-md p-8 shadow-2xl">
           <div className="flex items-center gap-3 mb-6">
             <div className="bg-blue-100 text-blue-700 p-2 rounded-xl">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621.504-1.125 1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
               </svg>
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800">Add New Item</h2>
-              <p className="text-slate-400 text-xs">Initial stock will be 0. Use Procurement Logs to add stock.</p>
+              <p className="text-slate-400 text-xs">
+                Initial stock will be 0. Use Procurement Logs to add stock.
+              </p>
             </div>
           </div>
 
           <form onSubmit={addForm.handleSubmit(handleAdd)} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Item Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Item Name <span className="text-red-500">*</span>
+              </label>
               <input
                 id="input-item-name"
                 {...addForm.register("name", { required: true })}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                 placeholder="e.g. A4 Paper, Marker Pen, Cleaning Fluid"
               />
-              {addForm.formState.errors.name && <p className="text-red-500 text-xs mt-1">Name is required.</p>}
+              {addForm.formState.errors.name && (
+                <p className="text-red-500 text-xs mt-1">Name is required.</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">
                 Unit <span className="text-red-500">*</span>
               </label>
-
               <select
                 id="input-item-unit"
                 {...addForm.register("unit", { required: true })}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option value="">Select Unit</option>
-                {predefinedUnits.map((unit) => (
+                {predefinedUnits.map(unit => (
                   <option key={unit._id} value={unit._id}>
                     {unit.name} ({unit.symbol})
                   </option>
                 ))}
               </select>
-
               {addForm.formState.errors.unit && (
                 <p className="text-red-500 text-xs mt-1">Unit is required.</p>
               )}
@@ -404,17 +506,15 @@ export default function InvItemsPage() {
 
             <div>
               <label className="block text-sm font-semibold text-slate-600 mb-1">
-                Factor to Base{" "}
-                <span className="text-slate-400 font-normal">(optional)</span>
+                Factor to Base <span className="text-slate-400 font-normal">(optional)</span>
               </label>
-
               <select
                 id="input-item-factor-to-base"
                 {...addForm.register("ftb")}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
               >
                 <option value="">None</option>
-                {predefinedUnits.map((unit) => (
+                {predefinedUnits.map(unit => (
                   <option key={unit._id} value={unit._id}>
                     {unit.name} ({unit.symbol})
                   </option>
@@ -423,7 +523,41 @@ export default function InvItemsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Category <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Type <span className="text-red-500">*</span>
+              </label>
+
+              <Controller
+                name="itemType"
+                control={addForm.control}
+                rules={{ required: "Item type is required." }}
+                render={({ field }) => (
+                  <CreatableSelect
+                    instanceId="input-item-type"
+                    options={itemTypeOptions}
+                    value={field.value ? { value: field.value, label: field.value } : null}
+                    onChange={option => field.onChange(option?.value ?? "")}
+                    onBlur={field.onBlur}
+                    placeholder="Select or create a type..."
+                    formatCreateLabel={input => `Create "${input}"`}
+                    noOptionsMessage={() => "No existing type found"}
+                    isClearable
+                    styles={selectStyles}
+                  />
+                )}
+              />
+
+              {addForm.formState.errors.itemType && (
+                <p className="text-red-500 text-xs mt-1">
+                  {addForm.formState.errors.itemType.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Category <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
               <input
                 id="input-item-category"
                 {...addForm.register("category")}
@@ -435,11 +569,15 @@ export default function InvItemsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { addRef.current?.close(); addForm.reset() }}
+                onClick={() => {
+                  addRef.current?.close()
+                  addForm.reset()
+                }}
                 className="flex-1 border border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 hover:bg-slate-50 transition-colors text-sm"
               >
                 Cancel
               </button>
+
               <button
                 id="btn-submit-add-item"
                 type="submit"
@@ -451,10 +589,12 @@ export default function InvItemsPage() {
             </div>
           </form>
         </div>
-        <form method="dialog" className="modal-backdrop"><button>close</button></form>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
       </dialog>
 
-      {/* ── Use Item Modal ─────────────────────────────────────────────────── */}
+      {/* Stock Out Modal */}
       <dialog ref={useModalRef} id="modal-use-item" className="modal">
         <div className="modal-box rounded-2xl max-w-md p-8 shadow-2xl">
           <div className="flex items-center gap-3 mb-6">
@@ -465,7 +605,9 @@ export default function InvItemsPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800">Use Item</h2>
-              <p className="text-slate-400 text-xs">Decrement stock for {selectedItem?.name}.</p>
+              <p className="text-slate-400 text-xs">
+                Decrement stock for {selectedItem?.name}.
+              </p>
             </div>
           </div>
 
@@ -475,30 +617,11 @@ export default function InvItemsPage() {
                 Quantity to Use <span className="text-red-500">*</span>
               </label>
 
-
-
-              {
-                selectedItem?.ftb ? (
-                  <>
-                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
-                      <p className="text-xs text-blue-700">
-                        Stock usage must be in {selectedItem?.ftb?.symbol}
-                      </p>
-                    </div>
-                  </>
-                )
-                  :
-                  (
-                    <>
-                      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
-                        <p className="text-xs text-blue-700">
-                          Stock usage must be in {selectedItem?.unit?.symbol}
-                        </p>
-                      </div>
-                    </>
-                  )
-              }
-
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
+                <p className="text-xs text-blue-700">
+                  Stock usage must be in {selectedItem?.ftb?.symbol ?? selectedItem?.unit?.symbol}
+                </p>
+              </div>
 
               <input
                 id="input-use-qty"
@@ -510,13 +633,18 @@ export default function InvItemsPage() {
                 {...useFormRef.register("qty", {
                   required: true,
                   min: 0.000001,
-                  valueAsNumber: true
+                  valueAsNumber: true,
+                  max: selectedItem?.currentStock
+                    ? selectedItem.currentStock * (selectedItem.ftb?.factorToBase ?? 1)
+                    : undefined,
                 })}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Note / Reason <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Note / Reason <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
               <textarea
                 id="input-use-note"
                 {...useFormRef.register("note")}
@@ -528,11 +656,16 @@ export default function InvItemsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { useModalRef.current?.close(); useFormRef.reset(); setSelectedItem(null) }}
+                onClick={() => {
+                  useModalRef.current?.close()
+                  useFormRef.reset()
+                  setSelectedItem(null)
+                }}
                 className="flex-1 border border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 hover:bg-slate-50 transition-colors text-sm"
               >
                 Cancel
               </button>
+
               <button
                 id="btn-submit-use-item"
                 type="submit"
@@ -544,10 +677,13 @@ export default function InvItemsPage() {
             </div>
           </form>
         </div>
-        <form method="dialog" className="modal-backdrop"><button onClick={() => setSelectedItem(null)}>close</button></form>
+
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setSelectedItem(null)}>close</button>
+        </form>
       </dialog>
 
-      {/* ── Edit Item Modal ────────────────────────────────────────────────── */}
+      {/* Edit Item Modal */}
       <dialog ref={editRef} id="modal-edit-item" className="modal">
         <div className="modal-box rounded-2xl max-w-md p-8 shadow-2xl">
           <div className="flex items-center gap-3 mb-6">
@@ -558,58 +694,103 @@ export default function InvItemsPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800">Edit Item</h2>
-              <p className="text-slate-400 text-xs">Update details for {editItem?.name}.</p>
+              <p className="text-slate-400 text-xs">
+                Update details for {editItem?.name}.
+              </p>
             </div>
           </div>
 
           <form onSubmit={editForm.handleSubmit(handleEdit)} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Item Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Item Name <span className="text-red-500">*</span>
+              </label>
               <input
                 id="input-edit-item-name"
                 {...editForm.register("name", { required: true })}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
                 placeholder="e.g. A4 Paper, Marker Pen, Cleaning Fluid"
               />
-              {editForm.formState.errors.name && <p className="text-red-500 text-xs mt-1">Name is required.</p>}
+              {editForm.formState.errors.name && (
+                <p className="text-red-500 text-xs mt-1">Name is required.</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Unit <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Unit <span className="text-red-500">*</span>
+              </label>
               <select
                 id="input-edit-item-unit"
                 {...editForm.register("unit", { required: true })}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
               >
                 <option value="">Select Unit</option>
-                {predefinedUnits.map((unit) => (
+                {predefinedUnits.map(unit => (
                   <option key={unit._id} value={unit._id}>
                     {unit.name} ({unit.symbol})
                   </option>
                 ))}
               </select>
-              {editForm.formState.errors.unit && <p className="text-red-500 text-xs mt-1">Unit is required.</p>}
+              {editForm.formState.errors.unit && (
+                <p className="text-red-500 text-xs mt-1">Unit is required.</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Factor to base</label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Factor to Base
+              </label>
               <select
-                id="input-edit-item-unit"
+                id="input-edit-item-ftb"
                 {...editForm.register("ftb")}
                 className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm"
               >
-                <option value="">Select Unit</option>
-                {predefinedUnits.map((unit) => (
+                <option value="">None</option>
+                {predefinedUnits.map(unit => (
                   <option key={unit._id} value={unit._id}>
                     {unit.name} ({unit.symbol})
                   </option>
                 ))}
               </select>
-              {editForm.formState.errors.unit && <p className="text-red-500 text-xs mt-1">Unit is required.</p>}
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-600 mb-1">Category <span className="text-slate-400 font-normal">(optional)</span></label>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Type <span className="text-red-500">*</span>
+              </label>
+
+              <Controller
+                name="itemType"
+                control={editForm.control}
+                rules={{ required: "Item type is required." }}
+                render={({ field }) => (
+                  <CreatableSelect
+                    instanceId="edit-input-item-type"
+                    options={itemTypeOptions}
+                    value={field.value ? { value: field.value, label: field.value } : null}
+                    onChange={option => field.onChange(option?.value ?? "")}
+                    onBlur={field.onBlur}
+                    placeholder="Select or create a type..."
+                    formatCreateLabel={input => `Create "${input}"`}
+                    noOptionsMessage={() => "No existing type found"}
+                    isClearable
+                    styles={selectStyles}
+                  />
+                )}
+              />
+
+              {editForm.formState.errors.itemType && (
+                <p className="text-red-500 text-xs mt-1">
+                  {editForm.formState.errors.itemType.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Category <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
               <input
                 id="input-edit-item-category"
                 {...editForm.register("category")}
@@ -621,11 +802,16 @@ export default function InvItemsPage() {
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { editRef.current?.close(); editForm.reset(); setEditItem(null) }}
+                onClick={() => {
+                  editRef.current?.close()
+                  editForm.reset()
+                  setEditItem(null)
+                }}
                 className="flex-1 border border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 hover:bg-slate-50 transition-colors text-sm"
               >
                 Cancel
               </button>
+
               <button
                 id="btn-submit-edit-item"
                 type="submit"
@@ -637,9 +823,46 @@ export default function InvItemsPage() {
             </div>
           </form>
         </div>
-        <form method="dialog" className="modal-backdrop"><button onClick={() => setEditItem(null)}>close</button></form>
+
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setEditItem(null)}>close</button>
+        </form>
       </dialog>
     </>
   )
 }
 
+const selectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: "42px",
+    borderRadius: "12px",
+    borderColor: state.isFocused ? "#93c5fd" : "#e2e8f0",
+    boxShadow: state.isFocused ? "0 0 0 2px #bfdbfe" : "none",
+    "&:hover": { borderColor: "#93c5fd" },
+  }),
+  valueContainer: (base: any) => ({
+    ...base,
+    padding: "2px 12px",
+  }),
+  input: (base: any) => ({ ...base, color: "#000" }),
+  singleValue: (base: any) => ({ ...base, color: "#000" }),
+  placeholder: (base: any) => ({
+    ...base,
+    color: "#94a3b8",
+    fontSize: "14px",
+  }),
+  menu: (base: any) => ({
+    ...base,
+    zIndex: 50,
+    borderRadius: "12px",
+    overflow: "hidden",
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: "14px",
+    cursor: "pointer",
+    backgroundColor: state.isFocused ? "#eff6ff" : "white",
+    color: "#334155",
+  }),
+}

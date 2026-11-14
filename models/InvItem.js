@@ -50,6 +50,9 @@ const InvItemSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    itemType: {
+      type: String,
+    }
   },
   {
     timestamps: true, // adds createdAt & updatedAt
