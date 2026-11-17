@@ -5,6 +5,8 @@ import User from '@/models/User'
 import Cashflow from '@/models/Cashflow'
 import BankAccount from '@/models/BankAccount'
 import Purchase from '@/models/Purchase'
+import InvItem from '@/models/InvItem'
+import PredefinedUnit from '@/models/PredefinedUnit'
 
 import mongoose from 'mongoose'
 
@@ -261,7 +263,26 @@ export async function PUT(request: NextRequest) {
     const bankId = updated.paymentMethod === 'Cash' ? null : updated.bankAccountId
     const accountType = updated.paymentMethod === 'Cash' ? 'Cash' : 'Bank'
 
-    const newReference = `pl ${purchase.purchaseOrderNumber.split('-')[1].trim()} | pembayaran procurement senilai ${updated.amount}`
+    //const paymentCode = purchase?.purchaseOrderNumber?.split("-")[1]?.trim() || ''
+
+    const itemParts = await Promise.all(
+      (purchase?.items || []).map(async (i: any) => {
+        const item = await InvItem.findById(i.productId)
+        if (!item) return ''
+
+        const unit = await PredefinedUnit.findById(item.unit)
+
+        return `${item.name} ${i.quantity} ${unit?.symbol || ''}`.trim()
+      })
+    )
+
+    const message = itemParts.filter(Boolean).join(', ')
+
+    //const newReference = `pl ${purchase.purchaseOrderNumber.split('-')[1].trim()} | pembayaran procurement senilai ${updated.amount}`
+
+    const updatedPurchase = await Purchase.findById(oldLog.purchaseId)
+
+    const newReference = `pl ${paymentCode} | ${message} | ${updatedPurchase?.payAmount}`
 
     const nonCashDst = updated.paymentMethod == 'Cash' ? null : {
       accountNumber: destinationAccountNumber,

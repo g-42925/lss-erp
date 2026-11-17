@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Types } from 'mongoose'
+import { Types, PipelineStage } from 'mongoose'
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextRequest, NextResponse } from "next/server";
+import { getAvailableBalance } from '@/lib/finance/balance'
+
 
 import Measurement from '@/models/Measurement'
 import Product from '@/models/Product'
@@ -19,9 +21,9 @@ import InvItem from '@/models/InvItem'
 import InboundLog from '@/models/InboundLog'
 import Packaging from '@/models/Packaging'
 import BankAccount from '@/models/BankAccount'
-import { getAvailableBalance } from '@/lib/finance/balance'
 import Cashflow from '@/models/Cashflow'
 import ProcurementReceivingLog from '@/models/ProcurementReceivingLog'
+import PredefinedUnit from '@/models/PredefinedUnit'
 
 // Helper: ambil data bank untuk Log (reference: "BANK-NOMORREKENING", bankAccountId sebagai ObjectId)
 async function getBankInfo(paymentMethod: string | undefined | null, bankAccountId: string | undefined | null)
@@ -260,6 +262,10 @@ export async function PUT(request: NextRequest) {
         const purchaseForCashflow = await Purchase.findById(_id).lean() as any
         const companyIdForCashflow = purchaseForCashflow?.companyId ?? null
 
+        const cashflowTo = purchaseForCashflow?.purchaseType === 'procurement'
+          ? purchaseForCashflow?.customSupplier
+          : rest.to
+
         if (rest.purchaseType === 'product' || rest.purchaseType === 'procurement' || rest.purchaseType === 'service') {
 
           const bankInfo2 = await getBankInfo(rest.paymentMethod, rest.bankAccountId)
@@ -307,7 +313,8 @@ export async function PUT(request: NextRequest) {
               const itemParts = await Promise.all(
                 (_px?.items || []).map(async (i: any) => {
                   const item = await InvItem.findById(i.productId)
-                  return item ? `${item.name} ${i.quantity} ${item.unit || ''}`.trim() : ''
+                  const unit = await PredefinedUnit.findById(item.unit)
+                  return item ? `${item.name} ${i.quantity} ${unit.symbol || ''}`.trim() : ''
                 })
               )
               const message = itemParts.filter(Boolean).join(', ')
@@ -328,7 +335,7 @@ export async function PUT(request: NextRequest) {
                 reference: rf,
                 date: rest.date ? new Date(rest.date) : new Date(),
                 recordedBy: rest.userId || null,
-                to: rest.to || undefined,
+                to: cashflowTo || undefined,
                 source: 'purchase_payment',
                 time: rest.time,
                 nonCashDst: rest.paymentMethod != 'Cash' ? {
@@ -385,7 +392,8 @@ export async function PUT(request: NextRequest) {
               const itemParts = await Promise.all(
                 (_px?.items || []).map(async (i: any) => {
                   const item = await InvItem.findById(i.productId)
-                  return item ? `${item.name} ${i.quantity} ${item.unit || ''}`.trim() : ''
+                  const unit = await PredefinedUnit.findById(item.unit)
+                  return item ? `${item.name} ${i.quantity} ${unit.symbol || ''}`.trim() : ''
                 })
               )
               const message = itemParts.filter(Boolean).join(', ')
@@ -406,7 +414,7 @@ export async function PUT(request: NextRequest) {
                 reference: rf,
                 date: rest.date ? new Date(rest.date) : new Date(),
                 recordedBy: rest.userId || null,
-                to: rest.to || undefined,
+                to: cashflowTo || undefined,
                 source: 'purchase_payment',
                 time: rest.time,
                 nonCashDst: rest.paymentMethod === 'Bank' ? {
@@ -865,15 +873,28 @@ export async function POST(request: NextRequest) {
 
     // Hitung total finalPrice dari items jika multi-item dan finalPrice belum di-set manual
     let resolvedFinalPrice = parseFloat(params.finalPrice) || 0;
-    if (isMultiItem && !params.finalPriceOverride) {
-      resolvedFinalPrice = (params.items as any[]).reduce(
-        (sum: number, item: any) => sum + (parseFloat(item.finalPrice) || 0) * (parseFloat(item.quantity) || 1),
-        0
-      );
-      // Jika semua item tidak memiliki price, biarkan 0
-    } else if (isMultiItem && params.finalPriceOverride) {
+
+    if (isMultiItem && params.finalPriceOverride !== undefined) {
       resolvedFinalPrice = parseFloat(params.finalPriceOverride) || 0;
     }
+    else if (isMultiItem && !params.finalPrice) {
+      resolvedFinalPrice = (params.items as any[]).reduce(
+        (sum: number, item: any) =>
+          sum + (parseFloat(item.finalPrice) || 0),
+        0
+      );
+    }
+
+
+    // if (isMultiItem && !params.finalPriceOverride) {
+    //   resolvedFinalPrice = (params.items as any[]).reduce(
+    //     (sum: number, item: any) => sum + (parseFloat(item.finalPrice) || 0) * (parseFloat(item.quantity) || 1),
+    //     0
+    //   );
+    //   // Jika semua item tidak memiliki price, biarkan 0
+    // } else if (isMultiItem && params.finalPriceOverride) {
+    //   resolvedFinalPrice = parseFloat(params.finalPriceOverride) || 0;
+    // }
 
     const createPayload: any = {
       ...params,
@@ -996,6 +1017,206 @@ export async function GET(request: NextRequest) {
     })
 
     const productCollection = type === 'procurement' ? 'invitems' : 'products';
+
+    const getProductIds = (root: string) => ({
+      $setUnion: [
+        {
+          $cond: [
+            { $ne: [`${root}.productId`, null] },
+            [{ $toString: `${root}.productId` }],
+            []
+          ]
+        },
+        {
+          $map: {
+            input: { $ifNull: [`${root}.items`, []] },
+            as: "item",
+            in: {
+              $cond: [
+                { $ne: ["$$item.productId", null] },
+                { $toString: "$$item.productId" },
+                null
+              ]
+            }
+          }
+        }
+      ]
+    })
+
+    const historyProductMatch = {
+      $gt: [
+        {
+          $size: {
+            $setIntersection: [
+              "$$currentProductIds",
+              getProductIds("$$ROOT")
+            ]
+          }
+        },
+        0
+      ]
+    }
+
+    type LookupPipeline = NonNullable<
+      Extract<PipelineStage, { $lookup: unknown }>["$lookup"]["pipeline"]
+    >
+
+    const historyPipeline = [
+      {
+        $match: {
+          $expr: {
+            $and: [
+              { $ne: ["$_id", "$$currentId"] },
+              { $eq: ["$companyId", "$$currentCompanyId"] },
+              { $in: ["$purchaseType", ["product", "procurement"]] },
+              { $ne: ["$status", "rejected"] },
+              { $lte: ["$date", "$$currentDate"] },
+              historyProductMatch
+            ]
+          }
+        }
+      },
+      {
+        $sort: {
+          date: -1,
+          _id: -1
+        }
+      }
+    ] satisfies LookupPipeline
+
+    const historyLookup: PipelineStage = {
+      $lookup: {
+        from: "purchases",
+        let: {
+          currentId: "$_id",
+          currentDate: "$date",
+          currentCompanyId: "$companyId",
+          currentProductIds: getProductIds("$$ROOT")
+        },
+        pipeline: historyPipeline,
+        as: "_historyCandidates"
+      }
+    }
+
+    const getLastHistory = (productId: string) => ({
+      $let: {
+        vars: {
+          previousPurchases: {
+            $filter: {
+              input: "$_historyCandidates",
+              as: "purchase",
+              cond: {
+                $or: [
+                  {
+                    $eq: [
+                      { $toString: "$$purchase.productId" },
+                      { $toString: productId }
+                    ]
+                  },
+                  {
+                    $in: [
+                      { $toString: productId },
+                      {
+                        $map: {
+                          input: {
+                            $ifNull: ["$$purchase.items", []]
+                          },
+                          as: "item",
+                          in: {
+                            $toString: "$$item.productId"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        in: {
+          $map: {
+            input: {
+              $slice: ["$$previousPurchases", 0, 3]
+            },
+            as: "purchase",
+            in: {
+              $let: {
+                vars: {
+                  previousItem: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: {
+                            $ifNull: ["$$purchase.items", []]
+                          },
+                          as: "item",
+                          cond: {
+                            $eq: [
+                              { $toString: "$$item.productId" },
+                              { $toString: productId }
+                            ]
+                          }
+                        }
+                      },
+                      0
+                    ]
+                  }
+                },
+                in: {
+                  $mergeObjects: [
+                    {
+                      $ifNull: [
+                        "$$previousItem",
+                        {
+                          productId: "$$purchase.productId",
+                          pricePerUnit: "$$purchase.pricePerUnit",
+                          finalPrice: "$$purchase.finalPrice",
+                          payAmount: "$$purchase.payAmount",
+                          quantity: "$$purchase.quantity",
+                          price: "$$purchase.price"
+                        }
+                      ]
+                    },
+                    {
+                      purchaseId: "$$purchase._id",
+                      date: "$$purchase.date",
+                      purchaseType: "$$purchase.purchaseType"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    const attachHistory: PipelineStage = {
+      $addFields: {
+        items: {
+          $map: {
+            input: { $ifNull: ["$items", []] },
+            as: "currentItem",
+            in: {
+              $mergeObjects: [
+                "$$currentItem",
+                {
+                  history: getLastHistory("$$currentItem.productId")
+                }
+              ]
+            }
+          }
+        },
+        history: {
+          $cond: [
+            { $eq: ["$productId", null] },
+            null,
+            getLastHistory("$productId")
+          ]
+        }
+      }
+    }
 
     const prs = await Purchase.aggregate([
       {
@@ -1158,12 +1379,16 @@ export async function GET(request: NextRequest) {
         }
       },
 
+      // Attach purchase history (if type !== 'service')
+      ...(type !== 'service' ? [historyLookup, attachHistory] : []),
+
       // 6. Bersihkan field sementara
       {
         $project: {
           _itemProducts: 0,
           _itemUnits: 0,
           _itemFtbs: 0,
+          _historyCandidates: 0,
           productId: 0,
           companyId: 0
         }

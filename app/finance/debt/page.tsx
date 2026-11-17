@@ -279,13 +279,13 @@ export default function Debt() {
 
     setSelectedDebt(debt)
     setPayFormData({
-      payAmount: '',
+      payAmount: 0,
       paymentMethod: 'Cash',
       bankAccountId: '',
       payDate: date,
       payTime: time,
-      destinationAccountNumber: '',
-      destinationDescription: '',
+      destinationAccountNumber: selectedDebt?.nonCashDst?.accountNumber || '',
+      destinationDescription: selectedDebt?.nonCashDst?.description,
       description: '',
     })
 

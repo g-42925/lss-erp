@@ -25,12 +25,15 @@ export default function PurchasesApproval() {
   const editRef = useRef<HTMLDialogElement>(null)
   const _editRef = useRef<HTMLDialogElement>(null)
   const itemRef = useRef<HTMLDialogElement>(null)
+  const priceComparisonRef = useRef<HTMLDialogElement>(null)
 
   const [pr, setPr] = useState<any[]>([])
   const [filterType, setFilterType] = useState("product")
   const [searchTerm, setSearchTerm] = useState("")
   const [approvingAll, setApprovingAll] = useState(false)
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null)
+  const [selectedComparisonPurchase, setSelectedComparisonPurchase] = useState<any>(null)
+  const [expandedComparisonItem, setExpandedComparisonItem] = useState<number | null>(null)
 
   const editPrForm = useForm()
   const router = useRouter()
@@ -453,17 +456,33 @@ export default function PurchasesApproval() {
 
                         {/* Product / Service */}
                         <td>
-                          {isMultiItem ? (
-                            <button
-                              type="button"
-                              onClick={() => showPurchaseItems(purchase)}
-                              className="font-semibold underline underline-offset-2 hover:text-blue-900"
-                            >
-                              {itemName}
-                            </button>
-                          ) : (
-                            <span>{itemName}</span>
-                          )}
+                          <div className="flex items-center justify-center gap-2">
+                            {isMultiItem ? (
+                              <button
+                                type="button"
+                                onClick={() => showPurchaseItems(purchase)}
+                                className="font-semibold underline underline-offset-2 hover:text-blue-900"
+                              >
+                                {itemName}
+                              </button>
+                            ) : (
+                              <span>{itemName}</span>
+                            )}
+
+                            {filterType !== "service" && (
+                              <button
+                                type="button"
+                                className="btn btn-xs btn-outline btn-info"
+                                onClick={() => {
+                                  setSelectedComparisonPurchase(purchase)
+                                  setExpandedComparisonItem(null)
+                                  priceComparisonRef.current?.showModal()
+                                }}
+                              >
+                                Perbandingan
+                              </button>
+                            )}
+                          </div>
                         </td>
 
                         {/* Quantity */}
@@ -504,13 +523,6 @@ export default function PurchasesApproval() {
                             >
                               {(purchase.finalPrice ?? 0).toLocaleString("id-ID")}
                             </span>
-
-                            {purchase.priceAlert && (
-                              <span className="text-[10px] text-gray-500 line-through">
-                                Sebelumnya:{" "}
-                                {(purchase.priceAlert.previousPrice ?? 0).toLocaleString("id-ID")}
-                              </span>
-                            )}
                           </div>
                         </td>
 
@@ -641,13 +653,28 @@ export default function PurchasesApproval() {
             <div className="flex items-center justify-between">
               <span className="page-title">Purchase Items</span>
 
-              <button
-                type="button"
-                onClick={() => itemRef.current?.close()}
-                className="btn btn-sm btn-circle btn-ghost"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                {filterType !== "service" && (
+                  <button
+                    type="button"
+                    className="btn btn-xs btn-outline btn-info"
+                    onClick={() => {
+                      setSelectedComparisonPurchase(selectedPurchase)
+                      setExpandedComparisonItem(null)
+                      priceComparisonRef.current?.showModal()
+                    }}
+                  >
+                    Perbandingan
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => itemRef.current?.close()}
+                  className="btn btn-sm btn-circle btn-ghost"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="text-sm text-gray-500">
@@ -725,6 +752,142 @@ export default function PurchasesApproval() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+
+      {/* Modal perbandingan harga pembelian */}
+      <dialog ref={priceComparisonRef} className="modal text-black">
+        <div className="modal-box max-w-2xl">
+          <h3 className="font-bold text-lg mb-4">
+            Perbandingan Harga Pembelian
+          </h3>
+
+          {(() => {
+            const comparisonItems = selectedComparisonPurchase
+              ? Array.isArray(selectedComparisonPurchase.items) &&
+                selectedComparisonPurchase.items.length > 0
+                ? selectedComparisonPurchase.items
+                : selectedComparisonPurchase.product || selectedComparisonPurchase.history
+                  ? [
+                    {
+                      product: selectedComparisonPurchase.product,
+                      quantity: selectedComparisonPurchase.quantity,
+                      finalPrice: selectedComparisonPurchase.finalPrice,
+                      history: selectedComparisonPurchase.history,
+                    },
+                  ]
+                  : []
+              : []
+
+            if (comparisonItems.length === 0) {
+              return <p className="text-sm text-gray-500">Tidak ada data barang.</p>
+            }
+
+            return (
+              <div className="flex flex-col gap-2">
+                {comparisonItems.map((item: any, index: number) => {
+                  const productName =
+                    item.product?.productName ||
+                    item.product?.name ||
+                    (comparisonItems.length === 1 &&
+                      (selectedComparisonPurchase?.product?.productName ||
+                        selectedComparisonPurchase?.product?.name)) ||
+                    "-"
+
+                  const currentUnitPrice = item.quantity
+                    ? item.finalPrice / item.quantity
+                    : item.finalPrice || 0
+
+                  return (
+                    <div key={index} className="border rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedComparisonItem(
+                            expandedComparisonItem === index ? null : index
+                          )
+                        }
+                        className="w-full flex justify-between items-center p-3 text-sm font-medium"
+                      >
+                        <span>
+                          {index + 1}. {productName}
+                        </span>
+                        <span>{expandedComparisonItem === index ? "▲" : "▼"}</span>
+                      </button>
+
+                      {expandedComparisonItem === index && (
+                        <div className="px-3 pb-3 text-sm space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Harga sekarang</span>
+                            <span className="font-medium">
+                              Rp {Math.floor(currentUnitPrice).toLocaleString("id-ID")}
+                            </span>
+                          </div>
+
+                          {Array.isArray(item.history) && item.history.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="font-semibold text-gray-700">
+                                Riwayat Pembelian
+                              </div>
+
+                              {item.history.map((history: any, historyIndex: number) => {
+                                const historyUnitPrice = history.quantity
+                                  ? history.finalPrice / history.quantity
+                                  : history.finalPrice || 0
+
+                                return (
+                                  <div
+                                    key={history.purchaseId || historyIndex}
+                                    className="flex justify-between items-center border-b pb-2"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="text-gray-500">
+                                        History {historyIndex + 1}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        {new Date(history.date).toLocaleDateString("id-ID")}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-right">
+                                      <div className="font-medium">
+                                        Rp {Math.floor(historyUnitPrice).toLocaleString("id-ID")}
+                                      </div>
+                                      <div className="text-xs text-gray-400">
+                                        Qty: {history.quantity}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400">
+                              Belum ada riwayat pembelian sebelumnya
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+
+          <div className="modal-action">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => priceComparisonRef.current?.close()}
+            >
+              Tutup
+            </button>
           </div>
         </div>
 

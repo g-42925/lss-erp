@@ -770,37 +770,38 @@ function Purchases() {
         modalRef?.current?.close()
         window.location.href = '/purchases'
       })
+
       return
     }
 
     // Service: path lama
-    const body = JSON.stringify({
-      ...data,
-      status: "requested",
-      id: masterAccountId,
-      date: data.customDate ? new Date(data.customDate) : new Date(),
-      purchaseType: filterType,
-      createdBy: user,
-    })
+    // const body = JSON.stringify({
+    //   ...data,
+    //   status: "requested",
+    //   id: masterAccountId,
+    //   date: data.customDate ? new Date(data.customDate) : new Date(),
+    //   purchaseType: filterType,
+    //   createdBy: user,
+    // })
 
-    console.log(JSON.parse(body))
+    // console.log(JSON.parse(body))
 
-    addFn.fn("", body, (result) => {
-      window.location.href = "/purchases"
-      // if (
-      //   filterType === "service" &&
-      //   data.vendorId &&
-      //   vendors.length > 0
-      // ) {
-      //   result.vendor = vendors.find(
-      //     (vendor) => vendor._id === data.vendorId
-      //   )
-      // }
+    // addFn.fn("", body, (result) => {
+    //   window.location.href = "/purchases"
+    //   if (
+    //     filterType === "service" &&
+    //     data.vendorId &&
+    //     vendors.length > 0
+    //   ) {
+    //     result.vendor = vendors.find(
+    //       (vendor) => vendor._id === data.vendorId
+    //     )
+    //   }
 
-      // setPr((current) => [...current, result])
-      // modalRef.current?.close()
-      // newPrForm.reset()
-    })
+    //   setPr((current) => [...current, result])
+    //   modalRef.current?.close()
+    //   newPrForm.reset()
+    // })
   }
 
   function search(value: string) {
