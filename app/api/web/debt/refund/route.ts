@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		const bankAccountId = refundBankAccountId != '' ? new mongoose.Types.ObjectId(refundBankAccountId) : null
-		const refundNumber = `RF${Date.now().toString(36).toUpperCase()}`
+		const refundNumber = `RF ${Math.floor(10000 + Math.random() * 90000)}`
 
 		// Petakan nilai yang masih ada di rest
 		const refundAmount = Number(rest.refundAmount)

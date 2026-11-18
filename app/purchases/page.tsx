@@ -17,6 +17,7 @@ import {
   CheckmarkCircle01Icon,
   MultiplicationSignIcon,
   BadgePercentIcon,
+  Link01Icon
 } from "@hugeicons/core-free-icons"
 
 function Purchases() {
@@ -29,6 +30,7 @@ function Purchases() {
   const editRef = useRef<HTMLDialogElement>(null)
   const taxRef = useRef<HTMLDialogElement>(null)
   const nonCashRef = useRef<HTMLDialogElement>(null)
+  const linkEditRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<string>("product")
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -132,9 +134,16 @@ function Purchases() {
     onError: (message) => alert(message),
   })
 
+  const editLinkFn = useFetch<any, any>({
+    url: "/api/web/purchases/link",
+    method: 'PUT',
+    onError: (message) => alert(message),
+  })
+
   const editForm = useForm()
   const orderForm = useForm()
   const nonCashForm = useForm()
+  const editLinkForm = useForm()
 
   const newPrForm = useForm({
     defaultValues: {
@@ -923,6 +932,15 @@ function Purchases() {
     nonCashRef.current?.showModal()
   }
 
+  function openEditLink(p: any) {
+    setNonCashEditTarget(p)
+    editLinkForm.reset({
+      link: p.link,
+      _id: p._id
+    })
+    linkEditRef.current?.showModal()
+  }
+
   async function editNonCashSubmit(data: any) {
     const payload = JSON.stringify({
       _id: data._id,
@@ -930,6 +948,7 @@ function Purchases() {
       accountNumber: data.accountNumber,
       description: data.description,
     })
+
 
     await editFn.fn("", payload, () => {
       setPr((current) =>
@@ -947,6 +966,17 @@ function Purchases() {
       )
       nonCashRef.current?.close()
       setNonCashEditTarget(null)
+    })
+  }
+
+  async function editLinkSubmit(data: any) {
+    const payload = JSON.stringify({
+      _id: data._id,
+      link: data.link
+    })
+
+    await editLinkFn.fn("", payload, () => {
+      window.location.href = "/purchases"
     })
   }
 
@@ -1082,6 +1112,7 @@ function Purchases() {
       bankAccountId: watchPaymentMethod !== 'Cash' ? selectedPoBankAccountId : undefined,
       nonCashDstNumber: data.nonCashDstNumber != "" ? data.nonCashDstNumber : '-',
       nonCashDstDescription: data.nonCashDstDesc != "" ? data.nonCashDstDesc : '-',
+      link: data.link
     })
 
     await editFn.fn("", payload, () => {
@@ -1345,6 +1376,7 @@ function Purchases() {
     })
   }
 
+
   useEffect(() => {
     setFPrice(
       editItems.reduce((sum, item) => sum + (Number(item.finalPrice) || 0), 0)
@@ -1535,6 +1567,7 @@ function Purchases() {
                       <tr>
                         <th>Date</th>
                         <th>P.O Number</th>
+                        <th>Link</th>
 
                         {filterType === "product" && (
                           <th>Created By</th>
@@ -1560,6 +1593,7 @@ function Purchases() {
                     </thead>
 
                     <tbody>
+
                       {displayedPurchases.map(
                         (purchase) => {
                           const itemName =
@@ -1592,6 +1626,13 @@ function Purchases() {
                                   }
                                 </td>
 
+
+                                <td>
+                                  {
+                                    purchase.link ?? '-'
+                                  }
+                                </td>
+
                                 {filterType === "product" && (
                                   <td>
                                     {
@@ -1617,7 +1658,7 @@ function Purchases() {
                                   <td
                                     className={Array.isArray(purchase.items) && purchase.items.length > 1 ? "cursor-pointer" : ""}
                                   >
-                                    <div className="flex items-center gap-1">
+                                    <div className="text-center">
                                       {(() => {
                                         const multiQty = getPurchaseQuantity(purchase)
                                         if (multiQty !== null && purchase.items?.length > 1) return '?'
@@ -1767,7 +1808,24 @@ function Purchases() {
                                             color="currentColor"
                                           />
                                         </button>
-                                      )}
+                                      )
+                                    }
+                                    {
+                                      (filterType === "product" || filterType === "procurement") && (
+                                        <button
+                                          type="button"
+                                          className="text-blue-600"
+                                          onClick={() => openEditLink(purchase)}
+                                          title="Edit Link"
+                                        >
+                                          <HugeiconsIcon
+                                            icon={Link01Icon}
+                                            size={24}
+                                            color="currentColor"
+                                          />
+                                        </button>
+                                      )
+                                    }
                                   </div>
                                 </td>
                                 {
@@ -2966,7 +3024,20 @@ function Purchases() {
                 <>
                   <fieldset className="fieldset">
                     <legend className="fieldset-legend">
-                      Destinasi non cash
+                      Link
+                    </legend>
+
+                    <input
+                      className="input w-full"
+                      {...orderForm.register(
+                        "link"
+                      )}
+                      type="text"
+                    />
+                  </fieldset>
+                  <fieldset className="fieldset">
+                    <legend className="fieldset-legend">
+                      No. Rekening Tujuam
                     </legend>
 
                     <input
@@ -2979,7 +3050,7 @@ function Purchases() {
                   </fieldset>
                   <fieldset className="fieldset">
                     <legend className="fieldset-legend">
-                      deskripsi
+                      Bank Tujuan
                     </legend>
 
                     <input
@@ -3399,7 +3470,7 @@ function Purchases() {
         <div className="modal-box w-11/12 max-w-lg">
           <div className="flex flex-col gap-3">
             <span className="page-title">
-              Edit Destinasi Non-Cash
+              Edit Rekening Tujuan
             </span>
 
             {nonCashEditTarget && (
@@ -3478,6 +3549,62 @@ function Purchases() {
           </div>
         </div>
       </dialog >
+
+
+      <dialog
+        ref={linkEditRef}
+        className="modal text-black"
+      >
+        <div className="modal-box max-w-lg">
+          <h3 className="font-bold text-lg mb-4">
+            Edit Link Pembelian Online
+          </h3>
+
+          <form
+            onSubmit={editLinkForm.handleSubmit(editLinkSubmit)}
+            className="space-y-4"
+          >
+            <div>
+              <label className="label">
+                <span className="label-text font-medium">
+                  Link Pembelian
+                </span>
+              </label>
+
+
+
+              <input
+                type="url"
+                {...editLinkForm.register("link")}
+                placeholder="https://tokopedia.com/..."
+                className="input input-bordered w-full"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => linkEditRef.current?.close()}
+              >
+                Batal
+              </button>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+              >
+                Simpan Perubahan
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <form method="dialog" className="modal-backdrop">
+          <button>Tutup</button>
+        </form>
+      </dialog>
+
     </>
   )
 }

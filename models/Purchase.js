@@ -75,6 +75,10 @@ const PurchaseSchema = new mongoose.Schema({
     type: Number,
     required: false
   },
+  link: {
+    type: String,
+    required: false
+  },
   refundLog: [{
     refundAmount: { type: Number, required: true },
     refundMethod: {
@@ -90,8 +94,8 @@ const PurchaseSchema = new mongoose.Schema({
     refundDescription: { type: String },
     refundNumber: { type: String },
     refundTime: { type: String },
-    link: { type: String }
   }]
+
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

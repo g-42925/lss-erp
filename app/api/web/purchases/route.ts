@@ -109,9 +109,11 @@ export async function PUT(request: NextRequest) {
           };
           if (rest.purchaseType === 'product') {
             updateData.supplierId = rest.supplierId;
+            updateData.link = rest.link
           }
           else if (rest.purchaseType === 'procurement') {
             updateData.customSupplier = rest.customSupplier;
+            updateData.link = rest.link
           }
           await Purchase.findByIdAndUpdate(_id, updateData);
 
