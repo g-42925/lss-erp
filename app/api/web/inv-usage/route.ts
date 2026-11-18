@@ -1,8 +1,10 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
+
 import Companie from '@/models/Companie';
 import InvItem from '@/models/InvItem';
 import InvUsage from '@/models/InvUsage';
+import PredefinedUnit from '@/models/PredefinedUnit';
 
 // ─── GET /api/web/inv-usage?id=<masterAccountId> ─────────────────────────────
 // Returns usage history for the company.
@@ -11,6 +13,7 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
     const url = new URL(request.url);
     const masterAccountId = url.searchParams.get('id');
+
 
     if (!masterAccountId) {
       return NextResponse.json({ noResult: true, message: 'Missing id param', result: null, error: true });
@@ -22,9 +25,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Populate the item details
-    const usageHistory = await InvUsage.find({ companyId: company._id })
-      .populate('itemId', 'name unit itemCode category')
-      .sort({ usage_at: -1 });
+    const usageHistory = await InvUsage.find({ companyId: company._id }).populate({
+      path: 'itemId',
+      select: 'name unit ftb itemCode category',
+      populate: [
+        { path: 'unit', select: 'name symbol' },
+        { path: 'ftb', select: 'name symbol' }
+      ]
+    })
+      .sort({
+        usage_at: -1
+      });
 
     return NextResponse.json({ noResult: false, message: '', result: usageHistory, error: false });
   } catch (e: unknown) {

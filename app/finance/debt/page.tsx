@@ -778,27 +778,80 @@ export default function Debt() {
   }
 
 
-  function openEditLog(log: any) {
-    console.log(log)
+  // function openEditLog(log: any) {
+  //   console.log(log)
+  //   const dateTime = getJakartaDateTime(log.date)
+  //   setEditingLog(log)
+  //   setEditAmount(Math.abs(log.amount))
+  //   setEditDate(dateTime.date)
+  //   setEditTime(dateTime.time)
+  //   // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
+  //   // karena itu yang cocok dengan option value pada dropdown bank account.
+  //   // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
+  //   const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
+  //   setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
+  //   setEditDestinationAccountNumber(isCashLog ? '' : log.nonCashDst.accountNumber)
+  //   setEditDestinationDescription(isCashLog ? '' : log.nonCashDst.description)
+  //   setEditApprovalCode("")
+  //   editLogRef.current?.showModal()
+  // }
+
+  function openEditLog(log: any, debt: anu) {
     const dateTime = getJakartaDateTime(log.date)
+
     setEditingLog(log)
     setEditAmount(Math.abs(log.amount))
     setEditDate(dateTime.date)
     setEditTime(dateTime.time)
-    // Gunakan log.reference (format "BankName-AccountNumber") untuk non-Cash,
-    // karena itu yang cocok dengan option value pada dropdown bank account.
-    // Jika Cash atau tidak ada reference bank, gunakan log.paymentMethod atau default 'Cash'.
+
     const isCashLog = !log.paymentMethod || log.paymentMethod === 'Cash'
-    setEditPaymentMethod(isCashLog ? 'Cash' : (log.reference || log.paymentMethod || 'Cash'))
-    setEditDestinationAccountNumber(isCashLog ? '' : log.nonCashDst.accountNumber)
-    setEditDestinationDescription(isCashLog ? '' : log.nonCashDst.description)
-    setEditApprovalCode("")
+
+    if (isCashLog) {
+      setEditPaymentMethod('Cash')
+    }
+    else {
+
+      const matchedBank = bankAccountFn.result?.find((bank: any) => {
+        const bankValue = `${bank.bank}-${bank.accountNumber}`
+
+        return (
+          log.reference === bankValue ||
+          log.paymentMethod === bankValue ||
+          log.reference === bank.bank ||
+          log.paymentMethod === bank.bank
+        )
+      })
+
+      setEditPaymentMethod(
+        matchedBank
+          ? `${matchedBank.bank}-${matchedBank.accountNumber}`
+          : log.reference || log.paymentMethod
+      )
+    }
+
+    setEditDestinationAccountNumber(
+      log.nonCashDst?.accountNumber ||
+      debt.nonCashDst?.accountNumber ||
+      ''
+    )
+
+    setEditDestinationDescription(
+      log.nonCashDst?.description ||
+      debt.nonCashDst?.description ||
+      ''
+    )
+    setEditApprovalCode('')
+
     editLogRef.current?.showModal()
   }
 
+
+
   async function submitEditLog() {
     if (!editingLog) return
-    if (!editApprovalCode) return alert("Kode approval wajib diisi")
+    if (!isSuperAdmin && !editApprovalCode) {
+      return alert("Kode approval wajib diisi")
+    }
     if (Number(editAmount) <= 0) return alert("Amount harus lebih dari 0")
     if (filterType === "barang" && (!editDate || !editTime)) {
       return alert("Tanggal dan jam pembayaran wajib diisi")
@@ -824,7 +877,7 @@ export default function Debt() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           logId: editingLog._id,
-          approvalCode: editApprovalCode,
+          ...(isSuperAdmin ? {} : { approvalCode: editApprovalCode }),
           userId,
           newAmount: Number(editAmount),
           newDate: editDate,
@@ -864,15 +917,19 @@ export default function Debt() {
   }
 
   async function deleteLog(log: any) {
-    const approvalCode = prompt("Masukkan kode approval supervisor untuk menghapus pembayaran ini:")
-    if (!approvalCode) return
+    const approvalCode = isSuperAdmin
+      ? null
+      : prompt("Masukkan kode approval supervisor untuk menghapus pembayaran ini:")
 
-    if (!confirm(`Yakin ingin menghapus pembayaran ${log.paymentNumber} sebesar ${Math.abs(log.amount).toLocaleString('id-ID')}?`)) return
-
+    if (!isSuperAdmin && !approvalCode) return
     try {
+      const approvalParam = isSuperAdmin
+        ? ""
+        : `&approvalCode=${encodeURIComponent(approvalCode!)}`
+
       const apiUrl = filterType === 'vendor'
-        ? `/api/web/debt?logId=${log._id}&approvalCode=${encodeURIComponent(approvalCode)}`
-        : `/api/web/log/purchase?logId=${log._id}&approvalCode=${encodeURIComponent(approvalCode)}`
+        ? `/api/web/debt?logId=${log._id}${approvalParam}`
+        : `/api/web/log/purchase?logId=${log._id}${approvalParam}`
       const res = await fetch(apiUrl, { method: 'DELETE' })
       const json = await res.json()
       if (json.error) return alert(json.message || 'Gagal menghapus')
@@ -1788,7 +1845,7 @@ export default function Debt() {
                         <td>{L.editedAt ? new Date(L.editedAt).toLocaleString('id-ID') : '-'}</td>
                         <td>{L.editedBy?.name || '-'}</td>
                         <td className="flex flex-row gap-1">
-                          <button className="btn btn-xs btn-warning" onClick={() => openEditLog(L)}>Edit</button>
+                          <button className="btn btn-xs btn-warning" onClick={() => openEditLog(L, selectedDebt)}>Edit</button>
                           <button className="btn btn-xs btn-error" onClick={() => deleteLog(L)}>Hapus</button>
                           <button className="btn btn-xs btn-warning" onClick={() => openRefund(L)}>Refund</button>
                         </td>
@@ -2161,7 +2218,9 @@ export default function Debt() {
                     <select
                       className="select w-full"
                       value={editPaymentMethod}
-                      onChange={e => setEditPaymentMethod(e.target.value)}
+                      onChange={
+                        e => setEditPaymentMethod(e.target.value)
+                      }
                     >
                       <option value="Cash">Cash</option>
                       {bankAccountFn.result?.map((bank: any) => (
@@ -2200,18 +2259,21 @@ export default function Debt() {
                       </fieldset>
                     </>
                   )}
-
-                  <fieldset className="fieldset md:col-span-2">
-                    <legend className="fieldset-legend">Kode Approval Supervisor</legend>
-                    <input
-                      className="input w-full"
-                      type="password"
-                      placeholder="Masukkan kode approval"
-                      value={editApprovalCode}
-                      onChange={e => setEditApprovalCode(e.target.value)}
-                      required
-                    />
-                  </fieldset>
+                  {
+                    !isSuperAdmin && (
+                      <fieldset className="fieldset md:col-span-2">
+                        <legend className="fieldset-legend">Kode Approval Supervisor</legend>
+                        <input
+                          className="input w-full"
+                          type="password"
+                          placeholder="Masukkan kode approval"
+                          value={editApprovalCode}
+                          onChange={e => setEditApprovalCode(e.target.value)}
+                          required
+                        />
+                      </fieldset>
+                    )
+                  }
                 </div>
 
                 <div className="modal-action">

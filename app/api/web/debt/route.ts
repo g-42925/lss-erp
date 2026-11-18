@@ -1881,77 +1881,279 @@ export async function POST(request: NextRequest) {
 }
 
 // ─── PUT: Edit pembayaran hutang vendor (tanggal & jumlah) ─────────────────────
+// export async function PUT(request: NextRequest) {
+//   try {
+//     await connectToDatabase()
+//     const body = await request.json()
+//     const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod, newTime, reference } = body
+
+//     if (!logId) {
+//       return NextResponse.json({ noResult: true, message: "logId is required", result: null, error: true })
+//     }
+//     if (!approvalCode) {
+//       return NextResponse.json({ noResult: true, message: "Approval code is required", result: null, error: true })
+//     }
+
+//     const User = (await import('@/models/User')).default
+
+//     const approver = await User.findOne({ approvalCode })
+//     if (!approver) {
+//       return NextResponse.json({ noResult: true, message: "Kode approval tidak valid", result: null, error: true })
+//     }
+
+//     const oldLog = await Log.findById(logId)
+//     if (!oldLog) {
+//       return NextResponse.json({ noResult: true, message: "Log tidak ditemukan", result: null, error: true })
+//     }
+
+//     const editor = userId ? await User.findById(userId) : null
+
+//     const updates: any = {
+//       editedAt: new Date(),
+//       editApprovedBy: approver._id,
+//     }
+//     if (editor) updates.editedBy = editor._id
+//     if (newDate) updates.date = new Date(newDate)
+//     if (newPaymentMethod) updates.paymentMethod = newPaymentMethod
+
+//     if (newTime) {
+//       const date = new Date(updates.date)
+//       const [hours, minutes] = newTime.split(':').map(Number)
+//       date.setUTCHours(hours - 7, minutes, 0, 0)
+//       updates.date = date
+//     }
+
+//     // Update bankAccountId di Log b1erdasarkan newPaymentMethod
+//     const isCashEdit = !newPaymentMethod || newPaymentMethod === 'Cash'
+//     if (isCashEdit) {
+//       updates.bankAccountId = null
+//     }
+//     else {
+//       // newPaymentMethod format: "BankName-AccountNumber"
+//       const bankForLog = await BankAccount.findOne({ accountNumber: newPaymentMethod.split('-')[1] }).lean() as any
+//       updates.bankAccountId = bankForLog ? bankForLog._id : null
+//       updates.reference = reference
+//     }
+
+//     // Jika amount berubah, update Invoice.vendorPaid
+//     if (newAmount !== undefined && newAmount !== null && Number(newAmount) !== oldLog.amount) {
+//       const diff = Number(newAmount) - oldLog.amount
+//       updates.amount = Number(newAmount)
+
+//       // Update vendorPaid di Invoice
+//       await Invoice.findByIdAndUpdate(oldLog.purchaseId, {
+//         $inc: { vendorPaid: diff }
+//       })
+//     }
+
+//     // Update Cashflow: selalu update untuk semua perubahan (date/paymentMethod/bankAccountId/amount)
+//     const invoice = await Invoice.findById(oldLog.purchaseId).lean() as any
+//     if (invoice) {
+//       const cmp = await Companie.findOne({ _id: invoice.companyId })
+//       if (cmp) {
+//         // Cari cashflow terkait dan update amount-nya
+//         const cfQuery: any = {
+//           reference: {
+//             $regex: oldLog.paymentNumber.replace(/\s*-\s*/, ' '),
+//             $options: 'i'
+//           }
+//         }
+
+//         // cari bank baru jika newPaymentMethod bukan cash
+//         const bank = isCashEdit ? null : await BankAccount.findOne(
+//           { accountNumber: newPaymentMethod.split('-')[1] }
+//         )
+
+//         // jangan sentuh baris kode ini
+
+//         // Update cashflow terdekat berdasarkan tanggal log lama
+//         await Cashflow.findOneAndUpdate(
+//           {
+//             ...cfQuery
+//           },
+//           {
+//             accountType: isCashEdit ? 'Cash' : 'Bank',
+//             bankAccountId: isCashEdit ? null : (bank?._id || null),
+//             ...(newDate ? { date: new Date(newDate) } : {}),
+//             ...(newAmount !== undefined && newAmount !== null ? { amount: Number(newAmount) } : {}),
+//             time: newTime
+//           }
+//         )
+
+//         // jangan sentuh baris kode kode ini
+//       }
+//     }
+
+//     const updated = await Log.findByIdAndUpdate(
+//       logId, updates,
+//       {
+//         new: true
+//       }
+//     ).populate('createdBy', 'name')
+//       .populate('editedBy', 'name')
+//       .populate('editApprovedBy', 'name')
+//       .lean()
+
+//     return NextResponse.json({
+//       noResult: false,
+//       message: "Payment log updated",
+//       result: updated,
+//       error: false
+//     })
+//   }
+//   catch (e: unknown) {
+//     return NextResponse.json({
+//       noResult: true,
+//       message: e instanceof Error ? e.message : "Something went wrong",
+//       result: null,
+//       error: true
+//     })
+//   }
+// }
+
+
 export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase()
+
     const body = await request.json()
-    const { logId, approvalCode, userId, newAmount, newDate, newPaymentMethod, newTime, reference } = body
+    const {
+      logId,
+      approvalCode,
+      userId,
+      newAmount,
+      newDate,
+      newPaymentMethod,
+      newTime,
+      reference
+    } = body
 
     if (!logId) {
-      return NextResponse.json({ noResult: true, message: "logId is required", result: null, error: true })
-    }
-    if (!approvalCode) {
-      return NextResponse.json({ noResult: true, message: "Approval code is required", result: null, error: true })
+      return NextResponse.json({
+        noResult: true,
+        message: "logId is required",
+        result: null,
+        error: true
+      })
     }
 
     const User = (await import('@/models/User')).default
 
-    const approver = await User.findOne({ approvalCode })
-    if (!approver) {
-      return NextResponse.json({ noResult: true, message: "Kode approval tidak valid", result: null, error: true })
-    }
+    const [oldLog, editor] = await Promise.all([
+      Log.findById(logId),
+      userId ? User.findById(userId) : null
+    ])
 
-    const oldLog = await Log.findById(logId)
     if (!oldLog) {
-      return NextResponse.json({ noResult: true, message: "Log tidak ditemukan", result: null, error: true })
+      return NextResponse.json({
+        noResult: true,
+        message: "Log tidak ditemukan",
+        result: null,
+        error: true
+      })
     }
 
-    const editor = userId ? await User.findById(userId) : null
+    if (!editor) {
+      return NextResponse.json({
+        noResult: true,
+        message: "User tidak ditemukan",
+        result: null,
+        error: true
+      })
+    }
+
+    // Super admin tidak membutuhkan kode approval.
+    const isSuperAdmin = editor.isSuperAdmin === true
+
+    let approver = null
+
+    if (!isSuperAdmin) {
+      if (!approvalCode) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Approval code is required",
+          result: null,
+          error: true
+        })
+      }
+
+      approver = await User.findOne({ approvalCode })
+
+      if (!approver) {
+        return NextResponse.json({
+          noResult: true,
+          message: "Kode approval tidak valid",
+          result: null,
+          error: true
+        })
+      }
+    }
 
     const updates: any = {
       editedAt: new Date(),
-      editApprovedBy: approver._id,
+      editedBy: editor._id,
+      editApprovedBy: approver?._id ?? null
     }
-    if (editor) updates.editedBy = editor._id
-    if (newDate) updates.date = new Date(newDate)
-    if (newPaymentMethod) updates.paymentMethod = newPaymentMethod
+
+    if (newDate) {
+      updates.date = new Date(newDate)
+    }
+
+    if (newPaymentMethod) {
+      updates.paymentMethod = newPaymentMethod
+    }
 
     if (newTime) {
-      const date = new Date(updates.date)
+      const date = new Date(updates.date ?? oldLog.date)
       const [hours, minutes] = newTime.split(':').map(Number)
+
       date.setUTCHours(hours - 7, minutes, 0, 0)
       updates.date = date
     }
 
-    // Update bankAccountId di Log b1erdasarkan newPaymentMethod
+    // Update bankAccountId di Log berdasarkan newPaymentMethod.
     const isCashEdit = !newPaymentMethod || newPaymentMethod === 'Cash'
+
+    let bankForLog = null
+
     if (isCashEdit) {
       updates.bankAccountId = null
-    }
-    else {
+    } else {
       // newPaymentMethod format: "BankName-AccountNumber"
-      const bankForLog = await BankAccount.findOne({ accountNumber: newPaymentMethod.split('-')[1] }).lean() as any
-      updates.bankAccountId = bankForLog ? bankForLog._id : null
+      bankForLog = await BankAccount.findOne({
+        accountNumber: newPaymentMethod.split('-')[1]
+      })
+
+      updates.bankAccountId = bankForLog?._id ?? null
       updates.reference = reference
     }
 
-    // Jika amount berubah, update Invoice.vendorPaid
-    if (newAmount !== undefined && newAmount !== null && Number(newAmount) !== oldLog.amount) {
+    // Jika amount berubah, update Invoice.vendorPaid.
+    if (
+      newAmount !== undefined &&
+      newAmount !== null &&
+      Number(newAmount) !== oldLog.amount
+    ) {
       const diff = Number(newAmount) - oldLog.amount
+
       updates.amount = Number(newAmount)
 
-      // Update vendorPaid di Invoice
       await Invoice.findByIdAndUpdate(oldLog.purchaseId, {
         $inc: { vendorPaid: diff }
       })
     }
 
-    // Update Cashflow: selalu update untuk semua perubahan (date/paymentMethod/bankAccountId/amount)
+    // Update Cashflow: selalu update untuk semua perubahan
+    // (date/paymentMethod/bankAccountId/amount).
     const invoice = await Invoice.findById(oldLog.purchaseId).lean() as any
+
     if (invoice) {
-      const cmp = await Companie.findOne({ _id: invoice.companyId })
+      const cmp = await Companie.findOne({
+        _id: invoice.companyId
+      })
+
       if (cmp) {
-        // Cari cashflow terkait dan update amount-nya
+        // Cari cashflow terkait dan update amount-nya.
         const cfQuery: any = {
           reference: {
             $regex: oldLog.paymentNumber.replace(/\s*-\s*/, ' '),
@@ -1959,14 +2161,14 @@ export async function PUT(request: NextRequest) {
           }
         }
 
-        // cari bank baru jika newPaymentMethod bukan cash
-        const bank = isCashEdit ? null : await BankAccount.findOne(
-          { accountNumber: newPaymentMethod.split('-')[1] }
-        )
+        // Cari bank baru jika newPaymentMethod bukan cash.
+        const bank = isCashEdit
+          ? null
+          : bankForLog
 
         // jangan sentuh baris kode ini
 
-        // Update cashflow terdekat berdasarkan tanggal log lama
+        // Update cashflow terdekat berdasarkan tanggal log lama.
         await Cashflow.findOneAndUpdate(
           {
             ...cfQuery
@@ -1975,7 +2177,9 @@ export async function PUT(request: NextRequest) {
             accountType: isCashEdit ? 'Cash' : 'Bank',
             bankAccountId: isCashEdit ? null : (bank?._id || null),
             ...(newDate ? { date: new Date(newDate) } : {}),
-            ...(newAmount !== undefined && newAmount !== null ? { amount: Number(newAmount) } : {}),
+            ...(newAmount !== undefined && newAmount !== null
+              ? { amount: Number(newAmount) }
+              : {}),
             time: newTime
           }
         )
@@ -1985,11 +2189,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const updated = await Log.findByIdAndUpdate(
-      logId, updates,
-      {
-        new: true
-      }
-    ).populate('createdBy', 'name')
+      logId,
+      updates,
+      { new: true }
+    )
+      .populate('createdBy', 'name')
       .populate('editedBy', 'name')
       .populate('editApprovedBy', 'name')
       .lean()
@@ -2000,16 +2204,18 @@ export async function PUT(request: NextRequest) {
       result: updated,
       error: false
     })
-  }
-  catch (e: unknown) {
+  } catch (e: unknown) {
     return NextResponse.json({
       noResult: true,
-      message: e instanceof Error ? e.message : "Something went wrong",
+      message: e instanceof Error
+        ? e.message
+        : "Something went wrong",
       result: null,
       error: true
     })
   }
 }
+
 
 // ─── DELETE: Hapus pembayaran hutang vendor ─────────────────────────────────────
 export async function DELETE(request: NextRequest) {

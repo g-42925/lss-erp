@@ -89,7 +89,8 @@ const PurchaseSchema = new mongoose.Schema({
     refundDate: { type: Date, default: Date.now },
     refundDescription: { type: String },
     refundNumber: { type: String },
-    refundTime: { type: String }
+    refundTime: { type: String },
+    link: { type: String }
   }]
 });
 

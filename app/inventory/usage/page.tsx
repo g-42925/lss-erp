@@ -217,6 +217,8 @@ export default function InvUsagePage() {
                         </div>
                       </td>
 
+
+
                       <td className="px-6 py-4 text-center">
                         <span className="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full text-xs">
                           {u.qty} {u.itemId?.unit}
