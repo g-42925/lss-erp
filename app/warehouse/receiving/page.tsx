@@ -460,6 +460,10 @@ export default function Receiving() {
             <span className="text-slate-300">—</span>
           )}
         </td>
+
+        <td>
+          {canReceive && receiveAction}
+        </td>
       </tr>
     )
   }
@@ -539,6 +543,7 @@ export default function Receiving() {
                     <th>Quantity</th>
                     <th>Received</th>
                     <th>...</th>
+
                   </tr>
                 </thead>
 
