@@ -796,7 +796,7 @@ export default function Debt() {
   //   editLogRef.current?.showModal()
   // }
 
-  function openEditLog(log: any, debt: anu) {
+  function openEditLog(log: any, debt: any) {
     const dateTime = getJakartaDateTime(log.date)
 
     setEditingLog(log)
