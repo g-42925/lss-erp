@@ -1216,10 +1216,14 @@ export default function CashflowReportPage() {
 											<div>
 												<label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Jam (HH:MM)</label>
 												<input
-													type="time"
+													type="text"
+													inputMode="numeric"
+													placeholder="HH:mm"
+													maxLength={5}
 													required
 													value={editData.time}
 													onChange={(e) => setEditData({ ...editData, time: e.target.value })}
+													pattern="^([01]\d|2[0-3]):[0-5]\d$"
 													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
 												/>
 											</div>
@@ -1740,12 +1744,16 @@ export default function CashflowReportPage() {
 											</label>
 
 											<input
-												type="time"
+												type="text"
+												inputMode="numeric"
+												placeholder="HH:mm"
+												maxLength={5}
 												required
 												value={modalData.time}
 												onChange={(e) =>
 													setModalData({ ...modalData, time: e.target.value })
 												}
+												pattern="^([01]\d|2[0-3]):[0-5]\d$"
 												className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 											/>
 										</div>
