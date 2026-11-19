@@ -1778,10 +1778,14 @@ export default function Debt() {
               <div>
                 <label className="label">Waktu Refund</label>
                 <input
-                  type="time"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="HH:mm"
+                  maxLength={5}
                   className="input input-bordered w-full"
                   value={editRefundTime}
                   onChange={(e) => setEditRefundTime(e.target.value)}
+                  pattern="^([01]\d|2[0-3]):[0-5]\d$"
                 />
               </div>
 
