@@ -328,7 +328,7 @@ export default function AssetsPage() {
     setAssetForm({
       name: "",
       category: "",
-      desc: ""
+      measurement: ''
     })
 
     setUnitForms([createUnit()])

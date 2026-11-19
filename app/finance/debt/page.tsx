@@ -831,13 +831,13 @@ export default function Debt() {
 
     setEditDestinationAccountNumber(
       log.nonCashDst?.accountNumber ||
-      debt.nonCashDst?.accountNumber ||
+      debt?.nonCashDst?.accountNumber ||
       ''
     )
 
     setEditDestinationDescription(
       log.nonCashDst?.description ||
-      debt.nonCashDst?.description ||
+      debt?.nonCashDst?.description ||
       ''
     )
     setEditApprovalCode('')
@@ -1395,7 +1395,10 @@ export default function Debt() {
                   <legend className="fieldset-legend">Jam Pembayaran</legend>
                   <input
                     className="input w-full"
-                    type="time"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="HH:mm"
+                    maxLength={5}
                     value={payFormData.payTime}
                     onChange={e =>
                       setPayFormData(p => ({
@@ -1404,6 +1407,7 @@ export default function Debt() {
                       }))
                     }
                     required
+                    pattern="^([01]\d|2[0-3]):[0-5]\d$"
                   />
                 </fieldset>
 
@@ -2206,9 +2210,13 @@ export default function Debt() {
                     <legend className="fieldset-legend">Jam Pembayaran (WIB)</legend>
                     <input
                       className="input w-full"
-                      type="time"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="HH:mm"
+                      maxLength={5}
                       value={editTime}
                       onChange={e => setEditTime(e.target.value)}
+                      pattern="^([01]\d|2[0-3]):[0-5]\d$"
                       required
                     />
                   </fieldset>
