@@ -75,17 +75,26 @@ type ReceiveForm = {
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-const getProductName = (product?: Product) => {
-  const isAsset = (product as any)?.units !== undefined || ((product as any)?.category && !(product as any)?.conversionRatioX)
+const getProductName = (product?: Product, item?: any) => {
+  const isAsset = item?.itemType === 'asset' ||
+    (product as any)?.units !== undefined ||
+    ((product as any)?.category && !(product as any)?.conversionRatioX)
   const name = product?.productName || product?.name || "-"
   return isAsset ? `[Asset] ${name}` : name
 }
 
-const getUnit = (product?: Product) =>
-  product?.conversionRatioX ||
-  (typeof product?.unit === "string"
-    ? product.unit
-    : product?.unit?.symbol || ((product as any)?.category ? "Unit" : ""))
+const getUnit = (product?: Product, item?: any) => {
+  const isAsset = item?.itemType === 'asset' ||
+    (product as any)?.units !== undefined ||
+    ((product as any)?.category && !(product as any)?.conversionRatioX)
+  if (isAsset) {
+    return (product as any)?.measurement || "Unit"
+  }
+  return product?.conversionRatioX ||
+    (typeof product?.unit === "string"
+      ? product.unit
+      : product?.unit?.symbol || product?.unit?.name || "")
+}
 
 
 const getSaleUnit = (product?: Product) =>
@@ -238,6 +247,7 @@ export default function Receiving() {
     setSelectedItemIndex(itemIndex)
 
     const isAsset = (item as any)?.itemType === 'asset' ||
+      purchase.itemType === 'asset' ||
       (purchaseType === 'procurement' && !!(product as any)?.units) ||
       (purchaseType === 'procurement' && !!(product as any)?.category && !(product as any)?.unit)
 
@@ -434,14 +444,14 @@ export default function Receiving() {
   // Product cell
   // ============================================================
 
-  function renderProduct(product?: Product) {
-    const unit = getUnit(product)
+  function renderProduct(product?: Product, item?: any) {
+    const unit = getUnit(product, item)
     const saleUnit = getSaleUnit(product)
     const conversion = hasConversion(product)
 
     return (
       <>
-        {getProductName(product)}
+        {getProductName(product, item)}
 
         {conversion && (
           <span className="ml-2 text-[9px] font-bold uppercase bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 whitespace-nowrap">
@@ -467,7 +477,7 @@ export default function Receiving() {
     const item = items[0]
     const product = item?.product
 
-    const unit = getUnit(product)
+    const unit = getUnit(product, item)
     const saleUnit = getSaleUnit(product)
     const conversion = hasConversion(product)
 
@@ -512,7 +522,7 @@ export default function Receiving() {
               View Items ({items.length})
             </button>
           ) : (
-            renderProduct(product)
+            renderProduct(product, item)
           )}
         </td>
 
@@ -555,7 +565,18 @@ export default function Receiving() {
   return (
     <>
       <div className="h-full p-3 md:p-6 flex flex-col gap-3 text-black">
-        <span className="page-title">Receiving</span>
+        <div className="flex flex-row justify-between items-center">
+          <span className="page-title">Receiving</span>
+          <Link
+            href={`/warehouse/rlog?type=${purchaseType}`}
+            className="btn btn-sm bg-blue-900 text-white hover:bg-blue-800 flex items-center gap-1.5 shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
+            Receiving Log
+          </Link>
+        </div>
 
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
 
@@ -724,7 +745,7 @@ export default function Receiving() {
                       return (
                         <tr key={`${selectedPr._id}-${index}`}>
                           <td className="text-left font-medium">
-                            {renderProduct(product)}
+                            {renderProduct(product, item)}
                           </td>
 
                           <td>

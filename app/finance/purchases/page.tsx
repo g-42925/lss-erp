@@ -28,6 +28,8 @@ export default function PurchasesApproval() {
   const priceComparisonRef = useRef<HTMLDialogElement>(null)
 
   const [pr, setPr] = useState<any[]>([])
+  const [assets, setAssets] = useState<any[]>([])
+
   const [filterType, setFilterType] = useState("product")
   const [searchTerm, setSearchTerm] = useState("")
   const [approvingAll, setApprovingAll] = useState(false)
@@ -38,10 +40,20 @@ export default function PurchasesApproval() {
   const editPrForm = useForm()
   const router = useRouter()
 
+  function fAsset(_id: string, prop: string) {
+    return assets.find(a => String(a._id) === String(_id))?.[prop]
+  }
+
   const type = useWatch({
     control: editPrForm.control,
     name: "type"
   })
+
+  const getAssetsFn = useFetch<any[], any>({
+    url: "",
+    method: "GET",
+  })
+
 
   const currentStatus = useWatch({
     control: editPrForm.control,
@@ -107,6 +119,11 @@ export default function PurchasesApproval() {
     getFn.fn(url, JSON.stringify({}), (result) => {
       setPr(Array.isArray(result) ? result : [])
     })
+    getAssetsFn.fn(
+      `/api/web/assets?id=${masterAccountId}`,
+      JSON.stringify({}),
+      setAssets
+    )
   }, [hasHydrated, masterAccountId, filterType])
 
   // Approve semua procurement yang masih requested.
@@ -204,16 +221,28 @@ export default function PurchasesApproval() {
     const purchase = pr.find((item) => item._id === id)
     if (!purchase) return
 
+    const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
+    const isAssetSingle = purchase.itemType === 'asset' || (filterType === 'procurement' && purchase.product?.category && !purchase.product?.conversionRatioX)
+
+    const productLabel = filterType === "service"
+      ? purchase.description
+      : isMultiItem
+        ? purchase.items.map((it: any) => {
+          const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
+          const name = it.product?.productName || it.product?.name || fAsset(it.productId, "name") || "?"
+          return isAsset ? `[Asset] ${name}` : name
+        }).join(", ")
+        : (isAssetSingle ? `[Asset] ${purchase.product?.name || "-"}` : purchase.product?.productName || purchase.product?.name || "Unknown Product")
+
+    const totalQty = isMultiItem
+      ? purchase.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0)
+      : purchase.quantity || 1
+
     editPrForm.reset({
       _id: purchase._id,
-      quantity: purchase.quantity,
+      quantity: totalQty,
       finalPrice: purchase.finalPrice,
-      product:
-        filterType === "service"
-          ? purchase.description
-          : purchase.product?.productName ||
-          purchase.product?.name ||
-          "Unknown Product",
+      product: productLabel,
       currPayAmt: purchase.payAmount,
       payAmount: purchase.payAmount,
       supplierId: purchase.supplierId,
@@ -230,19 +259,27 @@ export default function PurchasesApproval() {
     if (!purchase) return
 
     const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
+    const isAssetSingle = purchase.itemType === 'asset' || (filterType === 'procurement' && purchase.product?.category && !purchase.product?.conversionRatioX)
 
     const productLabel = filterType === "service"
       ? purchase.description
       : isMultiItem
-        ? purchase.items.map((it: any) =>
-          it.product?.productName || it.product?.name || "?"
-        ).join(", ")
-        : purchase.product?.productName || purchase.product?.name || "Unknown Product"
+        ? purchase.items.map((it: any) => {
+          const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
+          const name = it.product?.productName || it.product?.name || fAsset(it.productId, "name") || "?"
+          return isAsset ? `[Asset] ${name}` : name
+        }).join(", ")
+        : (isAssetSingle ? `[Asset] ${purchase.product?.name || "-"}` : purchase.product?.productName || purchase.product?.name || "Unknown Product")
+
+    const totalQty = isMultiItem
+      ? purchase.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0)
+      : purchase.quantity || 1
 
     editPrForm.reset({
       _id: purchase._id,
       description: purchase.description,
       finalPrice: purchase.finalPrice,
+      quantity: totalQty,
       product: productLabel,
       status: purchase.status,
       currentStatus: purchase.status
@@ -419,18 +456,20 @@ export default function PurchasesApproval() {
                     const isMultiItem = hasItems && purchase.items.length > 1
                     const isAssetSingle = purchase.itemType === "asset" || (filterType === "procurement" && purchase.product?.category && !purchase.product?.conversionRatioX)
 
+                    const asset = assets.find((a) => String(a._id) === String(purchase?.items?.[0]?.productId))
+
                     const itemName =
                       filterType === "service"
                         ? purchase.description
                         : hasItems
                           ? purchase.items.length === 1
                             ? (purchase.items[0].itemType === "asset" || (filterType === "procurement" && purchase.items[0].product?.category && !purchase.items[0].product?.conversionRatioX)
-                              ? `[Asset] ${purchase.items[0].product?.name || "-"}`
+                              ? `${purchase.items[0].product?.name || asset?.name || "-"}`
                               : purchase.items[0].product?.productName ||
                               purchase.items[0].product?.name ||
                               "-")
                             : `${purchase.items.length} item`
-                          : (isAssetSingle ? `[Asset] ${purchase.product?.name || "-"}` : purchase.product?.productName ||
+                          : (isAssetSingle ? `${purchase.product?.name || "-"}` : purchase.product?.productName ||
                             purchase.product?.name ||
                             "-")
 
@@ -504,12 +543,13 @@ export default function PurchasesApproval() {
                               : hasItems
                                 ? (() => {
                                   const item = purchase.items[0]
+                                  const isAsset = item.itemType === "asset" || (filterType === "procurement" && item.product?.category && !item.product?.conversionRatioX)
                                   const itemUnit =
                                     filterType === "procurement"
-                                      ? item.product?.unit
+                                      ? (isAsset ? (item.product?.measurement || fAsset(item.productId, "measurement") || "Unit") : (typeof item.product?.unit === "string" ? item.product?.unit : item.product?.unit?.symbol || "-"))
                                       : item.product?.conversionRatioX
 
-                                  return `${item.quantity}${itemUnit ? typeof itemUnit === 'string' ? ` (${itemUnit})` : ` (${itemUnit?.symbol})` : ""}`
+                                  return `${item.quantity}${itemUnit ? ` (${itemUnit})` : ""}`
                                 })()
                                 : `${purchase.quantity} (${unit || "-"})`}
                         </td>
@@ -655,29 +695,6 @@ export default function PurchasesApproval() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="page-title">Purchase Items</span>
-
-              <div className="flex items-center gap-2">
-                {filterType !== "service" && (
-                  <button
-                    type="button"
-                    className="btn btn-xs btn-outline btn-info"
-                    onClick={() => {
-                      setSelectedComparisonPurchase(selectedPurchase)
-                      setExpandedComparisonItem(null)
-                      priceComparisonRef.current?.showModal()
-                    }}
-                  >
-                    Perbandingan
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => itemRef.current?.close()}
-                  className="btn btn-sm btn-circle btn-ghost"
-                >
-                  ✕
-                </button>
-              </div>
             </div>
 
             <div className="text-sm text-gray-500">
@@ -702,20 +719,23 @@ export default function PurchasesApproval() {
                   {selectedPurchase?.items?.map((item: any, index: number) => {
                     const isAsset = item.itemType === "asset" || (filterType === "procurement" && item.product?.category && !item.product?.conversionRatioX)
                     const productName = isAsset
-                      ? `[Asset] ${item.product?.name || "Asset"}`
+                      ? `${item.product?.name || fAsset(item.productId, "name") || "Asset"}`
                       : item.product?.productName ||
                       item.product?.name ||
                       "Unknown Product"
 
                     const itemUnit = isAsset
-                      ? "Unit"
+                      ? (item.product?.measurement || fAsset(item.productId, "measurement") || "Unit")
                       : filterType === "procurement"
-                        ? (item.product?.unit?.symbol || item.product?.unit || "-")
+                        ? (typeof item.product?.unit === "string" ? item.product?.unit : item.product?.unit?.symbol || item.product?.unit?.name || "-")
                         : item.product?.conversionRatioX
 
                     return (
                       <tr key={item._id || index}>
-                        <td>{productName}</td>
+                        <td>
+                          {isAsset && <span className="badge badge-sm badge-info mr-1.5 font-normal">Asset</span>}
+                          {productName}
+                        </td>
 
                         <td className="text-center font-semibold">
                           {Number(item.quantity || 0).toLocaleString("id-ID")}
@@ -769,6 +789,9 @@ export default function PurchasesApproval() {
       {/* Modal perbandingan harga pembelian */}
       <dialog ref={priceComparisonRef} className="modal text-black">
         <div className="modal-box max-w-2xl">
+
+          {/* diperbaiki nanti */}
+
           <h3 className="font-bold text-lg mb-4">
             Perbandingan Harga Pembelian
           </h3>
@@ -797,13 +820,16 @@ export default function PurchasesApproval() {
             return (
               <div className="flex flex-col gap-2">
                 {comparisonItems.map((item: any, index: number) => {
-                  const productName =
+                  const isAsset = item.itemType === "asset" || (filterType === "procurement" && item.product?.category && !item.product?.conversionRatioX)
+                  const pName =
                     item.product?.productName ||
                     item.product?.name ||
+                    fAsset(item.productId, "name") ||
                     (comparisonItems.length === 1 &&
                       (selectedComparisonPurchase?.product?.productName ||
                         selectedComparisonPurchase?.product?.name)) ||
                     "-"
+                  const productName = isAsset ? `[Asset] ${pName}` : pName
 
                   const currentUnitPrice = item.quantity
                     ? item.finalPrice / item.quantity

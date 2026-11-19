@@ -981,14 +981,18 @@ export default function Debt() {
   // ── Helper: ambil label produk dari PR (single atau multi-item) ──────────
   function getDebtProductLabel(d: any): string {
     // Single-item
-    if (d.product?.productName) return d.product.productName
+    const isAssetSingle = d.itemType === 'asset' || (d.product?.category && !d.product?.conversionRatioX)
+    if (d.product?.productName) return isAssetSingle ? `[Asset] ${d.product.productName}` : d.product.productName
+    if (d.product?.name) return isAssetSingle ? `[Asset] ${d.product.name}` : d.product.name
     if (d.invItem?.name) return d.invItem.name
     if (d.description) return d.description
     // Multi-item
     if (Array.isArray(d.items) && d.items.length > 0) {
       if (d.items.length === 1) {
         const it = d.items[0]
-        return it.product?.productName || it.product?.name || '-'
+        const isAsset = it.itemType === 'asset' || (it.product?.category && !it.product?.conversionRatioX)
+        const name = it.product?.productName || it.product?.name || '-'
+        return isAsset ? `[Asset] ${name}` : name
       }
       // Multi-item: gunakan dropdown komponen (lihat DebtProductCell)
       return d.items?.length > 0 ? `${d.items.length} item(s)` : '-'
@@ -999,10 +1003,12 @@ export default function Debt() {
   // ── Komponen dropdown untuk multi-item PR di tabel ────────────────────────
   function DebtProductCell({ d }: { d: any }) {
     // Single-item
-    if (d.product?.productName || d.invItem?.name) {
+    if (d.product?.productName || d.product?.name || d.invItem?.name) {
+      const isAsset = d.itemType === 'asset' || (d.product?.category && !d.product?.conversionRatioX)
+      const name = d.product?.productName || d.product?.name || d.invItem?.name
       return (
         <span>
-          {d.product?.productName || d.invItem?.name}
+          {isAsset ? `[Asset] ${name}` : name}
           {d.quantity != null && (
             <span className="text-gray-400 ml-1">×{d.quantity}</span>
           )}
@@ -1018,9 +1024,11 @@ export default function Debt() {
     if (Array.isArray(d.items) && d.items.length > 0) {
       if (d.items.length === 1) {
         const it = d.items[0]
+        const isAsset = it.itemType === 'asset' || (it.product?.category && !it.product?.conversionRatioX)
+        const name = it.product?.productName || it.product?.name || '-'
         return (
           <span>
-            {it.product?.productName || it.product?.name || '-'}
+            {isAsset ? `[Asset] ${name}` : name}
             {it.quantity != null && (
               <span className="text-gray-400 ml-1">×{it.quantity}</span>
             )}
@@ -1038,14 +1046,18 @@ export default function Debt() {
           </summary>
 
           <ul className="mt-1 space-y-0.5 pl-1">
-            {d.items.map((it: any, idx: number) => (
-              <li key={idx} className="text-xs text-gray-700 whitespace-nowrap">
-                {idx + 1}. {it.product?.productName || it.product?.name || '-'}
-                {it.quantity != null && (
-                  <span className="text-gray-400 ml-1"><span className="font-bold">×{it.quantity}</span></span>
-                )}
-              </li>
-            ))}
+            {d.items.map((it: any, idx: number) => {
+              const isAsset = it.itemType === 'asset' || (it.product?.category && !it.product?.conversionRatioX)
+              const name = it.product?.productName || it.product?.name || '-'
+              return (
+                <li key={idx} className="text-xs text-gray-700 whitespace-nowrap">
+                  {idx + 1}. {isAsset ? `[Asset] ${name}` : name}
+                  {it.quantity != null && (
+                    <span className="text-gray-400 ml-1"><span className="font-bold">×{it.quantity}</span></span>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </details>
       )
@@ -1550,7 +1562,10 @@ export default function Debt() {
 
             {selectedDebt?.items?.length > 0 ? (
               <div className="flex flex-col gap-2">
-                {selectedDebt.items.map((item: any, index: number) => (
+                {selectedDebt.items.map((item: any, index: number) => {
+                  const isAsset = item.itemType === 'asset' || (item.product?.category && !item.product?.conversionRatioX)
+                  const pName = item.product?.productName || item.product?.name || '-'
+                  return (
                   <div key={index} className="border rounded-lg">
                     <button
                       type="button"
@@ -1559,7 +1574,7 @@ export default function Debt() {
                       )}
                       className="w-full flex justify-between items-center p-3 text-sm font-medium"
                     >
-                      <span>{index + 1}. {item.product?.name || '-'}</span>
+                      <span>{index + 1}. {isAsset ? `[Asset] ${pName}` : pName}</span>
                       <span>{expandedItem === index ? '▲' : '▼'}</span>
                     </button>
 
@@ -1613,7 +1628,8 @@ export default function Debt() {
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-500">Tidak ada data barang.</p>

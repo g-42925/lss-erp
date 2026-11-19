@@ -597,6 +597,7 @@ export async function PUT(request: NextRequest) {
             targetAsset = await Asset.create({
               name: invItem?.name || "Received Asset",
               category: rest.assetCategoryId,
+              measurement: invItem?.measurement || "Unit",
               units: [],
               companyId
             });
@@ -766,6 +767,8 @@ export async function PUT(request: NextRequest) {
         const batchCreated = await Batche.create({
           ...rest,
           productId: resolvedProductId,
+          supplierId: purchase.supplierId || rest.supplierId || undefined,
+          receivedDate: rest.receivedDate ? new Date(rest.receivedDate) : new Date(),
           status: 'QUARANTINE',
           batchNumber: `B - ${String(Date.now()).slice(-5)} `,
           accumulative: config.ratio * rest.qty,
@@ -825,6 +828,8 @@ export async function PUT(request: NextRequest) {
         const batchCreated = await Batche.create({
           ...rest,
           productId: resolvedProductId,
+          supplierId: purchase.supplierId || rest.supplierId || undefined,
+          receivedDate: rest.receivedDate ? new Date(rest.receivedDate) : new Date(),
           status: 'QUARANTINE',
           batchNumber: `B - ${String(Date.now()).slice(-5)} `,
           accumulative: accumulativeQty,
@@ -1375,14 +1380,9 @@ export async function GET(request: NextRequest) {
             {
               $match: {
                 $expr: {
-                  $and: [
-                    { $eq: [{ $ifNull: ['$$mainProduct', null] }, null] },
-                    {
-                      $in: [
-                        '$_id',
-                        { $ifNull: ['$$itemProductIds', []] }
-                      ]
-                    }
+                  $in: [
+                    '$_id',
+                    { $ifNull: ['$$itemProductIds', []] }
                   ]
                 }
               }

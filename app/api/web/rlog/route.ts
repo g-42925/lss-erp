@@ -59,6 +59,25 @@ export async function GET(request: NextRequest) {
         },
         {
           $lookup: {
+            from: 'predefinedunits',
+            localField: 'item.unit',
+            foreignField: '_id',
+            as: '_unitDoc'
+          }
+        },
+        {
+          $unwind: {
+            path: '$_unitDoc',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $addFields: {
+            'item.unit': { $ifNull: ['$_unitDoc', '$item.unit'] }
+          }
+        },
+        {
+          $lookup: {
             from: 'users',
             localField: 'receivedBy',
             foreignField: '_id',
@@ -132,7 +151,29 @@ export async function GET(request: NextRequest) {
         }
       },
       {
-        $unwind: '$product'
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'predefinedunits',
+          localField: 'product.unit',
+          foreignField: '_id',
+          as: '_productUnitDoc'
+        }
+      },
+      {
+        $unwind: {
+          path: '$_productUnitDoc',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $addFields: {
+          'product.unit': { $ifNull: ['$_productUnitDoc', '$product.unit'] }
+        }
       },
       {
         $lookup: {

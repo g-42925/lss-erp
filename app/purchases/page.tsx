@@ -232,36 +232,37 @@ function Purchases() {
     }
   }
 
+  function fAsset(_id: string) {
+    return assets?.find((f) => String(f._id) === String(_id))
+  }
+
   function getPurchaseName(purchase: any) {
     // Multi-item purchase
     if (Array.isArray(purchase.items) && purchase.items.length > 0) {
       if (purchase.items.length === 1) {
         const it = purchase.items[0]
-        const prefix = it.itemType === 'asset' ? '[Asset] ' : ''
-        return `${prefix}${it.product?.productName || it.product?.name || "-"}`
+        const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
+        const name = it.product?.productName || it.product?.name || fAsset(it.productId)?.name || "-"
+        return isAsset ? `[Asset] ${name}` : name
       }
       return `${purchase.items.length} item`
     }
-    const prefix = purchase.itemType === 'asset' ? '[Asset] ' : ''
-    return (
-      prefix + (
-        purchase.description ||
-        purchase.product?.productName ||
-        purchase.product?.name ||
-        "-"
-      )
-    )
+    const isAssetSingle = purchase.itemType === 'asset' || (filterType === 'procurement' && purchase.product?.category && !purchase.product?.conversionRatioX)
+    const name = purchase.description || purchase.product?.productName || purchase.product?.name || "-"
+    return isAssetSingle ? `[Asset] ${name}` : name
   }
 
   function getPurchaseQuantity(purchase: any) {
     if (Array.isArray(purchase.items) && purchase.items.length > 0) {
       if (purchase.items.length === 1) {
         const it = purchase.items[0]
-        const unit = filterType === "procurement"
-          ? it.product?.unit
-          : it.product?.conversionRatioX
-        //return `${it.quantity} ${unit ? ` (${unit})` : ""}`
-        return `${it.quantity} ${unit ? typeof unit === 'string' ? ` (${unit})` : ` (${unit?.symbol})` : ""}`
+        const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
+        const unit = isAsset
+          ? (it.product?.measurement || fAsset(it.productId)?.measurement || "Unit")
+          : filterType === "procurement"
+            ? (typeof it.product?.unit === 'string' ? it.product?.unit : it.product?.unit?.symbol || "")
+            : it.product?.conversionRatioX
+        return `${it.quantity}${unit ? ` (${unit})` : ""}`
       }
       const totalQty = purchase.items.reduce((s: number, i: any) => s + (i.quantity || 0), 0)
       return `${totalQty} total`
@@ -286,11 +287,24 @@ function Purchases() {
   }
 
   function getUnit(purchase: any) {
-    if (filterType === "procurement") {
-      return purchase.product?.unit || "-"
+    const isAsset = purchase.itemType === 'asset' ||
+      purchase.items?.[0]?.itemType === 'asset' ||
+      (filterType === "procurement" && (purchase.product?.category || purchase.items?.[0]?.product?.category) && !purchase.product?.conversionRatioX)
+
+    if (isAsset) {
+      return purchase.product?.measurement ||
+        purchase.items?.[0]?.product?.measurement ||
+        fAsset(purchase.productId)?.measurement ||
+        fAsset(purchase.items?.[0]?.productId)?.measurement ||
+        "Unit"
     }
 
-    return purchase.product?.conversionRatioX || "-"
+    if (filterType === "procurement") {
+      const u = purchase.product?.unit || purchase.items?.[0]?.product?.unit
+      return typeof u === 'string' ? u : u?.symbol || u?.name || "-"
+    }
+
+    return purchase.product?.conversionRatioX || purchase.items?.[0]?.product?.conversionRatioX || "-"
   }
 
   function getGrossPrice(purchase: any) {
@@ -343,15 +357,23 @@ function Purchases() {
       }]
 
     const rows = purchaseItems.map((item: any, index: number) => {
-      const name = filterType === "service"
+      const isAsset = item.itemType === 'asset' ||
+        purchase.itemType === 'asset' ||
+        (filterType === "procurement" && item.product?.category && !item.product?.conversionRatioX)
+
+      const rawName = filterType === "service"
         ? purchase.description
         : filterType === "procurement"
-          ? item.product?.name || "-"
-          : item.product?.productName || "-"
+          ? item.product?.name || fAsset(item.productId)?.name || "-"
+          : item.product?.productName || item.product?.name || "-"
 
-      const unit = filterType === "procurement"
-        ? item.product?.unit || ""
-        : item.product?.conversionRatioX || ""
+      const name = isAsset ? `[Asset] ${rawName}` : rawName
+
+      const unit = isAsset
+        ? (item.product?.measurement || fAsset(item.productId)?.measurement || "Unit")
+        : filterType === "procurement"
+          ? (typeof item.product?.unit === 'string' ? item.product?.unit : item.product?.unit?.symbol || "")
+          : item.product?.conversionRatioX || ""
 
       const quantity = Number(item.quantity || 1)
       const price = Number(item.finalPrice || 0)
@@ -670,7 +692,7 @@ function Purchases() {
 
     if (isAsset) {
       prod = assets.find((a: any) => a._id === addItemDraft.productId)
-      productLabel = `[Asset] ${prod?.name || "Asset"} (${prod?.category?.name || "Aset"})`
+      productLabel = `[Asset] ${prod?.name || "Asset"} (${prod?.measurement || "Unit"})`
     } else if (filterType === "procurement") {
       prod = items.find((p: any) => p._id === addItemDraft.productId)
       productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
@@ -753,17 +775,15 @@ function Purchases() {
   }
 
   function calcTotal(_id: string) {
-    const [{ finalPrice, items }] = pr.filter(
-      (item) => item._id === _id
-    )
+    const purchase = pr.find((item) => item._id === _id)
+    if (!purchase) return 0
 
-    let total = 0
+    if (Array.isArray(purchase.items) && purchase.items.length > 0) {
+      const total = purchase.items.reduce((sum: number, it: any) => sum + (it.finalPrice || 0), 0)
+      return total > 0 ? total : (purchase.finalPrice || 0)
+    }
 
-    items.forEach((it: any) => {
-      total += it.finalPrice
-    })
-
-    return total > 0 ? total : finalPrice
+    return purchase.finalPrice || 0
   }
 
   function calcEditItemsTotal() {
@@ -1158,24 +1178,21 @@ function Purchases() {
   }
 
   function openOrder(id: string) {
-
-    // ke sini
-
     let fPriceX = 0;
-
-    const [{ finalPrice, items }] = pr.filter(
-      (item) => item._id === id
-    )
-
-    items.forEach((it: any) => {
-      fPriceX += it.finalPrice
-    })
 
     const purchase = pr.find(
       (item) => item._id === id
     )
 
     if (!purchase) return
+
+    const { finalPrice, items } = purchase
+
+    if (Array.isArray(items)) {
+      items.forEach((it: any) => {
+        fPriceX += it.finalPrice || 0
+      })
+    }
 
     // Determine product display label for multi-item
     const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
@@ -1200,8 +1217,16 @@ function Purchases() {
 
     if (filterType === "procurement") {
       const productLabel = isMultiItem
-        ? purchase.items.map((it: any) => it.product?.name || "-").join(", ")
-        : purchase.product?.name
+        ? purchase.items.map((it: any) => {
+          const isAsset = it.itemType === 'asset' || (it.product?.category && !it.product?.conversionRatioX)
+          const name = it.product?.name || fAsset(it.productId)?.name || "-"
+          return isAsset ? `[Asset] ${name}` : name
+        }).join(", ")
+        : (() => {
+          const isAsset = purchase.itemType === 'asset' || (purchase.product?.category && !purchase.product?.conversionRatioX)
+          const name = purchase.product?.name || "-"
+          return isAsset ? `[Asset] ${name}` : name
+        })()
       orderForm.reset({
         _id: purchase._id,
         finalPrice: ffPrice,
@@ -1237,30 +1262,29 @@ function Purchases() {
   }
 
   function openEdit(id: string) {
-    console.log('test')
     let fPriceX = 0;
 
-    const [{ _id, items, customSupplier, date, description, finalPrice, vendorId }] = pr.filter(
+    const purchase = pr.find(
       (item) => item._id === id
     )
 
-    //if (!items) return
+    if (!purchase) return
+
+    const { _id, items: purchaseItems, customSupplier, date, description, finalPrice, vendorId } = purchase
 
     // Reset riwayat harga sebelum fetch yang baru
     setEditLastPriceInfo(null)
-    //set{ items }EditingPurchase(purchase)
 
-    const isMultiItem = Array.isArray(items) && items.length > 0
-    const productList = filterType === "procurement" ? items : products
+    const isMultiItem = Array.isArray(purchaseItems) && purchaseItems.length > 0
 
     if (filterType === "product" || filterType === "procurement") {
       // Load existing items into editItems state
       if (isMultiItem) {
-        const loaded = items.map((it: any) => {
+        const loaded = purchaseItems.map((it: any) => {
           const isAsset = it.itemType === 'asset' || (!it.product?.unit && it.product?.category)
           const prod = it.product || (isAsset
             ? assets.find((a: any) => String(a._id) === String(it.productId?._id || it.productId))
-            : productList.find((p: any) => String(p._id) === String(it.productId?._id || it.productId)))
+            : (filterType === "procurement" ? items : products).find((p: any) => String(p._id) === String(it.productId?._id || it.productId)))
 
           let label = ""
           if (filterType === "procurement") {
@@ -1705,7 +1729,7 @@ function Purchases() {
                                       {(() => {
                                         const multiQty = getPurchaseQuantity(purchase)
                                         if (multiQty !== null && purchase.items?.length > 1) return '?'
-                                        if (multiQty !== null && purchase.items?.length < 2) return `${multiQty}`
+                                        if (multiQty !== null) return multiQty
                                         return `${purchase.quantity} (${unit})`
                                       })()}
                                     </div>
@@ -2082,13 +2106,13 @@ function Purchases() {
                               {selectedPurchase.items.map((it: any, idx: number) => {
                                 const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
                                 const pName = filterType === "procurement"
-                                  ? (isAsset ? `[Asset] ${it.product?.name || "-"}` : (it.product?.name || "-"))
+                                  ? (isAsset ? `${it.product?.name || fAsset(it.productId)?.name || "-"}` : (it.product?.name || "-"))
                                   : it.product?.productName || ""
 
                                 const pUnit = isAsset
-                                  ? "Unit"
+                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || "Unit")
                                   : filterType === "procurement"
-                                    ? it.product?.unit || ""
+                                    ? (typeof it.product?.unit === "string" ? it.product?.unit : it.product?.unit?.symbol || "")
                                     : it.product?.conversionRatioX || ""
 
                                 const hasNotes = selectedPurchase.items.some(
@@ -2098,10 +2122,10 @@ function Purchases() {
                                 return (
                                   <tr key={idx}>
                                     <td>
-                                      {pName} {pUnit ? `(${pUnit})` : ""}
+                                      {pName}
                                     </td>
                                     <td className="text-center">
-                                      {it.quantity}
+                                      {it.quantity} {pUnit}
                                     </td>
                                     <td className="text-right">
                                       {it.finalPrice > 0
@@ -2712,7 +2736,7 @@ function Purchases() {
                             : addItemDraft.itemType === "asset"
                               ? assets.map((asset) => (
                                 <option key={asset._id} value={asset._id}>
-                                  {asset.name} ({asset.category?.name || "Aset"})
+                                  {asset.name} ({asset.measurement})
                                 </option>
                               ))
                               : items.map((item) => (
@@ -2991,12 +3015,12 @@ function Purchases() {
                           {selectedPurchase.items.map((it: any, idx: number) => {
                             const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
                             const pName = filterType === "procurement"
-                              ? (isAsset ? `[Asset] ${it.product?.name || "-"}` : (it.product?.name || "-"))
+                              ? (isAsset ? `[Asset] ${it.product?.name || fAsset(it.productId)?.name || "-"}` : (it.product?.name || "-"))
                               : it.product?.productName || "-"
                             const pUnit = isAsset
-                              ? "Unit"
+                              ? (it.product?.measurement || fAsset(it.productId)?.measurement || "Unit")
                               : filterType === "procurement"
-                                ? it.product?.unit || ""
+                                ? (typeof it.product?.unit === "string" ? it.product?.unit : it.product?.unit?.symbol || "")
                                 : it.product?.conversionRatioX || ""
                             return (
                               <tr key={idx}>
