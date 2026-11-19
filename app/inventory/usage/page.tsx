@@ -13,7 +13,7 @@ type InvUsage = {
     _id: string
     name: string
     itemCode: string
-    unit: string
+    unit: { _id: string; name: string; symbol: string } | string
     category: string
   }
   qty: number
@@ -187,7 +187,6 @@ export default function InvUsagePage() {
                   <th className="px-6 py-3 text-left">Item</th>
                   <th className="px-6 py-3 text-center">Qty</th>
                   <th className="px-6 py-3 text-left">Note</th>
-                  <th className="px-6 py-3 text-center">Action</th>
                 </tr>
               </thead>
 
@@ -221,7 +220,7 @@ export default function InvUsagePage() {
 
                       <td className="px-6 py-4 text-center">
                         <span className="bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full text-xs">
-                          {u.qty} {u.itemId?.unit}
+                          {u.qty} {typeof u.itemId?.unit === 'object' ? (u.itemId?.unit?.symbol || u.itemId?.unit?.name) : u.itemId?.unit}
                         </span>
                       </td>
 
@@ -232,15 +231,6 @@ export default function InvUsagePage() {
                         {u.note || (
                           <span className="text-slate-300">—</span>
                         )}
-                      </td>
-
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => openEdit(u)}
-                          className="btn btn-sm btn-outline btn-warning"
-                        >
-                          Edit
-                        </button>
                       </td>
                     </tr>
                   ))
@@ -314,7 +304,7 @@ export default function InvUsagePage() {
                 />
 
                 <p className="text-xs text-slate-400 mt-1">
-                  Unit: {editing.itemId?.unit}
+                  Unit: {typeof editing.itemId?.unit === 'object' ? (editing.itemId?.unit?.symbol || editing.itemId?.unit?.name) : editing.itemId?.unit}
                 </p>
               </div>
 

@@ -208,10 +208,14 @@ export async function PUT(request: NextRequest) {
         )
       })
 
-      await updatedUsage.populate(
-        'itemId',
-        'name unit itemCode category'
-      )
+      await updatedUsage.populate({
+        path: 'itemId',
+        select: 'name unit ftb itemCode category',
+        populate: [
+          { path: 'unit', select: 'name symbol' },
+          { path: 'ftb', select: 'name symbol' }
+        ]
+      })
 
     }
     finally {
