@@ -417,23 +417,26 @@ export default function PurchasesApproval() {
                       purchase.items.length > 0
 
                     const isMultiItem = hasItems && purchase.items.length > 1
+                    const isAssetSingle = purchase.itemType === "asset" || (filterType === "procurement" && purchase.product?.category && !purchase.product?.conversionRatioX)
 
                     const itemName =
                       filterType === "service"
                         ? purchase.description
                         : hasItems
                           ? purchase.items.length === 1
-                            ? purchase.items[0].product?.productName ||
-                            purchase.items[0].product?.name ||
-                            "-"
+                            ? (purchase.items[0].itemType === "asset" || (filterType === "procurement" && purchase.items[0].product?.category && !purchase.items[0].product?.conversionRatioX)
+                              ? `[Asset] ${purchase.items[0].product?.name || "-"}`
+                              : purchase.items[0].product?.productName ||
+                              purchase.items[0].product?.name ||
+                              "-")
                             : `${purchase.items.length} item`
-                          : purchase.product?.productName ||
-                          purchase.product?.name ||
-                          "-"
+                          : (isAssetSingle ? `[Asset] ${purchase.product?.name || "-"}` : purchase.product?.productName ||
+                            purchase.product?.name ||
+                            "-")
 
                     const unit =
                       filterType === "procurement"
-                        ? purchase.product?.unit
+                        ? (isAssetSingle ? "Unit" : (purchase.product?.unit?.symbol || purchase.product?.unit || "-"))
                         : purchase.product?.conversionRatioX
 
                     const suppName =
@@ -697,14 +700,17 @@ export default function PurchasesApproval() {
 
                 <tbody>
                   {selectedPurchase?.items?.map((item: any, index: number) => {
-                    const productName =
-                      item.product?.productName ||
+                    const isAsset = item.itemType === "asset" || (filterType === "procurement" && item.product?.category && !item.product?.conversionRatioX)
+                    const productName = isAsset
+                      ? `[Asset] ${item.product?.name || "Asset"}`
+                      : item.product?.productName ||
                       item.product?.name ||
                       "Unknown Product"
 
-                    const itemUnit =
-                      filterType === "procurement"
-                        ? item.product?.unit
+                    const itemUnit = isAsset
+                      ? "Unit"
+                      : filterType === "procurement"
+                        ? (item.product?.unit?.symbol || item.product?.unit || "-")
                         : item.product?.conversionRatioX
 
                     return (

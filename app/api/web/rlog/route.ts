@@ -40,6 +40,25 @@ export async function GET(request: NextRequest) {
         },
         {
           $lookup: {
+            from: 'assets',
+            localField: 'itemId',
+            foreignField: '_id',
+            as: '_assetItem'
+          }
+        },
+        {
+          $unwind: {
+            path: '$_assetItem',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        {
+          $addFields: {
+            item: { $ifNull: ['$item', '$_assetItem'] }
+          }
+        },
+        {
+          $lookup: {
             from: 'users',
             localField: 'receivedBy',
             foreignField: '_id',

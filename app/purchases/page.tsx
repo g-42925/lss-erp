@@ -38,6 +38,7 @@ function Purchases() {
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [items, setItems] = useState<any[]>([])
+  const [assets, setAssets] = useState<any[]>([])
   const [vendors, setVendors] = useState<any[]>([])
   const [taxes, setTaxes] = useState<any[]>([])
   const [selectedPrForTax, setSelectedPrForTax] = useState<any>(null)
@@ -53,14 +54,14 @@ function Purchases() {
   // Setiap entry: { productId, quantity, finalPrice (opsional), note (opsional) }
   const [addItems, setAddItems] = useState<any[]>([])
   // Form sementara untuk satu item yang sedang diisi
-  const [addItemDraft, setAddItemDraft] = useState<any>({ productId: "", quantity: 1, finalPrice: "", note: "" })
+  const [addItemDraft, setAddItemDraft] = useState<any>({ productId: "", itemType: "inventory", quantity: 1, finalPrice: "", note: "" })
   // Mode override total: jika true, user bisa isi total manual
   const [addTotalOverride, setAddTotalOverride] = useState<string>("")
   const [addTotalMode, setAddTotalMode] = useState<"auto" | "manual">("auto")
 
   // ─── State multi-item untuk Edit PR ────────────────────────────────────────
   const [editItems, setEditItems] = useState<any[]>([])
-  const [editItemDraft, setEditItemDraft] = useState<any>({ productId: "", quantity: 1, finalPrice: "", note: "" })
+  const [editItemDraft, setEditItemDraft] = useState<any>({ productId: "", itemType: "inventory", quantity: 1, finalPrice: "", note: "" })
   const [editTotalOverride, setEditTotalOverride] = useState<string>("")
   const [editTotalMode, setEditTotalMode] = useState<"auto" | "manual">("auto")
   // PR yang sedang diedit (untuk akses data lengkap di modal edit)
@@ -103,6 +104,11 @@ function Purchases() {
   })
 
   const getItemsFn = useFetch<any[], any>({
+    url: "",
+    method: "GET",
+  })
+
+  const getAssetsFn = useFetch<any[], any>({
     url: "",
     method: "GET",
   })
@@ -231,15 +237,19 @@ function Purchases() {
     if (Array.isArray(purchase.items) && purchase.items.length > 0) {
       if (purchase.items.length === 1) {
         const it = purchase.items[0]
-        return it.product?.productName || it.product?.name || "-"
+        const prefix = it.itemType === 'asset' ? '[Asset] ' : ''
+        return `${prefix}${it.product?.productName || it.product?.name || "-"}`
       }
       return `${purchase.items.length} item`
     }
+    const prefix = purchase.itemType === 'asset' ? '[Asset] ' : ''
     return (
-      purchase.description ||
-      purchase.product?.productName ||
-      purchase.product?.name ||
-      "-"
+      prefix + (
+        purchase.description ||
+        purchase.product?.productName ||
+        purchase.product?.name ||
+        "-"
+      )
     )
   }
 
@@ -654,21 +664,33 @@ function Purchases() {
     const fFinalPrice = addItemDraft.finalPrice !== "" ? parseFloat(addItemDraft.finalPrice) || 0 : 0
 
     // Temukan info produk untuk ditampilkan
-    const productList = filterType === "procurement" ? items : products
-    const prod = productList.find((p: any) => p._id === addItemDraft.productId)
+    let prod: any = null
+    let productLabel = ""
+    const isAsset = filterType === "procurement" && addItemDraft.itemType === "asset"
+
+    if (isAsset) {
+      prod = assets.find((a: any) => a._id === addItemDraft.productId)
+      productLabel = `[Asset] ${prod?.name || "Asset"} (${prod?.category?.name || "Aset"})`
+    } else if (filterType === "procurement") {
+      prod = items.find((p: any) => p._id === addItemDraft.productId)
+      productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
+    } else {
+      prod = products.find((p: any) => p._id === addItemDraft.productId)
+      productLabel = `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`
+    }
+
     setAddItems(prev => [...prev, {
       productId: addItemDraft.productId,
+      itemType: isAsset ? "asset" : (filterType === "product" ? "product" : "inventory"),
       quantity: parseFloat(addItemDraft.quantity),
       finalPrice: fFinalPrice,
       note: addItemDraft.note || "",
-      _productLabel: filterType === "procurement"
-        ? `${prod?.name || ""} (${prod?.unit || ""})`
-        : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`,
+      _productLabel: productLabel,
       _product: prod,
       ppu: fFinalPrice / parseFloat(addItemDraft.quantity)
     }])
     // Reset draft
-    setAddItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+    setAddItemDraft({ productId: "", itemType: isAsset ? "asset" : "inventory", quantity: 1, finalPrice: "", note: "" })
     setAddLastPriceInfo(null)
   }
 
@@ -696,20 +718,33 @@ function Purchases() {
       alert("Produk ini sudah ada dalam daftar. Hapus dulu jika ingin mengubahnya.")
       return
     }
-    const productList = filterType === "procurement" ? items : products
-    const prod = productList.find((p: any) => p._id === editItemDraft.productId)
+
+    let prod: any = null
+    let productLabel = ""
+    const isAsset = filterType === "procurement" && editItemDraft.itemType === "asset"
+
+    if (isAsset) {
+      prod = assets.find((a: any) => a._id === editItemDraft.productId)
+      productLabel = `[Asset] ${prod?.name || "Asset"} (${prod?.category?.name || "Aset"})`
+    } else if (filterType === "procurement") {
+      prod = items.find((p: any) => p._id === editItemDraft.productId)
+      productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
+    } else {
+      prod = products.find((p: any) => p._id === editItemDraft.productId)
+      productLabel = `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`
+    }
+
     setEditItems(prev => [...prev, {
       productId: editItemDraft.productId,
+      itemType: isAsset ? "asset" : (filterType === "product" ? "product" : "inventory"),
       quantity: parseFloat(editItemDraft.quantity),
       finalPrice: editItemDraft.finalPrice !== "" ? parseFloat(editItemDraft.finalPrice) || 0 : 0,
       note: editItemDraft.note || "",
-      _productLabel: filterType === "procurement"
-        ? `${prod?.name || ""} (${prod?.unit || ""})`
-        : `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`,
+      _productLabel: productLabel,
       _product: prod,
       pricePerUnit: editItemDraft.finalPrice / editItemDraft.quantity
     }])
-    setEditItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+    setEditItemDraft({ productId: "", itemType: isAsset ? "asset" : "inventory", quantity: 1, finalPrice: "", note: "" })
     setEditLastPriceInfo(null)
   }
 
@@ -732,7 +767,7 @@ function Purchases() {
   }
 
   function calcEditItemsTotal() {
-    return fPrice
+    return editItems.reduce((sum, it) => sum + (it.finalPrice || 0), 0)
   }
 
   async function submit(data: any) {
@@ -758,6 +793,7 @@ function Purchases() {
         customSupplier: data.customSupplier || "",
         items: addItems.map(it => ({
           productId: it.productId,
+          itemType: it.itemType || (filterType === "procurement" ? "inventory" : "product"),
           quantity: it.quantity,
           finalPrice: it.finalPrice || 0,
           note: it.note || "",
@@ -772,7 +808,7 @@ function Purchases() {
         modalRef.current?.close()
         newPrForm.reset()
         setAddItems([])
-        setAddItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
+        setAddItemDraft({ productId: "", itemType: "inventory", quantity: 1, finalPrice: "", note: "" })
         setAddTotalOverride("")
         setAddTotalMode("auto")
         setAddLastPriceInfo(null)
@@ -869,6 +905,7 @@ function Purchases() {
         customSupplier: data.customSupplier || "",
         items: editItems.map(it => ({
           productId: it.productId,
+          itemType: it.itemType || (filterType === "procurement" ? "inventory" : "product"),
           quantity: it.quantity,
           finalPrice: it.finalPrice || 0,
           note: it.note || "",
@@ -1220,30 +1257,31 @@ function Purchases() {
       // Load existing items into editItems state
       if (isMultiItem) {
         const loaded = items.map((it: any) => {
-          // `it.product` sudah di-embed oleh aggregation pipeline dari API
-          const prod = it.product ||
-            productList.find((p: any) => String(p._id) === String(it.productId?._id || it.productId))
-          // Label: utamakan data embedded dari API
-          const label = filterType === "procurement"
-            ? `${prod?.name || it.product?.name || "Item"} (${prod?.unit || it.product?.unit || ""})`
-            : `${prod?.productName || it.product?.productName || "Produk"} (${prod?.conversionRatioX || it.product?.conversionRatioX || ""})`
-          // finalPrice: pastikan selalu number
-          const itemFinalPrice = typeof it.finalPrice === 'number'
-            ? it.finalPrice
-            : (parseFloat(it.finalPrice) || 0)
+          const isAsset = it.itemType === 'asset' || (!it.product?.unit && it.product?.category)
+          const prod = it.product || (isAsset
+            ? assets.find((a: any) => String(a._id) === String(it.productId?._id || it.productId))
+            : productList.find((p: any) => String(p._id) === String(it.productId?._id || it.productId)))
+
+          let label = ""
+          if (filterType === "procurement") {
+            label = isAsset
+              ? `[Asset] ${prod?.name || it.product?.name || "Asset"} (${prod?.category?.name || it.product?.category?.name || "Aset"})`
+              : `${prod?.name || it.product?.name || "Item"} (${prod?.unit || it.product?.unit || ""})`
+          } else {
+            label = `${prod?.productName || it.product?.productName || "Produk"} (${prod?.conversionRatioX || it.product?.conversionRatioX || ""})`
+          }
 
           fPriceX += it.finalPrice
 
-          //console.log('test', it._doc)
-
           return {
             productId: it.productId?._id || it.productId,
+            itemType: isAsset ? "asset" : (filterType === "product" ? "product" : "inventory"),
             quantity: it.quantity,
             finalPrice: it.finalPrice,
             note: it.note || "",
             _productLabel: label,
             _product: prod,
-            pticePerUnit: it.pricePerUnit
+            pricePerUnit: it.pricePerUnit
           }
         })
 
@@ -1424,6 +1462,11 @@ function Purchases() {
         `/api/web/inv-items?id=${masterAccountId}`,
         body,
         setItems
+      )
+      getAssetsFn.fn(
+        `/api/web/assets?id=${masterAccountId}`,
+        body,
+        setAssets
       )
     }
 
@@ -2037,13 +2080,16 @@ function Purchases() {
 
                             <tbody>
                               {selectedPurchase.items.map((it: any, idx: number) => {
+                                const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
                                 const pName = filterType === "procurement"
-                                  ? it.product?.name || "-"
+                                  ? (isAsset ? `[Asset] ${it.product?.name || "-"}` : (it.product?.name || "-"))
                                   : it.product?.productName || ""
 
-                                const pUnit = filterType === "procurement"
-                                  ? it.product?.unit || ""
-                                  : it.product?.conversionRatioX || ""
+                                const pUnit = isAsset
+                                  ? "Unit"
+                                  : filterType === "procurement"
+                                    ? it.product?.unit || ""
+                                    : it.product?.conversionRatioX || ""
 
                                 const hasNotes = selectedPurchase.items.some(
                                   (x: any) => x.note
@@ -2192,10 +2238,42 @@ function Purchases() {
                     </p>
 
                     <div className="grid grid-cols-12 gap-2 items-end">
+                      {filterType === "procurement" && (
+                        <div className="col-span-12 flex items-center gap-3 pb-1 border-b border-blue-200">
+                          <span className="text-xs font-semibold text-gray-700">Tipe Item:</span>
+                          <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                            <input
+                              type="radio"
+                              name="editItemType"
+                              checked={editItemDraft.itemType !== "asset"}
+                              onChange={() => {
+                                setEditItemDraft((d: any) => ({ ...d, itemType: "inventory", productId: "" }))
+                                setEditLastPriceInfo(null)
+                              }}
+                              className="radio radio-xs radio-primary"
+                            />
+                            Inventory Item
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs cursor-pointer font-medium text-blue-900">
+                            <input
+                              type="radio"
+                              name="editItemType"
+                              checked={editItemDraft.itemType === "asset"}
+                              onChange={() => {
+                                setEditItemDraft((d: any) => ({ ...d, itemType: "asset", productId: "" }))
+                                setEditLastPriceInfo(null)
+                              }}
+                              className="radio radio-xs radio-primary"
+                            />
+                            Company Asset
+                          </label>
+                        </div>
+                      )}
+
                       {/* Pilih Produk */}
                       <div className="col-span-5 flex flex-col gap-1">
                         <label className="text-xs text-gray-600">
-                          {filterType === "product" ? "Produk" : "Item"}
+                          {filterType === "product" ? "Produk" : (editItemDraft.itemType === "asset" ? "Aset" : "Item")}
                         </label>
                         <select
                           className="input w-full text-sm"
@@ -2213,11 +2291,17 @@ function Purchases() {
                                 {product.productName} ({product.conversionRatioX})
                               </option>
                             ))
-                            : items.map((item) => (
-                              <option key={item._id} value={item._id}>
-                                {item.name} x
-                              </option>
-                            ))}
+                            : editItemDraft.itemType === "asset"
+                              ? assets.map((asset) => (
+                                <option key={asset._id} value={asset._id}>
+                                  {asset.name} ({asset.category?.name || "Aset"})
+                                </option>
+                              ))
+                              : items.map((item) => (
+                                <option key={item._id} value={item._id}>
+                                  {item.name} ({item?.unit?.symbol || "Unit"})
+                                </option>
+                              ))}
                         </select>
                       </div>
 
@@ -2470,14 +2554,14 @@ function Purchases() {
       {/* =====================================================
           MODAL ADD REQUISITION
       ===================================================== */}
-      < dialog
+      <dialog
         ref={modalRef}
         id="add-purchase-requisition"
         className="modal text-black"
       >
-        <div className="modal-box max-h-[90vh] overflow-y-auto">
-          <div className="flex flex-col gap-3">
-            <span className="page-title">
+        <div className="modal-box max-h-[90vh] overflow-y-auto w-11/12 max-w-3xl">
+          <div className="flex flex-col gap-4">
+            <span className="text-lg font-bold">
               Add Purchase Requisition
             </span>
 
@@ -2486,34 +2570,34 @@ function Purchases() {
               className="flex flex-col gap-4"
             >
               {/* ── Header: Tanggal + Supplier ─────────────────────────── */}
-              <div className="grid grid-cols-2 gap-3">
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Tanggal Pembelian</legend>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700">Tanggal Pembelian</label>
                   <input
                     {...newPrForm.register("customDate", { required: true })}
-                    className="input w-full"
+                    className="input input-bordered w-full"
                     type="date"
                   />
-                </fieldset>
+                </div>
 
                 {(filterType === "product" || filterType === "procurement") && (
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Supplier / Asal</legend>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-700">Supplier / Asal</label>
                     <input
-                      className="input w-full"
+                      className="input input-bordered w-full"
                       {...newPrForm.register("customSupplier")}
                       type="text"
                       placeholder="Nama supplier (opsional)"
                     />
-                  </fieldset>
+                  </div>
                 )}
 
                 {filterType === "service" && (
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Vendor</legend>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-700">Vendor</label>
                     <select
                       {...newPrForm.register("vendorId", { required: true })}
-                      className="select w-full"
+                      className="select select-bordered w-full"
                     >
                       {vendors.map((vendor) => (
                         <option value={vendor._id} key={vendor._id}>
@@ -2521,22 +2605,22 @@ function Purchases() {
                         </option>
                       ))}
                     </select>
-                  </fieldset>
+                  </div>
                 )}
               </div>
 
               {/* ── Service: single description + price ───────────────── */}
               {filterType === "service" && (
                 <div className="flex flex-col gap-3">
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Description (Jasa)</legend>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-700">Description (Jasa)</label>
                     <input
                       {...newPrForm.register("description", { required: true })}
-                      className="input w-full"
+                      className="input input-bordered w-full"
                     />
-                  </fieldset>
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Price (Rp)</legend>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-700">Price (Rp)</label>
                     <Controller
                       control={newPrForm.control}
                       name="finalPrice"
@@ -2550,12 +2634,12 @@ function Purchases() {
                           decimalScale={2}
                           fixedDecimalScale
                           allowNegative={false}
-                          className="input w-full"
+                          className="input input-bordered w-full"
                           placeholder="Contoh: 160000"
                         />
                       )}
                     />
-                  </fieldset>
+                  </div>
                 </div>
               )}
 
@@ -2563,19 +2647,54 @@ function Purchases() {
               {(filterType === "product" || filterType === "procurement") && (
                 <div className="flex flex-col gap-3">
                   {/* Item draft input */}
-                  <div className="border border-blue-100 rounded-lg bg-blue-50 p-3 flex flex-col gap-2">
+                  <div className="border border-blue-100 rounded-lg bg-blue-50/60 p-4 flex flex-col gap-3">
                     <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
                       Tambah Item ke Daftar
                     </p>
 
-                    <div className="grid grid-cols-12 gap-2 items-end">
+                    {filterType === "procurement" && (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-2.5 px-3 bg-white rounded-md border border-blue-200">
+                        <span className="text-xs font-semibold text-gray-700">Tipe Item:</span>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="addItemType"
+                              checked={addItemDraft.itemType !== "asset"}
+                              onChange={() => {
+                                setAddItemDraft((d: any) => ({ ...d, itemType: "inventory", productId: "" }))
+                                setAddLastPriceInfo(null)
+                              }}
+                              className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className="text-gray-800 font-medium">Inventory Item</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                            <input
+                              type="radio"
+                              name="addItemType"
+                              checked={addItemDraft.itemType === "asset"}
+                              onChange={() => {
+                                setAddItemDraft((d: any) => ({ ...d, itemType: "asset", productId: "" }))
+                                setAddLastPriceInfo(null)
+                              }}
+                              className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className="text-blue-900 font-semibold">Company Asset</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                       {/* Pilih Produk */}
-                      <div className="col-span-5 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">
-                          {filterType === "product" ? "Produk" : "Item"}
+                      <div className="md:col-span-5 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600 font-medium">
+                          {filterType === "product" ? "Produk" : (addItemDraft.itemType === "asset" ? "Aset" : "Item")}
                         </label>
                         <select
-                          className="input w-full text-sm"
+                          className="input input-bordered w-full text-sm h-10"
                           value={addItemDraft.productId}
                           onChange={(e) => {
                             setAddItemDraft((d: any) => ({ ...d, productId: e.target.value }))
@@ -2590,32 +2709,37 @@ function Purchases() {
                                 {product.productName} ({product.conversionRatioX})
                               </option>
                             ))
-                            : items.map((item) => (
-                              <option key={item._id} value={item._id}>
-                                {item.name} ({item?.unit?.symbol})
-                              </option>
-                            ))}
+                            : addItemDraft.itemType === "asset"
+                              ? assets.map((asset) => (
+                                <option key={asset._id} value={asset._id}>
+                                  {asset.name} ({asset.category?.name || "Aset"})
+                                </option>
+                              ))
+                              : items.map((item) => (
+                                <option key={item._id} value={item._id}>
+                                  {item.name} ({item?.unit?.symbol || "Unit"})
+                                </option>
+                              ))}
                         </select>
                       </div>
 
                       {/* Qty */}
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">Qty</label>
+                      <div className="md:col-span-2 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600 font-medium">Qty</label>
                         <input
                           type="number"
                           min="1"
-                          className="input w-full text-sm"
+                          className="input input-bordered w-full text-sm h-10"
                           value={addItemDraft.quantity}
                           onChange={(e) => setAddItemDraft((d: any) => ({ ...d, quantity: e.target.value }))}
                         />
                       </div>
 
-
                       {/* Harga per item (opsional) */}
-                      <div className="col-span-3 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">total / item</label>
+                      <div className="md:col-span-3 flex flex-col gap-1">
+                        <label className="text-xs text-gray-600 font-medium">Total / Item</label>
                         <NumericFormat
-                          className="input w-full text-sm"
+                          className="input input-bordered w-full text-sm h-10"
                           thousandSeparator="."
                           decimalSeparator=","
                           decimalScale={0}
@@ -2627,7 +2751,7 @@ function Purchases() {
                       </div>
 
                       {/* Tombol Tambah */}
-                      <div className="col-span-2">
+                      <div className="md:col-span-2">
                         <button
                           type="button"
                           onClick={addItemToDraft}
@@ -2656,16 +2780,12 @@ function Purchases() {
                             <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-
-                            <span className="text-amber-800">
-                              Riwayat pembelian
-                            </span>
+                            <span className="text-amber-800 font-medium">Riwayat pembelian</span>
                           </div>
 
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
-                            className={`size-4 shrink-0 text-amber-700 transition-transform ${showPurchaseHistory ? "rotate-180" : ""
-                              }`}
+                            className={`size-4 shrink-0 text-amber-700 transition-transform ${showPurchaseHistory ? "rotate-180" : ""}`}
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -2691,14 +2811,12 @@ function Purchases() {
                                       </span>
                                     )}
                                   </div>
-
                                   <div className="mt-1 text-[11px] text-amber-700">
                                     Qty: {item.quantity}
                                     <span className="mx-1">·</span>
                                     Total: Rp {Number(item.finalPrice ?? 0).toLocaleString("id-ID")}
                                   </div>
                                 </div>
-
                                 <span className="text-[11px] text-amber-700">
                                   {new Date(item.date).toLocaleDateString("id-ID", {
                                     day: "2-digit",
@@ -2716,11 +2834,11 @@ function Purchases() {
 
                   {/* Daftar item yang sudah ditambahkan */}
                   {addItems.length > 0 && (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                       <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                         Daftar Item ({addItems.length})
                       </p>
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className="border rounded-lg overflow-x-auto">
                         <table className="table table-sm text-sm w-full">
                           <thead className="bg-gray-100">
                             <tr>
@@ -2755,7 +2873,7 @@ function Purchases() {
                                     className="text-red-500 hover:text-red-700 p-1"
                                     title="Hapus item"
                                   >
-                                    <HugeiconsIcon icon={MultiplicationSignIcon} size={16} color="currentColor" />
+                                    ✕
                                   </button>
                                 </td>
                               </tr>
@@ -2774,7 +2892,7 @@ function Purchases() {
                           ) : (
                             <div className="flex items-center gap-2">
                               <NumericFormat
-                                className="input input-sm w-40 text-right font-bold text-blue-800"
+                                className="input input-sm input-bordered w-40 text-right font-bold text-blue-800"
                                 thousandSeparator="."
                                 decimalSeparator=","
                                 decimalScale={0}
@@ -2799,12 +2917,12 @@ function Purchases() {
               )}
 
               {(addFn.noResult || addFn.error) && (
-                <label className="input-validator text-red-900">
+                <label className="text-red-600 text-xs">
                   something went wrong
                 </label>
               )}
 
-              <div className="mt-auto ml-auto flex gap-2">
+              <div className="mt-4 flex justify-end gap-2 pt-2 border-t">
                 <button
                   type="button"
                   onClick={() => {
@@ -2815,7 +2933,7 @@ function Purchases() {
                     setAddTotalMode("auto")
                     setAddLastPriceInfo(null)
                   }}
-                  className="p-3 rounded-md text-black bg-gray-200"
+                  className="btn btn-ghost text-black bg-gray-200 hover:bg-gray-300"
                 >
                   Cancel
                 </button>
@@ -2823,7 +2941,7 @@ function Purchases() {
                 <button
                   type="submit"
                   disabled={addFn.loading}
-                  className="p-3 rounded-md text-white bg-blue-900 disabled:opacity-50"
+                  className="btn bg-blue-900 text-white hover:bg-blue-800 disabled:opacity-50"
                 >
                   {addFn.loading ? "Menyimpan..." : "Add"}
                 </button>
@@ -2831,8 +2949,7 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog >
-
+      </dialog>
       {/* =====================================================
           MODAL MAKE PO
       ===================================================== */}
@@ -2872,12 +2989,15 @@ function Purchases() {
                         </thead>
                         <tbody>
                           {selectedPurchase.items.map((it: any, idx: number) => {
+                            const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
                             const pName = filterType === "procurement"
-                              ? it.product?.name || "-"
+                              ? (isAsset ? `[Asset] ${it.product?.name || "-"}` : (it.product?.name || "-"))
                               : it.product?.productName || "-"
-                            const pUnit = filterType === "procurement"
-                              ? it.product?.unit || ""
-                              : it.product?.conversionRatioX || ""
+                            const pUnit = isAsset
+                              ? "Unit"
+                              : filterType === "procurement"
+                                ? it.product?.unit || ""
+                                : it.product?.conversionRatioX || ""
                             return (
                               <tr key={idx}>
                                 <td>{pName} {pUnit ? typeof pUnit === 'string' ? `(${pUnit})` : `(${pUnit?.symbol})` : ""}</td>

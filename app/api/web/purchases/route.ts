@@ -573,43 +573,138 @@ export async function PUT(request: NextRequest) {
         const received = parseInt(rest.qty);
         const receivedDate = rest.receivedDate ? new Date(rest.receivedDate) : new Date();
 
-        // ── Multi-item: update receivedQty di item spesifik ──────────────
-        const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0
-        const itemIndex = rest.itemIndex !== undefined ? parseInt(rest.itemIndex) : -1
+        // ── Multi-item vs single-item ─────────────────────────────────────
+        const isMultiItem = Array.isArray(purchase.items) && purchase.items.length > 0;
+        const itemIndex = rest.itemIndex !== undefined ? parseInt(rest.itemIndex) : -1;
+        const targetItem = (isMultiItem && itemIndex >= 0 && itemIndex < purchase.items.length)
+          ? purchase.items[itemIndex]
+          : null;
+        const itemProductId = targetItem ? targetItem.productId : purchase.productId;
+        const isAssetItem = (targetItem && targetItem.itemType === 'asset') ||
+          purchase.itemType === 'asset' ||
+          rest.saveAs === 'asset' ||
+          (await Asset.exists({ _id: itemProductId }));
 
-        if (isMultiItem && itemIndex >= 0 && itemIndex < purchase.items.length) {
-          // Increment receivedQty pada items[itemIndex]
-          const updatePath = `items.${itemIndex}.receivedQty`
-          await Purchase.findByIdAndUpdate(_id, {
-            $inc: { [updatePath]: received, receivedQty: received }
+        if (isAssetItem) {
+          const companyId = purchase.companyId;
+          // Determine target Asset entity
+          let targetAsset = await Asset.findById(itemProductId);
+          if (!targetAsset && rest.assetId) {
+            targetAsset = await Asset.findById(rest.assetId);
+          }
+          if (!targetAsset && rest.assetCategoryId) {
+            const invItem = await InvItem.findById(itemProductId);
+            targetAsset = await Asset.create({
+              name: invItem?.name || "Received Asset",
+              category: rest.assetCategoryId,
+              units: [],
+              companyId
+            });
+          }
+
+          if (!targetAsset) {
+            return NextResponse.json({
+              noResult: true,
+              message: "Asset entity tidak ditemukan untuk item ini",
+              result: null,
+              error: true
+            }, { status: 400 });
+          }
+
+          // Extract unit labels
+          const rawUnits = Array.isArray(rest.units) ? rest.units : [];
+          let labels: string[] = [];
+
+          if (rawUnits.length > 0) {
+            labels = rawUnits.map((u: any) => String(u.label || "").trim());
+          } else if (Array.isArray(rest.unitLabels)) {
+            labels = rest.unitLabels.map((lbl: any) => String(lbl || "").trim());
+          }
+
+          // Check if any provided label is empty
+          if (labels.length > 0 && labels.some(lbl => !lbl)) {
+            return NextResponse.json({
+              noResult: true,
+              message: "Semua label unit harus diisi",
+              result: null,
+              error: true
+            }, { status: 400 });
+          }
+
+          // Fill any missing labels if count < received
+          while (labels.length < received) {
+            const num = (targetAsset.units?.length || 0) + labels.length + 1;
+            labels.push(`${targetAsset.name.replace(/\s+/g, '-').toUpperCase()}-${String(num).padStart(3, '0')}`);
+          }
+
+          // Slice to received qty in case more were sent
+          labels = labels.slice(0, received);
+
+          // Check duplicate within the batch
+          const lowerLabels = labels.map(l => l.toLowerCase());
+          if (new Set(lowerLabels).size !== labels.length) {
+            return NextResponse.json({
+              noResult: true,
+              message: "Terdapat label unit yang duplikat dalam daftar penerimaan",
+              result: null,
+              error: true
+            }, { status: 400 });
+          }
+
+          // Check duplicate with existing asset units in this company
+          const duplicateInDb = await Asset.findOne({
+            companyId,
+            "units.label": { $in: labels }
+          }).collation({ locale: "en", strength: 2 });
+
+          if (duplicateInDb) {
+            return NextResponse.json({
+              noResult: true,
+              message: `Label unit sudah digunakan pada aset lain di perusahaan ini`,
+              result: null,
+              error: true
+            }, { status: 409 });
+          }
+
+          // Create receiving log record first
+          const receivingLog = await ProcurementReceivingLog.create({
+            purchaseOrderNumber: purchase.purchaseOrderNumber,
+            purchaseId: purchase._id,
+            itemId: itemProductId,
+            qty: received,
+            saveAs: 'asset',
+            assetId: targetAsset._id,
+            assetCategoryId: targetAsset.category || rest.assetCategoryId || undefined,
+            unitLabels: labels,
+            receivedDate: receivedDate,
+            receivedBy: rest.userId || undefined,
+            createdAt: new Date(),
           });
-          // Ambil productId dari item yang bersangkutan
-          const itemProductId = purchase.items[itemIndex].productId
 
-          if (rest.saveAs === 'asset') {
-            const companyId = purchase.companyId;
-            if (companyId && itemProductId) {
-              const invItem = await InvItem.findById(itemProductId);
-              const assetPromises = [];
-              for (let i = 0; i < received; i++) {
-                assetPromises.push(Asset.create({
-                  name: invItem?.name || "Received Asset",
-                  category: rest.assetCategoryId,
-                  addedAt: receivedDate,
-                  condition: "good",
-                  status: "active",
-                  desc: "Received from PO: " + purchase.purchaseOrderNumber,
-                  companyId: companyId
-                }));
-              }
-              await Promise.all(assetPromises);
-            }
-          } else {
-            if (itemProductId) {
-              await InvItem.findByIdAndUpdate(itemProductId, {
-                $inc: { currentStock: received }
-              });
-            }
+          // Construct new units
+          const newUnits = labels.map((lbl, idx) => {
+            const uObj = rawUnits[idx] || {};
+            return {
+              _id: new Types.ObjectId(),
+              label: lbl,
+              condition: uObj.condition || 'good',
+              status: uObj.status || 'active',
+              purchaseId: purchase._id,
+              receivingId: receivingLog._id,
+              addedAt: receivedDate
+            };
+          });
+
+          // Push units to Asset
+          await Asset.findByIdAndUpdate(targetAsset._id, {
+            $push: { units: { $each: newUnits } }
+          });
+        } else {
+          // Inventory item
+          if (itemProductId) {
+            await InvItem.findByIdAndUpdate(itemProductId, {
+              $inc: { currentStock: received }
+            });
           }
 
           await ProcurementReceivingLog.create({
@@ -617,68 +712,41 @@ export async function PUT(request: NextRequest) {
             purchaseId: purchase._id,
             itemId: itemProductId,
             qty: received,
-            saveAs: rest.saveAs || 'inventory',
-            assetCategoryId: rest.assetCategoryId || undefined,
+            saveAs: 'inventory',
             receivedDate: receivedDate,
             receivedBy: rest.userId || undefined,
             createdAt: new Date(),
           });
-
-          return NextResponse.json({ noResult: false, message: "", result: {}, error: false })
         }
 
-        // ── Single-item fallback (path lama) ─────────────────────────────
-        await Purchase.findByIdAndUpdate(_id, {
-          $inc: { receivedQty: received }
-        });
-
-        if (rest.saveAs === 'asset') {
-          // Create Asset records (1 per received qty since qty field was removed)
-          const companyId = purchase.companyId;
-
-          if (companyId) {
-            const invItem = await InvItem.findById(purchase.productId);
-            const assetPromises = [];
-            for (let i = 0; i < received; i++) {
-              assetPromises.push(Asset.create({
-                name: invItem?.name || "Received Asset",
-                category: rest.assetCategoryId,
-                addedAt: receivedDate,
-                condition: "good",
-                status: "active",
-                desc: "Received from PO: " + purchase.purchaseOrderNumber,
-                companyId: companyId
-              }));
-            }
-            await Promise.all(assetPromises);
-          }
-        }
-        else {
-          // Save as inventory
-          await InvItem.findByIdAndUpdate(purchase.productId, {
-            $inc: { currentStock: received }
+        // Increment receivedQty on Purchase
+        if (isMultiItem && itemIndex >= 0 && itemIndex < purchase.items.length) {
+          const updatePath = `items.${itemIndex}.receivedQty`;
+          await Purchase.findByIdAndUpdate(_id, {
+            $inc: { [updatePath]: received, receivedQty: received }
+          });
+        } else {
+          await Purchase.findByIdAndUpdate(_id, {
+            $inc: { receivedQty: received }
           });
         }
 
-        // Create a receiving log for audit/listing purposes
-        await ProcurementReceivingLog.create({
-          purchaseOrderNumber: purchase.purchaseOrderNumber,
-          purchaseId: purchase._id,
-          itemId: purchase.productId,
-          qty: received,
-          saveAs: rest.saveAs || 'inventory',
-          assetCategoryId: rest.assetCategoryId || undefined,
-          receivedDate: receivedDate,
-          receivedBy: rest.userId || undefined,
-          createdAt: new Date(),
-        });
+        // Check completion
+        const updatedPurchase = await Purchase.findById(_id);
+        const isComplete = Array.isArray(updatedPurchase.items) && updatedPurchase.items.length > 0
+          ? updatedPurchase.items.every((it: any) => (it.receivedQty || 0) >= (it.quantity || 0))
+          : (updatedPurchase.receivedQty || 0) >= (updatedPurchase.quantity || 0);
+
+        if (isComplete) {
+          await Purchase.findByIdAndUpdate(_id, { status: 'completed' });
+        }
 
         return NextResponse.json({
           noResult: false,
-          message: "",
+          message: "Barang berhasil diterima",
           result: {},
           error: false
-        })
+        });
       }
 
       if (purchase.toObject().hasOwnProperty('measurementId')) {
@@ -962,24 +1030,49 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    if (params.purchaseType === 'procurement') {
+      aggPipeline.push(
+        {
+          $lookup: {
+            from: 'assets',
+            localField: 'productId',
+            foreignField: '_id',
+            as: '_mainAsset'
+          }
+        },
+        {
+          $lookup: {
+            from: 'assets',
+            localField: 'items.productId',
+            foreignField: '_id',
+            as: '_itemAssets'
+          }
+        }
+      )
+    }
+
     const [agg] = await Purchase.aggregate(aggPipeline)
 
     console.log({ agg })
 
     // Jika multi-item, gabungkan product info ke setiap item
     let itemsWithProduct: any[] | undefined = undefined
-    if (isMultiItem && agg?._itemProducts) {
+    if (isMultiItem && (agg?._itemProducts || agg?._itemAssets)) {
       itemsWithProduct = (requested.items || []).map((item: any) => {
-        const prod = agg._itemProducts.find(
+        const prod = (agg._itemProducts || []).find(
+          (p: any) => String(p._id) === String(item.productId)
+        ) || (agg._itemAssets || []).find(
           (p: any) => String(p._id) === String(item.productId)
         )
         return { ...item, product: prod }
       })
     }
 
+    const mainProduct = agg?.product || (agg?._mainAsset && agg._mainAsset[0])
+
     const r = {
       ...requested,
-      ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: agg?.product }),
+      ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: mainProduct }),
       ...(itemsWithProduct ? { items: itemsWithProduct } : {}),
       createdBy: agg?.createdBy
     }
@@ -1249,6 +1342,27 @@ export async function GET(request: NextRequest) {
         }
       },
 
+      // 1b. Fallback asset untuk produk utama jika procurement dan tidak ditemukan di invitems
+      {
+        $lookup: {
+          from: 'assets',
+          localField: 'productId',
+          foreignField: '_id',
+          as: '_mainAsset'
+        }
+      },
+      {
+        $unwind: {
+          path: '$_mainAsset',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $addFields: {
+          product: { $ifNull: ['$product', '$_mainAsset'] }
+        }
+      },
+
       // 2. Fallback: lookup produk items hanya jika produk utama tidak ditemukan
       {
         $lookup: {
@@ -1275,6 +1389,45 @@ export async function GET(request: NextRequest) {
             }
           ],
           as: '_itemProducts'
+        }
+      },
+
+      // 2b. Lookup asset items untuk procurement
+      {
+        $lookup: {
+          from: 'assets',
+          let: {
+            itemProductIds: '$items.productId'
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$_id', { $ifNull: ['$$itemProductIds', []] }]
+                }
+              }
+            },
+            {
+              $lookup: {
+                from: 'assetcategories',
+                localField: 'category',
+                foreignField: '_id',
+                as: 'categoryDoc'
+              }
+            },
+            {
+              $unwind: {
+                path: '$categoryDoc',
+                preserveNullAndEmptyArrays: true
+              }
+            },
+            {
+              $addFields: {
+                category: '$categoryDoc'
+              }
+            }
+          ],
+          as: '_itemAssets'
         }
       },
 
@@ -1328,6 +1481,23 @@ export async function GET(request: NextRequest) {
                               },
                               0
                             ]
+                          },
+                          a: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: '$_itemAssets',
+                                  as: 'a',
+                                  cond: {
+                                    $eq: [
+                                      { $toString: '$$a._id' },
+                                      { $toString: '$$itm.productId' }
+                                    ]
+                                  }
+                                }
+                              },
+                              0
+                            ]
                           }
                         },
                         in: {
@@ -1368,7 +1538,20 @@ export async function GET(request: NextRequest) {
                                 }
                               ]
                             },
-                            null
+                            {
+                              $cond: [
+                                { $ne: ['$$a', null] },
+                                {
+                                  $mergeObjects: [
+                                    '$$a',
+                                    {
+                                      unit: { symbol: 'Unit', name: 'Unit' }
+                                    }
+                                  ]
+                                },
+                                null
+                              ]
+                            }
                           ]
                         }
                       }
@@ -1388,6 +1571,8 @@ export async function GET(request: NextRequest) {
       {
         $project: {
           _itemProducts: 0,
+          _itemAssets: 0,
+          _mainAsset: 0,
           _itemUnits: 0,
           _itemFtbs: 0,
           _historyCandidates: 0,

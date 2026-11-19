@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const PurchaseItemSchema = new mongoose.Schema({
   productId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  itemType: { type: String, enum: ['product', 'inventory', 'asset'], default: 'inventory' },
   quantity: { type: Number, required: true },
   finalPrice: { type: Number, required: false, default: 0 },
   note: { type: String, required: false },
@@ -20,6 +21,7 @@ const PurchaseSchema = new mongoose.Schema({
   voidApproveBy: { type: mongoose.Schema.Types.ObjectId, required: false },
   voidedAt: { type: Date, required: false },
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  itemType: { type: String, enum: ['product', 'inventory', 'asset'], default: 'inventory' },
   // ── legacy single-item fields (backward compat) ──────────────────────────
   productId: { type: mongoose.Schema.Types.ObjectId, required: false },
   quantity: { type: Number, required: false },

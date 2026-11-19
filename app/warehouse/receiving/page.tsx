@@ -49,6 +49,12 @@ type Purchase = {
   [key: string]: any
 }
 
+type AssetUnitInput = {
+  label: string
+  condition: string
+  status: string
+}
+
 type ReceiveForm = {
   _id: string
   productId?: string
@@ -69,14 +75,17 @@ type ReceiveForm = {
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-const getProductName = (product?: Product) =>
-  product?.productName || product?.name || "-"
+const getProductName = (product?: Product) => {
+  const isAsset = (product as any)?.units !== undefined || ((product as any)?.category && !(product as any)?.conversionRatioX)
+  const name = product?.productName || product?.name || "-"
+  return isAsset ? `[Asset] ${name}` : name
+}
 
 const getUnit = (product?: Product) =>
   product?.conversionRatioX ||
   (typeof product?.unit === "string"
     ? product.unit
-    : product?.unit?.symbol || "")
+    : product?.unit?.symbol || ((product as any)?.category ? "Unit" : ""))
 
 
 const getSaleUnit = (product?: Product) =>
@@ -131,6 +140,45 @@ export default function Receiving() {
   const editPrForm = useForm<ReceiveForm>()
 
   const saveAsWatch = editPrForm.watch("saveAs")
+  const receivedQtyWatch = editPrForm.watch("receivedQty")
+
+  const [assetUnitInputs, setAssetUnitInputs] = useState<AssetUnitInput[]>([])
+  const [assetPrefix, setAssetPrefix] = useState("")
+
+  useEffect(() => {
+    const qty = Number(receivedQtyWatch) || 0
+    if (saveAsWatch === "asset") {
+      setAssetUnitInputs(prev => {
+        const next = [...prev]
+        if (next.length < qty) {
+          for (let i = next.length; i < qty; i++) {
+            const prefix = assetPrefix || "AST"
+            next.push({
+              label: `${prefix}-${String(i + 1).padStart(3, '0')}`,
+              condition: "good",
+              status: "active"
+            })
+          }
+        } else if (next.length > qty) {
+          next.length = qty
+        }
+        return next
+      })
+    } else {
+      setAssetUnitInputs([])
+    }
+  }, [receivedQtyWatch, saveAsWatch, assetPrefix])
+
+  function applyPrefixToUnits() {
+    if (!assetPrefix.trim()) return
+    const p = assetPrefix.trim().toUpperCase()
+    setAssetUnitInputs(prev =>
+      prev.map((unit, idx) => ({
+        ...unit,
+        label: `${p}-${String(idx + 1).padStart(3, '0')}`
+      }))
+    )
+  }
 
   const editFn = useFetch<any, any>({
     url: "/api/web/purchases",
@@ -189,6 +237,17 @@ export default function Receiving() {
     setActivePurchase(purchase)
     setSelectedItemIndex(itemIndex)
 
+    const isAsset = (item as any)?.itemType === 'asset' ||
+      (purchaseType === 'procurement' && !!(product as any)?.units) ||
+      (purchaseType === 'procurement' && !!(product as any)?.category && !(product as any)?.unit)
+
+    const defPrefix = product?.name
+      ? product.name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase()
+      : "AST"
+
+    setAssetPrefix(defPrefix)
+    setAssetUnitInputs([])
+
     editPrForm.reset({
       _id: purchase._id,
       productId: product?._id,
@@ -198,8 +257,8 @@ export default function Receiving() {
       receivedQty: "",
       max: remaining,
       purchaseOrderNumber: purchase.purchaseOrderNumber,
-      saveAs: "inventory",
-      assetCategoryId: "",
+      saveAs: isAsset ? "asset" : "inventory",
+      assetCategoryId: (product as any)?.category?._id || (product as any)?.category || "",
       locationId: locationId || "",
       receivedDate: today()
     })
@@ -233,6 +292,24 @@ export default function Receiving() {
       return
     }
 
+    if (purchaseType === "procurement" && data.saveAs === "asset") {
+      if (assetUnitInputs.length !== qty) {
+        alert(`Jumlah unit aset (${assetUnitInputs.length}) harus sama dengan Qty to Receive (${qty})`)
+        return
+      }
+
+      if (assetUnitInputs.some(u => !u.label.trim())) {
+        alert("Semua unit aset wajib memiliki label yang diisi!")
+        return
+      }
+
+      const labelSet = new Set(assetUnitInputs.map(u => u.label.trim().toLowerCase()))
+      if (labelSet.size !== assetUnitInputs.length) {
+        alert("Terdapat label unit yang duplikat dalam daftar. Setiap unit harus memiliki label yang unik!")
+        return
+      }
+    }
+
     const receivedDate = data.receivedDate || today()
 
     const {
@@ -253,6 +330,13 @@ export default function Receiving() {
       ...(locationId ? { locationId } : {}),
       ...(hasItems(activePurchase) ? {
         itemIndex: selectedItemIndex
+      } : {}),
+      ...(purchaseType === "procurement" && data.saveAs === "asset" ? {
+        units: assetUnitInputs.map(u => ({
+          label: u.label.trim(),
+          condition: u.condition,
+          status: u.status
+        }))
       } : {})
     }
 
@@ -870,6 +954,111 @@ export default function Receiving() {
                         ))}
                       </select>
                     </fieldset>
+                  )}
+
+                  {saveAsWatch === "asset" && (
+                    <div className="flex flex-col gap-3 border border-blue-200 bg-blue-50/50 p-3.5 rounded-lg">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <h4 className="font-semibold text-sm text-blue-900">
+                            Kustomisasi Label Unit Aset ({assetUnitInputs.length} Unit)
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            Setiap unit yang diterima akan menjadi unit baru pada entitas aset.
+                          </p>
+                        </div>
+
+                        {assetUnitInputs.length > 0 && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <input
+                              type="text"
+                              value={assetPrefix}
+                              onChange={(e) => setAssetPrefix(e.target.value.toUpperCase())}
+                              placeholder="Prefix (cth: T480)"
+                              className="input input-xs bg-white w-24 text-xs font-mono uppercase"
+                            />
+                            <button
+                              type="button"
+                              onClick={applyPrefixToUnits}
+                              className="btn btn-xs bg-blue-700 text-white hover:bg-blue-800"
+                            >
+                              Auto-Number
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {assetUnitInputs.length === 0 ? (
+                        <p className="text-xs text-amber-700 italic">
+                          Masukkan &quot;Qty to Receive&quot; terlebih dahulu untuk mengisi label unit.
+                        </p>
+                      ) : (
+                        <div className="max-h-60 overflow-y-auto flex flex-col gap-2 pr-1">
+                          {assetUnitInputs.map((unit, idx) => (
+                            <div
+                              key={idx}
+                              className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white p-2 rounded-md border border-gray-200"
+                            >
+                              <span className="text-xs font-bold text-gray-500 w-6 text-center">
+                                #{idx + 1}
+                              </span>
+
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  value={unit.label}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setAssetUnitInputs(prev =>
+                                      prev.map((u, i) => (i === idx ? { ...u, label: val } : u))
+                                    )
+                                  }}
+                                  placeholder={`Label Unit #${idx + 1}`}
+                                  className="input input-sm w-full font-mono text-xs uppercase"
+                                  required
+                                />
+                              </div>
+
+                              <div className="w-full sm:w-28">
+                                <select
+                                  value={unit.condition}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setAssetUnitInputs(prev =>
+                                      prev.map((u, i) => (i === idx ? { ...u, condition: val } : u))
+                                    )
+                                  }}
+                                  className="select select-sm w-full text-xs"
+                                >
+                                  <option value="good">Good</option>
+                                  <option value="fair">Fair</option>
+                                  <option value="poor">Poor</option>
+                                  <option value="damaged">Damaged</option>
+                                </select>
+                              </div>
+
+                              <div className="w-full sm:w-32">
+                                <select
+                                  value={unit.status}
+                                  onChange={(e) => {
+                                    const val = e.target.value
+                                    setAssetUnitInputs(prev =>
+                                      prev.map((u, i) => (i === idx ? { ...u, status: val } : u))
+                                    )
+                                  }}
+                                  className="select select-sm w-full text-xs"
+                                >
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive</option>
+                                  <option value="under_maintenance">Maintenance</option>
+                                  <option value="disposed">Disposed</option>
+                                </select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
 
                 </div>

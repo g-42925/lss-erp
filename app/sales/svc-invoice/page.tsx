@@ -889,7 +889,19 @@ export default function Invoices() {
           </div>
           <div className="flex flex-row items-center gap-2 mt-2">
             <label className="w-[120px]">Payment Time</label>
-            <input {...closeInvoiceForm.register("paymentTime")} type="time" className="input flex-1" />
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="HH:mm"
+              maxLength={5}
+              {...closeInvoiceForm.register("paymentTime", {
+                pattern: {
+                  value: /^([01]\d|2[0-3]):[0-5]\d$/,
+                  message: "Format waktu harus HH:mm"
+                }
+              })}
+              className="input flex-1"
+            />
           </div>
 
 
@@ -925,7 +937,19 @@ export default function Invoices() {
                         <form onSubmit={editPaymentForm.handleSubmit(submitEditPayment)} className="flex flex-col gap-2">
                           <div className="flex flex-row gap-2 items-center">
                             <input type="date" {...editPaymentForm.register("date", { required: true })} className="input input-sm flex-1 border-slate-300" />
-                            <input type="time" {...editPaymentForm.register("time")} className="input input-sm w-28 border-slate-300" />
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="HH:mm"
+                              maxLength={5}
+                              {...editPaymentForm.register("time", {
+                                pattern: {
+                                  value: /^([01]\d|2[0-3]):[0-5]\d$/,
+                                  message: "Format waktu harus HH:mm"
+                                }
+                              })}
+                              className="input input-sm w-28 border-slate-300"
+                            />
                           </div>
                           <div className="flex flex-row gap-2 items-center">
                             <input type="number" {...editPaymentForm.register("amount", { required: true })} className="input input-sm flex-1 border-slate-300" />
