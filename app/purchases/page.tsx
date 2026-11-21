@@ -258,7 +258,7 @@ function Purchases() {
         const it = purchase.items[0]
         const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
         const unit = isAsset
-          ? (it.product?.measurement || fAsset(it.productId)?.measurement || "Unit")
+          ? (it.product?.measurement || fAsset(it.productId)?.measurement || `${it.product.unit.name}`)
           : filterType === "procurement"
             ? (typeof it.product?.unit === 'string' ? it.product?.unit : it.product?.unit?.symbol || "")
             : it.product?.conversionRatioX
@@ -298,6 +298,7 @@ function Purchases() {
         fAsset(purchase.items?.[0]?.productId)?.measurement ||
         "Unit"
     }
+
 
     if (filterType === "procurement") {
       const u = purchase.product?.unit || purchase.items?.[0]?.product?.unit
@@ -1731,7 +1732,7 @@ function Purchases() {
                                       {(() => {
                                         const multiQty = getPurchaseQuantity(purchase)
                                         if (multiQty !== null && purchase.items?.length > 1) return '?'
-                                        if (multiQty !== null) return multiQty
+                                        if (multiQty !== null) return `${multiQty}`
                                         return `${purchase.quantity} (${unit})`
                                       })()}
                                     </div>
