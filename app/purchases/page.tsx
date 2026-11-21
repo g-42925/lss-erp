@@ -243,13 +243,13 @@ function Purchases() {
         const it = purchase.items[0]
         const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
         const name = it.product?.productName || it.product?.name || fAsset(it.productId)?.name || "-"
-        return isAsset ? `[Asset] ${name}` : name
+        return isAsset ? `${name}` : name
       }
       return `${purchase.items.length} item`
     }
     const isAssetSingle = purchase.itemType === 'asset' || (filterType === 'procurement' && purchase.product?.category && !purchase.product?.conversionRatioX)
     const name = purchase.description || purchase.product?.productName || purchase.product?.name || "-"
-    return isAssetSingle ? `[Asset] ${name}` : name
+    return isAssetSingle ? `${name}` : name
   }
 
   function getPurchaseQuantity(purchase: any) {
@@ -367,7 +367,7 @@ function Purchases() {
           ? item.product?.name || fAsset(item.productId)?.name || "-"
           : item.product?.productName || item.product?.name || "-"
 
-      const name = isAsset ? `[Asset] ${rawName}` : rawName
+      const name = isAsset ? `${rawName}` : rawName
 
       const unit = isAsset
         ? (item.product?.measurement || fAsset(item.productId)?.measurement || "Unit")
@@ -692,7 +692,7 @@ function Purchases() {
 
     if (isAsset) {
       prod = assets.find((a: any) => a._id === addItemDraft.productId)
-      productLabel = `[Asset] ${prod?.name || "Asset"} (${prod?.measurement || "Unit"})`
+      productLabel = `${prod?.name || "Asset"} (${prod?.measurement || "Unit"})`
     } else if (filterType === "procurement") {
       prod = items.find((p: any) => p._id === addItemDraft.productId)
       productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
@@ -747,11 +747,13 @@ function Purchases() {
 
     if (isAsset) {
       prod = assets.find((a: any) => a._id === editItemDraft.productId)
-      productLabel = `[Asset] ${prod?.name || "Asset"} (${prod?.category?.name || "Aset"})`
-    } else if (filterType === "procurement") {
+      productLabel = `${prod?.name || "Asset"} (${prod?.category?.name || "Aset"})`
+    }
+    else if (filterType === "procurement") {
       prod = items.find((p: any) => p._id === editItemDraft.productId)
       productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
-    } else {
+    }
+    else {
       prod = products.find((p: any) => p._id === editItemDraft.productId)
       productLabel = `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`
     }

@@ -10,6 +10,7 @@ export async function POST(req: Request) {
 
   const otp = randomInt(100000, 1000000).toString()
 
+
   const resend = new Resend(process.env.RESEND_API_KEY)
 
   const { data, error } = await resend.emails.send({
@@ -18,6 +19,10 @@ export async function POST(req: Request) {
     subject: 'Reset Credential Secret Code',
     react: createElement(Otp, { code: otp }),
   })
+
+  console.log("============================================")
+  console.log(`================= ${otp} ===================`)
+  console.log("============================================")
 
   if (error) {
     return Response.json(
