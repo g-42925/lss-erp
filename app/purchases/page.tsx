@@ -1740,10 +1740,6 @@ function Purchases() {
                                 <td>
                                   {purchase.items?.length > 0 ? calcTotal(purchase._id).toLocaleString("id-ID") : purchase.finalPrice.toLocaleString('id-ID')}
                                 </td>
-
-
-
-
                                 {
                                   /*
                                     <td>

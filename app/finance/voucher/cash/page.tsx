@@ -768,8 +768,8 @@ export default function VoucherCashPage() {
       <div className="tabs tabs-boxed bg-gray-100 mb-6 w-fit">
         <button
           className={`tab font-semibold ${activeTab === "in"
-              ? "tab-active"
-              : ""
+            ? "tab-active"
+            : ""
             }`}
           onClick={() =>
             setActiveTab("in")
@@ -780,8 +780,8 @@ export default function VoucherCashPage() {
 
         <button
           className={`tab font-semibold ${activeTab === "out"
-              ? "tab-active"
-              : ""
+            ? "tab-active"
+            : ""
             }`}
           onClick={() =>
             setActiveTab("out")
@@ -1017,8 +1017,8 @@ export default function VoucherCashPage() {
 
                     <span
                       className={`badge ${activeTab === "in"
-                          ? "badge-success"
-                          : "badge-error"
+                        ? "badge-success"
+                        : "badge-error"
                         } badge-outline`}
                     >
                       {activeTab === "in"
@@ -1318,7 +1318,7 @@ export default function VoucherCashPage() {
 
                       {/* Purchase */}
 
-                      {activeTab === "out" && (
+                      {/*{activeTab === "out" && (
                         <div className="border border-gray-200 rounded-xl overflow-hidden">
                           <div className="px-5 py-4 bg-gray-50 border-b">
                             <div className="flex items-center justify-between">
@@ -1420,11 +1420,11 @@ export default function VoucherCashPage() {
                             )}
                           </div>
                         </div>
-                      )}
+                      )}*/}
 
                       {/* Debt */}
 
-                      {activeTab === "out" && (
+                      {/*{activeTab === "out" && (
                         <div className="border border-gray-200 rounded-xl overflow-hidden">
                           <div className="px-5 py-4 bg-gray-50 border-b">
                             <div className="flex items-center justify-between">
@@ -1526,7 +1526,7 @@ export default function VoucherCashPage() {
                             )}
                           </div>
                         </div>
-                      )}
+                      )}*/}
 
                       {/* Cashflow */}
 
@@ -1535,7 +1535,7 @@ export default function VoucherCashPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className="font-bold text-gray-700">
-                                💵 Cashflow Manual
+                                💵 Cashflow
                               </h4>
 
                               <p className="text-xs text-gray-500 mt-0.5">
@@ -2047,10 +2047,10 @@ export default function VoucherCashPage() {
                   {realizationVoucher.items.map((item, idx) => {
                     const refLabel =
                       item.refModel === "Invoice" ? "📄 Invoice" :
-                      item.refModel === "Cashflow" ? "🏦 Cashflow" :
-                      item.refModel === "Purchase" ? "🛒 Purchase" :
-                      item.refModel === "Debt" ? "🤝 Hutang Vendor" :
-                      "📝 Manual";
+                        item.refModel === "Cashflow" ? "🏦 Cashflow" :
+                          item.refModel === "Purchase" ? "🛒 Purchase" :
+                            item.refModel === "Debt" ? "🤝 Hutang Vendor" :
+                              "📝 Manual";
 
                     const hasRef = !!item.refModel;
 
@@ -2072,9 +2072,9 @@ export default function VoucherCashPage() {
                                 badge badge-sm
                                 ${item.refModel === "Invoice" ? "badge-primary" :
                                   item.refModel === "Cashflow" ? "badge-info" :
-                                  item.refModel === "Purchase" ? "badge-warning" :
-                                  item.refModel === "Debt" ? "badge-error" :
-                                  "badge-ghost"
+                                    item.refModel === "Purchase" ? "badge-warning" :
+                                      item.refModel === "Debt" ? "badge-error" :
+                                        "badge-ghost"
                                 }
                               `}>
                                 {refLabel}
