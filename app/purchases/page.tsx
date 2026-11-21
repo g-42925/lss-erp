@@ -258,7 +258,7 @@ function Purchases() {
         const it = purchase.items[0]
         const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
         const unit = isAsset
-          ? (it.product?.measurement || fAsset(it.productId)?.measurement || `${it.product.unit.name}`)
+          ? (it.product?.measurement || fAsset(it.productId)?.measurement || `${it.product?.unit?.name}`)
           : filterType === "procurement"
             ? (typeof it.product?.unit === 'string' ? it.product?.unit : it.product?.unit?.symbol || "")
             : it.product?.conversionRatioX
@@ -2109,7 +2109,7 @@ function Purchases() {
                                   : it.product?.productName || ""
 
                                 const pUnit = isAsset
-                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || "Unit")
+                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || it.product.unit.name)
                                   : filterType === "procurement"
                                     ? (typeof it.product?.unit === "string" ? it.product?.unit : it.product?.unit?.symbol || "")
                                     : it.product?.conversionRatioX || ""
