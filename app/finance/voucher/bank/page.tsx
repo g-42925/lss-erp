@@ -1485,7 +1485,7 @@ function ReferencePicker({
               />
             )}
 
-            {activeTab === "out" && (
+            {/*{activeTab === "out" && (
               <ReferenceList
                 title="🛒 Purchase Payment"
                 refs={filteredRefs.purchase}
@@ -1497,8 +1497,9 @@ function ReferencePicker({
                 renderSub={(ref) => `${fmtDate(ref.date)} · Rp ${IDR(ref.amount)}`}
                 onAdd={onAddPurchase}
               />
-            )}
+            )}*/}
 
+            {/*
             {activeTab === "out" && (
               <ReferenceList
                 title="🤝 Hutang Vendor"
@@ -1512,9 +1513,10 @@ function ReferencePicker({
                 onAdd={onAddDebt}
               />
             )}
+            */}
 
             <ReferenceList
-              title="🏦 Cashflow Bank Manual"
+              title="🏦 Cashflow"
               refs={filteredRefs.cashflow}
               emptyText="Tidak ada data"
               getKey={(ref) => ref.cashflowId}
