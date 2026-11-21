@@ -230,9 +230,9 @@ export default function PurchasesApproval() {
         ? purchase.items.map((it: any) => {
           const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
           const name = it.product?.productName || it.product?.name || fAsset(it.productId, "name") || "?"
-          return isAsset ? `[Asset] ${name}` : name
+          return isAsset ? `${name}` : name
         }).join(", ")
-        : (isAssetSingle ? `[Asset] ${purchase.product?.name || "-"}` : purchase.product?.productName || purchase.product?.name || "Unknown Product")
+        : (isAssetSingle ? `${purchase.product?.name || "-"}` : purchase.product?.productName || purchase.product?.name || "Unknown Product")
 
     const totalQty = isMultiItem
       ? purchase.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0)
@@ -267,9 +267,9 @@ export default function PurchasesApproval() {
         ? purchase.items.map((it: any) => {
           const isAsset = it.itemType === 'asset' || (filterType === 'procurement' && it.product?.category && !it.product?.conversionRatioX)
           const name = it.product?.productName || it.product?.name || fAsset(it.productId, "name") || "?"
-          return isAsset ? `[Asset] ${name}` : name
+          return isAsset ? `${name}` : name
         }).join(", ")
-        : (isAssetSingle ? `[Asset] ${purchase.product?.name || "-"}` : purchase.product?.productName || purchase.product?.name || "Unknown Product")
+        : (isAssetSingle ? `${purchase.product?.name || "-"}` : purchase.product?.productName || purchase.product?.name || "Unknown Product")
 
     const totalQty = isMultiItem
       ? purchase.items.reduce((s: number, it: any) => s + (it.quantity || 0), 0)
@@ -546,7 +546,7 @@ export default function PurchasesApproval() {
                                   const isAsset = item.itemType === "asset" || (filterType === "procurement" && item.product?.category && !item.product?.conversionRatioX)
                                   const itemUnit =
                                     filterType === "procurement"
-                                      ? (isAsset ? (item.product?.measurement || fAsset(item.productId, "measurement") || "Unit") : (typeof item.product?.unit === "string" ? item.product?.unit : item.product?.unit?.symbol || "-"))
+                                      ? (isAsset ? (item.product?.measurement || fAsset(item.productId, "measurement") || item.product?.unit?.name) : (typeof item.product?.unit === "string" ? item.product?.unit : item.product?.unit?.symbol || "-"))
                                       : item.product?.conversionRatioX
 
                                   return `${item.quantity}${itemUnit ? ` (${itemUnit})` : ""}`
@@ -725,7 +725,7 @@ export default function PurchasesApproval() {
                       "Unknown Product"
 
                     const itemUnit = isAsset
-                      ? (item.product?.measurement || fAsset(item.productId, "measurement") || "Unit")
+                      ? (item.product?.measurement || fAsset(item.productId, "measurement") || item.product.unit.name)
                       : filterType === "procurement"
                         ? (typeof item.product?.unit === "string" ? item.product?.unit : item.product?.unit?.symbol || item.product?.unit?.name || "-")
                         : item.product?.conversionRatioX
@@ -829,7 +829,7 @@ export default function PurchasesApproval() {
                       (selectedComparisonPurchase?.product?.productName ||
                         selectedComparisonPurchase?.product?.name)) ||
                     "-"
-                  const productName = isAsset ? `[Asset] ${pName}` : pName
+                  const productName = isAsset ? `${pName}` : pName
 
                   const currentUnitPrice = item.quantity
                     ? item.finalPrice / item.quantity
