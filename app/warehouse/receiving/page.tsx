@@ -88,7 +88,7 @@ const getUnit = (product?: Product, item?: any) => {
     (product as any)?.units !== undefined ||
     ((product as any)?.category && !(product as any)?.conversionRatioX)
   if (isAsset) {
-    return (product as any)?.measurement || "Unit"
+    return (product as any)?.measurement || product?.unit?.name
   }
   return product?.conversionRatioX ||
     (typeof product?.unit === "string"
