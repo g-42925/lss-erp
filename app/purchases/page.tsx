@@ -1223,12 +1223,12 @@ function Purchases() {
         ? purchase.items.map((it: any) => {
           const isAsset = it.itemType === 'asset' || (it.product?.category && !it.product?.conversionRatioX)
           const name = it.product?.name || fAsset(it.productId)?.name || "-"
-          return isAsset ? `[Asset] ${name}` : name
+          return isAsset ? `${name}` : name
         }).join(", ")
         : (() => {
           const isAsset = purchase.itemType === 'asset' || (purchase.product?.category && !purchase.product?.conversionRatioX)
           const name = purchase.product?.name || "-"
-          return isAsset ? `[Asset] ${name}` : name
+          return isAsset ? `${name}` : name
         })()
       orderForm.reset({
         _id: purchase._id,
@@ -1292,7 +1292,7 @@ function Purchases() {
           let label = ""
           if (filterType === "procurement") {
             label = isAsset
-              ? `[Asset] ${prod?.name || it.product?.name || "Asset"} (${prod?.category?.name || it.product?.category?.name || "Aset"})`
+              ? `${prod?.name || it.product?.name || "Asset"} (${prod?.category?.name || it.product?.category?.name || "Aset"})`
               : `${prod?.name || it.product?.name || "Item"} (${prod?.unit || it.product?.unit || ""})`
           } else {
             label = `${prod?.productName || it.product?.productName || "Produk"} (${prod?.conversionRatioX || it.product?.conversionRatioX || ""})`
@@ -2176,49 +2176,57 @@ function Purchases() {
       {/* =====================================================
           MODAL EDIT REQUISITION
       ===================================================== */}
-      < dialog
+      <dialog
         ref={editRef}
-        className="modal text-black"
+        className="modal text-slate-900"
       >
-        <div className="modal-box w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="flex flex-col gap-3">
-            <span className="page-title">
-              Edit Purchase Requisition
-            </span>
+        <div className="modal-box w-11/12 max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-xl bg-white shadow-xl">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-lg font-bold text-slate-900">
+                Edit Purchase Requisition
+              </h3>
+            </div>
 
             <form
               onSubmit={editForm.handleSubmit(editSubmit)}
               className="flex flex-col gap-4"
             >
-              {/* ── Header: Tanggal + Supplier ─────────────────────────── */}
-              <div className="grid grid-cols-2 gap-3">
-                <fieldset className="fieldset">
-                  <legend className="fieldset-legend">Tanggal Pembelian</legend>
+              {/* ── Header: Tanggal + Supplier / Vendor ─────────────────── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Tanggal Pembelian
+                  </label>
                   <input
                     {...editForm.register("customDate", { required: true })}
-                    className="input w-full"
+                    className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     type="date"
                   />
-                </fieldset>
+                </div>
 
                 {(filterType === "product" || filterType === "procurement") && (
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Supplier / Asal</legend>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Supplier / Asal
+                    </label>
                     <input
-                      className="input w-full"
+                      className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       {...editForm.register("customSupplier")}
                       type="text"
                       placeholder="Nama supplier (opsional)"
                     />
-                  </fieldset>
+                  </div>
                 )}
 
                 {filterType === "service" && (
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Vendor</legend>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Vendor
+                    </label>
                     <select
                       {...editForm.register("vendorId", { required: true })}
-                      className="select w-full"
+                      className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     >
                       {vendors.map((vendor) => (
                         <option value={vendor._id} key={vendor._id}>
@@ -2226,85 +2234,106 @@ function Purchases() {
                         </option>
                       ))}
                     </select>
-                  </fieldset>
+                  </div>
                 )}
               </div>
 
               {/* ── Service: single fields ─────────────────────────────── */}
               {filterType === "service" && (
                 <div className="flex flex-col gap-3">
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Description (Jasa)</legend>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Description (Jasa)
+                    </label>
                     <input
                       {...editForm.register("description", { required: true })}
-                      className="input w-full"
+                      className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
-                  </fieldset>
-                  <fieldset className="fieldset">
-                    <legend className="fieldset-legend">Price (Rp)</legend>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Price (Rp)
+                    </label>
                     <input
                       {...editForm.register("finalPrice", { required: true })}
-                      className="input w-full"
+                      className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       type="number"
                     />
-                  </fieldset>
+                  </div>
                 </div>
               )}
 
               {/* ── Product / Procurement: multi-item ─────────────────── */}
               {(filterType === "product" || filterType === "procurement") && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {/* Item draft input */}
-                  <div className="border border-blue-100 rounded-lg bg-blue-50 p-3 flex flex-col gap-2">
-                    <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">
+                  <div className="rounded-xl border border-blue-200/80 bg-blue-50/70 p-3.5 flex flex-col gap-3">
+                    <p className="text-xs font-bold text-blue-900 uppercase tracking-wider">
                       Tambah / Ubah Item
                     </p>
 
-                    <div className="grid grid-cols-12 gap-2 items-end">
-                      {filterType === "procurement" && (
-                        <div className="col-span-12 flex items-center gap-3 pb-1 border-b border-blue-200">
-                          <span className="text-xs font-semibold text-gray-700">Tipe Item:</span>
-                          <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                            <input
-                              type="radio"
-                              name="editItemType"
-                              checked={editItemDraft.itemType !== "asset"}
-                              onChange={() => {
-                                setEditItemDraft((d: any) => ({ ...d, itemType: "inventory", productId: "" }))
-                                setEditLastPriceInfo(null)
-                              }}
-                              className="radio radio-xs radio-primary"
-                            />
-                            Inventory Item
-                          </label>
-                          <label className="flex items-center gap-1.5 text-xs cursor-pointer font-medium text-blue-900">
-                            <input
-                              type="radio"
-                              name="editItemType"
-                              checked={editItemDraft.itemType === "asset"}
-                              onChange={() => {
-                                setEditItemDraft((d: any) => ({ ...d, itemType: "asset", productId: "" }))
-                                setEditLastPriceInfo(null)
-                              }}
-                              className="radio radio-xs radio-primary"
-                            />
-                            Company Asset
-                          </label>
-                        </div>
-                      )}
+                    {filterType === "procurement" && (
+                      <div className="flex flex-wrap items-center gap-4 pb-2.5 border-b border-blue-200/80">
+                        <span className="text-xs font-semibold text-slate-700">
+                          Tipe Item:
+                        </span>
+                        <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-800 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="editItemType"
+                            checked={editItemDraft.itemType !== "asset"}
+                            onChange={() => {
+                              setEditItemDraft((d: any) => ({
+                                ...d,
+                                itemType: "inventory",
+                                productId: "",
+                              }));
+                              setEditLastPriceInfo(null);
+                            }}
+                            className="h-4 w-4 accent-blue-700 cursor-pointer"
+                          />
+                          <span>Inventory Item</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2 text-xs font-semibold text-blue-950 cursor-pointer select-none">
+                          <input
+                            type="radio"
+                            name="editItemType"
+                            checked={editItemDraft.itemType === "asset"}
+                            onChange={() => {
+                              setEditItemDraft((d: any) => ({
+                                ...d,
+                                itemType: "asset",
+                                productId: "",
+                              }));
+                              setEditLastPriceInfo(null);
+                            }}
+                            className="h-4 w-4 accent-blue-700 cursor-pointer"
+                          />
+                          <span>Company Asset</span>
+                        </label>
+                      </div>
+                    )}
 
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                       {/* Pilih Produk */}
-                      <div className="col-span-5 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">
-                          {filterType === "product" ? "Produk" : (editItemDraft.itemType === "asset" ? "Aset" : "Item")}
+                      <div className="sm:col-span-5 flex flex-col gap-1 min-w-0">
+                        <label className="text-xs font-medium text-slate-700">
+                          {filterType === "product"
+                            ? "Produk"
+                            : editItemDraft.itemType === "asset"
+                              ? "Aset"
+                              : "Item"}
                         </label>
                         <select
-                          className="input w-full text-sm"
+                          className="h-10 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                           value={editItemDraft.productId}
                           onChange={(e) => {
-                            setEditItemDraft((d: any) => ({ ...d, productId: e.target.value }))
-                            setEditLastPriceInfo(null)
-                            fetchLastPurchasePrice(e.target.value, "edit")
+                            setEditItemDraft((d: any) => ({
+                              ...d,
+                              productId: e.target.value,
+                            }));
+                            setEditLastPriceInfo(null);
+                            fetchLastPurchasePrice(e.target.value, "edit");
                           }}
                         >
                           <option value="">-- Pilih --</option>
@@ -2329,38 +2358,52 @@ function Purchases() {
                       </div>
 
                       {/* Qty */}
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">Qty</label>
+                      <div className="sm:col-span-2 flex flex-col gap-1 min-w-0">
+                        <label className="text-xs font-medium text-slate-700">
+                          Qty
+                        </label>
                         <input
                           type="number"
                           min="1"
-                          className="input w-full text-sm"
+                          className="h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-center text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                           value={editItemDraft.quantity}
-                          onChange={(e) => setEditItemDraft((d: any) => ({ ...d, quantity: e.target.value }))}
+                          onChange={(e) =>
+                            setEditItemDraft((d: any) => ({
+                              ...d,
+                              quantity: e.target.value,
+                            }))
+                          }
                         />
                       </div>
 
                       {/* Harga per item */}
-                      <div className="col-span-3 flex flex-col gap-1">
-                        <label className="text-xs text-gray-600">total / item</label>
+                      <div className="sm:col-span-3 flex flex-col gap-1 min-w-0">
+                        <label className="text-xs font-medium text-slate-700">
+                          Total / Item
+                        </label>
                         <NumericFormat
-                          className="input w-full text-sm"
+                          className="h-10 w-full rounded-lg border border-slate-300 bg-white px-2.5 text-right text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                           thousandSeparator="."
                           decimalSeparator=","
                           decimalScale={0}
                           allowNegative={false}
                           placeholder="0"
                           value={editItemDraft.finalPrice}
-                          onValueChange={(vals) => setEditItemDraft((d: any) => ({ ...d, finalPrice: vals.value }))}
+                          onValueChange={(vals) =>
+                            setEditItemDraft((d: any) => ({
+                              ...d,
+                              finalPrice: vals.value,
+                            }))
+                          }
                         />
                       </div>
 
                       {/* Tombol Tambah */}
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <button
                           type="button"
                           onClick={addEditItemToDraft}
-                          className="btn w-full bg-blue-700 text-white hover:bg-blue-800 btn-sm h-10"
+                          className="h-10 w-full whitespace-nowrap rounded-lg bg-blue-700 px-3 text-xs font-semibold text-white hover:bg-blue-800 active:bg-blue-900 transition cursor-pointer"
                         >
                           + Tambah
                         </button>
@@ -2369,35 +2412,64 @@ function Purchases() {
 
                     {/* Riwayat harga terakhir */}
                     {editLastPriceLoading && (
-                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
                         <span className="loading loading-spinner loading-xs" />
-                        Mengambil riwayat harga...
+                        <span>Mengambil riwayat harga...</span>
                       </div>
                     )}
+
                     {!editLastPriceLoading && editLastPriceInfo && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs text-amber-800">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <div className="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="size-3.5 shrink-0 text-amber-700"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                           <span className="font-medium">Terakhir dibeli:</span>
-                          <span className="font-bold text-amber-900">
-                            Rp {(editLastPriceInfo.finalPrice ?? 0).toLocaleString("id-ID")}
+                          <span className="font-bold">
+                            Rp{" "}
+                            {(editLastPriceInfo.finalPrice ?? 0).toLocaleString(
+                              "id-ID"
+                            )}
                           </span>
-                          <span className="text-amber-600">·</span>
-                          <span>qty: <span className="font-semibold">{editLastPriceInfo.quantity}</span></span>
+                          <span className="text-amber-500">·</span>
+                          <span>
+                            qty:{" "}
+                            <span className="font-semibold">
+                              {editLastPriceInfo.quantity}
+                            </span>
+                          </span>
                           {editLastPriceInfo.date && (
                             <>
-                              <span className="text-amber-600">·</span>
-                              <span className="text-amber-600">
-                                {new Date(editLastPriceInfo.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                              <span className="text-amber-500">·</span>
+                              <span className="text-amber-700">
+                                {new Date(editLastPriceInfo.date).toLocaleDateString(
+                                  "id-ID",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  }
+                                )}
                               </span>
                             </>
                           )}
                           {editLastPriceInfo.customSupplier && (
                             <>
-                              <span className="text-amber-600">·</span>
-                              <span className="italic text-amber-700">{editLastPriceInfo.customSupplier}</span>
+                              <span className="text-amber-500">·</span>
+                              <span className="italic text-amber-800">
+                                {editLastPriceInfo.customSupplier}
+                              </span>
                             </>
                           )}
                         </div>
@@ -2407,62 +2479,75 @@ function Purchases() {
 
                   {/* Daftar item yang sudah ada */}
                   {editItems.length > 0 && (
-                    <div className="flex flex-col gap-1">
-                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                         Daftar Item ({editItems.length})
                       </p>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="table table-sm text-sm w-full">
-                          <thead className="bg-gray-100">
+
+                      <div className="overflow-x-auto rounded-xl border border-slate-200">
+                        <table className="w-full border-collapse text-sm">
+                          <thead className="bg-slate-100 text-xs font-semibold text-slate-700">
                             <tr>
-                              <th className="text-left">Produk/Item</th>
-                              <th className="text-center">Qty</th>
-                              <th className="text-center">Ppu</th>
-                              <th className="text-right">Total/Item</th>
-                              <th></th>
+                              <th className="py-2.5 px-3 text-left">Produk/Item</th>
+                              <th className="py-2.5 px-2 text-center w-20">Qty</th>
+                              <th className="py-2.5 px-2 text-center w-24">Ppu</th>
+                              <th className="py-2.5 px-3 text-right w-32">
+                                Total/Item
+                              </th>
+                              <th className="py-2.5 px-2 w-10"></th>
                             </tr>
                           </thead>
-                          <tbody>
+                          <tbody className="divide-y divide-slate-200 bg-white">
                             {editItems.map((it, idx) => (
-                              <tr key={idx} className="hover:bg-gray-50">
-                                <td className="text-left">{it._productLabel}</td>
+                              <tr
+                                key={idx}
+                                className="hover:bg-slate-50 transition-colors"
+                              >
+                                <td className="py-2 px-3 text-left font-medium text-slate-800">
+                                  {it._productLabel}
+                                </td>
 
-                                <td className="text-center">
+                                <td className="py-2 px-2 text-center">
                                   <input
                                     type="number"
                                     min="1"
-                                    className="input input-xs w-16 text-center"
+                                    className="h-7 w-16 rounded border border-slate-300 bg-white px-1.5 text-center text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
                                     value={it.quantity}
                                     onChange={(e) => {
-                                      const quantity = Math.max(1, parseFloat(e.target.value) || 1)
+                                      const quantity = Math.max(
+                                        1,
+                                        parseFloat(e.target.value) || 1
+                                      );
 
-                                      setEditItems(prev => prev.map((x, i) =>
-                                        i === idx
-                                          ? {
-                                            ...x,
-                                            quantity,
-                                            pricePerUnit: x.finalPrice / quantity,
-                                            finalPrice: (x.finalPrice / quantity) * quantity,
-
-                                          }
-                                          : x
-                                      ))
+                                      setEditItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx
+                                            ? {
+                                              ...x,
+                                              quantity,
+                                              pricePerUnit: x.finalPrice / quantity,
+                                              finalPrice:
+                                                (x.finalPrice / quantity) * quantity,
+                                            }
+                                            : x
+                                        )
+                                      );
                                     }}
                                   />
                                 </td>
 
-                                <td className="text-center">
+                                <td className="py-2 px-2 text-center">
                                   <input
                                     readOnly
                                     type="number"
-                                    className="input input-xs w-16 text-center"
+                                    className="h-7 w-20 rounded border border-slate-200 bg-slate-50 px-1.5 text-center text-xs text-slate-700 focus:outline-none"
                                     value={it.pricePerUnit ?? it.finalPrice / it.quantity}
                                   />
                                 </td>
 
-                                <td className="text-right">
+                                <td className="py-2 px-3 text-right">
                                   <NumericFormat
-                                    className="input input-xs w-28 text-right"
+                                    className="h-7 w-28 rounded border border-slate-300 bg-white px-2 text-right text-xs text-slate-900 focus:border-blue-600 focus:outline-none"
                                     thousandSeparator="."
                                     decimalSeparator=","
                                     decimalScale={0}
@@ -2470,26 +2555,28 @@ function Purchases() {
                                     placeholder="0"
                                     value={it.finalPrice > 0 ? it.finalPrice : ""}
                                     onValueChange={(vals) => {
-                                      const finalPrice = vals.floatValue ?? 0
+                                      const finalPrice = vals.floatValue ?? 0;
 
-                                      setEditItems(prev => prev.map((x, i) =>
-                                        i === idx
-                                          ? {
-                                            ...x,
-                                            finalPrice,
-                                            pricePerUnit: finalPrice / x.quantity
-                                          }
-                                          : x
-                                      ))
+                                      setEditItems((prev) =>
+                                        prev.map((x, i) =>
+                                          i === idx
+                                            ? {
+                                              ...x,
+                                              finalPrice,
+                                              pricePerUnit: finalPrice / x.quantity,
+                                            }
+                                            : x
+                                        )
+                                      );
                                     }}
                                   />
                                 </td>
 
-                                <td className="text-center">
+                                <td className="py-2 px-2 text-center">
                                   <button
                                     type="button"
                                     onClick={() => removeEditItemFromDraft(idx)}
-                                    className="text-red-500 hover:text-red-700 p-1"
+                                    className="inline-flex items-center justify-center rounded p-1 text-red-500 hover:bg-red-50 hover:text-red-700 transition cursor-pointer"
                                     title="Hapus item"
                                   >
                                     <HugeiconsIcon
@@ -2506,33 +2593,37 @@ function Purchases() {
                       </div>
 
                       {/* Total Section */}
-                      <div className="flex flex-col gap-2 pt-1">
-                        <div className="flex items-center justify-between">
-                          {editTotalMode === "auto" ? (
-                            <span className="font-bold text-blue-800 text-base">
-                              Rp {calcEditItemsTotal().toLocaleString("id-ID")}
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <NumericFormat
-                                className="input input-sm w-40 text-right font-bold text-blue-800"
-                                thousandSeparator="."
-                                decimalSeparator=","
-                                decimalScale={0}
-                                allowNegative={false}
-                                placeholder="Total harga"
-                                value={editTotalOverride}
-                                onValueChange={(vals) => setEditTotalOverride(vals.value)}
-                              />
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex items-center justify-between pt-2 px-1">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Total Keseluruhan
+                        </span>
+
+                        {editTotalMode === "auto" ? (
+                          <span className="font-bold text-blue-800 text-base">
+                            Rp {calcEditItemsTotal().toLocaleString("id-ID")}
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <NumericFormat
+                              className="h-8 w-40 rounded-lg border border-slate-300 bg-white px-2.5 text-right text-sm font-bold text-blue-800 focus:border-blue-600 focus:outline-none"
+                              thousandSeparator="."
+                              decimalSeparator=","
+                              decimalScale={0}
+                              allowNegative={false}
+                              placeholder="Total harga"
+                              value={editTotalOverride}
+                              onValueChange={(vals) =>
+                                setEditTotalOverride(vals.value)
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
                   {editItems.length === 0 && (
-                    <div className="text-center py-4 text-sm text-gray-400 border border-dashed rounded-lg">
+                    <div className="text-center py-5 text-sm text-slate-400 border border-dashed border-slate-300 rounded-xl">
                       Belum ada item. Gunakan form di atas untuk menambahkan item.
                     </div>
                   )}
@@ -2540,39 +2631,44 @@ function Purchases() {
               )}
 
               {(editFn.noResult || editFn.error) && (
-                <label className="input-validator text-red-900">
+                <p className="text-xs font-medium text-red-600">
                   something went wrong
-                </label>
+                </p>
               )}
 
-              <div className="mt-auto ml-auto flex gap-2">
+              <div className="mt-2 pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    editRef.current?.close()
-                    setEditItems([])
-                    setEditItemDraft({ productId: "", quantity: 1, finalPrice: "", note: "" })
-                    setEditTotalOverride("")
-                    setEditTotalMode("auto")
-                    setEditLastPriceInfo(null)
-                    setEditingPurchase(null)
+                    editRef.current?.close();
+                    setEditItems([]);
+                    setEditItemDraft({
+                      productId: "",
+                      quantity: 1,
+                      finalPrice: "",
+                      note: "",
+                    });
+                    setEditTotalOverride("");
+                    setEditTotalMode("auto");
+                    setEditLastPriceInfo(null);
+                    setEditingPurchase(null);
                   }}
-                  className="p-3 rounded-md text-black bg-gray-200"
+                  className="h-10 px-4 rounded-lg text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition cursor-pointer"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  className="p-3 rounded-md text-white bg-blue-900"
+                  className="h-10 px-5 rounded-lg text-sm font-semibold text-white bg-blue-900 hover:bg-blue-950 transition cursor-pointer"
                 >
                   Save
                 </button>
               </div>
             </form>
           </div>
-        </div >
-      </dialog >
+        </div>
+      </dialog>
 
       {/* =====================================================
           MODAL ADD REQUISITION
@@ -3014,7 +3110,7 @@ function Purchases() {
                           {selectedPurchase.items.map((it: any, idx: number) => {
                             const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
                             const pName = filterType === "procurement"
-                              ? (isAsset ? `[Asset] ${it.product?.name || fAsset(it.productId)?.name || "-"}` : (it.product?.name || "-"))
+                              ? (isAsset ? `${it.product?.name || fAsset(it.productId)?.name || "-"}` : (it.product?.name || "-"))
                               : it.product?.productName || "-"
                             const pUnit = isAsset
                               ? (it.product?.measurement || fAsset(it.productId)?.measurement || "Unit")

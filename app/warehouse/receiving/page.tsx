@@ -80,7 +80,7 @@ const getProductName = (product?: Product, item?: any) => {
     (product as any)?.units !== undefined ||
     ((product as any)?.category && !(product as any)?.conversionRatioX)
   const name = product?.productName || product?.name || "-"
-  return isAsset ? `[Asset] ${name}` : name
+  return isAsset ? `${name}` : name
 }
 
 const getUnit = (product?: Product, item?: any) => {
