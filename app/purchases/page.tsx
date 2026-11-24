@@ -1221,6 +1221,16 @@ function Purchases() {
       return
     }
 
+    async function getOfflineItem(table: string) {
+      try {
+        return await db.table(table).toArray()
+      }
+      catch (e: any) {
+        alert(e.message)
+        return []
+      }
+    }
+
     // Service: path lama
     // const body = JSON.stringify({
     //   ...data,
@@ -1952,20 +1962,6 @@ function Purchases() {
           </span>
 
           <div className="flex items-center gap-2">
-            {offlinePurchases.length > 0 && (
-              <button
-                type="button"
-                onClick={() => syncModalRef.current?.showModal()}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors shadow-xs cursor-pointer"
-              >
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="hidden sm:inline">Perlu Sinkronisasi</span>
-                <span className="badge badge-sm bg-amber-600 text-white border-none font-bold">
-                  {offlinePurchases.length}
-                </span>
-              </button>
-            )}
-
             <div
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${isOnline
                 ? "bg-green-100 text-green-700"
@@ -1993,10 +1989,7 @@ function Purchases() {
               </div>
               <div>
                 <p className="font-semibold text-amber-950 text-sm">
-                  Terdapat {offlinePurchases.length} data purchase offline yang perlu disinkronisasi
-                </p>
-                <p className="text-xs text-amber-800 hidden sm:block">
-                  Data ini tersimpan sementara di perangkat lokal Anda.
+                  Terdapat {offlinePurchases.length} data yang perlu disinkronisasi
                 </p>
               </div>
             </div>
@@ -2008,29 +2001,6 @@ function Purchases() {
                 className="btn btn-sm btn-outline border-amber-400 text-amber-900 hover:bg-amber-100 text-xs"
               >
                 Lihat Daftar ({offlinePurchases.length})
-              </button>
-              <button
-                type="button"
-                disabled={isSyncingAll}
-                onClick={syncAllOfflinePurchases}
-                className={`btn btn-sm text-white font-medium gap-1.5 shadow-xs text-xs ${isOnline && !isSyncingAll
-                  ? "bg-amber-600 hover:bg-amber-700 border-amber-700"
-                  : "bg-gray-400 border-gray-400 cursor-not-allowed"
-                  }`}
-              >
-                {isSyncingAll ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs" />
-                    Menyinkronkan...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                    </svg>
-                    Sinkronkan Semua
-                  </>
-                )}
               </button>
             </div>
           </div>
@@ -2567,7 +2537,7 @@ function Purchases() {
                     </tbody>
                   </table>
                   {selectedPurchase && (
-                    <dialog open className="modal modal-open">
+                    <dialog open className="modal modal-open z-50">
                       <div className="modal-box w-11/12 max-w-4xl">
                         <div className="flex items-center justify-between mb-4">
                           <div>
@@ -2773,12 +2743,15 @@ function Purchases() {
                           className={`text-xs ${itemCount > 0 ? "cursor-pointer text-blue-700 underline font-medium" : "text-gray-700"}`}
                           onClick={() => {
                             if (itemCount > 0) {
+                              syncModalRef?.current?.close()
                               setSelectedPurchase(item)
                             }
                           }}
                           title={itemCount > 0 ? "Klik untuk melihat detail item" : undefined}
                         >
-                          {displayItemText}
+                          {
+                            itemCount > 1 ? '?' : displayItemText
+                          }
                         </td>
                         <td className="text-xs font-semibold text-gray-900 whitespace-nowrap">
                           Rp {totalAmount.toLocaleString("id-ID")}
@@ -2914,9 +2887,6 @@ function Purchases() {
               <div>
                 <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
                   Edit Pembelian Offline
-                  <span className="badge badge-sm bg-amber-600 text-white border-none font-bold">
-                    Draft Offline
-                  </span>
                 </h3>
                 <p className="text-xs text-gray-500 font-mono">
                   {editingOfflinePurchase?.tmpPurchaseOrderNumber}
@@ -3090,18 +3060,6 @@ function Purchases() {
                       </button>
                     </div>
                   </div>
-
-                  {/* Note */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-600 font-medium">Catatan Item (opsional)</label>
-                    <input
-                      type="text"
-                      placeholder="Misal: merk, spesifikasi..."
-                      className="input input-bordered w-full text-xs h-8 bg-white"
-                      value={offlineEditItemDraft.note}
-                      onChange={(e) => setOfflineEditItemDraft((d: any) => ({ ...d, note: e.target.value }))}
-                    />
-                  </div>
                 </div>
 
                 {/* Daftar Item Saat Ini */}
@@ -3124,7 +3082,6 @@ function Purchases() {
                             <th className="text-left">Produk / Item</th>
                             <th className="w-24">Qty</th>
                             <th className="w-36 text-right">Subtotal (Rp)</th>
-                            <th className="text-left">Catatan</th>
                             <th className="w-16">Aksi</th>
                           </tr>
                         </thead>
@@ -3156,15 +3113,6 @@ function Purchases() {
                                   allowNegative={false}
                                   value={it.finalPrice}
                                   onValueChange={(vals) => updateOfflineEditItemPrice(idx, parseFloat(vals.value) || 0)}
-                                />
-                              </td>
-                              <td className="text-left">
-                                <input
-                                  type="text"
-                                  placeholder="Catatan..."
-                                  className="input input-bordered input-xs w-full bg-white"
-                                  value={it.note || ""}
-                                  onChange={(e) => updateOfflineEditItemNote(idx, e.target.value)}
                                 />
                               </td>
                               <td>
