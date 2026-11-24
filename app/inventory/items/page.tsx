@@ -47,6 +47,7 @@ export default function InvItemsPage() {
 
   const addRef = useRef<HTMLDialogElement>(null)
   const editRef = useRef<HTMLDialogElement>(null)
+  const editTypeRef = useRef<HTMLDialogElement>(null)
   const useModalRef = useRef<HTMLDialogElement>(null)
 
   const [items, setItems] = useState<InvItem[]>([])
@@ -55,6 +56,10 @@ export default function InvItemsPage() {
 
   const [selectedItem, setSelectedItem] = useState<InvItem | null>(null)
   const [editItem, setEditItem] = useState<InvItem | null>(null)
+  const [editingType, setEditingType] = useState<{ oldType: string; newType: string }>({
+    oldType: "",
+    newType: "",
+  })
 
   const [predefinedUnits, setPredefinedUnits] = useState<any[]>([])
 
@@ -85,6 +90,12 @@ export default function InvItemsPage() {
   const putFn = useFetch<InvItem, any>({
     url: `/api/web/inv-items`,
     method: "PUT",
+    onError: (m) => alert(m),
+  })
+
+  const patchTypeFn = useFetch<{ oldType: string; newType: string }, any>({
+    url: `/api/web/inv-items`,
+    method: "PATCH",
     onError: (m) => alert(m),
   })
 
@@ -170,8 +181,62 @@ export default function InvItemsPage() {
     editRef.current?.showModal()
   }
 
+  function openEditType(typeToEdit: string) {
+    setEditingType({
+      oldType: typeToEdit,
+      newType: typeToEdit,
+    })
+    editTypeRef.current?.showModal()
+  }
+
+  async function handleUpdateType(e: React.FormEvent) {
+    e.preventDefault()
+    const { oldType, newType } = editingType
+    const trimmedOld = oldType.trim()
+    const trimmedNew = newType.trim()
+
+    if (!trimmedOld || !trimmedNew) {
+      alert("Tipe tidak boleh kosong.")
+      return
+    }
+
+    if (trimmedOld === trimmedNew) {
+      editTypeRef.current?.close()
+      return
+    }
+
+    await patchTypeFn.fn(
+      "",
+      JSON.stringify({
+        id: masterAccountId,
+        oldType: trimmedOld,
+        newType: trimmedNew,
+      }),
+      () => {
+        // Semua entity lain yang bertype sama ikut berubah
+        setItems(prev =>
+          prev.map(item =>
+            item.itemType?.trim() === trimmedOld
+              ? { ...item, itemType: trimmedNew }
+              : item
+          )
+        )
+
+        if (selectedType === trimmedOld) {
+          setSelectedType(trimmedNew)
+        }
+
+        editTypeRef.current?.close()
+        setEditingType({ oldType: "", newType: "" })
+      }
+    )
+  }
+
   async function handleEdit(data: ItemForm) {
     if (!editItem) return
+
+    const oldType = editItem.itemType?.trim()
+    const newType = data.itemType?.trim()
 
     await putFn.fn("", JSON.stringify({
       id: masterAccountId,
@@ -179,10 +244,21 @@ export default function InvItemsPage() {
       ...data,
     }), (result) => {
       setItems(prev =>
-        prev.map(item =>
-          item._id === editItem._id ? result : item
-        )
+        prev.map(item => {
+          if (item._id === editItem._id) {
+            return result
+          }
+          // Semua entity lain yang bertype sama ikut berubah
+          if (oldType && newType && oldType !== newType && item.itemType?.trim() === oldType) {
+            return { ...item, itemType: newType }
+          }
+          return item
+        })
       )
+
+      if (selectedType === oldType && oldType !== newType && newType) {
+        setSelectedType(newType)
+      }
 
       editForm.reset()
       editRef.current?.close()
@@ -325,16 +401,36 @@ export default function InvItemsPage() {
             </button>
 
             {itemTypeOptions.map(type => (
-              <button
+              <div
                 key={type.value}
-                onClick={() => setSelectedType(type.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${selectedType === type.value
+                className={`inline-flex items-center rounded-full text-xs font-semibold transition-colors ${selectedType === type.value
                     ? "bg-blue-700 text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   }`}
               >
-                {type.label} ({type.count})
-              </button>
+                <button
+                  onClick={() => setSelectedType(type.value)}
+                  className="pl-3 pr-1.5 py-1.5"
+                >
+                  {type.label} ({type.count})
+                </button>
+                <button
+                  title={`Edit tipe "${type.value}"`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openEditType(type.value)
+                  }}
+                  className={`pr-2.5 pl-1 py-1.5 transition-colors ${selectedType === type.value
+                      ? "text-blue-200 hover:text-white"
+                      : "text-slate-400 hover:text-blue-600"
+                    }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                    <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                    <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
 
@@ -414,7 +510,27 @@ export default function InvItemsPage() {
                         </td>
 
                         <td className="px-6 py-4 text-center">
-                          {item.itemType || "—"}
+                          {item.itemType ? (
+                            <button
+                              type="button"
+                              onClick={() => openEditType(item.itemType)}
+                              title={`Edit tipe "${item.itemType}" (semua entity lain bertipe sama ikut berubah)`}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-700 transition-colors group cursor-pointer"
+                            >
+                              <span>{item.itemType}</span>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className="w-3 h-3 text-slate-400 group-hover:text-blue-600 transition-colors"
+                              >
+                                <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                                <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
 
                         <td className="px-6 py-4 text-center">
@@ -785,6 +901,9 @@ export default function InvItemsPage() {
                   {editForm.formState.errors.itemType.message}
                 </p>
               )}
+              <p className="text-slate-400 text-xs mt-1">
+                Catatan: Mengubah tipe item ini akan otomatis mengubah seluruh item lain yang bertipe sama.
+              </p>
             </div>
 
             <div>
@@ -826,6 +945,85 @@ export default function InvItemsPage() {
 
         <form method="dialog" className="modal-backdrop">
           <button onClick={() => setEditItem(null)}>close</button>
+        </form>
+      </dialog>
+
+      {/* Edit Type Modal */}
+      <dialog ref={editTypeRef} id="modal-edit-item-type" className="modal">
+        <div className="modal-box rounded-2xl max-w-md p-8 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-purple-100 text-purple-700 p-2 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="size-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Edit Entity Type</h2>
+              <p className="text-slate-400 text-xs">
+                Ubah nama tipe untuk semua item/entity terkait.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleUpdateType} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Tipe Saat Ini
+              </label>
+              <input
+                type="text"
+                value={editingType.oldType}
+                disabled
+                className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded-xl px-4 py-2.5 text-sm cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-600 mb-1">
+                Tipe Baru <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="input-new-type-name"
+                type="text"
+                required
+                value={editingType.newType}
+                onChange={(e) => setEditingType(prev => ({ ...prev, newType: e.target.value }))}
+                placeholder="Contoh: external"
+                className="text-black w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+              />
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2.5">
+                <p className="text-xs text-amber-800">
+                  ⚠️ <strong>Perhatian:</strong> Semua entity lain yang bertipe &ldquo;{editingType.oldType}&rdquo; ({items.filter(i => i.itemType?.trim() === editingType.oldType.trim()).length} item) akan otomatis ikut berubah menjadi &ldquo;{editingType.newType.trim() || "..."}&rdquo;.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  editTypeRef.current?.close()
+                  setEditingType({ oldType: "", newType: "" })
+                }}
+                className="flex-1 border border-slate-200 text-slate-600 font-semibold rounded-xl py-2.5 hover:bg-slate-50 transition-colors text-sm"
+              >
+                Batal
+              </button>
+
+              <button
+                id="btn-submit-edit-type"
+                type="submit"
+                disabled={patchTypeFn.loading}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold rounded-xl py-2.5 transition-colors text-sm shadow-lg shadow-purple-200"
+              >
+                {patchTypeFn.loading ? <span className="loading loading-spinner loading-xs" /> : "Simpan Perubahan"}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setEditingType({ oldType: "", newType: "" })}>close</button>
         </form>
       </dialog>
     </>

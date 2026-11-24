@@ -13,6 +13,7 @@ const PurchaseItemSchema = new mongoose.Schema({
 const PurchaseSchema = new mongoose.Schema({
   description: { type: String, required: false },
   purchaseOrderNumber: { type: String, required: true },
+  tmpPurchaseOrderNumber: { type: String, required: false },
   measurementId: { type: mongoose.Schema.Types.ObjectId, required: false },
   createdBy: { type: mongoose.Schema.Types.ObjectId, required: true },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, required: false },

@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
 "use client"
 
+import useOnlineStatus from "@/hooks/useOnlineStatus"
+import React from "react"
 import Link from "next/link"
 import useAuth from "@/store/auth"
 import useFetch from "@/hooks/useFetch"
 import withAuth from "@/hofs/withAuth"
 import { Controller, useForm } from "react-hook-form"
 import { NumericFormat } from "react-number-format"
-import React, { useRef, useState, useEffect } from "react"
+import { useRef, useState, useEffect } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
+import { db } from "@/lib/offline/db"
+
 
 import {
   CoinsDollarIcon,
@@ -31,6 +35,8 @@ function Purchases() {
   const taxRef = useRef<HTMLDialogElement>(null)
   const nonCashRef = useRef<HTMLDialogElement>(null)
   const linkEditRef = useRef<HTMLDialogElement>(null)
+  const syncModalRef = useRef<HTMLDialogElement>(null)
+  const editOfflineModalRef = useRef<HTMLDialogElement>(null)
 
   const [filterType, setFilterType] = useState<string>("product")
   const [searchResult, setSearchResult] = useState<any[]>([])
@@ -69,6 +75,347 @@ function Purchases() {
 
   // ─── Expand row untuk melihat detail item multi-item PR ──────────────────────
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  // ─── State data offline yang perlu disinkronkan ───────────────────────────
+  const [offlinePurchases, setOfflinePurchases] = useState<any[]>([])
+
+  async function loadOfflinePurchases() {
+    try {
+      const data = await db.purchases.toArray()
+      setOfflinePurchases(data || [])
+    } catch (e: any) {
+      console.error("Gagal membaca database offline purchases:", e)
+    }
+  }
+
+  async function deleteOfflinePurchase(tmpPoNumber: string) {
+    if (confirm(`Hapus draft pembelian offline ${tmpPoNumber}?`)) {
+      try {
+        await db.purchases.delete(tmpPoNumber)
+        await loadOfflinePurchases()
+      } catch (e: any) {
+        console.error("Gagal menghapus draft offline:", e)
+      }
+    }
+  }
+
+  // ─── State & Fungsi Sinkronisasi Data Offline ke Server ──────────────────
+  const [isSyncingAll, setIsSyncingAll] = useState(false)
+  const [syncingItemPoNumber, setSyncingItemPoNumber] = useState<string | null>(null)
+
+  async function syncSingleOfflinePurchase(item: any) {
+    if (!isOnline) {
+      alert("Perangkat Anda saat ini sedang offline. Sambungkan ke jaringan internet untuk melakukan sinkronisasi.")
+      return
+    }
+
+    setSyncingItemPoNumber(item.tmpPurchaseOrderNumber)
+    try {
+      const res = await fetch("/api/web/purchases/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purchase: item,
+          masterAccountId,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        const errorMsg = data.results?.[0]?.error || data.message || "Gagal menyinkronkan data ke server"
+        alert(`Gagal sinkronisasi: ${errorMsg}`)
+        return
+      }
+
+      // Hapus data dari IndexedDB lokal
+      await db.purchases.delete(item.tmpPurchaseOrderNumber)
+
+      // Jika data berhasil dibuat di server dan tipe cocok dengan filter saat ini, tambahkan ke list
+      const createdData = data.results?.[0]?.data
+      if (createdData && createdData.purchaseType === filterType) {
+        setPr((current) => [createdData, ...current])
+      }
+
+      await loadOfflinePurchases()
+      alert(`Data purchase ${item.tmpPurchaseOrderNumber} berhasil disinkronkan ke server!`)
+    } catch (e: any) {
+      console.error("Error syncing single purchase:", e)
+      alert("Terjadi kesalahan saat menyinkronkan data: " + (e?.message || e))
+    } finally {
+      setSyncingItemPoNumber(null)
+    }
+  }
+
+  async function syncAllOfflinePurchases() {
+    if (!isOnline) {
+      alert("Perangkat Anda saat ini sedang offline. Sambungkan ke jaringan internet untuk melakukan sinkronisasi.")
+      return
+    }
+
+    if (offlinePurchases.length === 0) {
+      alert("Tidak ada data purchase offline yang perlu disinkronkan.")
+      return
+    }
+
+    setIsSyncingAll(true)
+    try {
+      const res = await fetch("/api/web/purchases/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purchases: offlinePurchases,
+          masterAccountId,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        alert(`Gagal sinkronisasi: ${data.message || "Terjadi kesalahan di server"}`)
+        return
+      }
+
+      const results: any[] = data.results || []
+      const successfulItems = results.filter((r) => r.success)
+
+      // Hapus semua item yang berhasil disinkronkan dari IndexedDB
+      for (const item of successfulItems) {
+        if (item.tmpPurchaseOrderNumber) {
+          await db.purchases.delete(item.tmpPurchaseOrderNumber)
+        }
+      }
+
+      // Tambahkan item yang berhasil ke state tabel jika sesuai filterType
+      const newPrs = successfulItems
+        .map((r) => r.data)
+        .filter((p) => p && p.purchaseType === filterType)
+
+      if (newPrs.length > 0) {
+        setPr((current) => [...newPrs, ...current])
+      }
+
+      await loadOfflinePurchases()
+
+      if (data.failedCount === 0) {
+        alert(`Semua data purchase offline (${data.syncedCount}) berhasil disinkronkan ke server!`)
+        syncModalRef.current?.close()
+      } else {
+        alert(`${data.syncedCount} data berhasil disinkronkan, ${data.failedCount} data gagal. Silakan periksa kembali sisa data offline.`)
+      }
+    } catch (e: any) {
+      console.error("Error syncing all purchases:", e)
+      alert("Terjadi kesalahan saat menyinkronkan data: " + (e?.message || e))
+    } finally {
+      setIsSyncingAll(false)
+    }
+  }
+
+  // ─── State & Fungsi Edit Entity Offline ──────────────────────────────────
+  const [editingOfflinePurchase, setEditingOfflinePurchase] = useState<any>(null)
+  const [offlineEditDate, setOfflineEditDate] = useState<string>("")
+  const [offlineEditSupplier, setOfflineEditSupplier] = useState<string>("")
+  const [offlineEditDescription, setOfflineEditDescription] = useState<string>("")
+  const [offlineEditServicePrice, setOfflineEditServicePrice] = useState<number>(0)
+  const [offlineEditItems, setOfflineEditItems] = useState<any[]>([])
+  const [offlineEditItemDraft, setOfflineEditItemDraft] = useState<any>({
+    productId: "",
+    itemType: "inventory",
+    quantity: 1,
+    finalPrice: "",
+    note: "",
+  })
+
+  function openEditOffline(purchase: any) {
+    setEditingOfflinePurchase(purchase)
+    const pDate = purchase.date
+      ? new Date(purchase.date).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0]
+
+    setOfflineEditDate(pDate)
+    setOfflineEditSupplier(purchase.customSupplier || purchase.supplierId || purchase.vendorId || "")
+    setOfflineEditDescription(purchase.description || "")
+    setOfflineEditServicePrice(purchase.finalPrice || 0)
+
+    const type = purchase.purchaseType || "product"
+    const loadedItems = Array.isArray(purchase.items)
+      ? purchase.items.map((it: any) => {
+        let label = it.productName || it._productLabel || ""
+        if (!label) {
+          if (it.itemType === "asset") {
+            const a = assets?.find((x: any) => String(x._id) === String(it.productId))
+            label = a ? `${a.name} (${a.measurement || "Unit"})` : it.productId
+          } else if (type === "procurement") {
+            const item = items?.find((x: any) => String(x._id) === String(it.productId))
+            label = item ? `${item.name} (${item?.unit?.symbol || item?.unit || "Unit"})` : it.productId
+          } else {
+            const prod = products?.find((x: any) => String(x._id) === String(it.productId))
+            label = prod ? `${prod.productName} (${prod.conversionRatioX || ""})` : it.productId
+          }
+        }
+        return {
+          productId: it.productId,
+          itemType: it.itemType || (type === "procurement" ? "inventory" : "product"),
+          quantity: parseFloat(it.quantity) || 1,
+          finalPrice: parseFloat(it.finalPrice) || 0,
+          note: it.note || "",
+          productName: label,
+          _productLabel: label,
+          pricePerUnit: it.pricePerUnit || (it.quantity ? (parseFloat(it.finalPrice) || 0) / parseFloat(it.quantity) : 0),
+        }
+      })
+      : []
+
+    setOfflineEditItems(loadedItems)
+    setOfflineEditItemDraft({
+      productId: "",
+      itemType: type === "procurement" ? "inventory" : "product",
+      quantity: 1,
+      finalPrice: "",
+      note: "",
+    })
+
+    editOfflineModalRef.current?.showModal()
+  }
+
+  function addOfflineEditItem() {
+    if (!offlineEditItemDraft.productId) {
+      alert("Pilih produk/item terlebih dahulu")
+      return
+    }
+    const qty = parseFloat(offlineEditItemDraft.quantity)
+    if (!qty || qty <= 0) {
+      alert("Quantity harus lebih dari 0")
+      return
+    }
+    const existing = offlineEditItems.find(i => i.productId === offlineEditItemDraft.productId)
+    if (existing) {
+      alert("Produk ini sudah ada dalam daftar. Hapus terlebih dahulu jika ingin menggantinya.")
+      return
+    }
+
+    const type = editingOfflinePurchase?.purchaseType || "product"
+    const isAsset = type === "procurement" && offlineEditItemDraft.itemType === "asset"
+    let prod: any = null
+    let productLabel = ""
+    if (isAsset) {
+      prod = assets?.find((a: any) => String(a._id) === String(offlineEditItemDraft.productId))
+      productLabel = `${prod?.name || "Asset"} (${prod?.measurement || "Unit"})`
+    } else if (type === "procurement") {
+      prod = items?.find((p: any) => String(p._id) === String(offlineEditItemDraft.productId))
+      productLabel = `${prod?.name || "Item"} (${prod?.unit?.symbol || prod?.unit || "Unit"})`
+    } else {
+      prod = products?.find((p: any) => String(p._id) === String(offlineEditItemDraft.productId))
+      productLabel = `${prod?.productName || "Produk"} (${prod?.conversionRatioX || ""})`
+    }
+
+    const subtotal = offlineEditItemDraft.finalPrice !== "" ? parseFloat(offlineEditItemDraft.finalPrice) || 0 : 0
+
+    setOfflineEditItems(prev => [
+      ...prev,
+      {
+        productId: offlineEditItemDraft.productId,
+        itemType: isAsset ? "asset" : (type === "product" ? "product" : "inventory"),
+        quantity: qty,
+        finalPrice: subtotal,
+        note: offlineEditItemDraft.note || "",
+        productName: productLabel,
+        _productLabel: productLabel,
+        pricePerUnit: subtotal / qty,
+      }
+    ])
+
+    // Reset draft
+    setOfflineEditItemDraft({
+      productId: "",
+      itemType: isAsset ? "asset" : (type === "procurement" ? "inventory" : "product"),
+      quantity: 1,
+      finalPrice: "",
+      note: "",
+    })
+  }
+
+  function removeOfflineEditItem(index: number) {
+    setOfflineEditItems(prev => prev.filter((_, idx) => idx !== index))
+  }
+
+  function updateOfflineEditItemQty(index: number, newQty: number) {
+    if (newQty <= 0) return
+    setOfflineEditItems(prev => prev.map((it, idx) => {
+      if (idx !== index) return it
+      const ppu = it.pricePerUnit || (it.quantity ? it.finalPrice / it.quantity : 0)
+      const newFinalPrice = ppu > 0 ? ppu * newQty : it.finalPrice
+      return {
+        ...it,
+        quantity: newQty,
+        finalPrice: newFinalPrice,
+      }
+    }))
+  }
+
+  function updateOfflineEditItemPrice(index: number, newPrice: number) {
+    setOfflineEditItems(prev => prev.map((it, idx) => {
+      if (idx !== index) return it
+      return {
+        ...it,
+        finalPrice: newPrice,
+        pricePerUnit: it.quantity ? newPrice / it.quantity : 0,
+      }
+    }))
+  }
+
+  function updateOfflineEditItemNote(index: number, newNote: string) {
+    setOfflineEditItems(prev => prev.map((it, idx) => {
+      if (idx !== index) return it
+      return { ...it, note: newNote }
+    }))
+  }
+
+  async function saveOfflineEdit() {
+    if (!editingOfflinePurchase) return
+
+    const type = editingOfflinePurchase.purchaseType || "product"
+    const isService = type === "service"
+
+    if (!isService && offlineEditItems.length === 0) {
+      alert("Tambahkan setidaknya satu item dalam daftar pembelian.")
+      return
+    }
+
+    const calculatedTotal = isService
+      ? (parseFloat(String(offlineEditServicePrice)) || 0)
+      : offlineEditItems.reduce((sum, it) => sum + (parseFloat(it.finalPrice) || 0), 0)
+
+    const updatedPurchase = {
+      ...editingOfflinePurchase,
+      date: offlineEditDate ? new Date(offlineEditDate) : (editingOfflinePurchase.date || new Date()),
+      customSupplier: offlineEditSupplier,
+      description: isService ? offlineEditDescription : (editingOfflinePurchase.description || ""),
+      finalPrice: calculatedTotal,
+      items: isService
+        ? []
+        : offlineEditItems.map(it => ({
+          productId: it.productId,
+          itemType: it.itemType,
+          quantity: it.quantity,
+          finalPrice: it.finalPrice || 0,
+          note: it.note || "",
+          pricePerUnit: it.pricePerUnit || (it.quantity ? it.finalPrice / it.quantity : 0),
+          productName: it.productName || it._productLabel || "",
+        })),
+      updatedAt: new Date().toISOString(),
+    }
+
+    try {
+      await db.purchases.put(updatedPurchase)
+      await loadOfflinePurchases()
+      editOfflineModalRef.current?.close()
+      alert(`Data pembelian offline ${editingOfflinePurchase.tmpPurchaseOrderNumber} berhasil diperbarui!`)
+    } catch (e: any) {
+      console.error("Gagal memperbarui pembelian offline:", e)
+      alert("Gagal memperbarui data offline: " + (e?.message || e))
+    }
+  }
+
+  const isOnline = useOnlineStatus()
 
 
   function toggleExpand(id: string) {
@@ -667,6 +1014,8 @@ function Purchases() {
     )
   }
 
+  const generateTmpPurchaseOrderNumber = () => `TMP-PO-${crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000}`
+
   // ─── Tambah item ke daftar (multi-item draft) ──────────────────────────────
   function addItemToDraft() {
     if (!addItemDraft.productId) {
@@ -820,24 +1169,53 @@ function Purchases() {
           quantity: it.quantity,
           finalPrice: it.finalPrice || 0,
           note: it.note || "",
-          pricePerUnit: it.ppu
+          pricePerUnit: it.ppu,
+          productName: it._productLabel || "",
         })),
         finalPrice,
         ...(addTotalMode === "manual" && addTotalOverride !== "" ? { finalPriceOverride: parseFloat(addTotalOverride) } : {}),
       })
 
-      addFn.fn("", body, (result) => {
-        setPr((current) => [...current, result])
-        modalRef.current?.close()
-        newPrForm.reset()
-        setAddItems([])
-        setAddItemDraft({ productId: "", itemType: "inventory", quantity: 1, finalPrice: "", note: "" })
-        setAddTotalOverride("")
-        setAddTotalMode("auto")
-        setAddLastPriceInfo(null)
-        modalRef?.current?.close()
-        window.location.href = '/purchases'
-      })
+      if (isOnline) {
+        addFn.fn("", body, (result) => {
+          setPr((current) => [...current, result])
+          newPrForm.reset()
+          setAddItems([])
+          setAddItemDraft({ productId: "", itemType: "inventory", quantity: 1, finalPrice: "", note: "" })
+          setAddTotalOverride("")
+          setAddTotalMode("auto")
+          setAddLastPriceInfo(null)
+          modalRef?.current?.close()
+          window.location.href = '/purchases'
+        })
+      }
+      else {
+        try {
+          await db.purchases.put({
+            tmpPurchaseOrderNumber: generateTmpPurchaseOrderNumber(),
+            ...JSON.parse(body)
+          })
+          console.log('berhasil simpan purchase offline')
+          await loadOfflinePurchases()
+          alert("Data pembelian berhasil disimpan secara lokal (offline) dan menunggu sinkronisasi.")
+          newPrForm.reset()
+          setAddItems([])
+          setAddItemDraft({ productId: "", itemType: "inventory", quantity: 1, finalPrice: "", note: "" })
+          setAddTotalOverride("")
+          setAddTotalMode("auto")
+          setAddLastPriceInfo(null)
+          modalRef?.current?.close()
+          syncModalRef.current?.showModal()
+        }
+        catch (e: any) {
+          console.log(e)
+          alert("Gagal menyimpan pembelian offline: " + (e?.message || e))
+        }
+        finally {
+          const data = await db.purchases.toArray()
+          console.log(data)
+        }
+      }
 
       return
     }
@@ -1449,6 +1827,10 @@ function Purchases() {
   }, [editItems])
 
   useEffect(() => {
+    loadOfflinePurchases()
+  }, [hasHydrated, isOnline])
+
+  useEffect(() => {
     if (!hasHydrated) return
 
     setSearchResult([])
@@ -1485,15 +1867,46 @@ function Purchases() {
     }
 
     if (filterType === "procurement") {
-      getItemsFn.fn(
-        `/api/web/inv-items?id=${masterAccountId}`,
-        body,
-        setItems
-      )
+      getItemsFn.fn(`/api/web/inv-items?id=${masterAccountId}`, body, async (r) => {
+        setItems(r)
+
+        try {
+          await db.invItems.bulkPut(r)
+          console.log('berhasil simpan inventory offline')
+        }
+        catch (e: any) {
+          console.log(e)
+        }
+        finally {
+          const data = await db.invItems.toArray()
+          console.log(data)
+        }
+      })
+
+
       getAssetsFn.fn(
         `/api/web/assets?id=${masterAccountId}`,
         body,
         setAssets
+      )
+
+      getAssetsFn.fn(
+        `/api/web/assets?id=${masterAccountId}`,
+        body,
+        async (r) => {
+          setAssets(r)
+          try {
+            await db.assets.bulkPut(r)
+            console.log('berhasil simpan asset offline')
+          }
+          catch (e: any) {
+            console.log("gagal simpan asset offline")
+          }
+          finally {
+            const data = await db.assets.toArray()
+            console.log(data)
+          }
+        }
       )
     }
 
@@ -1532,9 +1945,95 @@ function Purchases() {
   return (
     <>
       <div className="min-h-full p-3 md:p-6 flex flex-col gap-3 text-black">
-        <span className="text-2xl text-black">
-          Purchases Requisition
-        </span>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-2xl text-black">
+            Purchases Requisition
+          </span>
+
+          <div className="flex items-center gap-2">
+            {offlinePurchases.length > 0 && (
+              <button
+                type="button"
+                onClick={() => syncModalRef.current?.showModal()}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors shadow-xs cursor-pointer"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span className="hidden sm:inline">Perlu Sinkronisasi</span>
+                <span className="badge badge-sm bg-amber-600 text-white border-none font-bold">
+                  {offlinePurchases.length}
+                </span>
+              </button>
+            )}
+
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${isOnline
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+                }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-500" : "bg-red-500"
+                  }`}
+              />
+
+              {isOnline ? "Online" : "Offline"}
+            </div>
+          </div>
+        </div>
+
+        {/* BANNER NOTIFIKASI SINKRONISASI (JIKA ADA DATA) */}
+        {offlinePurchases.length > 0 && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-amber-950 text-sm">
+                  Terdapat {offlinePurchases.length} data purchase offline yang perlu disinkronisasi
+                </p>
+                <p className="text-xs text-amber-800 hidden sm:block">
+                  Data ini tersimpan sementara di perangkat lokal Anda.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => syncModalRef.current?.showModal()}
+                className="btn btn-sm btn-outline border-amber-400 text-amber-900 hover:bg-amber-100 text-xs"
+              >
+                Lihat Daftar ({offlinePurchases.length})
+              </button>
+              <button
+                type="button"
+                disabled={isSyncingAll}
+                onClick={syncAllOfflinePurchases}
+                className={`btn btn-sm text-white font-medium gap-1.5 shadow-xs text-xs ${isOnline && !isSyncingAll
+                  ? "bg-amber-600 hover:bg-amber-700 border-amber-700"
+                  : "bg-gray-400 border-gray-400 cursor-not-allowed"
+                  }`}
+              >
+                {isSyncingAll ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs" />
+                    Menyinkronkan...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Sinkronkan Semua
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           {/* FILTER */}
@@ -2075,7 +2574,7 @@ function Purchases() {
                               Purchase Details
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {selectedPurchase.purchaseOrderNumber}
+                              {selectedPurchase.purchaseOrderNumber || selectedPurchase.tmpPurchaseOrderNumber}
                             </p>
                           </div>
 
@@ -2095,21 +2594,21 @@ function Purchases() {
                                 <th className="text-center">Qty</th>
                                 <th className="text-right">Harga/unit</th>
                                 <th className="text-right">Subtotal</th>
-                                {selectedPurchase.items.some((it: any) => it.note) && (
+                                {selectedPurchase.items?.some((it: any) => it.note) && (
                                   <th>Note</th>
                                 )}
                               </tr>
                             </thead>
 
                             <tbody>
-                              {selectedPurchase.items.map((it: any, idx: number) => {
+                              {selectedPurchase.items?.map((it: any, idx: number) => {
                                 const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
-                                const pName = filterType === "procurement"
+                                const pName = it.productName || (filterType === "procurement"
                                   ? (isAsset ? `${it.product?.name || fAsset(it.productId)?.name || "-"}` : (it.product?.name || "-"))
-                                  : it.product?.productName || ""
+                                  : it.product?.productName || fAsset(it.productId)?.name || items?.find((p: any) => p._id === it.productId)?.name || products?.find((p: any) => p._id === it.productId)?.productName || "-")
 
                                 const pUnit = isAsset
-                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || it.product.unit.name)
+                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || it.product?.unit?.name || "Unit")
                                   : filterType === "procurement"
                                     ? (typeof it.product?.unit === "string" ? it.product?.unit : it.product?.unit?.symbol || "")
                                     : it.product?.conversionRatioX || ""
@@ -2172,6 +2671,554 @@ function Purchases() {
           }
         </div>
       </div >
+
+      {/* =====================================================
+          MODAL SINKRONISASI DATA PURCHASE OFFLINE
+      ===================================================== */}
+      <dialog
+        ref={syncModalRef}
+        className="modal text-slate-900"
+      >
+        <div className="modal-box w-11/12 max-w-5xl max-h-[90vh] flex flex-col p-4 md:p-6 rounded-xl bg-white shadow-xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  To sync
+                  <span className="badge badge-sm bg-amber-600 text-white border-none font-bold">
+                    {offlinePurchases.length}
+                  </span>
+                </h3>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-circle btn-ghost"
+              onClick={() => syncModalRef.current?.close()}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Table Listing */}
+          <div className="flex-1 overflow-y-auto my-4 border rounded-lg border-gray-200">
+            {offlinePurchases.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">
+                Tidak ada data purchase yang perlu disinkronisasi.
+              </div>
+            ) : (
+              <table className="table table-sm text-center w-full">
+                <thead className="bg-amber-100/70 text-amber-900 font-semibold text-xs sticky top-0 z-10">
+                  <tr>
+                    <th>Waktu / Tanggal</th>
+                    <th>No. PO Sementara</th>
+                    <th>Tipe</th>
+                    <th>Supplier / Vendor</th>
+                    <th>Item / Produk</th>
+                    <th>Total Harga</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offlinePurchases.map((item, idx) => {
+                    const itemCount = Array.isArray(item.items) ? item.items.length : 0
+                    const firstItem = itemCount > 0 ? item.items[0] : null
+                    const firstItemName = firstItem
+                      ? (firstItem.productName || firstItem._productLabel || (firstItem.productId ? (products?.find((p: any) => p._id === firstItem.productId)?.productName || items?.find((p: any) => p._id === firstItem.productId)?.name || assets?.find((p: any) => p._id === firstItem.productId)?.name || firstItem.productId) : "-"))
+                      : "-"
+                    const displayItemText = itemCount > 1
+                      ? `${itemCount} Item (${firstItemName}, ...)`
+                      : firstItemName
+
+                    const formattedDate = item.date
+                      ? new Date(item.date).toLocaleDateString("id-ID", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                      : "-"
+
+                    const totalAmount = item.finalPrice || 0
+
+                    return (
+                      <tr key={item.tmpPurchaseOrderNumber || idx} className="hover:bg-amber-50/50">
+                        <td className="text-xs text-gray-700 whitespace-nowrap">{formattedDate}</td>
+                        <td className="font-mono text-xs font-bold text-gray-800 whitespace-nowrap">
+                          {item.tmpPurchaseOrderNumber}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge badge-xs text-white capitalize ${item.purchaseType === "product"
+                              ? "bg-blue-600"
+                              : item.purchaseType === "procurement"
+                                ? "bg-teal-600"
+                                : "bg-purple-600"
+                              }`}
+                          >
+                            {item.purchaseType || "product"}
+                          </span>
+                        </td>
+                        <td className="text-xs text-gray-700">
+                          {item.customSupplier || item.supplierId || item.vendorId || "-"}
+                        </td>
+                        <td
+                          className={`text-xs ${itemCount > 0 ? "cursor-pointer text-blue-700 underline font-medium" : "text-gray-700"}`}
+                          onClick={() => {
+                            if (itemCount > 0) {
+                              setSelectedPurchase(item)
+                            }
+                          }}
+                          title={itemCount > 0 ? "Klik untuk melihat detail item" : undefined}
+                        >
+                          {displayItemText}
+                        </td>
+                        <td className="text-xs font-semibold text-gray-900 whitespace-nowrap">
+                          Rp {totalAmount.toLocaleString("id-ID")}
+                        </td>
+                        <td>
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* Tombol Sinkron Entity Ini */}
+                            <button
+                              type="button"
+                              disabled={isSyncingAll || syncingItemPoNumber === item.tmpPurchaseOrderNumber}
+                              className={`btn btn-xs font-semibold gap-1 ${isOnline && syncingItemPoNumber !== item.tmpPurchaseOrderNumber
+                                ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700"
+                                : "bg-gray-200 text-gray-400 border-none cursor-not-allowed"
+                                }`}
+                              onClick={() => syncSingleOfflinePurchase(item)}
+                              title="Sinkronkan data ini ke server"
+                            >
+                              {syncingItemPoNumber === item.tmpPurchaseOrderNumber ? (
+                                <>
+                                  <span className="loading loading-spinner loading-xs" />
+                                  <span className="text-[10px]">Sync...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                                  </svg>
+                                  Sinkron
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={isSyncingAll || syncingItemPoNumber === item.tmpPurchaseOrderNumber}
+                              className="btn btn-ghost btn-xs text-amber-700 hover:bg-amber-100 font-medium"
+                              onClick={() => openEditOffline(item)}
+                              title="Edit pembelian offline"
+                            >
+                              Edit
+                            </button>
+                            {itemCount > 0 && (
+                              <button
+                                type="button"
+                                disabled={isSyncingAll || syncingItemPoNumber === item.tmpPurchaseOrderNumber}
+                                className="btn btn-ghost btn-xs text-blue-700 hover:bg-blue-50 font-medium"
+                                onClick={() => setSelectedPurchase(item)}
+                                title="Lihat detail item"
+                              >
+                                Detail
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={isSyncingAll || syncingItemPoNumber === item.tmpPurchaseOrderNumber}
+                              className="btn btn-ghost btn-xs text-red-600 hover:bg-red-50 font-medium"
+                              onClick={() => deleteOfflinePurchase(item.tmpPurchaseOrderNumber)}
+                              title="Hapus draft offline"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="modal-action mt-0 flex items-center justify-between border-t border-gray-200 pt-3">
+            <span className="text-xs text-gray-500">
+              Status Jaringan: <strong className={isOnline ? "text-green-600" : "text-red-500"}>{isOnline ? "Online" : "Offline"}</strong>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                onClick={() => syncModalRef.current?.close()}
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                disabled={offlinePurchases.length === 0 || isSyncingAll}
+                onClick={syncAllOfflinePurchases}
+                className={`btn btn-sm text-white font-medium gap-1.5 ${isOnline && offlinePurchases.length > 0 && !isSyncingAll
+                  ? "bg-amber-600 hover:bg-amber-700 border-amber-700"
+                  : "bg-gray-400 border-gray-400 cursor-not-allowed"
+                  }`}
+              >
+                {isSyncingAll ? (
+                  <>
+                    <span className="loading loading-spinner loading-xs" />
+                    Menyinkronkan Semua...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    Sinkronkan Semua ({offlinePurchases.length})
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => syncModalRef.current?.close()}>close</button>
+        </form>
+      </dialog>
+
+      {/* =====================================================
+          MODAL EDIT PURCHASE OFFLINE
+      ===================================================== */}
+      <dialog
+        ref={editOfflineModalRef}
+        className="modal text-slate-900"
+      >
+        <div className="modal-box w-11/12 max-w-4xl max-h-[90vh] flex flex-col p-4 md:p-6 rounded-xl bg-white shadow-xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  Edit Pembelian Offline
+                  <span className="badge badge-sm bg-amber-600 text-white border-none font-bold">
+                    Draft Offline
+                  </span>
+                </h3>
+                <p className="text-xs text-gray-500 font-mono">
+                  {editingOfflinePurchase?.tmpPurchaseOrderNumber}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-sm btn-circle btn-ghost"
+              onClick={() => editOfflineModalRef.current?.close()}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            {/* Informasi Umum */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-3.5 rounded-lg border border-gray-200">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-700">Tanggal Transaksi</label>
+                <input
+                  type="date"
+                  className="input input-bordered w-full text-sm h-10 bg-white"
+                  value={offlineEditDate}
+                  onChange={(e) => setOfflineEditDate(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-gray-700">Supplier / Vendor</label>
+                <input
+                  type="text"
+                  placeholder="Nama supplier / vendor"
+                  className="input input-bordered w-full text-sm h-10 bg-white"
+                  value={offlineEditSupplier}
+                  onChange={(e) => setOfflineEditSupplier(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Jika tipe JASA */}
+            {editingOfflinePurchase?.purchaseType === "service" ? (
+              <div className="flex flex-col gap-3 p-3.5 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700">Deskripsi Jasa</label>
+                  <textarea
+                    rows={3}
+                    className="textarea textarea-bordered w-full text-sm bg-white"
+                    placeholder="Deskripsi jasa yang dibutuhkan..."
+                    value={offlineEditDescription}
+                    onChange={(e) => setOfflineEditDescription(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700">Total Biaya Jasa (Rp)</label>
+                  <NumericFormat
+                    className="input input-bordered w-full text-sm h-10 bg-white"
+                    thousandSeparator="."
+                    decimalSeparator=","
+                    decimalScale={0}
+                    allowNegative={false}
+                    placeholder="0"
+                    value={offlineEditServicePrice}
+                    onValueChange={(vals) => setOfflineEditServicePrice(parseFloat(vals.value) || 0)}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* Jika tipe PRODUCT / PROCUREMENT */
+              <div className="flex flex-col gap-3">
+                {/* Form Tambah Item Baru */}
+                <div className="p-3.5 bg-blue-50/60 rounded-lg border border-blue-200 flex flex-col gap-3">
+                  <span className="text-xs font-bold text-blue-900 uppercase tracking-wide">
+                    + Tambah Item ke Pembelian
+                  </span>
+
+                  {editingOfflinePurchase?.purchaseType === "procurement" && (
+                    <div className="flex items-center gap-6 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="offlineEditItemType"
+                          checked={offlineEditItemDraft.itemType !== "asset"}
+                          onChange={() => setOfflineEditItemDraft((d: any) => ({ ...d, itemType: "inventory", productId: "" }))}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="text-gray-800 font-medium">Inventory Item</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="offlineEditItemType"
+                          checked={offlineEditItemDraft.itemType === "asset"}
+                          onChange={() => setOfflineEditItemDraft((d: any) => ({ ...d, itemType: "asset", productId: "" }))}
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="text-blue-900 font-semibold">Company Asset</span>
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                    {/* Select Item */}
+                    <div className="md:col-span-5 flex flex-col gap-1">
+                      <label className="text-xs text-gray-600 font-medium">
+                        {editingOfflinePurchase?.purchaseType === "product" ? "Pilih Produk" : (offlineEditItemDraft.itemType === "asset" ? "Pilih Aset" : "Pilih Item")}
+                      </label>
+                      <select
+                        className="input input-bordered w-full text-xs h-9 bg-white"
+                        value={offlineEditItemDraft.productId}
+                        onChange={(e) => setOfflineEditItemDraft((d: any) => ({ ...d, productId: e.target.value }))}
+                      >
+                        <option value="">-- Pilih --</option>
+                        {editingOfflinePurchase?.purchaseType === "product"
+                          ? products?.map((product: any) => (
+                            <option key={product._id} value={product._id}>
+                              {product.productName} ({product.conversionRatioX})
+                            </option>
+                          ))
+                          : offlineEditItemDraft.itemType === "asset"
+                            ? assets?.map((asset: any) => (
+                              <option key={asset._id} value={asset._id}>
+                                {asset.name} ({asset.measurement})
+                              </option>
+                            ))
+                            : items?.map((item: any) => (
+                              <option key={item._id} value={item._id}>
+                                {item.name} ({item?.unit?.symbol || item?.unit || "Unit"})
+                              </option>
+                            ))}
+                      </select>
+                    </div>
+
+                    {/* Qty */}
+                    <div className="md:col-span-2 flex flex-col gap-1">
+                      <label className="text-xs text-gray-600 font-medium">Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="input input-bordered w-full text-xs h-9 bg-white"
+                        value={offlineEditItemDraft.quantity}
+                        onChange={(e) => setOfflineEditItemDraft((d: any) => ({ ...d, quantity: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Subtotal */}
+                    <div className="md:col-span-3 flex flex-col gap-1">
+                      <label className="text-xs text-gray-600 font-medium">Subtotal (Rp)</label>
+                      <NumericFormat
+                        className="input input-bordered w-full text-xs h-9 bg-white"
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        decimalScale={0}
+                        allowNegative={false}
+                        placeholder="0"
+                        value={offlineEditItemDraft.finalPrice}
+                        onValueChange={(vals) => setOfflineEditItemDraft((d: any) => ({ ...d, finalPrice: vals.value }))}
+                      />
+                    </div>
+
+                    {/* Tombol Tambah */}
+                    <div className="md:col-span-2">
+                      <button
+                        type="button"
+                        onClick={addOfflineEditItem}
+                        className="btn btn-sm bg-blue-900 hover:bg-blue-800 text-white w-full h-9 text-xs"
+                      >
+                        Tambah
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Note */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-600 font-medium">Catatan Item (opsional)</label>
+                    <input
+                      type="text"
+                      placeholder="Misal: merk, spesifikasi..."
+                      className="input input-bordered w-full text-xs h-8 bg-white"
+                      value={offlineEditItemDraft.note}
+                      onChange={(e) => setOfflineEditItemDraft((d: any) => ({ ...d, note: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Daftar Item Saat Ini */}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 flex items-center justify-between">
+                    <span>Daftar Item ({offlineEditItems.length})</span>
+                    <span className="text-gray-500 font-normal">Ubah Qty, Subtotal, atau Catatan langsung di baris</span>
+                  </div>
+
+                  {offlineEditItems.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-gray-500">
+                      Belum ada item dalam pembelian ini. Silakan tambahkan item di atas.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="table table-xs w-full text-center">
+                        <thead className="bg-gray-50 text-gray-600">
+                          <tr>
+                            <th className="w-10">No</th>
+                            <th className="text-left">Produk / Item</th>
+                            <th className="w-24">Qty</th>
+                            <th className="w-36 text-right">Subtotal (Rp)</th>
+                            <th className="text-left">Catatan</th>
+                            <th className="w-16">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {offlineEditItems.map((it, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50/60">
+                              <td>{idx + 1}</td>
+                              <td className="text-left font-medium text-gray-900">
+                                {it.productName || it._productLabel || it.productId}
+                                {it.itemType === "asset" && (
+                                  <span className="badge badge-xs bg-blue-100 text-blue-800 ml-1.5 border-none">Aset</span>
+                                )}
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  className="input input-bordered input-xs w-20 text-center bg-white"
+                                  value={it.quantity}
+                                  onChange={(e) => updateOfflineEditItemQty(idx, parseFloat(e.target.value) || 1)}
+                                />
+                              </td>
+                              <td className="text-right">
+                                <NumericFormat
+                                  className="input input-bordered input-xs w-32 text-right bg-white"
+                                  thousandSeparator="."
+                                  decimalSeparator=","
+                                  decimalScale={0}
+                                  allowNegative={false}
+                                  value={it.finalPrice}
+                                  onValueChange={(vals) => updateOfflineEditItemPrice(idx, parseFloat(vals.value) || 0)}
+                                />
+                              </td>
+                              <td className="text-left">
+                                <input
+                                  type="text"
+                                  placeholder="Catatan..."
+                                  className="input input-bordered input-xs w-full bg-white"
+                                  value={it.note || ""}
+                                  onChange={(e) => updateOfflineEditItemNote(idx, e.target.value)}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  onClick={() => removeOfflineEditItem(idx)}
+                                  className="btn btn-ghost btn-xs text-red-600 hover:bg-red-50"
+                                  title="Hapus item"
+                                >
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total Ringkasan */}
+                <div className="flex items-center justify-between p-3.5 bg-amber-50/70 border border-amber-200 rounded-lg">
+                  <span className="font-semibold text-amber-950 text-sm">Total Pembelian:</span>
+                  <span className="font-bold text-amber-900 text-base">
+                    Rp {offlineEditItems.reduce((sum, it) => sum + (parseFloat(it.finalPrice) || 0), 0).toLocaleString("id-ID")}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="modal-action mt-0 flex items-center justify-between border-t border-gray-200 pt-3">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => editOfflineModalRef.current?.close()}
+            >
+              Batal
+            </button>
+
+            <button
+              type="button"
+              onClick={saveOfflineEdit}
+              className="btn btn-sm bg-blue-900 hover:bg-blue-800 text-white font-medium"
+            >
+              Simpan Perubahan
+            </button>
+          </div>
+        </div>
+
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => editOfflineModalRef.current?.close()}>close</button>
+        </form>
+      </dialog>
 
       {/* =====================================================
           MODAL EDIT REQUISITION
