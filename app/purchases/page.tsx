@@ -83,7 +83,8 @@ function Purchases() {
     try {
       const data = await db.purchases.toArray()
       setOfflinePurchases(data || [])
-    } catch (e: any) {
+    }
+    catch (e: any) {
       console.error("Gagal membaca database offline purchases:", e)
     }
   }

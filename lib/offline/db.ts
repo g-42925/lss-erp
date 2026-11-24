@@ -1,6 +1,11 @@
 import Dexie from "dexie"
+import { type Table } from "dexie"
 
 class ERPDatabase extends Dexie {
+	invItems!: Table<any>
+	assets!: Table<any>
+	purchases!: Table<any>
+
 	constructor() {
 		super("lss-erp")
 
@@ -14,7 +19,7 @@ class ERPDatabase extends Dexie {
 
 export const db = new ERPDatabase()
 
-db.on('versionchange', () => {
+db.on("versionchange", () => {
 	db.close()
-	console.warn('Database closed because another connection wants to upgrade')
+	console.warn("Database closed because another connection wants to upgrade")
 })
