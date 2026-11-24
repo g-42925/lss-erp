@@ -24,6 +24,23 @@ import {
   Link01Icon
 } from "@hugeicons/core-free-icons"
 
+function getUnitString(unit: any): string {
+  if (!unit) return ""
+  if (typeof unit === "string") return unit
+  return unit.symbol || unit.name || ""
+}
+
+function cleanProductName(name: any): string {
+  if (!name) return ""
+  if (typeof name !== "string") {
+    return name?.productName || name?.name || ""
+  }
+  return name
+    .replace(/\s*\(\[object Object\]\)/gi, "")
+    .replace(/\[object Object\]/gi, "")
+    .trim()
+}
+
 function Purchases() {
   const user = useAuth((state) => state.userId)
   const masterAccountId = useAuth((state) => state.masterAccountId)
@@ -239,17 +256,19 @@ function Purchases() {
     const type = purchase.purchaseType || "product"
     const loadedItems = Array.isArray(purchase.items)
       ? purchase.items.map((it: any) => {
-        let label = it.productName || it._productLabel || ""
+        let label = cleanProductName(it.productName || it._productLabel || "")
         if (!label) {
           if (it.itemType === "asset") {
             const a = assets?.find((x: any) => String(x._id) === String(it.productId))
             label = a ? `${a.name} (${a.measurement || "Unit"})` : it.productId
           } else if (type === "procurement") {
             const item = items?.find((x: any) => String(x._id) === String(it.productId))
-            label = item ? `${item.name} (${item?.unit?.symbol || item?.unit || "Unit"})` : it.productId
+            const u = getUnitString(item?.unit)
+            label = item ? `${item.name}${u ? ` (${u})` : ""}` : it.productId
           } else {
             const prod = products?.find((x: any) => String(x._id) === String(it.productId))
-            label = prod ? `${prod.productName} (${prod.conversionRatioX || ""})` : it.productId
+            const u = getUnitString(prod?.conversionRatioX)
+            label = prod ? `${prod.productName}${u ? ` (${u})` : ""}` : it.productId
           }
         }
         return {
@@ -302,10 +321,12 @@ function Purchases() {
       productLabel = `${prod?.name || "Asset"} (${prod?.measurement || "Unit"})`
     } else if (type === "procurement") {
       prod = items?.find((p: any) => String(p._id) === String(offlineEditItemDraft.productId))
-      productLabel = `${prod?.name || "Item"} (${prod?.unit?.symbol || prod?.unit || "Unit"})`
+      const u = getUnitString(prod?.unit)
+      productLabel = `${prod?.name || "Item"}${u ? ` (${u})` : ""}`
     } else {
       prod = products?.find((p: any) => String(p._id) === String(offlineEditItemDraft.productId))
-      productLabel = `${prod?.productName || "Produk"} (${prod?.conversionRatioX || ""})`
+      const u = getUnitString(prod?.conversionRatioX)
+      productLabel = `${prod?.productName || "Produk"}${u ? ` (${u})` : ""}`
     }
 
     const subtotal = offlineEditItemDraft.finalPrice !== "" ? parseFloat(offlineEditItemDraft.finalPrice) || 0 : 0
@@ -1046,10 +1067,12 @@ function Purchases() {
       productLabel = `${prod?.name || "Asset"} (${prod?.measurement || "Unit"})`
     } else if (filterType === "procurement") {
       prod = items.find((p: any) => p._id === addItemDraft.productId)
-      productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
+      const u = getUnitString(prod?.unit)
+      productLabel = `${prod?.name || ""}${u ? ` (${u})` : ""}`
     } else {
       prod = products.find((p: any) => p._id === addItemDraft.productId)
-      productLabel = `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`
+      const u = getUnitString(prod?.conversionRatioX)
+      productLabel = `${prod?.productName || ""}${u ? ` (${u})` : ""}`
     }
 
     setAddItems(prev => [...prev, {
@@ -1102,11 +1125,13 @@ function Purchases() {
     }
     else if (filterType === "procurement") {
       prod = items.find((p: any) => p._id === editItemDraft.productId)
-      productLabel = `${prod?.name || ""} (${prod?.unit || ""})`
+      const u = getUnitString(prod?.unit)
+      productLabel = `${prod?.name || ""}${u ? ` (${u})` : ""}`
     }
     else {
       prod = products.find((p: any) => p._id === editItemDraft.productId)
-      productLabel = `${prod?.productName || ""} (${prod?.conversionRatioX || ""})`
+      const u = getUnitString(prod?.conversionRatioX)
+      productLabel = `${prod?.productName || ""}${u ? ` (${u})` : ""}`
     }
 
     setEditItems(prev => [...prev, {
@@ -1680,11 +1705,13 @@ function Purchases() {
 
           let label = ""
           if (filterType === "procurement") {
+            const u = getUnitString(prod?.unit || it.product?.unit)
             label = isAsset
               ? `${prod?.name || it.product?.name || "Asset"} (${prod?.category?.name || it.product?.category?.name || "Aset"})`
-              : `${prod?.name || it.product?.name || "Item"} (${prod?.unit || it.product?.unit || ""})`
+              : `${prod?.name || it.product?.name || "Item"}${u ? ` (${u})` : ""}`
           } else {
-            label = `${prod?.productName || it.product?.productName || "Produk"} (${prod?.conversionRatioX || it.product?.conversionRatioX || ""})`
+            const u = getUnitString(prod?.conversionRatioX || it.product?.conversionRatioX)
+            label = `${prod?.productName || it.product?.productName || "Produk"}${u ? ` (${u})` : ""}`
           }
 
           fPriceX += it.finalPrice
@@ -2574,15 +2601,20 @@ function Purchases() {
                             <tbody>
                               {selectedPurchase.items?.map((it: any, idx: number) => {
                                 const isAsset = it.itemType === "asset" || (filterType === "procurement" && it.product?.category && !it.product?.conversionRatioX)
-                                const pName = it.productName || (filterType === "procurement"
-                                  ? (isAsset ? `${it.product?.name || fAsset(it.productId)?.name || "-"}` : (it.product?.name || "-"))
-                                  : it.product?.productName || fAsset(it.productId)?.name || items?.find((p: any) => p._id === it.productId)?.name || products?.find((p: any) => p._id === it.productId)?.productName || "-")
+                                const rawPName = (
+                                  filterType === "procurement"
+                                    ? (isAsset ? (it.product?.name || fAsset(it.productId)?.name) : (it.product?.name || items?.find((p: any) => p._id === it.productId)?.name))
+                                    : (it.product?.productName || products?.find((p: any) => p._id === it.productId)?.productName || fAsset(it.productId)?.name || items?.find((p: any) => p._id === it.productId)?.name || it.product?.name)
+                                ) || it.productName || "-"
 
-                                const pUnit = isAsset
-                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || it.product?.unit?.name || "Unit")
+                                const pName = cleanProductName(rawPName) || "-"
+
+                                const pUnitRaw = isAsset
+                                  ? (it.product?.measurement || fAsset(it.productId)?.measurement || it.product?.unit?.name || it.product?.unit?.symbol || "Unit")
                                   : filterType === "procurement"
-                                    ? (typeof it.product?.unit === "string" ? it.product?.unit : it.product?.unit?.symbol || "")
-                                    : it.product?.conversionRatioX || ""
+                                    ? (typeof it.product?.unit === "string" ? it.product?.unit : it.product?.unit?.symbol || it.product?.unit?.name || "")
+                                    : (typeof it.product?.conversionRatioX === "string" ? it.product?.conversionRatioX : it.product?.conversionRatioX?.name || it.product?.conversionRatioX?.symbol || "")
+                                const pUnit = typeof pUnitRaw === "string" ? pUnitRaw : ""
 
                                 const hasNotes = selectedPurchase.items.some(
                                   (x: any) => x.note
@@ -2694,7 +2726,7 @@ function Purchases() {
                     <th>Supplier / Vendor</th>
                     <th>Item / Produk</th>
                     <th>Total Harga</th>
-                    <th>Aksi</th>
+                    <th>...</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2702,7 +2734,7 @@ function Purchases() {
                     const itemCount = Array.isArray(item.items) ? item.items.length : 0
                     const firstItem = itemCount > 0 ? item.items[0] : null
                     const firstItemName = firstItem
-                      ? (firstItem.productName || firstItem._productLabel || (firstItem.productId ? (products?.find((p: any) => p._id === firstItem.productId)?.productName || items?.find((p: any) => p._id === firstItem.productId)?.name || assets?.find((p: any) => p._id === firstItem.productId)?.name || firstItem.productId) : "-"))
+                      ? cleanProductName(firstItem.productName || firstItem._productLabel || (firstItem.productId ? (products?.find((p: any) => p._id === firstItem.productId)?.productName || items?.find((p: any) => p._id === firstItem.productId)?.name || assets?.find((p: any) => p._id === firstItem.productId)?.name || firstItem.productId) : "-")) || "-"
                       : "-"
                     const displayItemText = itemCount > 1
                       ? `${itemCount} Item (${firstItemName}, ...)`
@@ -2793,17 +2825,6 @@ function Purchases() {
                             >
                               Edit
                             </button>
-                            {itemCount > 0 && (
-                              <button
-                                type="button"
-                                disabled={isSyncingAll || syncingItemPoNumber === item.tmpPurchaseOrderNumber}
-                                className="btn btn-ghost btn-xs text-blue-700 hover:bg-blue-50 font-medium"
-                                onClick={() => setSelectedPurchase(item)}
-                                title="Lihat detail item"
-                              >
-                                Detail
-                              </button>
-                            )}
                             <button
                               type="button"
                               disabled={isSyncingAll || syncingItemPoNumber === item.tmpPurchaseOrderNumber}
