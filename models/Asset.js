@@ -59,6 +59,10 @@ const AssetSchema = new mongoose.Schema({
   measurement: {
     type: String,
     required: true
+  },
+  desc: {
+    type: String,
+    default: ''
   }
 }, { timestamps: true });
 

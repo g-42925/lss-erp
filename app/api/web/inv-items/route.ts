@@ -191,24 +191,6 @@ export async function PUT(request: NextRequest) {
       result: null, error: true
     });
 
-    const existingItem = await InvItem.findOne({ _id: itemId, companyId: company._id });
-    if (!existingItem) return NextResponse.json({
-      noResult: true,
-      message: 'Item not found',
-      result: null,
-      error: true
-    });
-
-    const oldType = existingItem.itemType?.trim();
-    const newType = itemType?.trim();
-
-    // Jika type berubah, semua item lain yang bertipe sama ikut berubah
-    if (oldType && newType && oldType !== newType) {
-      await InvItem.updateMany(
-        { companyId: company._id, itemType: oldType },
-        { $set: { itemType: newType } }
-      );
-    }
 
     if (ftb) {
       payload = {
@@ -216,7 +198,7 @@ export async function PUT(request: NextRequest) {
         unit: unit,
         category: category?.trim() ?? '',
         ftb: ftb,
-        itemType: newType !== undefined ? newType : itemType
+        itemType
       }
     }
     else {
@@ -224,7 +206,7 @@ export async function PUT(request: NextRequest) {
         name: name.trim(),
         unit: unit,
         category: category?.trim() ?? '',
-        itemType: newType !== undefined ? newType : itemType
+        itemType
       }
     }
 
@@ -236,7 +218,7 @@ export async function PUT(request: NextRequest) {
       {
         new: true
       }
-    ).populate('unit').populate('ftb');
+    );
 
     if (!item) return NextResponse.json({
       noResult: true,
@@ -259,58 +241,6 @@ export async function PUT(request: NextRequest) {
       message: (e as Error).message,
       result: null,
       error: true
-    });
-  }
-}
-
-// ─── PATCH /api/web/inv-items ──────────────────────────────────────────────────
-// Updates itemType across all entities that share the old type.
-// Body: { id (masterAccountId), oldType, newType }
-export async function PATCH(request: NextRequest) {
-  try {
-    await connectToDatabase();
-    const body = await request.json();
-    const { id, oldType, newType } = body;
-
-    if (!id || !oldType?.trim() || !newType?.trim()) {
-      return NextResponse.json({
-        noResult: true,
-        message: 'id, oldType, and newType are required',
-        result: null,
-        error: true,
-      });
-    }
-
-    const company = await Companie.findOne({ masterAccountId: id });
-    if (!company) {
-      return NextResponse.json({
-        noResult: true,
-        message: 'Company not found',
-        result: null,
-        error: true,
-      });
-    }
-
-    const trimmedOld = oldType.trim();
-    const trimmedNew = newType.trim();
-
-    await InvItem.updateMany(
-      { companyId: company._id, itemType: trimmedOld },
-      { $set: { itemType: trimmedNew } }
-    );
-
-    return NextResponse.json({
-      noResult: false,
-      message: 'Entity types updated successfully',
-      result: { oldType: trimmedOld, newType: trimmedNew },
-      error: false,
-    });
-  } catch (e: unknown) {
-    return NextResponse.json({
-      noResult: true,
-      message: (e as Error).message,
-      result: null,
-      error: true,
     });
   }
 }

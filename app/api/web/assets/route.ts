@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       name: body.name,
       category: body.category,
       measurement: body.measurement,
+      desc: body.desc ?? "",
       companyId: company._id,
     });
 
@@ -81,6 +82,56 @@ export async function POST(request: NextRequest) {
       message: e instanceof Error ? e.message : "Server error",
       result: null
     });
+  }
+}
+
+// PUT — update an asset
+export async function PUT(request: NextRequest) {
+  try {
+    await connectToDatabase();
+
+    const body = await request.json();
+    const { _id, name, category, measurement, desc } = body;
+
+    if (!_id) {
+      return NextResponse.json({
+        error: true,
+        message: "Asset ID is required",
+        result: null
+      }, { status: 400 });
+    }
+
+    const updateData: Record<string, any> = {};
+    if (name !== undefined) updateData.name = name;
+    if (category !== undefined) updateData.category = category;
+    if (measurement !== undefined) updateData.measurement = measurement;
+    if (desc !== undefined) updateData.desc = desc;
+
+    const updated = await Asset.findByIdAndUpdate(
+      _id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).populate("category", "name");
+
+    if (!updated) {
+      return NextResponse.json({
+        error: true,
+        message: "Asset not found",
+        result: null
+      }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      error: false,
+      message: "Asset updated successfully",
+      result: updated
+    });
+  } catch (e: unknown) {
+    return NextResponse.json({
+      error: true,
+      message: e instanceof Error ? e.message : "Server error",
+      result: null
+    }, { status: 500 });
   }
 }
 

@@ -5,7 +5,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 
-import { AddCircleHalfDotIcon } from "@hugeicons/core-free-icons"
+import { AddCircleHalfDotIcon, Edit03Icon, Delete01Icon } from "@hugeicons/core-free-icons"
 
 
 import useAuth from "@/store/auth"
@@ -35,6 +35,7 @@ type Asset = {
   category: AssetCategory | null
   units: AssetUnit[]
   desc?: string
+  measurement?: string
   createdAt: string
 }
 
@@ -162,12 +163,13 @@ export default function AssetsPage() {
 
   // Filters
   const [search, setSearch] = useState("")
-  const [filterStatus, setFilterStatus] = useState("")
-  const [filterCondition, setFilterCondition] = useState("")
   const [filterCategory, setFilterCategory] = useState("")
+  const [assetUnitCondition, setAssetUnitCondition] = useState<Record<string, string>>({})
 
   // Modals
   const [showAddAsset, setShowAddAsset] = useState(false)
+  const [showEditAsset, setShowEditAsset] = useState(false)
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null)
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [showCategories, setShowCategories] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<Asset | null>(null)
@@ -177,13 +179,26 @@ export default function AssetsPage() {
   const [catName, setCatName] = useState("")
   const [catSaving, setCatSaving] = useState("")
   const [assetSaving, setAssetSaving] = useState(false)
+  const [editAssetSaving, setEditAssetSaving] = useState(false)
   const [formError, setFormError] = useState("")
+  const [editFormError, setEditFormError] = useState("")
 
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [showUnitModal, setShowUnitModal] = useState(false)
   const [savingUnit, setSavingUnit] = useState(false)
 
+  const [editingUnit, setEditingUnit] = useState<AssetUnit | null>(null)
+  const [showEditUnitModal, setShowEditUnitModal] = useState(false)
+  const [savingEditUnit, setSavingEditUnit] = useState(false)
+
   const [unitForm, setUnitForm] = useState<UnitForm>({
+    label: "",
+    condition: "good",
+    status: "active",
+    addedAt: new Date().toISOString().slice(0, 10)
+  })
+
+  const [editUnitForm, setEditUnitForm] = useState<UnitForm>({
     label: "",
     condition: "good",
     status: "active",
@@ -195,6 +210,15 @@ export default function AssetsPage() {
     name: "",
     category: "",
     measurement: "",
+    desc: ""
+  })
+
+  // Edit Asset form
+  const [editAssetForm, setEditAssetForm] = useState({
+    name: "",
+    category: "",
+    measurement: "",
+    desc: ""
   })
 
   const [unitForms, setUnitForms] = useState<UnitForm[]>([
@@ -264,6 +288,76 @@ export default function AssetsPage() {
     }
   }
 
+  const formatInputDate = (d?: string) => {
+    if (!d) return getLocalDate()
+    try {
+      return new Date(d).toISOString().slice(0, 10)
+    } catch {
+      return getLocalDate()
+    }
+  }
+
+  const handleOpenEditUnit = (asset: Asset, unit: AssetUnit) => {
+    setSelectedAsset(asset)
+    setEditingUnit(unit)
+    setEditUnitForm({
+      label: unit.label,
+      condition: unit.condition,
+      status: unit.status,
+      addedAt: formatInputDate(unit.addedAt)
+    })
+    setShowEditUnitModal(true)
+  }
+
+  const handleUpdateUnit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedAsset || !editingUnit) return
+
+    if (!editUnitForm.label.trim()) {
+      alert("Label unit wajib diisi")
+      return
+    }
+
+    try {
+      setSavingEditUnit(true)
+
+      const response = await fetch("/api/web/assets/units", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          masterAccountId,
+          assetId: selectedAsset._id,
+          unitId: editingUnit._id,
+          unit: editUnitForm
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || data.error) {
+        throw new Error(data.message || "Gagal memperbarui unit")
+      }
+
+      setAssets((prev) =>
+        prev.map((asset) =>
+          asset._id === data.result._id
+            ? data.result
+            : asset
+        )
+      )
+
+      setShowEditUnitModal(false)
+      setEditingUnit(null)
+      setSelectedAsset(null)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Terjadi kesalahan")
+    } finally {
+      setSavingEditUnit(false)
+    }
+  }
+
   // ─── Fetch ──────────────────────────────────────────────────────────────────
 
   const fetchAll = useCallback(async () => {
@@ -328,7 +422,8 @@ export default function AssetsPage() {
     setAssetForm({
       name: "",
       category: "",
-      measurement: ''
+      measurement: "",
+      desc: ""
     })
 
     setUnitForms([createUnit()])
@@ -398,15 +493,14 @@ export default function AssetsPage() {
       return
     }
 
+    if (!assetForm.measurement.trim()) {
+      setFormError("Satuan asset wajib diisi")
+      return
+    }
+
     setAssetSaving(true)
 
     try {
-      console.log({
-        masterAccountId,
-        name: assetForm.name.trim(),
-        category: assetForm.category,
-        measurement: assetForm.measurement
-      })
       const res = await fetch("/api/web/assets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -414,7 +508,8 @@ export default function AssetsPage() {
           masterAccountId,
           name: assetForm.name.trim(),
           category: assetForm.category,
-          measurement: assetForm.measurement
+          measurement: assetForm.measurement.trim(),
+          desc: assetForm.desc.trim()
         })
       })
 
@@ -436,6 +531,79 @@ export default function AssetsPage() {
     }
     finally {
       setAssetSaving(false)
+    }
+  }
+
+  // ─── Edit Asset ────────────────────────────────────────────────────────────
+
+  function handleOpenEdit(asset: Asset) {
+    setEditingAsset(asset)
+    setEditAssetForm({
+      name: asset.name || "",
+      category: asset.category?._id || "",
+      measurement: asset.measurement || "",
+      desc: asset.desc || ""
+    })
+    setEditFormError("")
+    setShowEditAsset(true)
+  }
+
+  async function handleUpdateAsset(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingAsset) return
+    setEditFormError("")
+
+    if (!editAssetForm.name.trim()) {
+      setEditFormError("Nama asset wajib diisi")
+      return
+    }
+
+    if (!editAssetForm.category) {
+      setEditFormError("Pilih kategori asset")
+      return
+    }
+
+    if (!editAssetForm.measurement.trim()) {
+      setEditFormError("Satuan asset wajib diisi")
+      return
+    }
+
+    setEditAssetSaving(true)
+
+    try {
+      const res = await fetch("/api/web/assets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          _id: editingAsset._id,
+          name: editAssetForm.name.trim(),
+          category: editAssetForm.category,
+          measurement: editAssetForm.measurement.trim(),
+          desc: editAssetForm.desc.trim()
+        })
+      })
+
+      const j = await res.json()
+
+      if (!res.ok || j.error) {
+        throw new Error(j.message || "Gagal memperbarui asset")
+      }
+
+      setAssets(prev =>
+        prev.map(a =>
+          a._id === editingAsset._id
+            ? { ...a, ...j.result, units: j.result.units ?? a.units }
+            : a
+        )
+      )
+      setShowEditAsset(false)
+      setEditingAsset(null)
+    } catch (e) {
+      setEditFormError(
+        e instanceof Error ? e.message : "Terjadi kesalahan"
+      )
+    } finally {
+      setEditAssetSaving(false)
     }
   }
 
@@ -461,32 +629,6 @@ export default function AssetsPage() {
     }
   }
 
-  // ─── Filtering ─────────────────────────────────────────────────────────────
-
-  const filtered = assets.filter(asset => {
-    const q = search.toLowerCase()
-
-    const matchSearch =
-      !q ||
-      asset.name.toLowerCase().includes(q)
-
-    const matchCategory =
-      !filterCategory ||
-      asset.category?._id === filterCategory
-
-    const matchingUnits = asset.units.filter(unit => {
-      const matchStatus =
-        !filterStatus || unit.status === filterStatus
-
-      const matchCondition =
-        !filterCondition || unit.condition === filterCondition
-
-      return matchStatus && matchCondition
-    })
-
-    return asset
-  })
-
   // ─── Statistics ────────────────────────────────────────────────────────────
 
   const allUnits = assets.flatMap(asset => asset.units ?? [])
@@ -504,6 +646,31 @@ export default function AssetsPage() {
   const damagedCount = allUnits.filter(
     unit => unit.condition === "damaged"
   ).length
+
+  // ─── Filtering ─────────────────────────────────────────────────────────────
+
+  const filtered = assets.filter(asset => {
+    const q = search.trim().toLowerCase()
+
+    const matchCategory =
+      !filterCategory || asset.category?._id === filterCategory
+
+    if (!matchCategory) return false
+
+    if (q) {
+      const matchAsset =
+        asset.name.toLowerCase().includes(q) ||
+        (asset.desc ?? "").toLowerCase().includes(q)
+
+      const matchUnit = (asset.units ?? []).some(unit =>
+        unit.label.toLowerCase().includes(q)
+      )
+
+      return matchAsset || matchUnit
+    }
+
+    return true
+  })
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -595,7 +762,7 @@ export default function AssetsPage() {
             <div className="flex-1 min-w-[180px]">
               <input
                 type="text"
-                placeholder="Cari nama, deskripsi, atau label..."
+                placeholder="Cari nama atau deskripsi asset..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
@@ -605,7 +772,7 @@ export default function AssetsPage() {
             <select
               value={filterCategory}
               onChange={e => setFilterCategory(e.target.value)}
-              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50"
+              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
             >
               <option value="">Semua Kategori</option>
               {categories.map(c => (
@@ -615,38 +782,10 @@ export default function AssetsPage() {
               ))}
             </select>
 
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50"
-            >
-              <option value="">Semua Status</option>
-              {STATUS_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filterCondition}
-              onChange={e => setFilterCondition(e.target.value)}
-              className="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-50"
-            >
-              <option value="">Semua Kondisi</option>
-              {CONDITION_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-
-            {(search || filterStatus || filterCondition || filterCategory) && (
+            {(search || filterCategory) && (
               <button
                 onClick={() => {
                   setSearch("")
-                  setFilterStatus("")
-                  setFilterCondition("")
                   setFilterCategory("")
                 }}
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-500 hover:bg-slate-100"
@@ -672,6 +811,23 @@ export default function AssetsPage() {
                 setShowAddAsset(true)
               }}
             />
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              <p className="text-3xl mb-2">🔍</p>
+              <p className="font-semibold text-slate-700">Tidak ada asset yang ditemukan</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Coba ubah kata kunci pencarian atau pilih kategori lain.
+              </p>
+              <button
+                onClick={() => {
+                  setSearch("")
+                  setFilterCategory("")
+                }}
+                className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Reset Filter
+              </button>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -695,37 +851,19 @@ export default function AssetsPage() {
                     <th className="text-left px-4 py-3.5 text-xs font-bold uppercase tracking-widest text-slate-400 hidden md:table-cell">
                       Deskripsi
                     </th>
-                    <th>...</th>
-                    <th className="px-4 py-3.5" />
+                    <th className="text-right px-5 py-3.5 text-xs font-bold uppercase tracking-widest text-slate-400">
+                      Aksi
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody className="divide-y divide-slate-50">
-                  {assets.map(asset => {
+                  {filtered.map(asset => {
                     const units = asset.units ?? []
-
+                    const currentCondition = assetUnitCondition[asset._id] || ""
                     const visibleUnits = units.filter(unit => {
-                      const matchStatus =
-                        !filterStatus || unit.status === filterStatus
-
-                      const matchCondition =
-                        !filterCondition || unit.condition === filterCondition
-
-                      const q = search.toLowerCase()
-
-                      const matchLabel =
-                        !q || unit.label.toLowerCase().includes(q)
-
-                      const matchAsset =
-                        !q ||
-                        asset.name.toLowerCase().includes(q) ||
-                        (asset.desc ?? "").toLowerCase().includes(q)
-
-                      return (
-                        matchStatus &&
-                        matchCondition &&
-                        (matchLabel || matchAsset)
-                      )
+                      if (!currentCondition) return true
+                      return unit.condition === currentCondition
                     })
 
                     const active = units.filter(
@@ -742,20 +880,23 @@ export default function AssetsPage() {
                       <tbody key={asset._id} className="contents">
                         <tr className="hover:bg-slate-50/60 transition-colors">
                           <td className="px-5 py-3.5">
-                            <button
-                              onClick={() => setExpandedAsset(
-                                expanded ? null : asset._id
-                              )}
-                              className="text-left"
-                            >
+                            <div>
                               <p className="font-semibold text-slate-800">
                                 {asset.name}
                               </p>
 
-                              <p className="text-xs text-violet-600 mt-0.5">
-                                {expanded ? "Sembunyikan unit ↑" : "Lihat unit ↓"}
-                              </p>
-                            </button>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpandedAsset(expanded ? null : asset._id)
+                                  }}
+                                  className="text-xs text-violet-600 hover:text-violet-800 font-semibold"
+                                >
+                                  {expanded ? "Tutup unit ↑" : "Lihat unit ↓"}
+                                </button>
+                              </div>
+                            </div>
                           </td>
 
                           <td className="px-4 py-3.5">
@@ -785,46 +926,135 @@ export default function AssetsPage() {
                               {asset.desc || "—"}
                             </p>
                           </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn"
-                              onClick={() => {
-                                setSelectedAsset(asset)
-                                setUnitForm({
-                                  label: "",
-                                  condition: "good",
-                                  status: "active",
-                                  addedAt: getLocalDate()
-                                })
-                                setShowUnitModal(true)
-                              }}
-                            >
+                          <td className="px-5 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                title="Tambah Unit"
+                                className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
+                                onClick={() => {
+                                  setSelectedAsset(asset)
+                                  setUnitForm({
+                                    label: "",
+                                    condition: "good",
+                                    status: "active",
+                                    addedAt: getLocalDate()
+                                  })
+                                  setShowUnitModal(true)
+                                }}
+                              >
+                                <HugeiconsIcon
+                                  icon={AddCircleHalfDotIcon}
+                                  size={18}
+                                  strokeWidth={1.5}
+                                />
+                              </button>
 
-                              <HugeiconsIcon
-                                icon={AddCircleHalfDotIcon}
-                                size={24}
-                                color="currentColor"
-                                strokeWidth={1.5}
-                              />
-                            </button>
+                              <button
+                                type="button"
+                                title="Edit Asset"
+                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                onClick={() => handleOpenEdit(asset)}
+                              >
+                                <HugeiconsIcon
+                                  icon={Edit03Icon}
+                                  size={18}
+                                  strokeWidth={1.5}
+                                />
+                              </button>
+
+                              <button
+                                type="button"
+                                title="Hapus Asset"
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                onClick={() => setDeleteConfirm(asset)}
+                              >
+                                <HugeiconsIcon
+                                  icon={Delete01Icon}
+                                  size={18}
+                                  strokeWidth={1.5}
+                                />
+                              </button>
+                            </div>
                           </td>
                         </tr>
 
                         {expanded && (
                           <tr>
                             <td colSpan={7} className="px-5 py-4 bg-slate-50/80">
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-center mb-3">
-                                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                                    Daftar Unit Asset ({visibleUnits.length})
-                                  </p>
+                              <div className="space-y-3">
+                                {/* Header & Unit Condition Filter Bar per Asset Entity */}
+                                <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                                  {/* Filter Kondisi Unit pada Entity Asset ini */}
+                                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                                    <span className="text-slate-400 text-[11px] font-medium mr-1">
+                                      Kondisi:
+                                    </span>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setAssetUnitCondition(prev => ({
+                                          ...prev,
+                                          [asset._id]: ""
+                                        }))
+                                      }
+                                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${!currentCondition
+                                        ? "bg-violet-600 text-white shadow-xs"
+                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                        }`}
+                                    >
+                                      Semua ({units.length})
+                                    </button>
+
+                                    {CONDITION_OPTIONS.map(opt => {
+                                      const count = units.filter(u => u.condition === opt.value).length
+                                      const isActive = currentCondition === opt.value
+
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          disabled={count === 0}
+                                          onClick={() =>
+                                            setAssetUnitCondition(prev => ({
+                                              ...prev,
+                                              [asset._id]: isActive ? "" : opt.value
+                                            }))
+                                          }
+                                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${isActive
+                                            ? "ring-2 ring-violet-500 font-bold " + opt.color
+                                            : count > 0
+                                              ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                              : "bg-slate-50 text-slate-300 cursor-not-allowed"
+                                            }`}
+                                        >
+                                          <span>{opt.label}</span>
+                                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? "bg-black/10" : "bg-white text-slate-500 font-bold"}`}>
+                                            {count}
+                                          </span>
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
                                 </div>
 
                                 {visibleUnits.length === 0 ? (
-                                  <p className="text-sm text-slate-400">
-                                    Tidak ada unit yang sesuai filter.
-                                  </p>
+                                  <div className="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-400 text-sm">
+                                    <p>Tidak ada unit dengan kondisi "{CONDITION_OPTIONS.find(o => o.value === currentCondition)?.label}".</p>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setAssetUnitCondition(prev => ({
+                                          ...prev,
+                                          [asset._id]: ""
+                                        }))
+                                      }
+                                      className="mt-2 text-violet-600 font-semibold hover:underline text-xs"
+                                    >
+                                      Tampilkan semua unit
+                                    </button>
+                                  </div>
                                 ) : (
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {visibleUnits.map(unit => (
@@ -841,16 +1071,31 @@ export default function AssetsPage() {
                                           </p>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-1.5">
-                                          <Badge
-                                            value={unit.condition}
-                                            options={CONDITION_OPTIONS}
-                                          />
+                                        <div className="flex items-center gap-2">
+                                          <div className="flex flex-wrap gap-1.5">
+                                            <Badge
+                                              value={unit.condition}
+                                              options={CONDITION_OPTIONS}
+                                            />
 
-                                          <Badge
-                                            value={unit.status}
-                                            options={STATUS_OPTIONS}
-                                          />
+                                            <Badge
+                                              value={unit.status}
+                                              options={STATUS_OPTIONS}
+                                            />
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            title="Edit Unit"
+                                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                            onClick={() => handleOpenEditUnit(asset, unit)}
+                                          >
+                                            <HugeiconsIcon
+                                              icon={Edit03Icon}
+                                              size={16}
+                                              strokeWidth={1.5}
+                                            />
+                                          </button>
                                         </div>
                                       </div>
                                     ))}
@@ -951,27 +1196,34 @@ export default function AssetsPage() {
                 Satuan *
               </label>
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={assetForm.measurement}
-                  onChange={e => setAssetForm(f => ({
-                    ...f,
-                    measurement: e.target.value
-                  }))}
-                  placeholder="Contoh: Unit"
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50"
-                  required
-                />
+              <input
+                type="text"
+                value={assetForm.measurement}
+                onChange={e => setAssetForm(f => ({
+                  ...f,
+                  measurement: e.target.value
+                }))}
+                placeholder="Contoh: Unit, Pcs, Set"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50"
+                required
+              />
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAddCategory(true)}
-                  className="rounded-xl border border-violet-200 bg-violet-50 text-violet-600 px-3"
-                >
-                  +
-                </button>
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Deskripsi
+              </label>
+
+              <textarea
+                value={assetForm.desc}
+                onChange={e => setAssetForm(f => ({
+                  ...f,
+                  desc: e.target.value
+                }))}
+                placeholder="Deskripsi atau catatan asset (opsional)..."
+                rows={3}
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50"
+              />
             </div>
 
           </div>
@@ -993,6 +1245,145 @@ export default function AssetsPage() {
               className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
             >
               {assetSaving ? "Menyimpan..." : "Simpan Asset"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Edit Asset */}
+      <Modal
+        open={showEditAsset}
+        onClose={() => {
+          setShowEditAsset(false)
+          setEditingAsset(null)
+          setEditFormError("")
+        }}
+        title="Edit Asset"
+      >
+        <form onSubmit={handleUpdateAsset} className="space-y-5">
+
+          {editFormError && (
+            <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-rose-700 text-sm">
+              {editFormError}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              Informasi Asset
+            </p>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Nama Asset *
+              </label>
+
+              <input
+                type="text"
+                value={editAssetForm.name}
+                onChange={e => setEditAssetForm(f => ({
+                  ...f,
+                  name: e.target.value
+                }))}
+                placeholder="Contoh: Mesin Sablon"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Kategori *
+              </label>
+
+              <div className="flex gap-2">
+                <select
+                  value={editAssetForm.category}
+                  onChange={e => setEditAssetForm(f => ({
+                    ...f,
+                    category: e.target.value
+                  }))}
+                  className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                  required
+                >
+                  <option value="">Pilih kategori...</option>
+
+                  {categories.map(c => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategory(true)}
+                  className="rounded-xl border border-violet-200 bg-violet-50 text-violet-600 px-3 hover:bg-violet-100"
+                  title="Tambah Kategori Baru"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Satuan *
+              </label>
+
+              <input
+                type="text"
+                value={editAssetForm.measurement}
+                onChange={e => setEditAssetForm(f => ({
+                  ...f,
+                  measurement: e.target.value
+                }))}
+                placeholder="Contoh: Unit, Pcs, Set"
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Deskripsi
+              </label>
+
+              <textarea
+                value={editAssetForm.desc}
+                onChange={e => setEditAssetForm(f => ({
+                  ...f,
+                  desc: e.target.value
+                }))}
+                placeholder="Deskripsi atau catatan asset (opsional)..."
+                rows={3}
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+              />
+            </div>
+
+          </div>
+
+          <div className="border-t border-slate-100" />
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditAsset(false)
+                setEditingAsset(null)
+                setEditFormError("")
+              }}
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Batal
+            </button>
+
+            <button
+              type="submit"
+              disabled={editAssetSaving}
+              className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+            >
+              {editAssetSaving ? "Menyimpan..." : "Simpan Perubahan"}
             </button>
           </div>
         </form>
@@ -1298,6 +1689,120 @@ export default function AssetsPage() {
           />
         </dialog>
       )}
+
+      {/* Modal: Edit Unit */}
+      <Modal
+        open={showEditUnitModal && !!editingUnit}
+        onClose={() => {
+          setShowEditUnitModal(false)
+          setEditingUnit(null)
+          setSelectedAsset(null)
+        }}
+        title={`Edit Unit Asset ${selectedAsset ? `— ${selectedAsset.name}` : ""}`}
+      >
+        <form onSubmit={handleUpdateUnit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Label Unit *
+            </label>
+            <input
+              type="text"
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+              placeholder="Contoh: MS-004"
+              value={editUnitForm.label}
+              onChange={(e) =>
+                setEditUnitForm((prev) => ({
+                  ...prev,
+                  label: e.target.value
+                }))
+              }
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Kondisi *
+            </label>
+            <select
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+              value={editUnitForm.condition}
+              onChange={(e) =>
+                setEditUnitForm((prev) => ({
+                  ...prev,
+                  condition: e.target.value as UnitForm["condition"]
+                }))
+              }
+            >
+              <option value="good">Baik (Good)</option>
+              <option value="fair">Cukup (Fair)</option>
+              <option value="poor">Buruk (Poor)</option>
+              <option value="damaged">Rusak (Damaged)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Status *
+            </label>
+            <select
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+              value={editUnitForm.status}
+              onChange={(e) =>
+                setEditUnitForm((prev) => ({
+                  ...prev,
+                  status: e.target.value as UnitForm["status"]
+                }))
+              }
+            >
+              <option value="active">Aktif (Active)</option>
+              <option value="inactive">Tidak Aktif (Inactive)</option>
+              <option value="disposed">Dihapus (Disposed)</option>
+              <option value="under_maintenance">Dalam Perbaikan (Maintenance)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Tanggal Penambahan
+            </label>
+            <input
+              type="date"
+              className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-300"
+              value={editUnitForm.addedAt}
+              onChange={(e) =>
+                setEditUnitForm((prev) => ({
+                  ...prev,
+                  addedAt: e.target.value
+                }))
+              }
+            />
+          </div>
+
+          <div className="border-t border-slate-100 pt-3 flex gap-3">
+            <button
+              type="button"
+              className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+              disabled={savingEditUnit}
+              onClick={() => {
+                setShowEditUnitModal(false)
+                setEditingUnit(null)
+                setSelectedAsset(null)
+              }}
+            >
+              Batal
+            </button>
+
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+              disabled={savingEditUnit || !editUnitForm.label.trim()}
+            >
+              {savingEditUnit ? "Menyimpan..." : "Simpan Perubahan Unit"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }
