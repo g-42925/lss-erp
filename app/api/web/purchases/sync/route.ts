@@ -13,10 +13,10 @@ export async function POST(request: NextRequest) {
     const rawPurchases = Array.isArray(body.purchases)
       ? body.purchases
       : body.purchase
-      ? [body.purchase]
-      : Array.isArray(body)
-      ? body
-      : [];
+        ? [body.purchase]
+        : Array.isArray(body)
+          ? body
+          : [];
 
     if (rawPurchases.length === 0) {
       return NextResponse.json({
@@ -98,7 +98,8 @@ export async function POST(request: NextRequest) {
         if (purchaseType === "service") {
           createPayload.description = item.description || "";
           if (item.vendorId) createPayload.vendorId = item.vendorId;
-        } else if (isMultiItem) {
+        }
+        else if (isMultiItem) {
           createPayload.items = item.items.map((it: any) => ({
             productId: it.productId,
             itemType: it.itemType || (purchaseType === "procurement" ? "inventory" : "product"),
@@ -107,14 +108,15 @@ export async function POST(request: NextRequest) {
             note: it.note || "",
             pricePerUnit: it.pricePerUnit || (it.quantity ? (parseFloat(it.finalPrice) || 0) / parseFloat(it.quantity) : 0),
           }));
-        } else {
+        }
+        else {
           // single item fallback
           if (item.productId) createPayload.productId = item.productId;
           if (item.quantity) createPayload.quantity = parseFloat(item.quantity) || 1;
           if (item.supplierId) createPayload.supplierId = item.supplierId;
         }
 
-        const created = await Purchase.create(createPayload);
+        const [created] = await Purchase.create(createPayload);
 
         syncedResults.push({
           tmpPurchaseOrderNumber: tmpPoNumber,
@@ -123,8 +125,8 @@ export async function POST(request: NextRequest) {
           purchaseOrderNumber: created.purchaseOrderNumber,
           data: created,
         });
-      } catch (err: any) {
-        console.error(`Gagal menyinkronkan item ${tmpPoNumber || i}:`, err);
+      }
+      catch (err: any) {
         syncedResults.push({
           tmpPurchaseOrderNumber: tmpPoNumber,
           success: false,
@@ -143,13 +145,13 @@ export async function POST(request: NextRequest) {
       failedCount,
       results: syncedResults,
     });
-  } catch (error: any) {
-    console.error("Internal error in /api/web/purchases/sync:", error);
+  }
+  catch (error: any) {
     return NextResponse.json({
       success: false,
       message: error?.message || "Terjadi kesalahan server saat sinkronisasi",
       error: true,
-    }, { status: 500 });
+    });
   }
 }
 
