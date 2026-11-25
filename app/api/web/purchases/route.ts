@@ -878,129 +878,174 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+
+
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase()
+
     const params = await request.json()
+
     const company = await Companie.findOne({
       masterAccountId: params.id
     })
 
+    if (!company) {
+      throw new Error('Company not found')
+    }
+
     const isMultiItem = Array.isArray(params.items) && params.items.length > 0
 
-    if (!isMultiItem) {
-      // ── Legacy single-item: cek duplikasi produk yang sama ──────────────────
-      if (params.purchaseType !== 'service' && params.productId) {
-        const p = await Purchase.findOne({
-          companyId: company._id,
-          productId: params.productId,
-          status: 'requested'
-        })
+    // ─── Duplicate check: legacy single-item ──────────────────────
+    if (!isMultiItem && params.purchaseType !== 'service' && params.productId) {
+      const existingPurchase = await Purchase.findOne({
+        companyId: company._id,
+        productId: params.productId,
+        status: 'requested'
+      })
 
-        if (p) {
-          return NextResponse.json({
-            noResult: true,
-            message: "product already ordered",
-            result: null,
-            error: true
-          })
-        }
+      if (existingPurchase) {
+        return NextResponse.json({
+          noResult: true,
+          message: 'product already ordered',
+          result: null,
+          error: true
+        })
       }
     }
 
-    console.log({ p: params })
+    if (params.vendorId === '') delete params.vendorId
+    if (params.supplierId === '') delete params.supplierId
 
-    if (params.vendorId === "") delete params.vendorId;
-    if (params.supplierId === "") delete params.supplierId;
+    // ─── Generate Purchase Order Number ───────────────────────────
+    const purchaseDate = params.date
+      ? new Date(params.date)
+      : new Date()
 
-    // ─── Cek kenaikan harga dibanding pembelian sebelumnya ───────────────────
-    let priceAlert = undefined;
+    if (isNaN(purchaseDate.getTime())) {
+      throw new Error('Invalid purchase date')
+    }
+
+    const year = String(purchaseDate.getUTCFullYear()).slice(-2)
+    const month = String(purchaseDate.getUTCMonth() + 1).padStart(2, '0')
+
+    const startOfMonth = new Date(Date.UTC(
+      purchaseDate.getUTCFullYear(),
+      purchaseDate.getUTCMonth(),
+      1
+    ))
+
+    const startOfNextMonth = new Date(Date.UTC(
+      purchaseDate.getUTCFullYear(),
+      purchaseDate.getUTCMonth() + 1,
+      1
+    ))
+
+    const purchaseCount = await Purchase.countDocuments({
+      companyId: company._id,
+      date: {
+        $gte: startOfMonth,
+        $lt: startOfNextMonth
+      }
+    })
+
+    const purchaseOrderNumber = `PO - ${year}${month}${String(
+      purchaseCount + 1
+    ).padStart(2, '0')}`
+
+    // ─── Price increase alert: legacy single-item ─────────────────
+    let priceAlert = undefined
 
     if (!isMultiItem) {
-      const currentPrice = parseFloat(params.finalPrice) || 0;
+      const currentPrice = parseFloat(params.finalPrice) || 0
 
-      if (params.purchaseType !== 'service' && params.productId && currentPrice > 0) {
+      if (
+        params.purchaseType !== 'service' &&
+        params.productId &&
+        currentPrice > 0
+      ) {
         const lastPurchase = await Purchase.findOne({
           companyId: company._id,
           productId: params.productId,
           purchaseType: params.purchaseType,
-          status: { $in: ['ordered', 'completed'] },
+          status: { $in: ['ordered', 'completed'] }
         })
           .sort({ date: -1 })
-          .lean() as any;
+          .lean() as any
 
         if (lastPurchase) {
-          const previousPrice = parseFloat(lastPurchase.finalPrice) || 0;
+          const previousPrice = parseFloat(lastPurchase.finalPrice) || 0
+
           if (previousPrice > 0 && currentPrice > previousPrice) {
-            const priceDiff = currentPrice - previousPrice;
-            const priceDiffPct = Math.round((priceDiff / previousPrice) * 100 * 10) / 10;
+            const priceDiff = currentPrice - previousPrice
+
+            const priceDiffPct = Math.round(
+              (priceDiff / previousPrice) * 100 * 10
+            ) / 10
+
             priceAlert = {
               previousPrice,
               currentPrice,
               priceDiff,
-              priceDiffPct,
-            };
+              priceDiffPct
+            }
           }
         }
       }
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // Hitung total finalPrice dari items jika multi-item dan finalPrice belum di-set manual
-    let resolvedFinalPrice = parseFloat(params.finalPrice) || 0;
+    // ─── Resolve final price ──────────────────────────────────────
+    let resolvedFinalPrice = parseFloat(params.finalPrice) || 0
 
     if (isMultiItem && params.finalPriceOverride !== undefined) {
-      resolvedFinalPrice = parseFloat(params.finalPriceOverride) || 0;
+      resolvedFinalPrice = parseFloat(params.finalPriceOverride) || 0
     }
     else if (isMultiItem && !params.finalPrice) {
       resolvedFinalPrice = (params.items as any[]).reduce(
         (sum: number, item: any) =>
           sum + (parseFloat(item.finalPrice) || 0),
         0
-      );
+      )
     }
 
-
-    // if (isMultiItem && !params.finalPriceOverride) {
-    //   resolvedFinalPrice = (params.items as any[]).reduce(
-    //     (sum: number, item: any) => sum + (parseFloat(item.finalPrice) || 0) * (parseFloat(item.quantity) || 1),
-    //     0
-    //   );
-    //   // Jika semua item tidak memiliki price, biarkan 0
-    // } else if (isMultiItem && params.finalPriceOverride) {
-    //   resolvedFinalPrice = parseFloat(params.finalPriceOverride) || 0;
-    // }
-
+    // ─── Create Purchase ──────────────────────────────────────────
     const createPayload: any = {
       ...params,
       finalPrice: resolvedFinalPrice,
       companyId: company._id,
       editable: true,
       receivedQty: 0,
-      purchaseOrderNumber: `PO - ${String(Date.now()).slice(-5)} `,
-      ...(priceAlert ? { priceAlert } : {}),
+      purchaseOrderNumber,
+      ...(priceAlert ? { priceAlert } : {})
     }
 
-    // Bersihkan field yang tidak relevan untuk multi-item
     if (isMultiItem) {
       delete createPayload.finalPriceOverride
-      // productId & quantity di root tidak dipakai (ada di items)
       delete createPayload.productId
       delete createPayload.quantity
     }
 
-    if (createPayload.purchaseType === 'service') delete createPayload.productId
+    if (createPayload.purchaseType === 'service') {
+      delete createPayload.productId
+    }
 
     const result = await Purchase.create(createPayload)
 
     const requested = (result as any)._doc
 
-    // ── Build aggregation untuk populate product(s) ──────────────────────────
+    // ─── Aggregation: populate product(s) and creator ──────────────
+    const productCollection =
+      params.purchaseType === 'procurement' ? 'invitems' : 'products'
+
     const aggPipeline: any[] = [
-      { $match: { _id: requested._id } },
+      {
+        $match: {
+          _id: requested._id
+        }
+      },
       {
         $lookup: {
-          from: params.purchaseType === 'procurement' ? 'invitems' : 'products',
+          from: productCollection,
           localField: 'productId',
           foreignField: '_id',
           as: 'product'
@@ -1014,20 +1059,22 @@ export async function POST(request: NextRequest) {
           as: 'createdBy'
         }
       },
-      { $unwind: '$createdBy' },
+      {
+        $unwind: '$createdBy'
+      },
       {
         $unwind: {
           path: '$product',
           preserveNullAndEmptyArrays: true
         }
-      },
+      }
     ]
 
-    // Untuk multi-item, populate setiap item.productId via $lookup tambahan
+    // ─── Multi-item product lookup ────────────────────────────────
     if (isMultiItem) {
       aggPipeline.push({
         $lookup: {
-          from: params.purchaseType === 'procurement' ? 'invitems' : 'products',
+          from: productCollection,
           localField: 'items.productId',
           foreignField: '_id',
           as: '_itemProducts'
@@ -1035,6 +1082,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // ─── Procurement asset lookup ─────────────────────────────────
     if (params.purchaseType === 'procurement') {
       aggPipeline.push(
         {
@@ -1058,51 +1106,61 @@ export async function POST(request: NextRequest) {
 
     const [agg] = await Purchase.aggregate(aggPipeline)
 
-    console.log({ agg })
+    // ─── Attach product information to each item ──────────────────
+    let itemsWithProduct: any[] | undefined
 
-    // Jika multi-item, gabungkan product info ke setiap item
-    let itemsWithProduct: any[] | undefined = undefined
     if (isMultiItem && (agg?._itemProducts || agg?._itemAssets)) {
       itemsWithProduct = (requested.items || []).map((item: any) => {
-        const prod = (agg._itemProducts || []).find(
-          (p: any) => String(p._id) === String(item.productId)
-        ) || (agg._itemAssets || []).find(
-          (p: any) => String(p._id) === String(item.productId)
-        )
-        return { ...item, product: prod }
+        const prod =
+          (agg._itemProducts || []).find(
+            (p: any) => String(p._id) === String(item.productId)
+          ) ||
+          (agg._itemAssets || []).find(
+            (p: any) => String(p._id) === String(item.productId)
+          )
+
+        return {
+          ...item,
+          product: prod
+        }
       })
     }
 
-    const mainProduct = agg?.product || (agg?._mainAsset && agg._mainAsset[0])
+    const mainProduct =
+      agg?.product ||
+      (agg?._mainAsset && agg._mainAsset[0])
 
-    const r = {
+    // ─── Response ─────────────────────────────────────────────────
+    const response = {
       ...requested,
-      ...((params.purchaseType === 'product' || params.purchaseType === 'procurement') && { product: mainProduct }),
+      ...(
+        params.purchaseType === 'product' ||
+          params.purchaseType === 'procurement'
+          ? { product: mainProduct }
+          : {}
+      ),
       ...(itemsWithProduct ? { items: itemsWithProduct } : {}),
       createdBy: agg?.createdBy
     }
 
+    return NextResponse.json({
+      noResult: false,
+      message: '',
+      result: response,
+      error: false
+    })
 
-    return NextResponse.json(
-      {
-        noResult: false,
-        message: "",
-        result: r,
-        error: false
-      }
-    )
-  }
-  catch (e: any) {
-    return NextResponse.json(
-      {
-        noResult: true,
-        message: e.message,
-        result: null,
-        error: true
-      }
-    )
+  } catch (e: any) {
+    return NextResponse.json({
+      noResult: true,
+      message: e.message,
+      result: null,
+      error: true
+    })
   }
 }
+
+
 
 
 export async function GET(request: NextRequest) {
