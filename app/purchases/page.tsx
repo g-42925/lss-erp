@@ -456,6 +456,8 @@ function Purchases() {
 
   const [showPurchaseHistory, setShowPurchaseHistory] = useState(false)
 
+  const [searchKeyword, setSearchKeyword] = useState("")
+
   const bankAccount = useFetch<any[], any>({
     url: "",
     method: "GET",
@@ -1973,10 +1975,16 @@ function Purchases() {
     filterType,
   ])
 
-  const displayedPurchases =
-    searchResult.length > 0
-      ? searchResult
-      : pr
+
+  const keyword = searchKeyword.trim().toLowerCase()
+
+  const displayedPurchases = keyword
+    ? pr.filter(purchase =>
+      String(purchase.purchaseOrderNumber ?? "")
+        .toLowerCase()
+        .includes(keyword)
+    )
+    : pr
 
   const taxPreview = getTaxPreview()
 
@@ -2035,86 +2043,95 @@ function Purchases() {
 
         <div className="bg-white h-full border-t-4 border-blue-900 flex flex-col p-3 md:p-6 gap-3 md:gap-6">
           {/* FILTER */}
-          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-            <div className="flex flex-row gap-2 items-center">
-              <button
-                onClick={() =>
-                  setFilterType("product")
-                }
-                className={
-                  `px-4 py-2 rounded-full text-sm font-semibold ` +
-                  `transition-colors duration-200 ` +
-                  (
-                    filterType === "product"
-                      ? "bg-blue-900 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  )
-                }
-              >
-                Barang
-              </button>
 
-              <button
-                onClick={() =>
-                  setFilterType("service")
-                }
-                className={
-                  `px-4 py-2 rounded-full text-sm font-semibold ` +
-                  `transition-colors duration-200 ` +
-                  (
-                    filterType === "service"
-                      ? "bg-blue-900 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  )
-                }
-              >
-                Jasa
-              </button>
 
-              <button
-                onClick={() =>
-                  setFilterType("procurement")
-                }
-                className={
-                  `px-4 py-2 rounded-full text-sm font-semibold ` +
-                  `transition-colors duration-200 ` +
-                  (
-                    filterType === "procurement"
-                      ? "bg-blue-900 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  )
-                }
-              >
-                Procurement
-              </button>
+          {/* TOOLBAR */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+
+            {/* FILTER */}
+            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg w-fit max-w-full overflow-x-auto">
+              {[
+                { value: "product", label: "Barang" },
+                { value: "service", label: "Jasa" },
+                { value: "procurement", label: "Procurement" },
+              ].map(item => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setFilterType(item.value)}
+                  className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${filterType === item.value
+                      ? "bg-white text-blue-900 font-semibold shadow-sm"
+                      : "text-gray-500 hover:text-gray-800"
+                    }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
 
-            <button
-              onClick={() => {
-                newPrForm.reset()
-                setAddLastPriceInfo(null)
-                modalRef.current?.showModal()
-              }}
-              className="btn ml-auto bg-blue-900 text-white hover:bg-blue-800"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth="1.5"
-                stroke="currentColor"
-                className="size-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4.5v15m7.5-7.5h-15"
-                />
-              </svg>
+            {/* ACTIONS */}
+            <div className="flex items-center gap-2">
+              <label className="input input-bordered input-sm flex items-center gap-2 w-full sm:w-60 rounded-lg bg-white">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  stroke="currentColor"
+                  className="size-4 text-gray-400"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path strokeLinecap="round" d="m20 20-4-4" />
+                </svg>
 
-              Add
-            </button>
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={e => setSearchKeyword(e.target.value)}
+                  placeholder="Cari nomor P.O..."
+                  className="grow"
+                />
+
+                {searchKeyword && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchKeyword("")}
+                    className="text-gray-400 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                )}
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  newPrForm.reset()
+                  setAddLastPriceInfo(null)
+                  modalRef.current?.showModal()
+                }}
+                className="btn btn-sm bg-blue-900 hover:bg-blue-800 text-white border-0 rounded-lg px-4"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  stroke="currentColor"
+                  className="size-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 5v14m7-7H5"
+                  />
+                </svg>
+                Tambah
+              </button>
+            </div>
           </div>
+
+
 
           {/* TABLE */}
           {
@@ -2178,7 +2195,7 @@ function Purchases() {
 
                           return (
                             <React.Fragment key={purchase._id}>
-                              <tr>
+                              <tr className={purchase.refundLog && purchase.refundLog.length > 0 ? 'text-red-900' : ''}>
                                 <td>
                                   {new Date(
                                     purchase.date
@@ -2416,7 +2433,7 @@ function Purchases() {
                                         />
                                       </button>
                                     )}
-
+  
                                   {purchase.status ===
                                     "requested" &&
                                     filterType !==
@@ -2441,7 +2458,7 @@ function Purchases() {
                                         </button>
                                       </div>
                                     )}
-
+  
                                   {purchase.status ===
                                     "approved" &&
                                     filterType ===
@@ -2464,7 +2481,7 @@ function Purchases() {
                                         />
                                       </button>
                                     )}
-
+  
                                   {purchase.status ===
                                     "approved" &&
                                     filterType !==
@@ -2483,7 +2500,7 @@ function Purchases() {
                                         </button>
                                       </div>
                                     )}
-
+  
                                   {
                                     (
                                       purchase.status ===
@@ -2514,7 +2531,7 @@ function Purchases() {
                                               />
                                             </button>
                                           )}
-
+  
                                         <button
                                           className="text-red-600"
                                           onClick={() =>
@@ -2535,7 +2552,7 @@ function Purchases() {
                                       </div>
                                     )
                                   }
-
+  
                                   {
                                     purchase.status === "ordered" &&
                                     (filterType === "product" || filterType === "procurement") && (
@@ -2552,7 +2569,7 @@ function Purchases() {
                                       </button>
                                     )
                                   }
-
+  
                                 </td>
                                   */
                                 }
@@ -2678,7 +2695,7 @@ function Purchases() {
       {/* =====================================================
           MODAL SINKRONISASI DATA PURCHASE OFFLINE
       ===================================================== */}
-      <dialog
+      < dialog
         ref={syncModalRef}
         className="modal text-slate-900"
       >
@@ -2887,12 +2904,12 @@ function Purchases() {
         <form method="dialog" className="modal-backdrop">
           <button onClick={() => syncModalRef.current?.close()}>close</button>
         </form>
-      </dialog>
+      </dialog >
 
       {/* =====================================================
           MODAL EDIT PURCHASE OFFLINE
       ===================================================== */}
-      <dialog
+      < dialog
         ref={editOfflineModalRef}
         className="modal text-slate-900"
       >
@@ -3188,12 +3205,12 @@ function Purchases() {
         <form method="dialog" className="modal-backdrop">
           <button onClick={() => editOfflineModalRef.current?.close()}>close</button>
         </form>
-      </dialog>
+      </dialog >
 
       {/* =====================================================
           MODAL EDIT REQUISITION
       ===================================================== */}
-      <dialog
+      < dialog
         ref={editRef}
         className="modal text-slate-900"
       >
@@ -3685,12 +3702,12 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog >
 
       {/* =====================================================
           MODAL ADD REQUISITION
       ===================================================== */}
-      <dialog
+      < dialog
         ref={modalRef}
         id="add-purchase-requisition"
         className="modal text-black"
@@ -4085,7 +4102,7 @@ function Purchases() {
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog >
       {/* =====================================================
           MODAL MAKE PO
       ===================================================== */}
