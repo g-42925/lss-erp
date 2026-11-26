@@ -898,6 +898,15 @@ export default function Invoices() {
                 pattern: {
                   value: /^([01]\d|2[0-3]):[0-5]\d$/,
                   message: "Format waktu harus HH:mm"
+                },
+                onChange: (e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+                  const formatted = value.length > 2
+                    ? `${value.slice(0, 2)}:${value.slice(2)}`
+                    : value
+
+                  e.target.value = formatted
                 }
               })}
               className="input flex-1"
@@ -943,6 +952,13 @@ export default function Invoices() {
                               placeholder="HH:mm"
                               maxLength={5}
                               {...editPaymentForm.register("time", {
+                                onChange: (e) => {
+                                  const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+                                  e.target.value = value.length > 2
+                                    ? `${value.slice(0, 2)}:${value.slice(2)}`
+                                    : value
+                                },
                                 pattern: {
                                   value: /^([01]\d|2[0-3]):[0-5]\d$/,
                                   message: "Format waktu harus HH:mm"

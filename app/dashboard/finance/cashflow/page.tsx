@@ -1221,10 +1221,18 @@ export default function CashflowReportPage() {
 													placeholder="HH:mm"
 													maxLength={5}
 													required
-													value={editData.time}
-													onChange={(e) => setEditData({ ...editData, time: e.target.value })}
+													value={modalData.time}
+													onChange={(e) => {
+														const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+														const formatted = value.length > 2
+															? `${value.slice(0, 2)}:${value.slice(2)}`
+															: value
+
+														setModalData({ ...modalData, time: formatted })
+													}}
 													pattern="^([01]\d|2[0-3]):[0-5]\d$"
-													className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-amber-400 bg-slate-50"
+													className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 												/>
 											</div>
 										</div>
@@ -1742,7 +1750,6 @@ export default function CashflowReportPage() {
 											<label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">
 												Jam (HH:MM)
 											</label>
-
 											<input
 												type="text"
 												inputMode="numeric"
@@ -1750,9 +1757,15 @@ export default function CashflowReportPage() {
 												maxLength={5}
 												required
 												value={modalData.time}
-												onChange={(e) =>
-													setModalData({ ...modalData, time: e.target.value })
-												}
+												onChange={(e) => {
+													const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+													const formatted = value.length > 2
+														? `${value.slice(0, 2)}:${value.slice(2)}`
+														: value
+
+													setModalData({ ...modalData, time: formatted })
+												}}
 												pattern="^([01]\d|2[0-3]):[0-5]\d$"
 												className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
 											/>

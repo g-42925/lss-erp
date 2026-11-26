@@ -1412,14 +1412,16 @@ export default function Debt() {
                     placeholder="HH:mm"
                     maxLength={5}
                     value={payFormData.payTime}
-                    onChange={e => {
+                    onChange={(e) => {
                       const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+                      const formatted = value.length > 2
+                        ? `${value.slice(0, 2)}:${value.slice(2)}`
+                        : value
 
                       setPayFormData(p => ({
                         ...p,
-                        payTime: value.length > 2
-                          ? `${value.slice(0, 2)}:${value.slice(2)}`
-                          : value
+                        payTime: formatted
                       }))
                     }}
                     required
@@ -2247,14 +2249,14 @@ export default function Debt() {
                       placeholder="HH:mm"
                       maxLength={5}
                       value={editTime}
-                      onChange={e => {
+                      onChange={(e) => {
                         const value = e.target.value.replace(/\D/g, "").slice(0, 4)
 
-                        setEditTime(
-                          value.length > 2
-                            ? `${value.slice(0, 2)}:${value.slice(2)}`
-                            : value
-                        )
+                        const formatted = value.length > 2
+                          ? `${value.slice(0, 2)}:${value.slice(2)}`
+                          : value
+
+                        setEditTime(formatted)
                       }}
                       pattern="^([01]\d|2[0-3]):[0-5]\d$"
                       required
