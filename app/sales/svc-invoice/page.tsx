@@ -1285,9 +1285,9 @@ export default function Invoices() {
                 <span className="text-gray-500">Date: {invoiceToPrint?.date && new Date(invoiceToPrint.date).toLocaleDateString("en-GB").replaceAll("/", "-")}</span>
                 {
                   invoiceToPrint?.order?.contractType === "One Time" && invoiceToPrint?.order?.frequency === "Once" ? (
-                    <span className="text-lg text-gray-500">Termin: 30-09-2026</span>
+                    <span className="text-lg text-gray-500">{fTermin(invoiceToPrint)}</span>
                   ) : (
-                    <span className="text-lg text-gray-500">Termin: 30-09-2026</span>
+                    <span className="text-lg text-gray-500">{fTermin(invoiceToPrint)}</span>
                   )
                 }
               </div>

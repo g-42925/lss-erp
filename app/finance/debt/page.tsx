@@ -982,8 +982,8 @@ export default function Debt() {
   function getDebtProductLabel(d: any): string {
     // Single-item
     const isAssetSingle = d.itemType === 'asset' || (d.product?.category && !d.product?.conversionRatioX)
-    if (d.product?.productName) return isAssetSingle ? `[Asset] ${d.product.productName}` : d.product.productName
-    if (d.product?.name) return isAssetSingle ? `[Asset] ${d.product.name}` : d.product.name
+    if (d.product?.productName) return isAssetSingle ? `${d.product.productName}` : d.product.productName
+    if (d.product?.name) return isAssetSingle ? `${d.product.name}` : d.product.name
     if (d.invItem?.name) return d.invItem.name
     if (d.description) return d.description
     // Multi-item
@@ -992,7 +992,7 @@ export default function Debt() {
         const it = d.items[0]
         const isAsset = it.itemType === 'asset' || (it.product?.category && !it.product?.conversionRatioX)
         const name = it.product?.productName || it.product?.name || '-'
-        return isAsset ? `[Asset] ${name}` : name
+        return isAsset ? `${name}` : name
       }
       // Multi-item: gunakan dropdown komponen (lihat DebtProductCell)
       return d.items?.length > 0 ? `${d.items.length} item(s)` : '-'
@@ -1580,7 +1580,7 @@ export default function Debt() {
                         )}
                         className="w-full flex justify-between items-center p-3 text-sm font-medium"
                       >
-                        <span>{index + 1}. {isAsset ? `[Asset] ${pName}` : pName}</span>
+                        <span>{index + 1}. {isAsset ? `${pName}` : pName}</span>
                         <span>{expandedItem === index ? '▲' : '▼'}</span>
                       </button>
 
