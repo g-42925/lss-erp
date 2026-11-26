@@ -893,13 +893,11 @@ function Purchases() {
     <body>
       <div class="header">
         <div>
-          <h2>PURCHASE REQUISITION</h2>
-          <div class="subtitle">Purchase Document</div>
+          <h2>${purchase.status === 'requested' ? 'PURCHASE REQUEST' : 'PURCHASE ORDER'}</h2>
         </div>
 
         <div>
           <strong>${escapeHtml(purchase.purchaseOrderNumber)}</strong>
-          <div>Status: ${escapeHtml(purchase.status)}</div>
         </div>
       </div>
 
@@ -2060,8 +2058,8 @@ function Purchases() {
                   type="button"
                   onClick={() => setFilterType(item.value)}
                   className={`px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${filterType === item.value
-                      ? "bg-white text-blue-900 font-semibold shadow-sm"
-                      : "text-gray-500 hover:text-gray-800"
+                    ? "bg-white text-blue-900 font-semibold shadow-sm"
+                    : "text-gray-500 hover:text-gray-800"
                     }`}
                 >
                   {item.label}
@@ -2281,34 +2279,32 @@ function Purchases() {
                                 <td>
                                   <div className="flex flex-row justify-center items-center gap-2">
                                     {/* PRINT */}
-                                    {["requested", "approved", "ordered"].includes(purchase.status) && (
-                                      <button
-                                        type="button"
-                                        className="text-gray-700 hover:text-black"
-                                        onClick={() => printPurchase(purchase)}
-                                        title="Print Purchase"
+                                    <button
+                                      type="button"
+                                      className="text-gray-700 hover:text-black"
+                                      onClick={() => printPurchase(purchase)}
+                                      title="Print Purchase"
+                                    >
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth="1.7"
+                                        stroke="currentColor"
+                                        className="size-6"
                                       >
-                                        <svg
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          strokeWidth="1.7"
-                                          stroke="currentColor"
-                                          className="size-6"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M6.75 8.25V3.75h10.5v4.5M6.75 17.25H4.5a1.5 1.5 0 0 1-1.5-1.5v-6a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-2.25M6.75 14.25h10.5v6H6.75v-6Z"
-                                          />
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M17.25 11.25h.008v.008h-.008z"
-                                          />
-                                        </svg>
-                                      </button>
-                                    )}
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M6.75 8.25V3.75h10.5v4.5M6.75 17.25H4.5a1.5 1.5 0 0 1-1.5-1.5v-6a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-2.25M6.75 14.25h10.5v6H6.75v-6Z"
+                                        />
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          d="M17.25 11.25h.008v.008h-.008z"
+                                        />
+                                      </svg>
+                                    </button>
 
                                     {/* REQUESTED */}
                                     {purchase.status === "requested" && (
