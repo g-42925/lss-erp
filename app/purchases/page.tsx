@@ -2270,7 +2270,7 @@ function Purchases() {
 
 
                                 <td>
-                                  {purchase.status}
+                                  {purchase.status === 'completed' || purchase.status === 'ordered' ? 'ordered' : 'requested'}
                                 </td>
 
                                 <td>
