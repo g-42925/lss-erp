@@ -1412,12 +1412,16 @@ export default function Debt() {
                     placeholder="HH:mm"
                     maxLength={5}
                     value={payFormData.payTime}
-                    onChange={e =>
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
                       setPayFormData(p => ({
                         ...p,
-                        payTime: e.target.value
+                        payTime: value.length > 2
+                          ? `${value.slice(0, 2)}:${value.slice(2)}`
+                          : value
                       }))
-                    }
+                    }}
                     required
                     pattern="^([01]\d|2[0-3]):[0-5]\d$"
                   />
@@ -1566,68 +1570,68 @@ export default function Debt() {
                   const isAsset = item.itemType === 'asset' || (item.product?.category && !item.product?.conversionRatioX)
                   const pName = item.product?.productName || item.product?.name || '-'
                   return (
-                  <div key={index} className="border rounded-lg">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedItem(
-                        expandedItem === index ? null : index
-                      )}
-                      className="w-full flex justify-between items-center p-3 text-sm font-medium"
-                    >
-                      <span>{index + 1}. {isAsset ? `[Asset] ${pName}` : pName}</span>
-                      <span>{expandedItem === index ? '▲' : '▼'}</span>
-                    </button>
-
-                    {expandedItem === index && (
-                      <div className="px-3 pb-3 text-sm space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Harga sekarang</span>
-                          <span>
-                            {(item.finalPrice / item.quantity).toLocaleString("id-ID")}
-                          </span>
-                        </div>
-
-                        {Array.isArray(item.history) && item.history.length > 0 ? (
-                          <div className="space-y-2">
-                            <div className="font-semibold text-gray-700">
-                              Riwayat Pembelian
-                            </div>
-
-                            {item.history.map((history: any, historyIndex: number) => (
-                              <div
-                                key={history.purchaseId || historyIndex}
-                                className="flex justify-between items-center border-b pb-2"
-                              >
-                                <div className="flex flex-col">
-                                  <span className="text-gray-500">
-                                    History {historyIndex + 1}
-                                  </span>
-                                  <span className="text-xs text-gray-400">
-                                    {new Date(history.date).toLocaleDateString('id-ID')}
-                                  </span>
-                                </div>
-
-                                <div className="text-right">
-                                  <div className="font-medium">
-                                    Rp {Math.floor(
-                                      history.finalPrice / history.quantity
-                                    ).toLocaleString('id-ID')}
-                                  </div>
-                                  <div className="text-xs text-gray-400">
-                                    Qty: {history.quantity}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-gray-400">
-                            Belum ada riwayat pembelian sebelumnya
-                          </p>
+                    <div key={index} className="border rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedItem(
+                          expandedItem === index ? null : index
                         )}
-                      </div>
-                    )}
-                  </div>
+                        className="w-full flex justify-between items-center p-3 text-sm font-medium"
+                      >
+                        <span>{index + 1}. {isAsset ? `[Asset] ${pName}` : pName}</span>
+                        <span>{expandedItem === index ? '▲' : '▼'}</span>
+                      </button>
+
+                      {expandedItem === index && (
+                        <div className="px-3 pb-3 text-sm space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Harga sekarang</span>
+                            <span>
+                              {(item.finalPrice / item.quantity).toLocaleString("id-ID")}
+                            </span>
+                          </div>
+
+                          {Array.isArray(item.history) && item.history.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="font-semibold text-gray-700">
+                                Riwayat Pembelian
+                              </div>
+
+                              {item.history.map((history: any, historyIndex: number) => (
+                                <div
+                                  key={history.purchaseId || historyIndex}
+                                  className="flex justify-between items-center border-b pb-2"
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="text-gray-500">
+                                      History {historyIndex + 1}
+                                    </span>
+                                    <span className="text-xs text-gray-400">
+                                      {new Date(history.date).toLocaleDateString('id-ID')}
+                                    </span>
+                                  </div>
+
+                                  <div className="text-right">
+                                    <div className="font-medium">
+                                      Rp {Math.floor(
+                                        history.finalPrice / history.quantity
+                                      ).toLocaleString('id-ID')}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                      Qty: {history.quantity}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400">
+                              Belum ada riwayat pembelian sebelumnya
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
@@ -1800,7 +1804,15 @@ export default function Debt() {
                   maxLength={5}
                   className="input input-bordered w-full"
                   value={editRefundTime}
-                  onChange={(e) => setEditRefundTime(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+                    const formatted = value.length > 2
+                      ? `${value.slice(0, 2)}:${value.slice(2)}`
+                      : value
+
+                    setEditRefundTime(formatted)
+                  }}
                   pattern="^([01]\d|2[0-3]):[0-5]\d$"
                 />
               </div>
@@ -2235,7 +2247,15 @@ export default function Debt() {
                       placeholder="HH:mm"
                       maxLength={5}
                       value={editTime}
-                      onChange={e => setEditTime(e.target.value)}
+                      onChange={e => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 4)
+
+                        setEditTime(
+                          value.length > 2
+                            ? `${value.slice(0, 2)}:${value.slice(2)}`
+                            : value
+                        )
+                      }}
                       pattern="^([01]\d|2[0-3]):[0-5]\d$"
                       required
                     />
