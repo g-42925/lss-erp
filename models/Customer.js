@@ -9,7 +9,12 @@ const CustomerSchema = new mongoose.Schema({
   active: { type: String, required: false, default: 'yes' },
   taxType: { type: String, enum: ['KTP', 'NPWP'], required: false },
   taxNumber: { type: String, required: false },
-  customerOf: { type: mongoose.Schema.Types.ObjectId, required: true }
+  customerOf: { type: mongoose.Schema.Types.ObjectId, required: true },
+  companyName: { type: String, required: true },
+  district: { type: String, required: true },
+  city: { type: String, required: true },
+  province: { type: String, required: true },
+  village: { type: String, required: true },
 });
 
 

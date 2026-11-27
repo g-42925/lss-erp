@@ -1,14 +1,17 @@
 export type Customer = {
-  name: string
-  email: string
-  phone: string
-  address: string
-  city: string
-  state: string
-  zip: string
-  country: string
-  createdAt: string
-  updatedAt: string
   _id: string
   bussinessName: string
+  name: string
+  addedOn: string
+  address: string
+  mobile: string
+  active: string
+  taxType: 'KTP' | 'NPWP' | ''
+  taxNumber: string
+  customerOf: string
+  companyName: string
+  district: string
+  city: string
+  province: string
+  village: string
 }

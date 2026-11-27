@@ -58,13 +58,17 @@ export async function PUT(request: NextRequest) {
       _id,
       {
         bussinessName: rest.bussinessName,
-        name: rest.name,
-        email: rest.email,
+        name: rest.bussinessName,
+        companyName: rest.companyName,
         mobile: rest.mobile,
         address: rest.address,
         active: rest.active,
         taxType: rest.taxType,
         taxNumber: rest.taxNumber,
+        district: rest.district,
+        city: rest.city,
+        province: rest.province,
+        village: rest.village,
       }
     )
 

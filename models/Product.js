@@ -33,6 +33,7 @@ const ProductSchema = new mongoose.Schema({
   catalogId: { type: mongoose.Schema.Types.ObjectId, ref: 'SalesCatalog', required: false },
   variantName: { type: String, required: false, default: '' },
   brand: { type: String, required: false, default: '' },
+  alias: { type: String, required: false },
 });
 
 // Cek apakah model sudah ada (Next.js hot reload bisa bikin error)

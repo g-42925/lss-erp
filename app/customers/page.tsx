@@ -4,7 +4,7 @@
 import useFetch from '@/hooks/useFetch'
 import useAuth from "@/store/auth"
 
-import { useForm } from "react-hook-form";
+import { useForm } from "react-hook-form"
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from 'next/navigation'
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -73,7 +73,7 @@ export default function Customers() {
     const newCustomers = JSON.stringify({
       ...data,
       masterAccountId,
-      name: data.bussinessName
+      name: data.bussinessName,
     })
 
     await addFn.fn('', newCustomers, (result) => {
@@ -207,20 +207,16 @@ export default function Customers() {
 
     editCustomerForm.reset({
       _id: customer._id,
-      vendorId: customer.vendorId,
-      contactId: customer.contactId,
       bussinessName: customer.bussinessName,
-      name: customer.name,
-      email: customer.email,
+      companyName: customer.companyName,
       taxType: customer.taxType,
       taxNumber: customer.taxNumber,
-      creditLimit: customer.creditLimit,
-      payTerm: customer.payTerm,
-      openingBalance: customer.openingBalance,
-      advanceBalance: customer.advanceBalance,
-      address: customer.address,
       mobile: customer.mobile,
-      totalSaleDue: customer.totalSaleDue,
+      address: customer.address,
+      district: customer.district,
+      city: customer.city,
+      province: customer.province,
+      village: customer.village,
       active: customer.active
     })
 
@@ -382,6 +378,10 @@ export default function Customers() {
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...editCustomerForm.register("bussinessName")} />
                 </fieldset>
                 <fieldset className="fieldset col-span-full">
+                  <legend className="fieldset-legend text-black">Company Name</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("companyName")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset col-span-full">
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("mobile")} type="text" />
                 </fieldset>
@@ -399,6 +399,22 @@ export default function Customers() {
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...editCustomerForm.register("address")} />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">Village</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("village")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">District</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("district")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">City</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("city")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">Province</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...editCustomerForm.register("province")} type="text" />
                 </fieldset>
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Active</legend>
@@ -434,6 +450,10 @@ export default function Customers() {
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...newCustomerForm.register("bussinessName")} />
                 </fieldset>
                 <fieldset className="fieldset col-span-full">
+                  <legend className="fieldset-legend text-black">Company Name</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("companyName")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset col-span-full">
                   <legend className="fieldset-legend text-black">Mobile</legend>
                   <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("mobile")} type="text" />
                 </fieldset>
@@ -451,6 +471,22 @@ export default function Customers() {
                 <fieldset className="fieldset md:col-span-2">
                   <legend className="fieldset-legend text-black">Address</legend>
                   <textarea className="textarea w-full bg-white border border-gray-300 h-24" {...newCustomerForm.register("address")} />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">Village</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("village")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">District</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("district")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">City</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("city")} type="text" />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend text-black">Province</legend>
+                  <input className="input w-full bg-white border border-gray-300" {...newCustomerForm.register("province")} type="text" />
                 </fieldset>
               </div>
               {addFn.noResult || addFn.error ? <label className="input-validator text-red-900" htmlFor="user">something went wrong</label> : <></>}

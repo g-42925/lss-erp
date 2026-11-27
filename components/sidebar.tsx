@@ -257,6 +257,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               <SidebarItem href="/sales/p-invoice">Invoice</SidebarItem>
               <SidebarItem href="/sales/svc-invoice">Service Invoice</SidebarItem>
               <SidebarItem href="/sales/quotation">Quotation</SidebarItem>
+              <SidebarItem href="/sales/contract">Contracts</SidebarItem>
             </ParentMenu>
 
             {/* Finance */}
