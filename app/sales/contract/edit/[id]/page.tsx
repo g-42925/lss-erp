@@ -41,6 +41,7 @@ function EditContractContent() {
   const [loading, setLoading] = useState(false)
 
   // Form state
+  const [contractNumber, setContractNumber] = useState("")
   const [applicantName, setApplicantName] = useState("")
   const [customerId, setCustomerId] = useState("")
   const [productId, setProductId] = useState("")
@@ -73,6 +74,7 @@ function EditContractContent() {
             loadedCustomerList.find((cust: any) => cust._id === loadedCustomerId)?.companyName ||
             ""
 
+          setContractNumber(c.contractNumber || "")
           setApplicantName(c.applicantName || "")
           setCustomerId(loadedCustomerId)
           setProductId(c.productId?._id || c.productId || "")
@@ -159,6 +161,7 @@ function EditContractContent() {
   // ── Submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!contractNumber.trim()) { Swal.fire("Error", "Nomor kontrak harus diisi", "error"); return }
     if (!applicantName.trim()) { Swal.fire("Error", "Nama pemohon harus diisi", "error"); return }
     if (!productId) { Swal.fire("Error", "Pilih produk / layanan", "error"); return }
     if (!from || !to) { Swal.fire("Error", "Periode kontrak harus diisi", "error"); return }
@@ -167,6 +170,7 @@ function EditContractContent() {
     setLoading(true)
     try {
       const payload = {
+        contractNumber: contractNumber.trim(),
         applicantName: applicantName.trim(),
         customerId: customerId || undefined,
         productId,
@@ -230,6 +234,18 @@ function EditContractContent() {
         <section className="space-y-4 border-b pb-6">
           <h2 className="text-xl font-semibold">Informasi Dasar</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-control w-full md:col-span-2">
+              <label className="label"><span className="label-text">Nomor Kontrak <span className="text-error">*</span></span></label>
+              <input
+                type="text"
+                className="input input-bordered font-mono"
+                required
+                placeholder="Nomor kontrak"
+                value={contractNumber}
+                onChange={(e) => setContractNumber(e.target.value)}
+              />
+            </div>
+
             <div className="form-control w-full md:col-span-2">
               <label className="label"><span className="label-text">Nama Pemohon <span className="text-error">*</span></span></label>
               <input
